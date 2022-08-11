@@ -3,7 +3,7 @@ module github.com/awslabs/soci-snapshotter
 go 1.17
 
 require (
-	github.com/containerd/containerd v1.6.4
+	github.com/containerd/containerd v1.6.6
 	github.com/containerd/continuity v0.2.2
 	github.com/docker/cli v20.10.11+incompatible
 	github.com/docker/go-metrics v0.0.1
@@ -16,6 +16,7 @@ require (
 	github.com/moby/sys/mountinfo v0.5.0
 	github.com/opencontainers/go-digest v1.0.0
 	github.com/opencontainers/image-spec v1.0.3-0.20211202183452-c5a74bcca799
+	github.com/oras-project/artifacts-spec v1.0.0-draft.1.1
 	github.com/pkg/errors v0.9.1
 	github.com/prometheus/client_golang v1.11.1
 	github.com/rs/xid v1.3.0
@@ -23,7 +24,7 @@ require (
 	go.etcd.io/bbolt v1.3.6
 	golang.org/x/crypto v0.0.0-20210817164053-32db794688a5
 	golang.org/x/sync v0.0.0-20210220032951-036812b2e83c
-	golang.org/x/sys v0.0.0-20211216021012-1d35b9e2eb4e
+	golang.org/x/sys v0.0.0-20220412211240-33da011f77ad
 	google.golang.org/grpc v1.43.0
 	k8s.io/api v0.23.0
 	k8s.io/apimachinery v0.23.0
@@ -34,7 +35,7 @@ require (
 
 require (
 	github.com/Microsoft/go-winio v0.5.1 // indirect
-	github.com/Microsoft/hcsshim v0.9.2 // indirect
+	github.com/Microsoft/hcsshim v0.9.3 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/cespare/xxhash/v2 v2.1.2 // indirect
 	github.com/containerd/cgroups v1.0.3 // indirect
@@ -59,7 +60,6 @@ require (
 	github.com/modern-go/reflect2 v1.0.2 // indirect
 	github.com/onsi/ginkgo v1.16.4 // indirect
 	github.com/onsi/gomega v1.15.0 // indirect
-	github.com/oras-project/artifacts-spec v1.0.0-draft.1.1 // indirect
 	github.com/pelletier/go-toml v1.9.4 // indirect
 	github.com/prometheus/client_model v0.2.0 // indirect
 	github.com/prometheus/common v0.30.0 // indirect
