@@ -29,7 +29,7 @@ CMD=soci-snapshotter-grpc soci-cli extractor
 
 CMD_BINARIES=$(addprefix $(OUTDIR)/,$(CMD))
 
-.PHONY: all build check install-check-tools install uninstall clean test test-root test-all integration test-optimize benchmark test-kind test-cri-containerd test-cri-o test-criauth generate validate-generated test-k3s test-k3s-argo-workflow vendor
+.PHONY: all build check check-ltag check-dco install-check-tools install uninstall clean test test-root test-all integration test-optimize benchmark test-kind test-cri-containerd test-cri-o test-criauth generate validate-generated test-k3s test-k3s-argo-workflow vendor
 
 all: build
 
@@ -65,12 +65,21 @@ install-zlib:
 	@rm -f zlib-1.2.12.tar.gz
 
 # "check" depends "build". out/libindexer.a seems needed to process cgo directives
-check: build
+check: build check-ltag check-dco
 	GO111MODULE=$(GO111MODULE_VALUE) $(shell go env GOPATH)/bin/golangci-lint run
 	cd ./cmd ; GO111MODULE=$(GO111MODULE_VALUE) $(shell go env GOPATH)/bin/golangci-lint run
 
+check-ltag:
+	$(shell go env GOPATH)/bin/ltag -t ./.headers -check -v || (echo "The files listed above are missing a licence header"; exit 1)
+
+# the very first auto-commit doesn't have a DCO and the first real commit has a slightly different format. Exclude those when doing the check.
+check-dco:
+	$(shell go env GOPATH)/bin/git-validation -run DCO -range 1374574271f4f14126c1d33735339f765f44f0a0..HEAD
+
 install-check-tools:
 	@curl -sfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(shell go env GOPATH)/bin v1.45.2
+	go install github.com/kunalkushwaha/ltag@v0.2.3
+	go install github.com/vbatts/git-validation@v1.1.0
 
 install:
 	@echo "$@"
