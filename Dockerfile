@@ -32,7 +32,7 @@ RUN apt-get update -y && apt-get install -y libbtrfs-dev libseccomp-dev libz-dev
     cp $GOPATH/src/github.com/containerd/containerd/bin/* /usr/local/bin/
 RUN cd $GOPATH/src/github.com/awslabs/soci-snapshotter && \
     PREFIX=/out/ GO111MODULE=on make && \
-    cp $GOPATH/src/github.com/awslabs/soci-snapshotter/out/soci-cli /usr/local/bin/ && \
+    cp $GOPATH/src/github.com/awslabs/soci-snapshotter/out/soci /usr/local/bin/ && \
     cp $GOPATH/src/github.com/awslabs/soci-snapshotter/out/soci-snapshotter-grpc /usr/local/bin/ && \
     mkdir /etc/soci-snapshotter-grpc && \
     mkdir /etc/containerd/ && \

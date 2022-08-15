@@ -36,10 +36,10 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/awslabs/soci-snapshotter/cmd/soci-cli/commands"
-	"github.com/awslabs/soci-snapshotter/cmd/soci-cli/commands/image"
-	"github.com/awslabs/soci-snapshotter/cmd/soci-cli/commands/index"
-	"github.com/awslabs/soci-snapshotter/cmd/soci-cli/commands/ztoc"
+	"github.com/awslabs/soci-snapshotter/cmd/soci/commands"
+	"github.com/awslabs/soci-snapshotter/cmd/soci/commands/image"
+	"github.com/awslabs/soci-snapshotter/cmd/soci/commands/index"
+	"github.com/awslabs/soci-snapshotter/cmd/soci/commands/ztoc"
 	"github.com/containerd/containerd/cmd/ctr/commands/run"
 	"github.com/containerd/containerd/defaults"
 	"github.com/containerd/containerd/namespaces"
@@ -53,7 +53,7 @@ func init() {
 
 func main() {
 	app := cli.NewApp()
-	app.Name = "soci-cli"
+	app.Name = "soci"
 	app.Flags = []cli.Flag{
 		cli.StringFlag{
 			Name:   "address, a",
@@ -83,7 +83,7 @@ func main() {
 	}
 
 	if err := app.Run(os.Args); err != nil {
-		fmt.Fprintf(os.Stderr, "soci-cli: %v\n", err)
+		fmt.Fprintf(os.Stderr, "soci: %v\n", err)
 		os.Exit(1)
 	}
 }
