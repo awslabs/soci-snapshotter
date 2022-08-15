@@ -244,8 +244,8 @@ level = "debug"
 		}
 	}
 	export := func(sh *shell.Shell, image string, tarExportArgs []string) {
-		sh.X("soci-cli", "image", "rpull", "--user", registryCreds(), "--soci-index-digest", indexDigest, image)
-		sh.Pipe(nil, shell.C("soci-cli", "run", "--rm", "--snapshotter=soci", image, "test", "tar", "-c", "/usr"), tarExportArgs)
+		sh.X("soci", "image", "rpull", "--user", registryCreds(), "--soci-index-digest", indexDigest, image)
+		sh.Pipe(nil, shell.C("soci", "run", "--rm", "--snapshotter=soci", image, "test", "tar", "-c", "/usr"), tarExportArgs)
 	}
 
 	imageManifestJSON := fetchContentByDigest(sh, imageManifestDigest)
@@ -382,8 +382,8 @@ level = "debug"
 		}
 	}
 	export := func(sh *shell.Shell, image string, tarExportArgs []string) {
-		sh.X("soci-cli", "image", "rpull", "--user", registryCreds(), "--soci-index-digest", indexDigest, image)
-		sh.Pipe(nil, shell.C("soci-cli", "run", "--rm", "--snapshotter=soci", image, "test", "tar", "-c", "/usr"), tarExportArgs)
+		sh.X("soci", "image", "rpull", "--user", registryCreds(), "--soci-index-digest", indexDigest, image)
+		sh.Pipe(nil, shell.C("soci", "run", "--rm", "--snapshotter=soci", image, "test", "tar", "-c", "/usr"), tarExportArgs)
 	}
 
 	// NOTE: these tests must be executed sequentially.
@@ -603,11 +603,11 @@ insecure = true
 	//       We use this behaviour for testing mirroring & refleshing functionality.
 	rebootContainerd(t, sh, "", "")
 	sh.X("ctr", "i", "pull", "--user", registryCreds(), mirror(imageName).ref)
-	sh.X("soci-cli", "create", mirror(imageName).ref)
-	sh.X("soci-cli", "image", "rpull", "--user", registryCreds(), "--soci-index-digest", indexDigest, mirror(imageName).ref)
+	sh.X("soci", "create", mirror(imageName).ref)
+	sh.X("soci", "image", "rpull", "--user", registryCreds(), "--soci-index-digest", indexDigest, mirror(imageName).ref)
 	registryHostIP, registryAltHostIP := getIP(t, sh, registryHost), getIP(t, sh, registryAltHost)
 	export := func(image string) []string {
-		return shell.C("soci-cli", "run", "--rm", "--snapshotter=soci", image, "test", "tar", "-c", "/usr")
+		return shell.C("soci", "run", "--rm", "--snapshotter=soci", image, "test", "tar", "-c", "/usr")
 	}
 	sample := func(tarExportArgs ...string) {
 		sh.Pipe(nil, shell.C("ctr", "run", "--rm", mirror(imageName).ref, "test", "tar", "-c", "/usr"), tarExportArgs)
@@ -698,8 +698,8 @@ func buildSparseIndex(sh *shell.Shell, src imageInfo, minLayerSize int64) string
 	opts := encodeImageInfo(src)
 	indexDigest := sh.
 		X(append([]string{"ctr", "i", "pull"}, opts[0]...)...).
-		X("soci-cli", "create", src.ref, "--min-layer-size", fmt.Sprintf("%d", minLayerSize)).
-		O("soci-cli", "image", "list-indices", src.ref) // this will make SOCI artifact available locally
+		X("soci", "create", src.ref, "--min-layer-size", fmt.Sprintf("%d", minLayerSize)).
+		O("soci", "image", "list-indices", src.ref) // this will make SOCI artifact available locally
 	return string(indexDigest)
 }
 

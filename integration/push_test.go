@@ -90,10 +90,10 @@ level = "debug"
 	indexDigest := optimizeImage(sh, mirror(imageName))
 
 	artifactsStoreContentDigest := getSociLocalStoreContentDigest(sh)
-	sh.X("soci-cli", "push", "--user", registryCreds(), mirror(imageName).ref)
+	sh.X("soci", "push", "--user", registryCreds(), mirror(imageName).ref)
 	sh.X("rm", "-rf", "/var/lib/soci-snapshotter-grpc/content/blobs/sha256")
 
-	sh.X("soci-cli", "image", "rpull", "--user", registryCreds(), "--soci-index-digest", indexDigest, mirror(imageName).ref)
+	sh.X("soci", "image", "rpull", "--user", registryCreds(), "--soci-index-digest", indexDigest, mirror(imageName).ref)
 	artifactsStoreContentDigestAfterRPull := getSociLocalStoreContentDigest(sh)
 
 	if artifactsStoreContentDigest != artifactsStoreContentDigestAfterRPull {

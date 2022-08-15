@@ -25,7 +25,7 @@ REVISION=$(shell git rev-parse HEAD)$(shell if ! git diff --no-ext-diff --quiet 
 GO_LD_FLAGS=-ldflags '-s -w -X $(PKG)/version.Version=$(VERSION) -X $(PKG)/version.Revision=$(REVISION) $(GO_EXTRA_LDFLAGS)'
 SOCI_SNAPSHOTTER_PROJECT_ROOT ?= $(shell pwd)
 
-CMD=soci-snapshotter-grpc soci-cli extractor
+CMD=soci-snapshotter-grpc soci extractor
 
 CMD_BINARIES=$(addprefix $(OUTDIR)/,$(CMD))
 
@@ -40,8 +40,8 @@ FORCE:
 soci-snapshotter-grpc: FORCE
 	cd cmd/ ; GO111MODULE=$(GO111MODULE_VALUE) go build -o $(OUTDIR)/$@ $(GO_BUILD_FLAGS) $(GO_LD_FLAGS) -v ./soci-snapshotter-grpc
 
-soci-cli: FORCE
-	cd cmd/ ; GO111MODULE=$(GO111MODULE_VALUE) go build -o $(OUTDIR)/$@ $(GO_BUILD_FLAGS) $(GO_LD_FLAGS) -v ./soci-cli
+soci: FORCE
+	cd cmd/ ; GO111MODULE=$(GO111MODULE_VALUE) go build -o $(OUTDIR)/$@ $(GO_BUILD_FLAGS) $(GO_LD_FLAGS) -v ./soci
 
 soci_brewer:
 	cd cmd; go build -o ${OUTDIR}/$@ ${BUILD_FLAGS} ${LD_FLAGS} ./soci_brewer.go
@@ -106,7 +106,7 @@ vendor:
 test:
 	@echo "$@"
 	@GO111MODULE=$(GO111MODULE_VALUE) go test -race ./...
-	@cd ./cmd/soci-cli ; GO111MODULE=$(GO111MODULE_VALUE) go test -timeout 20m -race ./...
+	@cd ./cmd/soci ; GO111MODULE=$(GO111MODULE_VALUE) go test -timeout 20m -race ./...
 
 test-root:
 	@echo "$@"
