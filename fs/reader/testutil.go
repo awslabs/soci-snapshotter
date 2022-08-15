@@ -132,7 +132,6 @@ func testFileReadAt(t *testing.T, factory metadata.Store) {
 							if !bytes.Equal(wantData, respData) {
 								t.Errorf("off=%d, filesize=%d; read data{size=%d,data=%q}; want (size=%d,data=%q)",
 									offset, filesize, len(respData), string(respData), wantN, string(wantData))
-								// return
 							}
 						})
 					}
@@ -212,7 +211,15 @@ func testFailReader(t *testing.T, factory metadata.Store) {
 			if !found {
 				t.Fatalf("free ID not found")
 			}
-			_, err = mr.OpenFile(notexist)
+			spanManager := spanmanager.New(ztoc, sr, cache.NewMemoryCache())
+			vr, err := NewReader(mr, digest.FromString(""), spanManager)
+			if err != nil {
+				mr.Close()
+				t.Fatalf("failed to make new reader: %v", err)
+			}
+			r := vr.GetReader()
+
+			_, err = r.OpenFile(notexist)
 			if err == nil {
 				t.Errorf("succeeded to open file but wanted to fail")
 			}
@@ -222,7 +229,7 @@ func testFailReader(t *testing.T, factory metadata.Store) {
 			if err != nil {
 				t.Fatalf("failed to get %q: %v", testFileName, err)
 			}
-			fr, err := mr.OpenFile(tid)
+			fr, err := r.OpenFile(tid)
 			if err != nil {
 				t.Fatalf("failed to open file but wanted to succeed: %v", err)
 			}

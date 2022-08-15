@@ -390,7 +390,7 @@ func (m *SpanManager) uncompressSpan(s *span, compressedBuf []byte) ([]byte, err
 	bytes := make([]byte, uncompSize)
 
 	// Theoretically, a span can be empty. If that happens, just return an empty buffer.
-        if uncompSize == 0 {
+	if uncompSize == 0 {
 		return bytes, nil
 	}
 

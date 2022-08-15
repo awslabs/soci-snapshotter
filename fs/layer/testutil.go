@@ -53,9 +53,11 @@ import (
 	"testing"
 	"time"
 
+	"github.com/awslabs/soci-snapshotter/cache"
 	"github.com/awslabs/soci-snapshotter/fs/reader"
 	"github.com/awslabs/soci-snapshotter/fs/remote"
 	"github.com/awslabs/soci-snapshotter/fs/source"
+	spanmanager "github.com/awslabs/soci-snapshotter/fs/span-manager"
 	"github.com/awslabs/soci-snapshotter/metadata"
 	"github.com/awslabs/soci-snapshotter/soci"
 	"github.com/awslabs/soci-snapshotter/util/testutil"
@@ -69,8 +71,8 @@ import (
 )
 
 const (
-	sampleChunkSize = 3
-	sampleData1     = "0123456789"
+	sampleSpanSize = 3
+	sampleData1    = "0123456789"
 )
 
 func TestSuiteLayer(t *testing.T, store metadata.Store) {
@@ -82,83 +84,81 @@ var testStateLayerDigest = digest.FromString("dummy")
 var spanSizeCond = [3]int64{64, 128, 256}
 
 const (
-	sampleMiddleOffset = sampleChunkSize / 2
-	lastChunkOffset1   = sampleChunkSize * (int64(len(sampleData1)) / sampleChunkSize)
+	sampleMiddleOffset = sampleSpanSize / 2
+	lastSpanOffset1    = sampleSpanSize * (int64(len(sampleData1)) / sampleSpanSize)
 )
 
 func testNodeRead(t *testing.T, factory metadata.Store) {
 	sizeCond := map[string]int64{
-		"single_chunk": sampleChunkSize - sampleMiddleOffset,
-		"multi_chunks": sampleChunkSize + sampleMiddleOffset,
+		"single_span": sampleSpanSize - sampleMiddleOffset,
+		"multi_spans": sampleSpanSize + sampleMiddleOffset,
 	}
 	innerOffsetCond := map[string]int64{
 		"at_top":    0,
 		"at_middle": sampleMiddleOffset,
 	}
 	baseOffsetCond := map[string]int64{
-		"of_1st_chunk":  sampleChunkSize * 0,
-		"of_2nd_chunk":  sampleChunkSize * 1,
-		"of_last_chunk": lastChunkOffset1,
+		"of_1st_span":  sampleSpanSize * 0,
+		"of_2nd_span":  sampleSpanSize * 1,
+		"of_last_span": lastSpanOffset1,
 	}
 	fileSizeCond := map[string]int64{
-		"in_1_chunk_file":  sampleChunkSize * 1,
-		"in_2_chunks_file": sampleChunkSize * 2,
+		"in_1_span_file":   sampleSpanSize * 1,
+		"in_2_span_file":   sampleSpanSize * 2,
 		"in_max_size_file": int64(len(sampleData1)),
 	}
 	for sn, size := range sizeCond {
 		for in, innero := range innerOffsetCond {
 			for bo, baseo := range baseOffsetCond {
 				for fn, filesize := range fileSizeCond {
-					for _, spanSize := range spanSizeCond {
-						t.Run(fmt.Sprintf("reading_%s_%s_%s_%s_spanSize_%d", sn, in, bo, fn, spanSize), func(t *testing.T) {
-							if filesize > int64(len(sampleData1)) {
-								t.Fatal("sample file size is larger than sample data")
-							}
+					t.Run(fmt.Sprintf("reading_%s_%s_%s_%s", sn, in, bo, fn), func(t *testing.T) {
+						if filesize > int64(len(sampleData1)) {
+							t.Fatal("sample file size is larger than sample data")
+						}
 
-							wantN := size
-							offset := baseo + innero
+						wantN := size
+						offset := baseo + innero
 
-							if remain := filesize - offset; remain < wantN {
-								if wantN = remain; wantN < 0 {
-									wantN = 0
-								}
+						if remain := filesize - offset; remain < wantN {
+							if wantN = remain; wantN < 0 {
+								wantN = 0
 							}
+						}
 
-							// use constant string value as a data source.
-							want := strings.NewReader(sampleData1)
+						// use constant string value as a data source.
+						want := strings.NewReader(sampleData1)
 
-							// data we want to get.
-							wantData := make([]byte, wantN)
-							_, err := want.ReadAt(wantData, offset)
-							if err != nil && err != io.EOF {
-								t.Fatalf("want.ReadAt (offset=%d,size=%d): %v", offset, wantN, err)
-							}
+						// data we want to get.
+						wantData := make([]byte, wantN)
+						n, err := want.ReadAt(wantData, offset)
+						if err != nil && err != io.EOF {
+							t.Fatalf("want.ReadAt (offset=%d,size=%d): %v", offset, wantN, err)
+						}
 
-							// data we get from the file node.
-							f, closeFn := makeNodeReader(t, []byte(sampleData1)[:filesize], spanSize, factory)
-							defer closeFn()
-							tmpbuf := make([]byte, size) // fuse library can request bigger than remain
-							rr, errno := f.Read(context.Background(), tmpbuf, offset)
-							if errno != 0 {
-								t.Errorf("failed to read off=%d, size=%d, filesize=%d: %v", offset, size, filesize, err)
-								return
-							}
-							if rsize := rr.Size(); int64(rsize) != wantN {
-								t.Errorf("read size: %d; want: %d; passed %d", rsize, wantN, size)
-								return
-							}
-							tmpbuf = make([]byte, len(tmpbuf))
-							respData, fs := rr.Bytes(tmpbuf)
-							if fs != fuse.OK {
-								t.Errorf("failed to read result data for off=%d, size=%d, filesize=%d: %v", offset, size, filesize, err)
-							}
+						// data we get from the file node.
+						f, closeFn := makeNodeReader(t, []byte(sampleData1)[:filesize], sampleSpanSize, factory)
+						defer closeFn()
+						tmpbuf := make([]byte, size) // fuse library can request bigger than remain
+						rr, errno := f.Read(context.Background(), tmpbuf, offset)
+						if errno != 0 {
+							t.Errorf("failed to read off=%d, size=%d, filesize=%d: %v", offset, size, filesize, err)
+							return
+						}
+						if rsize := rr.Size(); int64(rsize) != wantN {
+							t.Errorf("read size: %d; want: %d; passed %d", rsize, wantN, size)
+							return
+						}
+						tmpbuf = make([]byte, len(tmpbuf))
+						respData, fs := rr.Bytes(tmpbuf)
+						if fs != fuse.OK {
+							t.Errorf("failed to read result data for off=%d, size=%d, filesize=%d: %v", offset, size, filesize, err)
+						}
 
-							if diff := cmp.Diff(wantData, respData); diff != "" {
-								t.Errorf("off=%d, filesize=%d; read data and want data mismatch. diff=%+v", offset, filesize, diff)
-								return
-							}
-						})
-					}
+						if diff := cmp.Diff(wantData, respData); diff != "" {
+							t.Errorf("off=%d, filesize=%d; read data and want data mismatch. diff=%+v", offset, filesize, diff)
+							return
+						}
+					})
 				}
 			}
 		}
@@ -172,23 +172,30 @@ func makeNodeReader(t *testing.T, contents []byte, spanSize int64, factory metad
 	if err != nil {
 		t.Fatalf("failed to build ztoc: %v", err)
 	}
-	r, err := factory(sr, ztoc)
+	mr, err := factory(sr, ztoc)
 	if err != nil {
 		t.Fatalf("failed to create reader: %v", err)
 	}
+	spanManager := spanmanager.New(ztoc, sr, cache.NewMemoryCache())
+	vr, err := reader.NewReader(mr, digest.FromString(""), spanManager)
+	if err != nil {
+		mr.Close()
+		t.Fatalf("failed to make new reader: %v", err)
+	}
+	r := vr.GetReader()
 	rootNode := getRootNode(t, r)
 	var eo fuse.EntryOut
 	inode, errno := rootNode.Lookup(context.Background(), testName, &eo)
 	if errno != 0 {
-		r.Close()
+		vr.Close()
 		t.Fatalf("failed to lookup test node; errno: %v", errno)
 	}
 	f, _, errno := inode.Operations().(fusefs.NodeOpener).Open(context.Background(), 0)
 	if errno != 0 {
-		r.Close()
+		vr.Close()
 		t.Fatalf("failed to open test file; errno: %v", errno)
 	}
-	return f.(*file), r.Close
+	return f.(*file), vr.Close
 }
 
 func testExistence(t *testing.T, factory metadata.Store) {
@@ -307,10 +314,17 @@ func testExistence(t *testing.T, factory metadata.Store) {
 					t.Fatalf("failed to build sample ztoc: %v", err)
 				}
 
-				r, err := factory(sr, ztoc)
+				mr, err := factory(sr, ztoc)
 				if err != nil {
 					t.Fatalf("failed to create reader: %v", err)
 				}
+				defer mr.Close()
+				spanManager := spanmanager.New(ztoc, sr, cache.NewMemoryCache())
+				vr, err := reader.NewReader(mr, digest.FromString(""), spanManager)
+				if err != nil {
+					t.Fatalf("failed to make new reader: %v", err)
+				}
+				r := vr.GetReader()
 				defer r.Close()
 				rootNode := getRootNode(t, r)
 				for _, want := range tt.want {
@@ -321,7 +335,7 @@ func testExistence(t *testing.T, factory metadata.Store) {
 	}
 }
 
-func getRootNode(t *testing.T, r metadata.Reader) *node {
+func getRootNode(t *testing.T, r reader.Reader) *node {
 	rootNode, err := newNode(testStateLayerDigest, &testReader{r}, &testBlobState{10, 5}, 100)
 	if err != nil {
 		t.Fatalf("failed to get root node: %v", err)
@@ -331,11 +345,11 @@ func getRootNode(t *testing.T, r metadata.Reader) *node {
 }
 
 type testReader struct {
-	r metadata.Reader
+	r reader.Reader
 }
 
 func (tr *testReader) OpenFile(id uint32) (io.ReaderAt, error) { return tr.r.OpenFile(id) }
-func (tr *testReader) Metadata() metadata.Reader               { return tr.r }
+func (tr *testReader) Metadata() metadata.Reader               { return tr.r.Metadata() }
 func (tr *testReader) Cache(opts ...reader.CacheOption) error  { return nil }
 func (tr *testReader) Close() error                            { return nil }
 func (tr *testReader) LastOnDemandReadTime() time.Time         { return time.Now() }

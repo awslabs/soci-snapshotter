@@ -92,7 +92,6 @@ type Reader interface {
 type File interface {
 	GetUncompressedFileSize() soci.FileSize
 	GetUncompressedOffset() soci.FileSize
-	ReadAt(p []byte, off int64) (n int, err error)
 }
 
 type Options struct {
