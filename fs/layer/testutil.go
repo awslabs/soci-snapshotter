@@ -130,7 +130,7 @@ func testNodeRead(t *testing.T, factory metadata.Store) {
 
 						// data we want to get.
 						wantData := make([]byte, wantN)
-						n, err := want.ReadAt(wantData, offset)
+						_, err := want.ReadAt(wantData, offset)
 						if err != nil && err != io.EOF {
 							t.Fatalf("want.ReadAt (offset=%d,size=%d): %v", offset, wantN, err)
 						}
