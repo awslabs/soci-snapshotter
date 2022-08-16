@@ -85,13 +85,13 @@ func TestReader(t *testing.T, factory ReaderFactory) {
 			},
 			want: []check{
 				numOfNodes(6), // root dir + 1 dir + 4 files
-				hasFile("foo", "foofoo", 6),
+				hasFile("foo", 6),
 				hasMode("foo", 0644|os.ModeSetuid),
-				hasFile("bar/baz.txt", "bazbazbaz", 9),
+				hasFile("bar/baz.txt", 9),
 				hasOwner("bar/baz.txt", 1000, 1000),
-				hasFile("xxx.txt", "xxxxx", 5),
+				hasFile("xxx.txt", 5),
 				hasModTime("xxx.txt", sampleTime),
-				hasFile("y.txt", "", 0),
+				hasFile("y.txt", 0),
 				// For details on the keys of Xattrs, see https://pkg.go.dev/archive/tar#Header
 				hasXattrs("y.txt", map[string]string{"SCHILY.xattr.testkey": "testval"}),
 			},
@@ -118,10 +118,10 @@ func TestReader(t *testing.T, factory ReaderFactory) {
 				hasOwner("foo/bar", 1000, 1000),
 				hasModTime("foo/a", sampleTime),
 				hasXattrs("foo/a/1", map[string]string{"SCHILY.xattr.testkey": "testval"}),
-				hasFile("foo/bar/baz.txt", "testtest", 8),
-				hasFile("foo/bar/xxxx", "x", 1),
-				hasFile("foo/bar/yyy", "yyy", 3),
-				hasFile("foo/a/1/2", "1111111111", 10),
+				hasFile("foo/bar/baz.txt", 8),
+				hasFile("foo/bar/xxxx", 1),
+				hasFile("foo/bar/yyy", 3),
+				hasFile("foo/a/1/2", 10),
 			},
 		},
 		{
@@ -138,14 +138,14 @@ func TestReader(t *testing.T, factory ReaderFactory) {
 			},
 			want: []check{
 				numOfNodes(6), // root dir + 2 dirs + 1 flie(linked) + 1 file(linked) + 1 symlink
-				hasFile("foo", "foofoo", 6),
+				hasFile("foo", 6),
 				hasOwner("foo", 1000, 1000),
-				hasFile("bar/foolink", "foofoo", 6),
+				hasFile("bar/foolink", 6),
 				hasOwner("bar/foolink", 1000, 1000),
-				hasFile("bar/foolink2", "foofoo", 6),
+				hasFile("bar/foolink2", 6),
 				hasOwner("bar/foolink2", 1000, 1000),
-				hasFile("bar/1/baz.txt", "testtest", 8),
-				hasFile("barlink", "testtest", 8),
+				hasFile("bar/1/baz.txt", 8),
+				hasFile("barlink", 8),
 				hasDirChildren("bar", "foolink", "foolink2", "1"),
 				hasDirChildren("bar/1", "baz.txt"),
 				sameNodes("foo", "bar/foolink", "bar/foolink2"),
@@ -167,7 +167,7 @@ func TestReader(t *testing.T, factory ReaderFactory) {
 			},
 			want: []check{
 				numOfNodes(6), // root dir + 1 file + 1 dir + 1 cdev + 1 bdev + 1 fifo
-				hasFile("bar/foo", "", 0),
+				hasFile("bar/foo", 0),
 				hasChardev("bar/cdev", 10, 11),
 				hasBlockdev("bar/bdev", 100, 101),
 				hasFifo("bar/fifo"),
@@ -414,7 +414,7 @@ func hasFifo(name string) check {
 	}
 }
 
-func hasFile(name, content string, size int64) check {
+func hasFile(name string, size int64) check {
 	return func(t *testing.T, r TestableReader) {
 		id, err := lookup(r, name)
 		if err != nil {
@@ -430,22 +430,17 @@ func hasFile(name, content string, size int64) check {
 			t.Errorf("file %q is not a regular file: %v", name, attr.Mode)
 			return
 		}
-		sr, err := r.OpenFile(id)
+		f, err := r.OpenFile(id)
 		if err != nil {
 			t.Errorf("cannot open file %q: %v", name, err)
 			return
 		}
-		data, err := io.ReadAll(io.NewSectionReader(sr, 0, attr.Size))
-		if err != nil {
-			t.Errorf("cannot read file %q: %v", name, err)
-			return
-		}
 		if attr.Size != size {
-			t.Errorf("unexpected size of file %q : %d (%q) want %d (%q)", name, attr.Size, string(data), size, content)
+			t.Errorf("unexpected size of file %q : %d want %d", name, attr.Size, size)
 			return
 		}
-		if string(data) != content {
-			t.Errorf("unexpected content of %q: %q want %q", name, string(data), content)
+		if size != int64(f.GetUncompressedFileSize()) {
+			t.Errorf("unexpected uncompressed file size of %q: %d want %d", name, f.GetUncompressedFileSize(), size)
 			return
 		}
 	}

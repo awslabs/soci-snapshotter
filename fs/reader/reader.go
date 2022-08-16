@@ -213,7 +213,7 @@ type file struct {
 func (sf *file) ReadAt(p []byte, offset int64) (int, error) {
 	uncompFileSize := sf.fr.GetUncompressedFileSize()
 	if soci.FileSize(offset) >= uncompFileSize {
-		return 0, fmt.Errorf("invalid offset")
+		return 0, io.EOF
 	}
 	expectedSize := uncompFileSize - soci.FileSize(offset)
 	if expectedSize > soci.FileSize(len(p)) {

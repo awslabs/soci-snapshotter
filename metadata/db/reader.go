@@ -154,9 +154,6 @@ func (r *reader) initRootNode(fsID string) error {
 			return err
 		}
 		r.fsID = fsID
-		if _, err := lbkt.CreateBucket(bucketKeyZtocs); err != nil {
-			return err
-		}
 		if _, err := lbkt.CreateBucket(bucketKeyMetadata); err != nil {
 			return err
 		}
@@ -185,34 +182,8 @@ func (r *reader) initRootNode(fsID string) error {
 
 func (r *reader) initNodes(ztoc *soci.Ztoc) error {
 	md := make(map[uint32]*metadataEntry)
-	ztocID, err := r.nextID()
-	if err != nil {
-		return err
-	}
 	if err := r.db.Batch(func(tx *bolt.Tx) (err error) {
-		ztocs, err := getZtocs(tx, r.fsID)
-		if err != nil {
-			return nil
-		}
-		ztocs.FillPercent = 1.0
-		ze := &ztocEntry{
-			id:                 ztocID,
-			IndexByteData:      ztoc.IndexByteData,
-			CompressedFileSize: ztoc.CompressedFileSize,
-			MaxSpanID:          ztoc.MaxSpanId,
-			Version:            ztoc.Version,
-		}
-		ztocBucket, err := ztocs.CreateBucket(encodeID(ze.id))
-		if err != nil {
-			return err
-		}
-		err = writeZtocEntry(ztocBucket, ze)
-		if err != nil {
-			return err
-		}
-
 		nodes, err := getNodes(tx, r.fsID)
-
 		if err != nil {
 			return err
 		}
@@ -288,7 +259,6 @@ func (r *reader) initNodes(ztoc *soci.Ztoc) error {
 				md[id].SpanStart = ent.SpanStart
 				md[id].SpanEnd = ent.SpanEnd
 				md[id].FirstSpanHasBits = strconv.FormatBool(ent.FirstSpanHasBits)
-				md[id].ZtocID = ztocID
 			}
 		}
 		return nil
@@ -537,7 +507,7 @@ func (r *reader) ForeachChild(id uint32, f func(name string, id uint32, mode os.
 // OpenFile returns a section reader of the specified node.
 func (r *reader) OpenFile(id uint32) (metadata.File, error) {
 	var size int64
-	var config *soci.FileExtractConfig
+	var uncompressedOffset soci.FileSize
 
 	if err := r.view(func(tx *bolt.Tx) error {
 		nodes, err := getNodes(tx, r.fsID)
@@ -553,57 +523,26 @@ func (r *reader) OpenFile(id uint32) (metadata.File, error) {
 		if !os.FileMode(uint32(m)).IsRegular() {
 			return fmt.Errorf("%q is not a regular file", id)
 		}
-
-		ztocs, err := getZtocs(tx, r.fsID)
-		if err != nil {
-			return errors.Wrapf(err, "ztocs bucket of %q not found for opening %d", r.fsID, id)
-		}
-
 		metadataEntries, err := getMetadata(tx, r.fsID)
 		if err != nil {
 			return errors.Wrapf(err, "metadata bucket of %q not found for opening %d", r.fsID, id)
 		}
 		if md, err := getMetadataBucketByID(metadataEntries, id); err == nil {
-			config, err = getFileExtractConfig(md, ztocs, soci.FileSize(size))
-			if err != nil {
-				return errors.Wrapf(err, "can't get the file extract config for %d", id)
-			}
+			uncompressedOffset = getUncompressedOffset(md)
 		}
 		return nil
 	}); err != nil {
 		return nil, err
 	}
-	fr := &fileReader{
-		r:             r,
-		extractConfig: config,
-	}
-	return &file{io.NewSectionReader(fr, 0, size), config.UncompressedOffset, soci.FileSize(size)}, nil
+	return &file{uncompressedOffset, soci.FileSize(size)}, nil
 }
 
-func getFileExtractConfig(md *bolt.Bucket, ztocs *bolt.Bucket, uncompressedSize soci.FileSize) (*soci.FileExtractConfig, error) {
-	var config soci.FileExtractConfig
-	config.UncompressedSize = uncompressedSize
+func getUncompressedOffset(md *bolt.Bucket) soci.FileSize {
 	ucompOffset, _ := binary.Varint(md.Get(bucketKeyUncompressedOffset))
-	config.UncompressedOffset = soci.FileSize(ucompOffset)
-	spanStart, _ := binary.Varint(md.Get(bucketKeySpanStart))
-	config.SpanStart = soci.SpanId(spanStart)
-	spanEnd, _ := binary.Varint(md.Get(bucketKeySpanEnd))
-	config.SpanEnd = soci.SpanId(spanEnd)
-	config.FirstSpanHasBits = string(md.Get(bucketKeyFirstSpanHasBits))
-	ztoc, err := getZtocBucketByID(ztocs, decodeID(md.Get(bucketKeyZtocID)))
-	if err != nil {
-		return nil, err
-	}
-	config.IndexByteData = ztoc.Get(bucketKeyIndexByteData)
-	compFileSize, _ := binary.Uvarint(ztoc.Get(bucketKeyCompressedFileSize))
-	config.CompressedFileSize = soci.FileSize(compFileSize)
-	maxSpanID, _ := binary.Uvarint(ztoc.Get(bucketKeyMaxSpanID))
-	config.MaxSpanId = soci.SpanId(maxSpanID)
-	return &config, nil
+	return soci.FileSize(ucompOffset)
 }
 
 type file struct {
-	io.ReaderAt
 	uncompressedOffset soci.FileSize
 	uncompressedSize   soci.FileSize
 }
@@ -616,27 +555,6 @@ func (fr *file) GetUncompressedOffset() soci.FileSize {
 	return fr.uncompressedOffset
 }
 
-type fileReader struct {
-	r             *reader
-	extractConfig *soci.FileExtractConfig
-}
-
-// ReadAt reads file payload of this file.
-func (fr *fileReader) ReadAt(p []byte, off int64) (n int, err error) {
-	if soci.FileSize(off) >= fr.extractConfig.UncompressedSize {
-		return 0, io.EOF
-	}
-	if off < 0 {
-		return 0, errors.New("invalid offset")
-	}
-	decompressedFile, err := soci.ExtractFile(fr.r.sr, fr.extractConfig)
-	if err != nil {
-		return 0, err
-	}
-	return copy(p, decompressedFile[off:]), nil
-}
-
-// TODO: share it with memory pkg
 func attrFromZtocEntry(src *soci.FileMetadata, dst *metadata.Attr) *metadata.Attr {
 	dst.Size = int64(src.UncompressedSize)
 	dst.ModTime = src.ModTime

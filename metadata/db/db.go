@@ -73,13 +73,6 @@ import (
 //         - spanStart : <varint>           : the first span for the data.
 //         - spanEnd : <varint>             : the last span for the data.
 //         - firstSpanHasBits : <varint>    : flag for if there is partial uncompressed data that is stored in the previous byte.
-//         - ztocid : <varint>              : id of zTOC associated with the node.
-//     - ztocs
-//       - *ztoc id*                        : the unique id for zTOC.
-//         - version : <string>             : the version of zTOC.
-//         - indexByteData : <blob>         : index to decompress the files this zTOC refers to.
-//         - compressedFileSize : <varint>  : the size of the compressed layer file.
-//         - maxSpanId : <varint>           : the total number of spans in zTOC - 1.
 
 var (
 	bucketKeyFilesystems = []byte("filesystems")
@@ -107,14 +100,6 @@ var (
 	bucketKeySpanStart          = []byte("spanStart")
 	bucketKeySpanEnd            = []byte("spanEnd")
 	bucketKeyFirstSpanHasBits   = []byte("firstSpanHasBits")
-
-	// This belongs to ztoc
-	bucketKeyZtocs              = []byte("ztocs")
-	bucketKeyZtocID             = []byte("ztocId")
-	bucketKeyVersion            = []byte("version")
-	bucketKeyIndexByteData      = []byte("indexByteData")
-	bucketKeyCompressedFileSize = []byte("compressedFileSize")
-	bucketKeyMaxSpanID          = []byte("maxSpanId")
 )
 
 type childEntry struct {
@@ -128,32 +113,6 @@ type metadataEntry struct {
 	SpanStart          soci.SpanId
 	SpanEnd            soci.SpanId
 	FirstSpanHasBits   string
-	ZtocID             uint32
-}
-
-type ztocEntry struct {
-	id                 uint32
-	IndexByteData      []byte
-	CompressedFileSize soci.FileSize
-	MaxSpanID          soci.SpanId
-	MaxSpans           soci.SpanId
-	Version            string
-}
-
-func getZtocs(tx *bolt.Tx, fsID string) (*bolt.Bucket, error) {
-	filesystems := tx.Bucket(bucketKeyFilesystems)
-	if filesystems == nil {
-		return nil, fmt.Errorf("fs %q not found: no fs is registered", fsID)
-	}
-	lbkt := filesystems.Bucket([]byte(fsID))
-	if lbkt == nil {
-		return nil, fmt.Errorf("fs bucket for %q not found", fsID)
-	}
-	ztocs := lbkt.Bucket(bucketKeyZtocs)
-	if ztocs == nil {
-		return nil, fmt.Errorf("ztocs bucket for %q not found", fsID)
-	}
-	return ztocs, nil
 }
 
 func getNodes(tx *bolt.Tx, fsID string) (*bolt.Bucket, error) {
@@ -186,14 +145,6 @@ func getMetadata(tx *bolt.Tx, fsID string) (*bolt.Bucket, error) {
 		return nil, fmt.Errorf("metadata bucket for fs %q not found", fsID)
 	}
 	return md, nil
-}
-
-func getZtocBucketByID(ztocs *bolt.Bucket, id uint32) (*bolt.Bucket, error) {
-	b := ztocs.Bucket(encodeID(id))
-	if b == nil {
-		return nil, fmt.Errorf("ztocs bucket for %d not found", id)
-	}
-	return b, nil
 }
 
 func getNodeBucketByID(nodes *bolt.Bucket, id uint32) (*bolt.Bucket, error) {
@@ -367,22 +318,6 @@ func readChild(md *bolt.Bucket, base string) (uint32, error) {
 	return decodeID(eid), nil
 }
 
-func writeZtocEntry(ztocBucket *bolt.Bucket, ze *ztocEntry) error {
-	if err := ztocBucket.Put(bucketKeyIndexByteData, ze.IndexByteData); err != nil {
-		return errors.Wrapf(err, "failed to set IndexByteData value")
-	}
-	if err := putSpanID(ztocBucket, bucketKeyMaxSpanID, ze.MaxSpanID); err != nil {
-		return errors.Wrapf(err, "failed to set MaxSpanID value %d", ze.MaxSpanID)
-	}
-	if err := ztocBucket.Put(bucketKeyVersion, []byte(ze.Version)); err != nil {
-		return errors.Wrapf(err, "failed to set Version %s", ze.Version)
-	}
-	if err := putFileSize(ztocBucket, bucketKeyCompressedFileSize, ze.CompressedFileSize); err != nil {
-		return errors.Wrapf(err, "failed to set CompressedFileSize value %d", ze.CompressedFileSize)
-	}
-	return nil
-}
-
 func writeMetadataEntry(md *bolt.Bucket, m *metadataEntry) error {
 	if len(m.children) > 0 {
 		var firstChildName string
@@ -433,9 +368,6 @@ func writeMetadataEntry(md *bolt.Bucket, m *metadataEntry) error {
 	}
 	if err := md.Put(bucketKeyFirstSpanHasBits, []byte(m.FirstSpanHasBits)); err != nil {
 		return errors.Wrapf(err, "failed to set SpanEnd value %s", m.FirstSpanHasBits)
-	}
-	if err := md.Put(bucketKeyZtocID, encodeID(m.ZtocID)); err != nil {
-		return errors.Wrapf(err, "failed to put ZtocId %d", m.ZtocID)
 	}
 	return nil
 }
