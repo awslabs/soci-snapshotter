@@ -17,8 +17,6 @@
 package commands
 
 import (
-	"os"
-
 	"github.com/awslabs/soci-snapshotter/fs/config"
 	"github.com/awslabs/soci-snapshotter/soci"
 	"github.com/containerd/containerd/cmd/ctr/commands"
@@ -57,11 +55,6 @@ var CreateCommand = cli.Command{
 		srcRef := cliContext.Args().Get(0)
 		if srcRef == "" {
 			return errors.New("source image needs to be specified")
-		}
-
-		err := os.MkdirAll(config.SociIndexDirectory, 0755)
-		if err != nil {
-			return err
 		}
 
 		client, ctx, cancel, err := commands.NewClient(cliContext)
