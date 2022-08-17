@@ -23,9 +23,7 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"path"
 
-	"github.com/awslabs/soci-snapshotter/fs/config"
 	"github.com/containerd/containerd/content"
 	"github.com/containerd/containerd/images"
 	"github.com/containerd/containerd/log"
@@ -262,7 +260,7 @@ func buildSociLayer(ctx context.Context, cs content.Store, desc ocispec.Descript
 		Digest:         ztocDesc.Digest.String(),
 		OriginalDigest: desc.Digest.String(),
 		Type:           ArtifactEntryTypeLayer,
-		Location:       path.Join(config.SociIndexDirectory, desc.Digest.String()),
+		Location:       desc.Digest.String(),
 	}
 	err = writeArtifactEntry(entry)
 	if err != nil {
@@ -331,7 +329,7 @@ func WriteSociIndex(ctx context.Context, indexWithMetadata IndexWithMetadata, st
 		ImageDigest:    indexWithMetadata.ImageDigest.String(),
 		Platform:       platforms.Format(indexWithMetadata.Platform),
 		Type:           ArtifactEntryTypeIndex,
-		Location:       path.Join(config.SociIndexDirectory, indexWithMetadata.Index.Subject.Digest.String()),
+		Location:       indexWithMetadata.Index.Subject.Digest.String(),
 		Size:           size,
 	}
 	return writeArtifactEntry(entry)
