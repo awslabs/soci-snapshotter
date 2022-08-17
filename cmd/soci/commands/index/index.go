@@ -23,5 +23,6 @@ var Command = cli.Command{
 	Usage: "manage indices",
 	Subcommands: []cli.Command{
 		listCommand,
+		infoCommand,
 	},
 }
