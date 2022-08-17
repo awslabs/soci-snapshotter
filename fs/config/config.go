@@ -45,9 +45,6 @@ const (
 	// TargetSociIndexDigestLabel is a snapshot label key that contains the soci index digest
 	TargetSociIndexDigestLabel = "com.amazon.soci/remote/soci.index.digest"
 
-	// Local directory where SOCI indexes are stored
-	SociIndexDirectory = "soci/"
-
 	// Default path to OCI-compliant CAS
 	SociContentStorePath = "/var/lib/soci-snapshotter-grpc/content/"
 
