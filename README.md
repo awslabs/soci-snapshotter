@@ -68,9 +68,9 @@ SOCI reads container images from *Containerd*'s content store.
 
 ```shell
 $ ctr i tag ${IMAGE} ${REGISTRY}/${IMAGE}
-$ soci create-index ${IMAGE}
+$ soci create ${IMAGE}
 $ ctr i push --user ${REG_USER}:${REG_PASS} ${REGISTRY}/${REPO}
-$ soci push-index --user ${REG_USER}:${REG_PASS} ${REGISTRY}/${REPO}
+$ soci push --user ${REG_USER}:${REG_PASS} ${REGISTRY}/${REPO}
 ```
 
 ### Run the SOCI snapshotter plugin
