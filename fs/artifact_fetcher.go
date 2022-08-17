@@ -217,10 +217,7 @@ func FetchSociArtifacts(ctx context.Context, imageRef, indexDigest string, store
 
 	eg, ctx := errgroup.WithContext(ctx)
 	for _, blob := range index.Blobs {
-		if blob == nil {
-			continue
-		}
-		blob := *blob
+		blob := blob
 		eg.Go(func() error {
 			rc, local, err := fetcher.Fetch(ctx, blob)
 			if err != nil {

@@ -209,10 +209,8 @@ func (fs *filesystem) fetchSociArtifacts(ctx context.Context, imageRef, indexDig
 
 func (fs *filesystem) populateImageLayerToSociMapping(sociIndex *soci.SociIndex) {
 	for _, desc := range sociIndex.Blobs {
-		if desc != nil {
-			ociDigest := desc.Annotations[soci.IndexAnnotationImageLayerDigest]
-			fs.imageLayerToSociDesc[ociDigest] = *desc
-		}
+		ociDigest := desc.Annotations[soci.IndexAnnotationImageLayerDigest]
+		fs.imageLayerToSociDesc[ociDigest] = desc
 	}
 }
 

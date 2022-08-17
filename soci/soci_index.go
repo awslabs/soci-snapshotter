@@ -64,7 +64,7 @@ type SociIndex struct {
 	MediaType    string `json:"mediaType"`
 	ArtifactType string `json:"artifactType"`
 	// descriptors of ztocs
-	Blobs []*ocispec.Descriptor `json:"blobs,omitempty"`
+	Blobs []ocispec.Descriptor `json:"blobs,omitempty"`
 	// descriptor of image manifest
 	Subject ocispec.Descriptor `json:"subject,omitempty"`
 
@@ -172,6 +172,13 @@ func BuildSociIndex(ctx context.Context, cs content.Store, img images.Image, spa
 		return nil, err
 	}
 
+	ztocsDesc := make([]ocispec.Descriptor, 0, len(manifest.Layers))
+	for _, desc := range sociLayersDesc {
+		if desc != nil {
+			ztocsDesc = append(ztocsDesc, *desc)
+		}
+	}
+
 	annotations := map[string]string{
 		IndexAnnotationBuildToolIdentifier: config.buildToolIdentifier,
 		IndexAnnotationBuildToolVersion:    config.buildToolVersion,
@@ -180,7 +187,7 @@ func BuildSociIndex(ctx context.Context, cs content.Store, img images.Image, spa
 	sociIndex := SociIndex{
 		MediaType:    sociIndexMediaType,
 		ArtifactType: SociIndexArtifactType,
-		Blobs:        sociLayersDesc,
+		Blobs:        ztocsDesc,
 		Subject: ocispec.Descriptor{
 			MediaType:   imgManifestDesc.MediaType,
 			Digest:      imgManifestDesc.Digest,

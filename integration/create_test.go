@@ -106,22 +106,11 @@ func TestSociCreateSparseIndex(t *testing.T) {
 			}
 
 			blobs := sociIndex.Blobs
-			notNilBlobCount := 0
-			for _, b := range blobs {
-				if b != nil {
-					notNilBlobCount++
-				}
-			}
-			if notNilBlobCount != len(includedLayers) {
-				t.Fatalf("unexpected blob count; expected=%v, got=%v", len(includedLayers), notNilBlobCount)
+			if len(blobs) != len(includedLayers) {
+				t.Fatalf("unexpected blob count; expected=%v, got=%v", len(includedLayers), len(blobs))
 			}
 
 			for i, blob := range blobs {
-				if blob == nil {
-					continue
-				}
-				blob := *blob
-
 				blobContent := fetchContentFromPath(sh, blobStorePath+"/"+trimSha256Prefix(blob.Digest.String()))
 				blobSize := int64(len(blobContent))
 				blobDigest := digest.FromBytes(blobContent)
@@ -205,11 +194,6 @@ func TestSociCreate(t *testing.T) {
 			blobs := sociIndex.Blobs
 
 			for _, blob := range blobs {
-				if blob == nil {
-					continue
-				}
-				blob := *blob
-
 				blobContent := fetchContentFromPath(sh, blobStorePath+"/"+trimSha256Prefix(blob.Digest.String()))
 				blobSize := int64(len(blobContent))
 				blobDigest := digest.FromBytes(blobContent)
