@@ -303,10 +303,10 @@ func (m *SpanManager) getSpanFromCache(spanId string, offset, size soci.FileSize
 }
 
 func (m *SpanManager) verifySpanContents(compressedData []byte, id soci.SpanId) error {
-	actualDigest := digest.FromBytes(compressedData)
-	expectedDigest := m.ztoc.ZtocInfo.SpanDigests[id]
-	if actualDigest != expectedDigest {
-		return ErrIncorrectSpanDigest
+	actual := digest.FromBytes(compressedData)
+	expected := m.ztoc.ZtocInfo.SpanDigests[id]
+	if actual != expected {
+		return fmt.Errorf("expected %v but got %v: %w", expected, actual, ErrIncorrectSpanDigest)
 	}
 	return nil
 }
