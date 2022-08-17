@@ -90,3 +90,7 @@ the changes were fundamental enough that the decision was made to create soci-sn
 project.  Soci-snapshotter builds on stargz's success and innovative ideas.  Long term, this project intends
 and hopes to join [containerd](https://github.com/containerd/containerd) as a non-core project and intends to
 follow CNCF best practices.
+
+## Security disclosures
+
+If you think you’ve found a potential security issue, please do not post it in the Issues.  Instead, please follow the instructions [here](https://aws.amazon.com/security/vulnerability-reporting/) or [email AWS security directly](mailto:aws-security@amazon.com).
