@@ -40,7 +40,7 @@ func TestPrefetcher(t *testing.T) {
 	}
 	ztoc, r, err := soci.BuildZtocReader(tarEntries, gzip.BestCompression, int64(spanSize))
 	if err != nil {
-		t.Fatal("failed to create ztoc: %w", err)
+		t.Fatalf("failed to create ztoc: %v", err)
 	}
 
 	spanCache := cache.NewMemoryCache()
@@ -50,7 +50,7 @@ func TestPrefetcher(t *testing.T) {
 
 	err = prefetcher.prefetch()
 	if err != nil {
-		t.Fatal("prefetch failed: %w", err)
+		t.Fatalf("prefetch failed: %v", err)
 	}
 }
 
