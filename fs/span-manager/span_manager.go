@@ -364,7 +364,7 @@ func (m *SpanManager) resolveSpanFromCache(s *span, offsetStart, size soci.FileS
 		if err != nil {
 			return nil, err
 		}
-		return bytes.NewReader(uncompSpanBuf[offsetStart:]), nil
+		return bytes.NewReader(uncompSpanBuf[offsetStart:offsetStart+size]), nil
 	}
 	return nil, ErrSpanNotAvailable
 }
