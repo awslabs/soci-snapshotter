@@ -135,35 +135,43 @@ func TestSpanManagerCache(t *testing.T) {
 	cache := cache.NewMemoryCache()
 	defer cache.Close()
 	m := New(ztoc, r, cache)
-	m.addSpanToCache("spanId", content)
+	spanID := 0
+	err = m.ResolveSpan(soci.SpanId(spanID), r)
+	if err != nil {
+		t.Fatalf("failed to resolve span 0: %v", err)
+	}
 
 	testCases := []struct {
 		name   string
 		offset soci.FileSize
+		size   soci.FileSize
 	}{
 		{
 			name:   "offset 0",
 			offset: 0,
+			size:   100,
 		},
 		{
 			name:   "offset 20000",
 			offset: 20000,
+			size:   500,
 		},
 	}
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			buf := make([]byte, spanSize-tc.offset)
-			r, err := m.getSpanFromCache("spanId", tc.offset, spanSize-tc.offset)
+			// Test resolveSpanFromCache
+			s := m.spans[spanID]
+			spanR, err := m.resolveSpanFromCache(s, tc.offset, tc.size)
 			if err != nil {
-				t.Fatalf("error getting span content from cache")
+				t.Fatalf("error resolving span from cache")
 			}
-			_, err = r.Read(buf)
+			spanContent, err := io.ReadAll(spanR)
 			if err != nil && err != io.EOF {
 				t.Fatalf("error reading span content")
 			}
-			if !bytes.Equal(buf, content[tc.offset:]) {
-				t.Fatalf("span content from cache is not expected")
+			if tc.size != soci.FileSize(len(spanContent)) {
+				t.Fatalf("size of span content from cache is not expected")
 			}
 		})
 	}
