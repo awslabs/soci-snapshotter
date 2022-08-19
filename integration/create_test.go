@@ -98,10 +98,10 @@ func TestSociCreateSparseIndex(t *testing.T) {
 				t.Fatalf("cannot unmarshal index manifest: %v", err)
 			}
 
-			includedLayers := make(map[int]ocispec.Descriptor)
-			for i, layerBlob := range imageManifest.Layers {
-				if layerBlob.Size >= tt.minLayerSize {
-					includedLayers[i] = layerBlob
+			includedLayers := make(map[string]struct{})
+			for _, layer := range imageManifest.Layers {
+				if layer.Size >= tt.minLayerSize {
+					includedLayers[layer.Digest.String()] = struct{}{}
 				}
 			}
 
@@ -110,13 +110,14 @@ func TestSociCreateSparseIndex(t *testing.T) {
 				t.Fatalf("unexpected blob count; expected=%v, got=%v", len(includedLayers), len(blobs))
 			}
 
-			for i, blob := range blobs {
+			for _, blob := range blobs {
 				blobContent := fetchContentFromPath(sh, blobStorePath+"/"+trimSha256Prefix(blob.Digest.String()))
 				blobSize := int64(len(blobContent))
 				blobDigest := digest.FromBytes(blobContent)
 				layerDigest := blob.Annotations[soci.IndexAnnotationImageLayerDigest]
-				if layerDigest != includedLayers[i].Digest.String() {
-					t.Fatalf("unexpected layer digest; expected=%s, got=%s", includedLayers[i].Digest.String(), layerDigest)
+
+				if _, ok := includedLayers[layerDigest]; !ok {
+					t.Fatalf("found ztoc for layer %v in index but should not have built ztoc for it", layerDigest)
 				}
 
 				if blobSize != blob.Size {
