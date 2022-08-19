@@ -25,7 +25,7 @@ REVISION=$(shell git rev-parse HEAD)$(shell if ! git diff --no-ext-diff --quiet 
 GO_LD_FLAGS=-ldflags '-s -w -X $(PKG)/version.Version=$(VERSION) -X $(PKG)/version.Revision=$(REVISION) $(GO_EXTRA_LDFLAGS)'
 SOCI_SNAPSHOTTER_PROJECT_ROOT ?= $(shell pwd)
 
-CMD=soci-snapshotter-grpc soci extractor
+CMD=soci-snapshotter-grpc soci
 
 CMD_BINARIES=$(addprefix $(OUTDIR)/,$(CMD))
 
@@ -45,10 +45,6 @@ soci: FORCE
 
 soci_brewer:
 	cd cmd; go build -o ${OUTDIR}/$@ ${BUILD_FLAGS} ${LD_FLAGS} ./soci_brewer.go
-
-extractor:
-	cd cmd; CGO_CFLAGS="${UTIL_CFLAGS}" CGO_LDFLAGS="${UTIL_LDFLAGS}" \
-		go build -o ${OUTDIR}/$@ ${BUILD_FLAGS} ${LD_FLAGS} ./utils/$@/$@.go
 
 pre-build:
 	rm -rf ${OUTDIR}

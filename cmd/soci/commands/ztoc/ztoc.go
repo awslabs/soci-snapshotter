@@ -23,5 +23,6 @@ var Command = cli.Command{
 	Usage: "manage ztocs",
 	Subcommands: []cli.Command{
 		infoCommand,
+		getFileCommand,
 	},
 }

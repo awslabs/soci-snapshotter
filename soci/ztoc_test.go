@@ -24,7 +24,6 @@ import (
 	"path/filepath"
 	"reflect"
 	"sort"
-	"strconv"
 	"testing"
 
 	"github.com/opencontainers/go-digest"
@@ -110,7 +109,7 @@ func TestDecompress(t *testing.T) {
 					UncompressedOffset: m.UncompressedOffset,
 					SpanStart:          m.SpanStart,
 					SpanEnd:            m.SpanEnd,
-					FirstSpanHasBits:   strconv.FormatBool(m.FirstSpanHasBits),
+					FirstSpanHasBits:   m.FirstSpanHasBits,
 					IndexByteData:      ztoc.IndexByteData,
 					CompressedFileSize: ztoc.CompressedFileSize,
 					MaxSpanId:          ztoc.MaxSpanId,
