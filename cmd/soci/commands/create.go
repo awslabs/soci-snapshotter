@@ -42,8 +42,8 @@ var CreateCommand = cli.Command{
 	Flags: []cli.Flag{
 		cli.Int64Flag{
 			Name:  "span-size",
-			Usage: "span size of index. Default is 1 MiB",
-			Value: 1 << 20,
+			Usage: "span size of index. Default is 4 MiB",
+			Value: 1 << 22,
 		},
 		cli.Int64Flag{
 			Name:  "min-layer-size",
