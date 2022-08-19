@@ -82,7 +82,7 @@ type FileExtractConfig struct {
 	UncompressedOffset FileSize
 	SpanStart          SpanId
 	SpanEnd            SpanId
-	FirstSpanHasBits   string
+	FirstSpanHasBits   bool
 	IndexByteData      []byte
 	CompressedFileSize FileSize
 	MaxSpanId          SpanId
@@ -127,7 +127,7 @@ func ExtractFile(r *io.SectionReader, config *FileExtractConfig) ([]byte, error)
 
 	start := starts[0]
 	// Fetch all span data in parallel
-	if config.FirstSpanHasBits == "true" {
+	if config.FirstSpanHasBits {
 		bufSize += 1
 		start -= 1
 	}
@@ -140,7 +140,7 @@ func ExtractFile(r *io.SectionReader, config *FileExtractConfig) ([]byte, error)
 		eg.Go(func() error {
 			rangeStart := starts[j]
 			rangeEnd := ends[j]
-			if j == 0 && config.FirstSpanHasBits == "true" {
+			if j == 0 && config.FirstSpanHasBits {
 				rangeStart -= 1
 			}
 			n, err := r.ReadAt(buf[rangeStart-start:rangeEnd-start+1], int64(rangeStart)) // need to convert rangeStart to int64 to use in ReadAt
