@@ -224,16 +224,16 @@ func TestStateTransition(t *testing.T) {
 			if tc.isPrefetch {
 				err := m.ResolveSpan(tc.spanID, r)
 				if err != nil {
-					t.Fatalf("failed resolving the span for prefetch")
+					t.Fatalf("failed resolving the span for prefetch: %v", err)
 				}
 				state := s.state.Load().(spanState)
 				if state != fetched {
 					t.Fatalf("failed transitioning to Fetched state")
 				}
 			} else {
-				_, err := m.GetSpanContent(tc.spanID, 0, s.endUncompOffset, s.endUncompOffset-s.startUncompOffset)
+				_, err := m.GetSpanContent(tc.spanID, 0, s.endUncompOffset-s.startUncompOffset, s.endUncompOffset-s.startUncompOffset)
 				if err != nil {
-					t.Fatalf("failed getting the span for on-demand fetch")
+					t.Fatalf("failed getting the span for on-demand fetch: %v", err)
 				}
 				state := s.state.Load().(spanState)
 				if state != uncompressed {
