@@ -590,6 +590,7 @@ struct gzip_index* blob_to_index(void* buf)
         cur += 8;
         memcpy(&pt->out, cur, 8);
         cur += 8;
+        memset(&pt->bits, 0, sizeof(int));
         memcpy(&pt->bits, cur, 1);
         cur += 1;
         memcpy(&pt->window, cur, WINSIZE);
