@@ -74,7 +74,7 @@ check-ltag:
 
 # the very first auto-commit doesn't have a DCO and the first real commit has a slightly different format. Exclude those when doing the check.
 check-dco:
-	$(shell go env GOPATH)/bin/git-validation -run DCO -range c5989e95ccd8dede6f39c7197a9db97131ac257b..HEAD
+	$(shell go env GOPATH)/bin/git-validation -run DCO -range 1628d6eac6cb9383f9538d0bb85de8a007b4f9a3..HEAD
 
 install-check-tools:
 	@curl -sfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(shell go env GOPATH)/bin v1.45.2
