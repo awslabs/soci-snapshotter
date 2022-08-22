@@ -132,10 +132,12 @@ type Resolver struct {
 	config                config.Config
 	metadataStore         metadata.Store
 	artifactStore         content.Storage
+	overlayOpaqueType     OverlayOpaqueType
 }
 
 // NewResolver returns a new layer resolver.
-func NewResolver(root string, backgroundTaskManager *task.BackgroundTaskManager, cfg config.Config, resolveHandlers map[string]remote.Handler, metadataStore metadata.Store, artifactStore content.Storage) (*Resolver, error) {
+func NewResolver(root string, backgroundTaskManager *task.BackgroundTaskManager, cfg config.Config, resolveHandlers map[string]remote.Handler,
+	metadataStore metadata.Store, artifactStore content.Storage, overlayOpaqueType OverlayOpaqueType) (*Resolver, error) {
 	resolveResultEntry := cfg.ResolveResultEntry
 	if resolveResultEntry == 0 {
 		resolveResultEntry = defaultResolveResultEntry
@@ -177,6 +179,7 @@ func NewResolver(root string, backgroundTaskManager *task.BackgroundTaskManager,
 		resolveLock:           new(namedmutex.NamedMutex),
 		metadataStore:         metadataStore,
 		artifactStore:         artifactStore,
+		overlayOpaqueType:     overlayOpaqueType,
 	}, nil
 }
 
@@ -521,7 +524,7 @@ func (l *layer) RootNode(baseInode uint32) (fusefs.InodeEmbedder, error) {
 	if l.r == nil {
 		return nil, fmt.Errorf("layer hasn't been verified yet")
 	}
-	return newNode(l.desc.Digest, l.r, l.blob, baseInode)
+	return newNode(l.desc.Digest, l.r, l.blob, baseInode, l.resolver.overlayOpaqueType)
 }
 
 func (l *layer) ReadAt(p []byte, offset int64, opts ...remote.Option) (int, error) {
