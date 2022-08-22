@@ -183,7 +183,7 @@ func makeNodeReader(t *testing.T, contents []byte, spanSize int64, factory metad
 		t.Fatalf("failed to make new reader: %v", err)
 	}
 	r := vr.GetReader()
-	rootNode := getRootNode(t, r)
+	rootNode := getRootNode(t, r, OverlayOpaqueAll)
 	var eo fuse.EntryOut
 	inode, errno := rootNode.Lookup(context.Background(), testName, &eo)
 	if errno != 0 {
@@ -199,6 +199,19 @@ func makeNodeReader(t *testing.T, contents []byte, spanSize int64, factory metad
 }
 
 func testExistence(t *testing.T, factory metadata.Store) {
+	for _, o := range []OverlayOpaqueType{OverlayOpaqueAll, OverlayOpaqueTrusted, OverlayOpaqueUser} {
+		testExistenceWithOpaque(t, factory, o)
+	}
+}
+
+func testExistenceWithOpaque(t *testing.T, factory metadata.Store, opaque OverlayOpaqueType) {
+	hasOpaque := func(entry string) check {
+		return func(t *testing.T, root *node) {
+			for _, k := range opaqueXattrs[opaque] {
+				hasNodeXattrs(entry, k, opaqueXattrValue)(t, root)
+			}
+		}
+	}
 	tests := []struct {
 		name string
 		in   []testutil.TarEntry
@@ -235,8 +248,7 @@ func testExistence(t *testing.T, factory metadata.Store) {
 				testutil.File("foo/.wh..wh..opq", ""),
 			},
 			want: []check{
-				hasNodeXattrs("foo/", opaqueXattrs[0], opaqueXattrValue),
-				hasNodeXattrs("foo/", opaqueXattrs[1], opaqueXattrValue),
+				hasOpaque("foo/"),
 				fileNotExist("foo/.wh..wh..opq"),
 			},
 		},
@@ -248,8 +260,7 @@ func testExistence(t *testing.T, factory metadata.Store) {
 				testutil.File("foo/bar.txt", "test"),
 			},
 			want: []check{
-				hasNodeXattrs("foo/", opaqueXattrs[0], opaqueXattrValue),
-				hasNodeXattrs("foo/", opaqueXattrs[1], opaqueXattrValue),
+				hasOpaque("foo/"),
 				hasFileDigest("foo/bar.txt", digestFor("test")),
 				fileNotExist("foo/.wh..wh..opq"),
 			},
@@ -261,8 +272,7 @@ func testExistence(t *testing.T, factory metadata.Store) {
 				testutil.File("foo/.wh..wh..opq", ""),
 			},
 			want: []check{
-				hasNodeXattrs("foo/", opaqueXattrs[0], opaqueXattrValue),
-				hasNodeXattrs("foo/", opaqueXattrs[1], opaqueXattrValue),
+				hasOpaque("foo/"),
 				hasNodeXattrs("foo/", "SCHILY.xattr.foo", "bar"),
 				fileNotExist("foo/.wh..wh..opq"),
 			},
@@ -326,7 +336,7 @@ func testExistence(t *testing.T, factory metadata.Store) {
 				}
 				r := vr.GetReader()
 				defer r.Close()
-				rootNode := getRootNode(t, r)
+				rootNode := getRootNode(t, r, opaque)
 				for _, want := range tt.want {
 					want(t, rootNode)
 				}
@@ -335,8 +345,8 @@ func testExistence(t *testing.T, factory metadata.Store) {
 	}
 }
 
-func getRootNode(t *testing.T, r reader.Reader) *node {
-	rootNode, err := newNode(testStateLayerDigest, &testReader{r}, &testBlobState{10, 5}, 100)
+func getRootNode(t *testing.T, r reader.Reader, opaque OverlayOpaqueType) *node {
+	rootNode, err := newNode(testStateLayerDigest, &testReader{r}, &testBlobState{10, 5}, 100, opaque)
 	if err != nil {
 		t.Fatalf("failed to get root node: %v", err)
 	}

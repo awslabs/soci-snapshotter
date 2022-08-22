@@ -82,9 +82,10 @@ const (
 type Option func(*options)
 
 type options struct {
-	getSources      source.GetSources
-	resolveHandlers map[string]remote.Handler
-	metadataStore   metadata.Store
+	getSources        source.GetSources
+	resolveHandlers   map[string]remote.Handler
+	metadataStore     metadata.Store
+	overlayOpaqueType layer.OverlayOpaqueType
 }
 
 func WithGetSources(s source.GetSources) Option {
@@ -105,6 +106,12 @@ func WithResolveHandler(name string, handler remote.Handler) Option {
 func WithMetadataStore(metadataStore metadata.Store) Option {
 	return func(opts *options) {
 		opts.metadataStore = metadataStore
+	}
+}
+
+func WithOverlayOpaqueType(overlayOpaqueType layer.OverlayOpaqueType) Option {
+	return func(opts *options) {
+		opts.overlayOpaqueType = overlayOpaqueType
 	}
 }
 
@@ -143,7 +150,7 @@ func NewFilesystem(root string, cfg config.Config, opts ...Option) (_ snapshot.F
 	}
 
 	tm := task.NewBackgroundTaskManager(maxConcurrency, 5*time.Second)
-	r, err := layer.NewResolver(root, tm, cfg, fsOpts.resolveHandlers, metadataStore, store)
+	r, err := layer.NewResolver(root, tm, cfg, fsOpts.resolveHandlers, metadataStore, store, fsOpts.overlayOpaqueType)
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to setup resolver")
 	}

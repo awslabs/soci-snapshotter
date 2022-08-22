@@ -37,6 +37,7 @@ import (
 	"path/filepath"
 
 	socifs "github.com/awslabs/soci-snapshotter/fs"
+	"github.com/awslabs/soci-snapshotter/fs/layer"
 	"github.com/awslabs/soci-snapshotter/fs/source"
 	"github.com/awslabs/soci-snapshotter/service/resolver"
 	snbase "github.com/awslabs/soci-snapshotter/snapshot"
@@ -87,12 +88,19 @@ func NewSociSnapshotterService(ctx context.Context, root string, config *Config,
 		// Use RegistryHosts based on ResolverConfig and keychain
 		hosts = resolver.RegistryHostsFromConfig(resolver.Config(config.ResolverConfig), sOpts.credsFuncs...)
 	}
-
+	userxattr, err := overlayutils.NeedsUserXAttr(snapshotterRoot(root))
+	if err != nil {
+		log.G(ctx).WithError(err).Warnf("cannot detect whether \"userxattr\" option needs to be used, assuming to be %v", userxattr)
+	}
+	opq := layer.OverlayOpaqueTrusted
+	if userxattr {
+		opq = layer.OverlayOpaqueUser
+	}
 	// Configure filesystem and snapshotter
 	fsOpts := append(sOpts.fsOpts, socifs.WithGetSources(sources(
 		sourceFromCRILabels(hosts),      // provides source info based on CRI labels
 		source.FromDefaultLabels(hosts), // provides source info based on default labels
-	)))
+	)), socifs.WithOverlayOpaqueType(opq))
 	fs, err := socifs.NewFilesystem(fsRoot(root), config.Config, fsOpts...)
 	if err != nil {
 		log.G(ctx).WithError(err).Fatalf("failed to configure filesystem")
