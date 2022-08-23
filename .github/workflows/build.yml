@@ -7,14 +7,20 @@ on:
     branches: [ main ]
 
 jobs:
-  build:
+  check:
     runs-on: ubuntu-20.04
     steps:
       - uses: actions/checkout@v3
         with:
           fetch-depth: 20
+      - run: make install-check-tools
+      - run: make check-ltag
+      - run: make check-dco
+      - run: make check-lint
+  test:
+    runs-on: ubuntu-20.04
+    steps:
+      - uses: actions/checkout@v3
       - run: make
       - run: make test
-      - run: make install-check-tools
-      - run: make check
 
