@@ -29,7 +29,7 @@ CMD=soci-snapshotter-grpc soci
 
 CMD_BINARIES=$(addprefix $(OUTDIR)/,$(CMD))
 
-.PHONY: all build pre-build check check-ltag check-dco install-check-tools install install-zlib uninstall clean test integration
+.PHONY: all build pre-build check check-ltag check-dco check-lint install-check-tools install install-zlib uninstall clean test integration
 
 all: build
 
@@ -57,8 +57,10 @@ install-zlib:
 	@rm -rf zlib-1.2.12
 	@rm -f zlib-1.2.12.tar.gz
 
-# "check" depends "build". out/libindexer.a seems needed to process cgo directives
-check: build check-ltag check-dco
+check: check-ltag check-dco check-lint
+
+# "check-lint" depends "pre-build". out/libindexer.a seems needed to process cgo directives
+check-lint: pre-build
 	GO111MODULE=$(GO111MODULE_VALUE) $(shell go env GOPATH)/bin/golangci-lint run
 	cd ./cmd ; GO111MODULE=$(GO111MODULE_VALUE) $(shell go env GOPATH)/bin/golangci-lint run
 
