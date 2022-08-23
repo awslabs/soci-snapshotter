@@ -30,6 +30,7 @@ import (
 	"github.com/containerd/containerd/platforms"
 	"github.com/opencontainers/go-digest"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
+
 	"github.com/pkg/errors"
 	"golang.org/x/sync/errgroup"
 	orascontent "oras.land/oras-go/v2/content"
@@ -85,24 +86,26 @@ type Index struct {
 type IndexWithMetadata struct {
 	Index       *Index
 	ImageDigest digest.Digest
-	Platform    ocispec.Platform
 }
 
 type IndexDescriptorInfo struct {
 	ocispec.Descriptor
 }
 
-func GetIndexDescriptorCollection(ctx context.Context, cs content.Store, img images.Image) ([]IndexDescriptorInfo, error) {
+func GetIndexDescriptorCollection(ctx context.Context, cs content.Store, img images.Image, ps []ocispec.Platform) ([]IndexDescriptorInfo, error) {
 	descriptors := []IndexDescriptorInfo{}
-	platform := platforms.Default()
-	indexDesc, err := GetImageManifestDescriptor(ctx, cs, img.Target, platform)
-	if err != nil {
-		return descriptors, err
-	}
+	var entries []ArtifactEntry
+	for _, platform := range ps {
+		indexDesc, err := GetImageManifestDescriptor(ctx, cs, img.Target, platforms.OnlyStrict(platform))
+		if err != nil {
+			return descriptors, err
+		}
 
-	entries, err := getIndexArtifactEntries(indexDesc.Digest.String())
-	if err != nil {
-		return descriptors, err
+		e, err := getIndexArtifactEntries(indexDesc.Digest.String())
+		if err != nil {
+			return descriptors, err
+		}
+		entries = append(entries, e...)
 	}
 
 	for _, entry := range entries {
@@ -127,6 +130,7 @@ type buildConfig struct {
 	minLayerSize        int64
 	buildToolIdentifier string
 	manifestType        ManifestType
+	platform            ocispec.Platform
 }
 
 type BuildOption func(c *buildConfig) error
@@ -152,22 +156,28 @@ func WithManifestType(val ManifestType) BuildOption {
 	}
 }
 
-func BuildSociIndex(ctx context.Context, cs content.Store, img images.Image, spanSize int64, store orascontent.Storage, opts ...BuildOption) (*Index, error) {
+func WithPlatform(platform ocispec.Platform) BuildOption {
+	return func(c *buildConfig) error {
+		c.platform = platform
+		return nil
+	}
+}
+
+func BuildSociIndex(ctx context.Context, cs content.Store, img images.Image, spanSize int64, store orascontent.Storage, opts ...BuildOption) (*IndexWithMetadata, error) {
 	var config buildConfig
 	for _, o := range opts {
 		if err := o(&config); err != nil {
 			return nil, err
 		}
 	}
-
-	platform := platforms.Default()
 	// we get manifest descriptor before calling images.Manifest, since after calling
 	// images.Manifest, images.Children will error out when reading the manifest blob (this happens on containerd side)
-	imgManifestDesc, err := GetImageManifestDescriptor(ctx, cs, img.Target, platform)
+	imgManifestDesc, err := GetImageManifestDescriptor(ctx, cs, img.Target, platforms.OnlyStrict(config.platform))
 	if err != nil {
 		return nil, err
 	}
-	manifest, err := images.Manifest(ctx, cs, img.Target, platform)
+	manifest, err := images.Manifest(ctx, cs, img.Target, platforms.OnlyStrict(config.platform))
+
 	if err != nil {
 		return nil, err
 	}
@@ -205,8 +215,13 @@ func BuildSociIndex(ctx context.Context, cs content.Store, img images.Image, spa
 		Digest:      imgManifestDesc.Digest,
 		Size:        imgManifestDesc.Size,
 		Annotations: imgManifestDesc.Annotations,
+		Platform:    &config.platform,
 	}
-	return NewIndex(ztocsDesc, refers, annotations, config.manifestType), nil
+	index := NewIndex(ztocsDesc, refers, annotations, config.manifestType)
+	return &IndexWithMetadata{
+		Index:       index,
+		ImageDigest: img.Target.Digest,
+	}, nil
 }
 
 // Returns a new index.
@@ -360,7 +375,7 @@ func GetImageManifestDescriptor(ctx context.Context, cs content.Store, imageTarg
 }
 
 // WriteSociIndex writes the SociIndex manifest
-func WriteSociIndex(ctx context.Context, indexWithMetadata IndexWithMetadata, store orascontent.Storage) error {
+func WriteSociIndex(ctx context.Context, indexWithMetadata *IndexWithMetadata, store orascontent.Storage) error {
 	manifest, err := json.Marshal(indexWithMetadata.Index)
 	if err != nil {
 		return err
@@ -391,7 +406,7 @@ func WriteSociIndex(ctx context.Context, indexWithMetadata IndexWithMetadata, st
 		Digest:         dgst.String(),
 		OriginalDigest: refers.Digest.String(),
 		ImageDigest:    indexWithMetadata.ImageDigest.String(),
-		Platform:       platforms.Format(indexWithMetadata.Platform),
+		Platform:       platforms.Format(*refers.Platform),
 		Type:           ArtifactEntryTypeIndex,
 		Location:       refers.Digest.String(),
 		Size:           size,

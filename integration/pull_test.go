@@ -44,6 +44,7 @@ import (
 	shell "github.com/awslabs/soci-snapshotter/util/dockershell"
 	"github.com/awslabs/soci-snapshotter/util/dockershell/compose"
 	"github.com/awslabs/soci-snapshotter/util/testutil"
+	"github.com/containerd/containerd/platforms"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/rs/xid"
 )
@@ -744,9 +745,9 @@ func encodeImageInfo(ii ...imageInfo) [][]string {
 func copyImage(sh *shell.Shell, src, dst imageInfo) {
 	opts := encodeImageInfo(src, dst)
 	sh.
-		X(append([]string{"ctr", "i", "pull", "--all-platforms"}, opts[0]...)...).
+		X(append([]string{"ctr", "i", "pull", "--platform", platforms.Format(src.platform)}, opts[0]...)...).
 		X("ctr", "i", "tag", src.ref, dst.ref).
-		X(append([]string{"ctr", "i", "push"}, opts[1]...)...)
+		X(append([]string{"ctr", "i", "push", "--platform", platforms.Format(src.platform)}, opts[1]...)...)
 }
 
 func optimizeImage(sh *shell.Shell, src imageInfo) string {
@@ -756,9 +757,9 @@ func optimizeImage(sh *shell.Shell, src imageInfo) string {
 func buildSparseIndex(sh *shell.Shell, src imageInfo, minLayerSize int64) string {
 	opts := encodeImageInfo(src)
 	indexDigest := sh.
-		X(append([]string{"ctr", "i", "pull"}, opts[0]...)...).
-		X("soci", "create", src.ref, "--min-layer-size", fmt.Sprintf("%d", minLayerSize)).
-		O("soci", "index", "list", "-q", "--ref", src.ref) // this will make SOCI artifact available locally
+		X(append([]string{"ctr", "i", "pull", "--platform", platforms.Format(src.platform)}, opts[0]...)...).
+		X("soci", "create", src.ref, "--min-layer-size", fmt.Sprintf("%d", minLayerSize), "--platform", platforms.Format(src.platform)).
+		O("soci", "index", "list", "-q", "--ref", src.ref, "--platform", platforms.Format(src.platform)) // this will make SOCI artifact available locally
 	return strings.Trim(string(indexDigest), "\n")
 }
 

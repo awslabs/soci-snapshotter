@@ -24,17 +24,38 @@ import (
 
 	"github.com/awslabs/soci-snapshotter/soci"
 	"github.com/containerd/containerd/cmd/ctr/commands"
+	"github.com/containerd/containerd/images"
 	"github.com/containerd/containerd/platforms"
+	specs "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/urfave/cli"
 )
+
+type filter func(ae *soci.ArtifactEntry) bool
 
 func indexFilter(ae *soci.ArtifactEntry) bool {
 	return ae.Type == soci.ArtifactEntryTypeIndex
 }
 
-func originalDigestFilter(digest string) func(*soci.ArtifactEntry) bool {
+func platformFilter(platform specs.Platform) filter {
 	return func(ae *soci.ArtifactEntry) bool {
-		return ae.Type == soci.ArtifactEntryTypeIndex && ae.OriginalDigest == digest
+		return indexFilter(ae) && ae.Platform == platforms.Format(platform)
+	}
+}
+
+func originalDigestFilter(digest string) filter {
+	return func(ae *soci.ArtifactEntry) bool {
+		return indexFilter(ae) && ae.OriginalDigest == digest
+	}
+}
+
+func anyMatch(fns []filter) filter {
+	return func(ae *soci.ArtifactEntry) bool {
+		for _, f := range fns {
+			if f(ae) {
+				return true
+			}
+		}
+		return false
 	}
 }
 
@@ -51,18 +72,31 @@ var listCommand = cli.Command{
 			Name:  "quiet, q",
 			Usage: "only display the index digests",
 		},
+		cli.StringSliceFlag{
+			Name:  "platform, p",
+			Usage: "filter indices to a specific platform",
+		},
 	},
 	Action: func(cliContext *cli.Context) error {
 		var artifacts []*soci.ArtifactEntry
 		ref := cliContext.String("ref")
 		quiet := cliContext.Bool("quiet")
+		var plats []specs.Platform
+		for _, p := range cliContext.StringSlice("platform") {
+			pp, err := platforms.Parse(p)
+			if err != nil {
+				return err
+			}
+			plats = append(plats, pp)
+		}
 
-		filter := indexFilter
 		client, ctx, cancel, err := commands.NewClient(cliContext)
 		if err != nil {
 			return err
 		}
 		defer cancel()
+
+		f := indexFilter
 
 		is := client.ImageService()
 		if ref != "" {
@@ -71,12 +105,29 @@ var listCommand = cli.Command{
 				return err
 			}
 
-			cs := client.ContentStore()
-			desc, err := soci.GetImageManifestDescriptor(ctx, cs, img.Target, platforms.Default())
-			if err != nil {
-				return err
+			if len(plats) == 0 {
+				plats, err = images.Platforms(ctx, client.ContentStore(), img.Target)
+				if err != nil {
+					return err
+				}
 			}
-			filter = originalDigestFilter(desc.Digest.String())
+
+			cs := client.ContentStore()
+			var filters []filter
+			for _, plat := range plats {
+				desc, err := soci.GetImageManifestDescriptor(ctx, cs, img.Target, platforms.OnlyStrict(plat))
+				if err != nil {
+					return err
+				}
+				filters = append(filters, originalDigestFilter(desc.Digest.String()))
+			}
+			f = anyMatch(filters)
+		} else if len(plats) != 0 {
+			var filters []filter
+			for _, plat := range plats {
+				filters = append(filters, platformFilter(plat))
+			}
+			f = anyMatch(filters)
 		}
 
 		db, err := soci.NewDB()
@@ -84,7 +135,7 @@ var listCommand = cli.Command{
 			return err
 		}
 		db.Walk(func(ae *soci.ArtifactEntry) error {
-			if filter(ae) {
+			if f(ae) {
 				artifacts = append(artifacts, ae)
 			}
 			return nil
