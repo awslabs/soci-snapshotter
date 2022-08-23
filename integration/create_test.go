@@ -23,6 +23,7 @@ import (
 
 	"github.com/awslabs/soci-snapshotter/soci"
 	shell "github.com/awslabs/soci-snapshotter/util/dockershell"
+	"github.com/containerd/containerd/platforms"
 	"github.com/google/go-cmp/cmp"
 	"github.com/opencontainers/go-digest"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
@@ -138,6 +139,7 @@ func TestSociCreate(t *testing.T) {
 	tests := []struct {
 		name           string
 		containerImage string
+		platform       string
 	}{
 		{
 			name:           "test create for ubuntu:latest",
@@ -155,12 +157,33 @@ func TestSociCreate(t *testing.T) {
 			name:           "test create for drupal:latest",
 			containerImage: "drupal:latest",
 		},
+		// The following two tests guarantee that we have tested at least
+		// 2 different platforms. Depending on what host they run on, one
+		// might be a duplicate of the earlier test using the default platform
+		{
+			name:           "test create for ubuntu:latest amd64",
+			containerImage: "ubuntu:latest",
+			platform:       "linux/amd64",
+		},
+		{
+			name:           "test create for ubuntu:latest arm64",
+			containerImage: "ubuntu:latest",
+			platform:       "linux/arm64",
+		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			rebootContainerd(t, sh, "", "")
-			imgInfo := dockerhub(tt.containerImage)
+			platform := platforms.DefaultSpec()
+			if tt.platform != "" {
+				var err error
+				platform, err = platforms.Parse(tt.platform)
+				if err != nil {
+					t.Fatalf("could not parse platform: %v", err)
+				}
+			}
+			imgInfo := dockerhub(tt.containerImage, withPlatform(platform))
 			indexDigest := optimizeImage(sh, imgInfo)
 			checkpoints := fetchContentFromPath(sh, blobStorePath+"/"+trimSha256Prefix(indexDigest))
 			sociIndex, err := soci.NewIndexFromReader(bytes.NewReader(checkpoints))
@@ -182,6 +205,14 @@ func TestSociCreate(t *testing.T) {
 
 			if diff := cmp.Diff(sociIndex.Annotations, expectedAnnotations); diff != "" {
 				t.Fatalf("unexpected index annotations; diff = %v", diff)
+			}
+
+			m, err := getManifestDigest(sh, imgInfo.ref, platform)
+			if err != nil {
+				t.Fatalf("failed to get manifest digest: %v", err)
+			}
+			if m != sociIndex.Subject.Digest.String() {
+				t.Fatalf("unexpected subject digest; expected = %v, got = %v", m, sociIndex.Subject.Digest.String())
 			}
 
 			blobs := sociIndex.Blobs

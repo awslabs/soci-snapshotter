@@ -36,6 +36,7 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/awslabs/soci-snapshotter/cmd/soci/commands/internal"
 	"github.com/awslabs/soci-snapshotter/fs/source"
 	"github.com/containerd/containerd"
 	"github.com/containerd/containerd/cmd/ctr/commands"
@@ -61,7 +62,10 @@ var rpullCommand = cli.Command{
 After pulling an image, it should be ready to use the same reference in a run
 command. 
 `,
-	Flags: append(append(commands.RegistryFlags, commands.LabelFlag,
+	Flags: append(append(append(
+		commands.RegistryFlags,
+		commands.LabelFlag),
+		commands.SnapshotterFlags...),
 		cli.BoolFlag{
 			Name:  skipContentVerifyOpt,
 			Usage: "Skip content verification for layers contained in this image.",
@@ -71,7 +75,11 @@ command.
 			Name:  "soci-index-digest",
 			Usage: "The SOCI index digest.",
 		},
-	), commands.SnapshotterFlags...),
+		cli.StringFlag{
+			Name:  internal.PlatformFlagKey,
+			Usage: "The platform to pull.",
+		},
+	),
 	Action: func(context *cli.Context) error {
 		var (
 			ref    = context.Args().First()
@@ -110,6 +118,8 @@ command.
 			config.snapshotter = sn
 		}
 
+		config.platform = context.String(internal.PlatformFlagKey)
+
 		return pull(ctx, client, ref, config)
 	},
 }
@@ -119,6 +129,7 @@ type rPullConfig struct {
 	skipVerify  bool
 	snapshotter string
 	indexDigest string
+	platform    string
 }
 
 func pull(ctx context.Context, client *containerd.Client, ref string, config *rPullConfig) error {
@@ -138,6 +149,7 @@ func pull(ctx context.Context, client *containerd.Client, ref string, config *rP
 		containerd.WithImageHandler(h),
 		containerd.WithSchema1Conversion,
 		containerd.WithPullUnpack,
+		containerd.WithPlatform(config.platform),
 		containerd.WithPullSnapshotter(config.snapshotter),
 		containerd.WithImageHandlerWrapper(source.AppendDefaultLabelsHandlerWrapper(ref, config.indexDigest)),
 	}...); err != nil {

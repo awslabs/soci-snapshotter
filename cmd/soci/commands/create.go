@@ -19,10 +19,10 @@ package commands
 import (
 	"os"
 
+	"github.com/awslabs/soci-snapshotter/cmd/soci/commands/internal"
 	"github.com/awslabs/soci-snapshotter/fs/config"
 	"github.com/awslabs/soci-snapshotter/soci"
 	"github.com/containerd/containerd/cmd/ctr/commands"
-	"github.com/containerd/containerd/platforms"
 	"github.com/pkg/errors"
 	"github.com/urfave/cli"
 	"oras.land/oras-go/v2/content/oci"
@@ -44,7 +44,8 @@ var CreateCommand = cli.Command{
 	Name:      "create",
 	Usage:     "create SOCI index",
 	ArgsUsage: "[flags] <image_ref>",
-	Flags: []cli.Flag{
+	Flags: append(
+		internal.PlatformFlags,
 		cli.Int64Flag{
 			Name:  spanSizeFlag,
 			Usage: "Span size of index. Default is 4 MiB",
@@ -59,7 +60,7 @@ var CreateCommand = cli.Command{
 			Name:  createORASManifestFlag,
 			Usage: "If set, will create an ORAS manifest instead of an OCI Artifact manifest. Default is false.",
 		},
-	},
+	),
 	Action: func(cliContext *cli.Context) error {
 		srcRef := cliContext.Args().Get(0)
 		if srcRef == "" {
@@ -95,32 +96,31 @@ var CreateCommand = cli.Command{
 			return err
 		}
 
+		ps, err := internal.GetPlatforms(ctx, cliContext, srcImg, cs)
+		if err != nil {
+			return err
+		}
+
 		manifestType := soci.ManifestOCIArtifact
 		if cliContext.Bool(createORASManifestFlag) {
 			manifestType = soci.ManifestORAS
 		}
 
-		sociIndex, err := soci.BuildSociIndex(ctx, cs, srcImg, spanSize, blobStore,
-			soci.WithMinLayerSize(minLayerSize),
-			soci.WithBuildToolIdentifier(buildToolIdentifier),
-			soci.WithManifestType(manifestType))
+		for _, plat := range ps {
+			sociIndexWithMetadata, err := soci.BuildSociIndex(ctx, cs, srcImg, spanSize, blobStore,
+				soci.WithMinLayerSize(minLayerSize),
+				soci.WithBuildToolIdentifier(buildToolIdentifier),
+				soci.WithManifestType(manifestType),
+				soci.WithPlatform(plat))
 
-		if err != nil {
-			return err
-		}
+			if err != nil {
+				return err
+			}
 
-		sociIndexWithMetadata := soci.IndexWithMetadata{
-			Index:       sociIndex,
-			ImageDigest: srcImg.Target.Digest,
-			// TODO: This is not strictly correct because the default platform matcher used in BuildSociIndex
-			// might match a compatible version (i.e. linux/amd64 will match linux/i386). Building indices for
-			// multiple/non-default platforms will be needed at some point and this should be fixed with that change as well.
-			Platform: platforms.DefaultSpec(),
-		}
-
-		err = soci.WriteSociIndex(ctx, sociIndexWithMetadata, blobStore)
-		if err != nil {
-			return err
+			err = soci.WriteSociIndex(ctx, sociIndexWithMetadata, blobStore)
+			if err != nil {
+				return err
+			}
 		}
 
 		return nil

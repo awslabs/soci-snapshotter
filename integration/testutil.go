@@ -33,11 +33,13 @@
 package integration
 
 import (
+	"bytes"
 	"crypto/rand"
 	"crypto/rsa"
 	"crypto/x509"
 	"crypto/x509/pkix"
 	"encoding/csv"
+	"encoding/json"
 	"encoding/pem"
 	"fmt"
 	"math/big"
@@ -51,6 +53,8 @@ import (
 	"github.com/awslabs/soci-snapshotter/util/dockershell/compose"
 	dexec "github.com/awslabs/soci-snapshotter/util/dockershell/exec"
 	"github.com/awslabs/soci-snapshotter/util/testutil"
+	"github.com/containerd/containerd/platforms"
+	spec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/rs/xid"
 	"golang.org/x/crypto/bcrypt"
 )
@@ -99,14 +103,27 @@ func isDirExists(sh *shell.Shell, dir string) bool {
 	return sh.Command("test", "-d", dir).Run() == nil
 }
 
+type imageOpt func(*imageInfo)
+
+func withPlatform(p spec.Platform) imageOpt {
+	return func(i *imageInfo) {
+		i.platform = p
+	}
+}
+
 type imageInfo struct {
 	ref       string
 	creds     string
 	plainHTTP bool
+	platform  spec.Platform
 }
 
-func dockerhub(name string) imageInfo {
-	return imageInfo{dockerLibrary + name, "", false}
+func dockerhub(name string, opts ...imageOpt) imageInfo {
+	i := imageInfo{dockerLibrary + name, "", false, platforms.DefaultSpec()}
+	for _, opt := range opts {
+		opt(&i)
+	}
+	return i
 }
 
 type registryConfig struct {
@@ -162,8 +179,12 @@ func (c registryConfig) creds() string {
 	return c.credstr
 }
 
-func (c registryConfig) mirror(imageName string) imageInfo {
-	return imageInfo{c.hostWithPort() + "/" + imageName, c.creds(), c.plainHTTP}
+func (c registryConfig) mirror(imageName string, opts ...imageOpt) imageInfo {
+	i := imageInfo{c.hostWithPort() + "/" + imageName, c.creds(), c.plainHTTP, platforms.DefaultSpec()}
+	for _, opt := range opts {
+		opt(&i)
+	}
+	return i
 }
 
 type registryOptions struct {
@@ -408,4 +429,22 @@ func generateBasicHtpasswd(user, pass string) ([]byte, error) {
 		return nil, err
 	}
 	return []byte(user + ":" + string(bpass) + "\n"), nil
+}
+
+func getManifestDigest(sh *shell.Shell, ref string, platform spec.Platform) (string, error) {
+	buffer := new(bytes.Buffer)
+	sh.Pipe(buffer, []string{"ctr", "image", "list", "name==" + ref}, []string{"awk", `NR==2{printf "%s", $3}`})
+	content := sh.O("ctr", "content", "get", buffer.String())
+	var index spec.Index
+	err := json.Unmarshal(content, &index)
+	if err != nil {
+		return "", err
+	}
+	matcher := platforms.OnlyStrict(platform)
+	for _, desc := range index.Manifests {
+		if matcher.Match(*desc.Platform) {
+			return desc.Digest.String(), nil
+		}
+	}
+	return "", fmt.Errorf("could not find manifest for %s for platform %s", ref, platforms.Format(platform))
 }

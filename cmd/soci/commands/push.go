@@ -22,6 +22,7 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/awslabs/soci-snapshotter/cmd/soci/commands/internal"
 	"github.com/awslabs/soci-snapshotter/fs/config"
 	"github.com/awslabs/soci-snapshotter/soci"
 	"github.com/containerd/containerd/cmd/ctr/commands"
@@ -45,12 +46,17 @@ If multiple soci indices exist for the given image, the most recent one will be 
 After pushing the soci artifacts, they should be available in the registry. Soci artifacts will be pushed only
 if they are available in the snapshotter's local content store.
 `,
-	Flags: append(append(append(commands.RegistryFlags, commands.LabelFlag), commands.SnapshotterFlags...),
+	Flags: append(append(append(append(
+		commands.RegistryFlags,
+		commands.LabelFlag),
+		commands.SnapshotterFlags...),
+		internal.PlatformFlags...),
 		cli.Uint64Flag{
 			Name:  "max-concurrent-uploads",
 			Usage: "Max concurrent uploads. Default is 10",
 			Value: 10,
-		}),
+		},
+	),
 	Action: func(cliContext *cli.Context) error {
 		ref := cliContext.Args().First()
 		if ref == "" {
@@ -70,77 +76,84 @@ if they are available in the snapshotter's local content store.
 			return err
 		}
 
-		indexDescriptors, err := soci.GetIndexDescriptorCollection(ctx, cs, img)
+		ps, err := internal.GetPlatforms(ctx, cliContext, img, cs)
 		if err != nil {
 			return err
 		}
 
-		if len(indexDescriptors) == 0 {
-			return fmt.Errorf("could not find any soci indices to push")
-		}
+		for _, platform := range ps {
+			indexDescriptors, err := soci.GetIndexDescriptorCollection(ctx, cs, img, []ocispec.Platform{platform})
+			if err != nil {
+				return err
+			}
 
-		username := cliContext.String("user")
-		var secret string
-		if i := strings.IndexByte(username, ':'); i > 0 {
-			secret = username[i+1:]
-			username = username[0:i]
-		}
+			if len(indexDescriptors) == 0 {
+				return fmt.Errorf("could not find any soci indices to push")
+			}
 
-		src, err := oci.New(config.SociContentStorePath)
-		if err != nil {
-			return fmt.Errorf("cannot create OCI local store: %w", err)
-		}
+			username := cliContext.String("user")
+			var secret string
+			if i := strings.IndexByte(username, ':'); i > 0 {
+				secret = username[i+1:]
+				username = username[0:i]
+			}
 
-		indexDesc := indexDescriptors[len(indexDescriptors)-1]
-		if indexDesc.MediaType == soci.ORASManifestMediaType {
-			return fmt.Errorf("cannot push index %v to remote since it is an ORAS manifest", indexDesc.Digest.String()[7:15])
-		}
-		refspec, err := reference.Parse(ref)
-		if err != nil {
-			return err
-		}
+			src, err := oci.New(config.SociContentStorePath)
+			if err != nil {
+				return fmt.Errorf("cannot create OCI local store: %w", err)
+			}
 
-		dst, err := remote.NewRepository(refspec.Locator)
-		if err != nil {
-			return err
-		}
-		authClient := auth.DefaultClient
-		authClient.Credential = func(_ context.Context, host string) (auth.Credential, error) {
-			return auth.Credential{
-				Username: username,
-				Password: secret,
-			}, nil
-		}
+			indexDesc := indexDescriptors[len(indexDescriptors)-1]
+			if indexDesc.MediaType == soci.ORASManifestMediaType {
+				return fmt.Errorf("cannot push index %v to remote since it is an ORAS manifest", indexDesc.Digest.String()[7:15])
+			}
+			refspec, err := reference.Parse(ref)
+			if err != nil {
+				return err
+			}
 
-		dst.Client = authClient
-		dst.PlainHTTP = cliContext.Bool("plain-http")
+			dst, err := remote.NewRepository(refspec.Locator)
+			if err != nil {
+				return err
+			}
+			authClient := auth.DefaultClient
+			authClient.Credential = func(_ context.Context, host string) (auth.Credential, error) {
+				return auth.Credential{
+					Username: username,
+					Password: secret,
+				}, nil
+			}
 
-		debug := cliContext.GlobalBool("debug")
-		if debug {
-			dst.Client = &debugClient{client: authClient}
-		} else {
 			dst.Client = authClient
-		}
+			dst.PlainHTTP = cliContext.Bool("plain-http")
 
-		options := oraslib.DefaultCopyGraphOptions
-		options.PreCopy = func(_ context.Context, desc ocispec.Descriptor) error {
-			fmt.Printf("pushing artifact with digest: %v\n", desc.Digest)
-			return nil
-		}
-		options.PostCopy = func(_ context.Context, desc ocispec.Descriptor) error {
-			fmt.Printf("successfully pushed artifact with digest: %v\n", desc.Digest)
-			return nil
-		}
-		options.OnCopySkipped = func(ctx context.Context, desc ocispec.Descriptor) error {
-			fmt.Printf("skipped artifact with digest: %v\n", desc.Digest)
-			return nil
-		}
+			debug := cliContext.GlobalBool("debug")
+			if debug {
+				dst.Client = &debugClient{client: authClient}
+			} else {
+				dst.Client = authClient
+			}
 
-		err = oraslib.CopyGraph(context.Background(), src, dst, indexDesc.Descriptor, options)
-		if err != nil {
-			return fmt.Errorf("error pushing graph to remote: %w", err)
-		}
+			options := oraslib.DefaultCopyGraphOptions
+			options.PreCopy = func(_ context.Context, desc ocispec.Descriptor) error {
+				fmt.Printf("pushing artifact with digest: %v\n", desc.Digest)
+				return nil
+			}
+			options.PostCopy = func(_ context.Context, desc ocispec.Descriptor) error {
+				fmt.Printf("successfully pushed artifact with digest: %v\n", desc.Digest)
+				return nil
+			}
+			options.OnCopySkipped = func(ctx context.Context, desc ocispec.Descriptor) error {
+				fmt.Printf("skipped artifact with digest: %v\n", desc.Digest)
+				return nil
+			}
 
+			fmt.Printf("pushing soci index with digest: %v\n", indexDesc.Digest)
+			err = oraslib.CopyGraph(context.Background(), src, dst, indexDesc.Descriptor, options)
+			if err != nil {
+				return fmt.Errorf("error pushing graph to remote: %w", err)
+			}
+		}
 		return nil
 	},
 }
