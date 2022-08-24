@@ -29,7 +29,7 @@ CMD=soci-snapshotter-grpc soci
 
 CMD_BINARIES=$(addprefix $(OUTDIR)/,$(CMD))
 
-.PHONY: all build check check-ltag check-dco install-check-tools install uninstall clean test test-root test-all integration test-optimize benchmark test-kind test-cri-containerd test-cri-o test-criauth generate validate-generated test-k3s test-k3s-argo-workflow vendor
+.PHONY: all build pre-build check check-ltag check-dco install-check-tools install install-zlib uninstall clean test integration
 
 all: build
 
@@ -42,9 +42,6 @@ soci-snapshotter-grpc: FORCE
 
 soci: FORCE
 	cd cmd/ ; GO111MODULE=$(GO111MODULE_VALUE) go build -o $(OUTDIR)/$@ $(GO_BUILD_FLAGS) $(GO_LD_FLAGS) -v ./soci
-
-soci_brewer:
-	cd cmd; go build -o ${OUTDIR}/$@ ${BUILD_FLAGS} ${LD_FLAGS} ./soci_brewer.go
 
 pre-build:
 	rm -rf ${OUTDIR}
@@ -89,12 +86,6 @@ uninstall:
 clean:
 	rm -rf $(OUTDIR)
 
-generate:
-	@./script/generated-files/generate.sh update
-
-validate-generated:
-	@./script/generated-files/generate.sh validate
-
 vendor:
 	@GO111MODULE=$(GO111MODULE_VALUE) go mod tidy
 	@cd ./cmd ; GO111MODULE=$(GO111MODULE_VALUE) go mod tidy
@@ -104,16 +95,7 @@ test:
 	@GO111MODULE=$(GO111MODULE_VALUE) go test -race ./...
 	@cd ./cmd/soci ; GO111MODULE=$(GO111MODULE_VALUE) go test -timeout 20m -race ./...
 
-test-root:
-	@echo "$@"
-	@GO111MODULE=$(GO111MODULE_VALUE) go test -race ./snapshot -test.root
-
-test-all: test-root test
-
 integration:
 	@echo "$@"
 	@echo "SOCI_SNAPSHOTTER_PROJECT_ROOT=$(SOCI_SNAPSHOTTER_PROJECT_ROOT)"
 	@GO111MODULE=$(GO111MODULE_VALUE) SOCI_SNAPSHOTTER_PROJECT_ROOT=$(SOCI_SNAPSHOTTER_PROJECT_ROOT) ENABLE_INTEGRATION_TEST=true go test $(GO_TEST_FLAGS) -v -timeout=0 ./integration
-
-benchmark:
-	@./script/benchmark/test.sh
