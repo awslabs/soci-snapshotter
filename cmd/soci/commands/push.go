@@ -19,6 +19,7 @@ package commands
 import (
 	"context"
 	"fmt"
+	"net/http"
 	"strings"
 
 	"github.com/awslabs/soci-snapshotter/fs/config"
@@ -107,7 +108,13 @@ if they are available in the snapshotter's local content store.
 				Password: secret,
 			}, nil
 		}
-		dst.Client = authClient
+
+		debug := cliContext.GlobalBool("debug")
+		if debug {
+			dst.Client = &debugClient{client: authClient}
+		} else {
+			dst.Client = authClient
+		}
 
 		options := oraslib.DefaultCopyGraphOptions
 		options.PreCopy = func(_ context.Context, desc ocispec.Descriptor) error {
@@ -130,4 +137,19 @@ if they are available in the snapshotter's local content store.
 
 		return nil
 	},
+}
+
+type debugClient struct {
+	client remote.Client
+}
+
+func (c *debugClient) Do(req *http.Request) (*http.Response, error) {
+	fmt.Printf("http req %s %s\n", req.Method, req.URL)
+	res, err := c.client.Do(req)
+	if err != nil {
+		fmt.Printf("http err %v\n", err)
+	} else {
+		fmt.Printf("http res %s\n", res.Status)
+	}
+	return res, err
 }
