@@ -71,6 +71,10 @@ func main() {
 			Name:  "timeout",
 			Usage: "timeout for commands",
 		},
+		cli.BoolFlag{
+			Name:  "debug",
+			Usage: "enable debug output",
+		},
 	}
 
 	app.Commands = []cli.Command{
