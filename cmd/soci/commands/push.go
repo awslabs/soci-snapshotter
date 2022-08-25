@@ -109,6 +109,9 @@ if they are available in the snapshotter's local content store.
 			}, nil
 		}
 
+		dst.Client = authClient
+		dst.PlainHTTP = cliContext.Bool("plain-http")
+
 		debug := cliContext.GlobalBool("debug")
 		if debug {
 			dst.Client = &debugClient{client: authClient}
