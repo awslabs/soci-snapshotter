@@ -160,7 +160,7 @@ func BuildSociIndex(ctx context.Context, cs content.Store, img images.Image, spa
 		eg.Go(func() error {
 			desc, err := buildSociLayer(ctx, cs, l, spanSize, store, &config)
 			if err != nil {
-				return err
+				return fmt.Errorf("could not build zTOC for %s: %w", l.Digest.String(), err)
 			}
 			sociLayersDesc[i] = desc
 			return nil
@@ -218,6 +218,14 @@ func buildSociLayer(ctx context.Context, cs content.Store, desc ocispec.Descript
 		fmt.Printf("layer %s -> ztoc skipped\n", desc.Digest)
 		return nil, nil
 	}
+	compression, err := images.DiffCompression(ctx, desc.MediaType)
+	if err != nil {
+		return nil, fmt.Errorf("could not determine layer compression: %w", err)
+	}
+	if compression != "gzip" {
+		return nil, errors.New("only layers compressed with gzip are supported")
+	}
+
 	ra, err := cs.ReaderAt(ctx, desc)
 	if err != nil {
 		return nil, err

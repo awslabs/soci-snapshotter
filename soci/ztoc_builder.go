@@ -85,17 +85,17 @@ func NewZtocReader(ztoc *Ztoc) (io.Reader, ocispec.Descriptor, error) {
 	enc := gob.NewEncoder(serializedBuf)
 	err := enc.Encode(*ztoc)
 	if err != nil {
-		return nil, ocispec.Descriptor{}, fmt.Errorf("cannot serialize ztoc: %v", err)
+		return nil, ocispec.Descriptor{}, fmt.Errorf("cannot serialize ztoc: %w", err)
 	}
 
 	compressedBuf := new(bytes.Buffer)
 	zs, err := zstd.NewWriter(compressedBuf)
 	if err != nil {
-		return nil, ocispec.Descriptor{}, fmt.Errorf("cannot create zstd writer: %v", err)
+		return nil, ocispec.Descriptor{}, fmt.Errorf("cannot create zstd writer: %w", err)
 	}
 
 	if _, err := zs.Write(serializedBuf.Bytes()); err != nil {
-		return nil, ocispec.Descriptor{}, fmt.Errorf("cannot compress ztoc: %v", err)
+		return nil, ocispec.Descriptor{}, fmt.Errorf("cannot compress ztoc: %w", err)
 	}
 
 	if err := zs.Close(); err != nil {
@@ -114,7 +114,7 @@ func NewZtocReader(ztoc *Ztoc) (io.Reader, ocispec.Descriptor, error) {
 func getPerSpanDigests(gzipFile string, fileSize int64, index *C.struct_gzip_index) ([]digest.Digest, error) {
 	file, err := os.Open(gzipFile)
 	if err != nil {
-		return nil, fmt.Errorf("could not open file for reading: %v", err)
+		return nil, fmt.Errorf("could not open file for reading: %w", err)
 	}
 	defer file.Close()
 
@@ -156,7 +156,7 @@ func getGzipIndexByteData(gzipFile string, span int64) (*C.struct_gzip_index, []
 	ret := C.generate_index(cstr, C.off_t(span), &index)
 
 	if int(ret) < 0 {
-		return nil, nil, fmt.Errorf("could not get index: %v", ret)
+		return nil, nil, fmt.Errorf("could not generate gzip index. gzip error: %v", ret)
 	}
 
 	blobSize := C.get_blob_size(index)
@@ -168,7 +168,7 @@ func getGzipIndexByteData(gzipFile string, span int64) (*C.struct_gzip_index, []
 	ret = C.index_to_blob(index, unsafe.Pointer(&bytes[0]))
 
 	if int(ret) <= 0 {
-		return nil, nil, fmt.Errorf("could not serialize index to byte array; return code: %v", ret)
+		return nil, nil, fmt.Errorf("could not serialize gzip index to byte array; gzip error: %v", ret)
 	}
 
 	return index, bytes, nil
@@ -203,7 +203,7 @@ func getGzipFileMetadata(gzipFile string, index *C.struct_gzip_index) ([]FileMet
 			if err == io.EOF {
 				break
 			} else {
-				return nil, 0, fmt.Errorf("error while reading tar header: %v", err)
+				return nil, 0, fmt.Errorf("error while reading tar header: %w", err)
 			}
 		}
 
@@ -216,7 +216,7 @@ func getGzipFileMetadata(gzipFile string, index *C.struct_gzip_index) ([]FileMet
 		ret := C.span_indices_for_file(index, C.off_t(start), C.off_t(end), unsafe.Pointer(&indexStart), unsafe.Pointer(&indexEnd))
 
 		if int(ret) <= 0 {
-			return nil, 0, fmt.Errorf("cannot get the span indices for file with start and end offset: %d, %d; return code: %v", start, end, ret)
+			return nil, 0, fmt.Errorf("cannot get the span indices for file with start and end offset: %d, %d; gzip error: %v", start, end, ret)
 		}
 
 		var hasBits bool
