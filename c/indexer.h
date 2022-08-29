@@ -66,7 +66,7 @@ struct gzip_index_point
 {
     off_t out;          /* corresponding offset in uncompressed data */
     off_t in;           /* offset in input file of first full byte */
-    int bits;           /* number of bits (1-7) from byte at in - 1, or 0 */
+    uint8_t bits;           /* number of bits (1-7) from byte at in - 1, or 0 */
     unsigned char window[WINSIZE];  /* preceding 32K of uncompressed data */    
 };
 
