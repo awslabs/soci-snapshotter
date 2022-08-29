@@ -104,7 +104,8 @@ type FileSystem interface {
 type SnapshotterConfig struct {
 	asyncRemove bool
 	// minLayerSize skips remote mounting of smaller layers
-	minLayerSize int64
+	minLayerSize                int64
+	allowInvalidMountsOnRestart bool
 }
 
 // Opt is an option to configure the remote snapshotter
@@ -127,15 +128,21 @@ func WithMinLayerSize(minLayerSize int64) Opt {
 	}
 }
 
+func AllowInvalidMountsOnRestart(config *SnapshotterConfig) error {
+	config.allowInvalidMountsOnRestart = true
+	return nil
+}
+
 type snapshotter struct {
 	root        string
 	ms          *storage.MetaStore
 	asyncRemove bool
 
 	// fs is a filesystem that this snapshotter recognizes.
-	fs           FileSystem
-	userxattr    bool  // whether to enable "userxattr" mount option
-	minLayerSize int64 // minimum layer size for remote mounting
+	fs                          FileSystem
+	userxattr                   bool  // whether to enable "userxattr" mount option
+	minLayerSize                int64 // minimum layer size for remote mounting
+	allowInvalidMountsOnRestart bool
 }
 
 // NewSnapshotter returns a Snapshotter which can use unpacked remote layers
@@ -179,12 +186,13 @@ func NewSnapshotter(ctx context.Context, root string, targetFs FileSystem, opts 
 	}
 
 	o := &snapshotter{
-		root:         root,
-		ms:           ms,
-		asyncRemove:  config.asyncRemove,
-		fs:           targetFs,
-		userxattr:    userxattr,
-		minLayerSize: config.minLayerSize,
+		root:                        root,
+		ms:                          ms,
+		asyncRemove:                 config.asyncRemove,
+		fs:                          targetFs,
+		userxattr:                   userxattr,
+		minLayerSize:                config.minLayerSize,
+		allowInvalidMountsOnRestart: config.allowInvalidMountsOnRestart,
 	}
 
 	if err := o.restoreRemoteSnapshot(ctx); err != nil {
@@ -841,7 +849,15 @@ func (o *snapshotter) restoreRemoteSnapshot(ctx context.Context) error {
 	}
 	for _, info := range task {
 		if err := o.prepareRemoteSnapshot(ctx, info.Name, info.Labels); err != nil {
-			return fmt.Errorf("failed to prepare remote snapshot %s: %w", info.Name, err)
+			if o.allowInvalidMountsOnRestart {
+				logrus.WithError(err).Warnf("failed to restore remote snapshot %s; remove this snapshot manually", info.Name)
+				// This snapshot mount is invalid but allow this.
+				// NOTE: snapshotter.Mount() will fail to return the mountpoint of these invalid snapshots so
+				//       containerd cannot use them anymore. User needs to manually remove the snapshots from
+				//       containerd's metadata store using ctr (e.g. `ctr snapshot rm`).
+				continue
+			}
+			return fmt.Errorf("failed to prepare remote snapshot: %s: %w", info.Name, err)
 		}
 	}
 

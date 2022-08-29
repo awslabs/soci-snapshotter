@@ -112,6 +112,9 @@ func NewSociSnapshotterService(ctx context.Context, root string, config *Config,
 	if config.MinLayerSize > -1 {
 		snOpts = append(snOpts, snbase.WithMinLayerSize(config.MinLayerSize))
 	}
+	if config.SnapshotterConfig.AllowInvalidMountsOnRestart {
+		snOpts = append(snOpts, snbase.AllowInvalidMountsOnRestart)
+	}
 
 	snapshotter, err = snbase.NewSnapshotter(ctx, snapshotterRoot(root), fs, snOpts...)
 	if err != nil {
