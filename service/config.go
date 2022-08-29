@@ -79,4 +79,10 @@ type ResolverConfig resolver.Config
 type SnapshotterConfig struct {
 	// MinLayerSize skips remote mounting of smaller layers
 	MinLayerSize int64 `toml:"min_layer_size"`
+
+	// AllowInvalidMountsOnRestart allows that there are snapshot mounts that cannot access to the
+	// data source when restarting the snapshotter.
+	// NOTE: User needs to manually remove the snapshots from containerd's metadata store using
+	//       ctr (e.g. `ctr snapshot rm`).
+	AllowInvalidMountsOnRestart bool `toml:"allow_invalid_mounts_on_restart"`
 }
