@@ -58,7 +58,7 @@ void free_index(struct gzip_index *index)
 
 /* Add an entry to the access point list.  If out of memory, deallocate the
    existing list and return NULL. */
-static struct gzip_index *addpoint(struct gzip_index *index, int bits,
+static struct gzip_index *addpoint(struct gzip_index *index, uint8_t bits,
     off_t in, off_t out, unsigned left, unsigned char *window)
 {
     struct gzip_index_point *next;
@@ -179,7 +179,7 @@ int generate_index_fp(FILE* in, off_t span, struct gzip_index** idx)
              */
             if ((strm.data_type & 128) && !(strm.data_type & 64) &&
                 (totout == 0 || totout - last > span)) {
-                index = addpoint(index, strm.data_type & 7, totin,
+                index = addpoint(index, (uint8_t)(strm.data_type & 7), totin,
                                  totout, strm.avail_out, window);
                 if (index == NULL) {
                     ret = Z_MEM_ERROR;
@@ -590,7 +590,6 @@ struct gzip_index* blob_to_index(void* buf)
         cur += 8;
         memcpy(&pt->out, cur, 8);
         cur += 8;
-        memset(&pt->bits, 0, sizeof(int));
         memcpy(&pt->bits, cur, 1);
         cur += 1;
         memcpy(&pt->window, cur, WINSIZE);
