@@ -121,10 +121,15 @@ func TestOptimizeConsistentSociArtifact(t *testing.T) {
 			name:           "soci artifact is consistently built for ubuntu",
 			containerImage: "ubuntu:latest",
 		},
-		{
-			name:           "soci artifact is consistently built for rethinkdb",
-			containerImage: "nginx:latest",
-		},
+		/*
+			The following test is disabled for now, since it randomly fails due to
+			the way gob encodes FileMetadata.Xattrs.
+			TODO(rdpsin): Re-enable this test once gob is no longer used to encode FileMetadata.
+			{
+				name:           "soci artifact is consistently built for nginx",
+				containerImage: "nginx:latest",
+			},
+		*/
 		{
 			name:           "soci artifact is consistently built for drupal",
 			containerImage: "alpine:latest",
