@@ -17,6 +17,7 @@
 package integration
 
 import (
+	"bytes"
 	"encoding/json"
 	"testing"
 
@@ -70,17 +71,18 @@ func TestSociCreateSparseIndex(t *testing.T) {
 			imgInfo := dockerhub(containerImage)
 			indexDigest := buildSparseIndex(sh, imgInfo, tt.minLayerSize)
 			indexByteData := fetchContentFromPath(sh, blobStorePath+"/"+trimSha256Prefix(indexDigest))
-			sociIndex := new(soci.SociIndex)
-			if err := json.Unmarshal(indexByteData, sociIndex); err != nil {
-				t.Fatalf("cannot unmarshal soci index byte data: %v", err)
+
+			index, err := soci.NewIndexFromReader(bytes.NewReader(indexByteData))
+			if err != nil {
+				t.Fatalf("cannot get index data: %v", err)
 			}
 
-			if sociIndex.MediaType != artifactsspec.MediaTypeArtifactManifest {
-				t.Fatalf("unexpected index media type; expected = %v, got = %v", artifactsspec.MediaTypeArtifactManifest, sociIndex.MediaType)
+			if index.MediaType != artifactsspec.MediaTypeArtifactManifest {
+				t.Fatalf("unexpected index media type; expected = %v, got = %v", artifactsspec.MediaTypeArtifactManifest, index.MediaType)
 			}
 
-			if sociIndex.ArtifactType != soci.SociIndexArtifactType {
-				t.Fatalf("unexpected index artifact type; expected = %v, got = %v", soci.SociIndexArtifactType, sociIndex.ArtifactType)
+			if index.ArtifactType != soci.SociIndexArtifactType {
+				t.Fatalf("unexpected index artifact type; expected = %v, got = %v", soci.SociIndexArtifactType, index.ArtifactType)
 			}
 
 			expectedAnnotations := map[string]string{
@@ -88,7 +90,7 @@ func TestSociCreateSparseIndex(t *testing.T) {
 				soci.IndexAnnotationBuildToolVersion:    "0.1",
 			}
 
-			if diff := cmp.Diff(sociIndex.Annotations, expectedAnnotations); diff != "" {
+			if diff := cmp.Diff(index.Annotations, expectedAnnotations); diff != "" {
 				t.Fatalf("unexpected index annotations; diff = %v", diff)
 			}
 
@@ -105,7 +107,7 @@ func TestSociCreateSparseIndex(t *testing.T) {
 				}
 			}
 
-			blobs := sociIndex.Blobs
+			blobs := index.Blobs
 			if len(blobs) != len(includedLayers) {
 				t.Fatalf("unexpected blob count; expected=%v, got=%v", len(includedLayers), len(blobs))
 			}
@@ -170,9 +172,9 @@ func TestSociCreate(t *testing.T) {
 			imgInfo := dockerhub(tt.containerImage)
 			indexDigest := optimizeImage(sh, imgInfo)
 			indexByteData := fetchContentFromPath(sh, blobStorePath+"/"+trimSha256Prefix(indexDigest))
-			sociIndex := new(soci.SociIndex)
-			if err := json.Unmarshal(indexByteData, sociIndex); err != nil {
-				t.Fatalf("cannot unmarshal soci index byte data: %v", err)
+			sociIndex, err := soci.NewIndexFromReader(bytes.NewReader(indexByteData))
+			if err != nil {
+				t.Fatalf("cannot get soci index: %v", err)
 			}
 
 			if sociIndex.MediaType != artifactsspec.MediaTypeArtifactManifest {

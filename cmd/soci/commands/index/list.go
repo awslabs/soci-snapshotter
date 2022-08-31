@@ -85,7 +85,7 @@ var listCommand = cli.Command{
 		})
 
 		writer := tabwriter.NewWriter(os.Stdout, 8, 8, 4, ' ', 0)
-		writer.Write([]byte("DIGEST\tSIZE\tIMAGE REF\tPLATFORM\t\n"))
+		writer.Write([]byte("DIGEST\tSIZE\tIMAGE REF\tPLATFORM\tORAS ARTIFACT\n"))
 		for _, ae := range artifacts {
 			imgs, _ := is.List(ctx, fmt.Sprintf("target.digest==%s", ae.ImageDigest))
 			if len(imgs) > 0 {
@@ -103,10 +103,11 @@ var listCommand = cli.Command{
 
 func writeArtifactEntry(w io.Writer, ae *soci.ArtifactEntry, imageRef string) {
 	w.Write([]byte(fmt.Sprintf(
-		"%s\t%d\t%s\t%s\t\n",
+		"%s\t%d\t%s\t%s\t%v\t\n",
 		ae.Digest,
 		ae.Size,
 		imageRef,
 		ae.Platform,
+		ae.MediaType == soci.ORASManifestMediaType,
 	)))
 }

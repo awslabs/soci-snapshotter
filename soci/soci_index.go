@@ -37,8 +37,6 @@ import (
 )
 
 const (
-	// mediaType of SOCI index
-	sociIndexMediaType = "application/vnd.cncf.oras.artifact.manifest.v1+json"
 	// artifactType of index SOCI index
 	SociIndexArtifactType = "application/vnd.amazon.soci.index.v1+json"
 	// mediaType of ztoc
@@ -51,32 +49,70 @@ const (
 	IndexAnnotationBuildToolIdentifier = "com.amazon.soci.build-tool-identifier"
 	// index annotation for build tool version
 	IndexAnnotationBuildToolVersion = "com.amazon.soci.build-tool-version"
+	// media type for OCI Artifact manifest
+	OCIArtifactManifestMediaType = "application/vnd.oci.artifact.manifest.v1+json"
+	// media type for ORAS manifest
+	ORASManifestMediaType = "application/vnd.cncf.oras.artifact.manifest.v1+json"
+)
+
+type ManifestType int
+
+const (
+	ManifestOCIArtifact ManifestType = iota
+	ManifestORAS
 )
 
 var (
 	errNotLayerType = errors.New("not a layer mediaType")
 )
 
-// nolint:revive
-type SociIndex struct {
-	MediaType    string `json:"mediaType"`
-	ArtifactType string `json:"artifactType"`
-	// descriptors of ztocs
-	Blobs []ocispec.Descriptor `json:"blobs,omitempty"`
-	// descriptor of image manifest
-	Subject ocispec.Descriptor `json:"subject,omitempty"`
+// Index represents an ORAS/OCI Artifact Manifest
+type Index struct {
+	// The media type of the manifest
+	MediaType string `json:"mediaType"`
 
+	// Artifact type of the manifest
+	ArtifactType string `json:"artifactType"`
+
+	// Blobs referenced by the manifest
+	Blobs []ocispec.Descriptor `json:"blobs,omitempty"`
+
+	// Optional reference to manifest to refer to
+	// ORAS and OCI Artifact have different names for the field
+	// During deserialization, the appropriate field is filled.
+
+	// For ORAS
+	Subject *ocispec.Descriptor `json:"subject,omitempty"`
+
+	// For OCI Artifact
+	Refers *ocispec.Descriptor `json:"refers,omitempty"`
+
+	// Optional annotations in the manifest
 	Annotations map[string]string `json:"annotations,omitempty"`
 }
 
+func (i *Index) refers() *ocispec.Descriptor {
+	switch i.MediaType {
+	case ORASManifestMediaType:
+		return i.Subject
+	case OCIArtifactManifestMediaType:
+		return i.Refers
+	}
+	return nil
+}
+
 type IndexWithMetadata struct {
-	Index       *SociIndex
+	Index       *Index
 	ImageDigest digest.Digest
 	Platform    ocispec.Platform
 }
 
-func GetIndexDescriptorCollection(ctx context.Context, cs content.Store, img images.Image) ([]ocispec.Descriptor, error) {
-	descriptors := []ocispec.Descriptor{}
+type IndexDescriptorInfo struct {
+	ocispec.Descriptor
+}
+
+func GetIndexDescriptorCollection(ctx context.Context, cs content.Store, img images.Image) ([]IndexDescriptorInfo, error) {
+	descriptors := []IndexDescriptorInfo{}
 	platform := platforms.Default()
 	indexDesc, err := GetImageManifestDescriptor(ctx, cs, img, platform)
 	if err != nil {
@@ -94,11 +130,13 @@ func GetIndexDescriptorCollection(ctx context.Context, cs content.Store, img ima
 			continue
 		}
 		desc := ocispec.Descriptor{
-			MediaType: sociIndexMediaType,
+			MediaType: entry.MediaType,
 			Digest:    dgst,
 			Size:      entry.Size,
 		}
-		descriptors = append(descriptors, desc)
+		descriptors = append(descriptors, IndexDescriptorInfo{
+			Descriptor: desc,
+		})
 	}
 
 	return descriptors, nil
@@ -108,6 +146,7 @@ type buildConfig struct {
 	minLayerSize        int64
 	buildToolIdentifier string
 	buildToolVersion    string
+	manifestType        ManifestType
 }
 
 type BuildOption func(c *buildConfig) error
@@ -133,7 +172,14 @@ func WithBuildToolVersion(version string) BuildOption {
 	}
 }
 
-func BuildSociIndex(ctx context.Context, cs content.Store, img images.Image, spanSize int64, store orascontent.Storage, opts ...BuildOption) (*SociIndex, error) {
+func WithManifestType(val ManifestType) BuildOption {
+	return func(c *buildConfig) error {
+		c.manifestType = val
+		return nil
+	}
+}
+
+func BuildSociIndex(ctx context.Context, cs content.Store, img images.Image, spanSize int64, store orascontent.Storage, opts ...BuildOption) (*Index, error) {
 	var config buildConfig
 	for _, o := range opts {
 		if err := o(&config); err != nil {
@@ -182,19 +228,50 @@ func BuildSociIndex(ctx context.Context, cs content.Store, img images.Image, spa
 		IndexAnnotationBuildToolVersion:    config.buildToolVersion,
 	}
 
-	sociIndex := SociIndex{
-		MediaType:    sociIndexMediaType,
-		ArtifactType: SociIndexArtifactType,
-		Blobs:        ztocsDesc,
-		Subject: ocispec.Descriptor{
-			MediaType:   imgManifestDesc.MediaType,
-			Digest:      imgManifestDesc.Digest,
-			Size:        imgManifestDesc.Size,
-			Annotations: imgManifestDesc.Annotations,
-		},
-		Annotations: annotations,
+	refers := &ocispec.Descriptor{
+		MediaType:   imgManifestDesc.MediaType,
+		Digest:      imgManifestDesc.Digest,
+		Size:        imgManifestDesc.Size,
+		Annotations: imgManifestDesc.Annotations,
 	}
-	return &sociIndex, nil
+	return NewIndex(ztocsDesc, refers, annotations, config.manifestType), nil
+}
+
+// Returns a new index.
+func NewIndex(blobs []ocispec.Descriptor, subject *ocispec.Descriptor, annotations map[string]string, manifestType ManifestType) *Index {
+	if manifestType == ManifestOCIArtifact {
+		return newOCIArtifactManifest(blobs, subject, annotations)
+	}
+	return newORASManifest(blobs, subject, annotations)
+}
+
+func newOCIArtifactManifest(blobs []ocispec.Descriptor, subject *ocispec.Descriptor, annotations map[string]string) *Index {
+	return &Index{
+		Blobs:        blobs,
+		ArtifactType: SociIndexArtifactType,
+		Annotations:  annotations,
+		Refers:       subject,
+		MediaType:    OCIArtifactManifestMediaType,
+	}
+}
+
+func newORASManifest(blobs []ocispec.Descriptor, subject *ocispec.Descriptor, annotations map[string]string) *Index {
+	return &Index{
+		Blobs:        blobs,
+		ArtifactType: SociIndexArtifactType,
+		Annotations:  annotations,
+		Subject:      subject,
+		MediaType:    ORASManifestMediaType,
+	}
+}
+
+// Returns a new index from a Reader.
+func NewIndexFromReader(reader io.Reader) (*Index, error) {
+	index := new(Index)
+	if err := json.NewDecoder(reader).Decode(index); err != nil {
+		return nil, fmt.Errorf("unable to decode reader into index: %v", err)
+	}
+	return index, nil
 }
 
 func skipBuildingZtoc(desc ocispec.Descriptor, cfg *buildConfig) bool {
@@ -330,32 +407,22 @@ func WriteSociIndex(ctx context.Context, indexWithMetadata IndexWithMetadata, st
 
 	log.G(ctx).WithField("digest", dgst.String()).Debugf("soci index has been written")
 
+	refers := indexWithMetadata.Index.refers()
+
+	if refers == nil {
+		return errors.New("cannot write soci index: the Refers field is nil")
+	}
+
 	// this entry is persisted to be used by cli push
 	entry := &ArtifactEntry{
 		Digest:         dgst.String(),
-		OriginalDigest: indexWithMetadata.Index.Subject.Digest.String(),
+		OriginalDigest: refers.Digest.String(),
 		ImageDigest:    indexWithMetadata.ImageDigest.String(),
 		Platform:       platforms.Format(indexWithMetadata.Platform),
 		Type:           ArtifactEntryTypeIndex,
-		Location:       indexWithMetadata.Index.Subject.Digest.String(),
+		Location:       refers.Digest.String(),
 		Size:           size,
+		MediaType:      indexWithMetadata.Index.MediaType,
 	}
 	return writeArtifactEntry(entry)
-}
-
-func ReadSociIndex(ctx context.Context, sociDigest digest.Digest, store orascontent.Storage) (*SociIndex, error) {
-	reader, err := store.Fetch(ctx, ocispec.Descriptor{Digest: sociDigest})
-	if err != nil {
-		return nil, err
-	}
-	defer reader.Close()
-
-	parser := json.NewDecoder(reader)
-	sociIndex := SociIndex{}
-
-	if err = parser.Decode(&sociIndex); err != nil {
-		return nil, fmt.Errorf("cannot decode the file: %w", err)
-	}
-
-	return &sociIndex, nil
 }

@@ -26,6 +26,7 @@ import (
 
 	"github.com/awslabs/soci-snapshotter/service/keychain/dockerconfig"
 	"github.com/awslabs/soci-snapshotter/soci"
+	"github.com/awslabs/soci-snapshotter/util/ioutils"
 	"github.com/containerd/containerd/log"
 	"github.com/containerd/containerd/reference"
 	"github.com/containerd/containerd/remotes"
@@ -165,7 +166,7 @@ func (f *artifactFetcher) Store(ctx context.Context, desc ocispec.Descriptor, re
 	return nil
 }
 
-func FetchSociArtifacts(ctx context.Context, imageRef, indexDigest string, store content.Storage) (*soci.SociIndex, error) {
+func FetchSociArtifacts(ctx context.Context, imageRef, indexDigest string, store content.Storage) (*soci.Index, error) {
 	refspec, err := reference.Parse(imageRef)
 	if err != nil {
 		return nil, fmt.Errorf("cannot parse image ref (%s): %w", imageRef, err)
@@ -190,28 +191,28 @@ func FetchSociArtifacts(ctx context.Context, imageRef, indexDigest string, store
 	if err != nil {
 		return nil, fmt.Errorf("unable to fetch SOCI index: %w", err)
 	}
+	defer indexReader.Close()
 
-	var index soci.SociIndex
-	buffer := new(bytes.Buffer)
-	_, err = io.Copy(buffer, indexReader)
-	indexReader.Close()
+	cw := new(ioutils.CountWriter)
+	tee := io.TeeReader(indexReader, cw)
+
+	index, err := soci.NewIndexFromReader(tee)
 	if err != nil {
-		return nil, err
-	}
-	indexBytes := buffer.Bytes()
-	if err := json.Unmarshal(indexBytes, &index); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("cannot deserialize byte data to index: %w", err)
 	}
 
 	if !local {
+		b, err := json.Marshal(index)
+		if err != nil {
+			return nil, err
+		}
 		err = store.Push(ctx, ocispec.Descriptor{
 			Digest: dgst,
-			Size:   int64(len(buffer.Bytes())),
-		}, buffer)
+			Size:   cw.Size(),
+		}, bytes.NewReader(b))
 
 		if err != nil {
-			log.G(ctx).Warnf("unable to store SOCI index into local store")
-			return nil, err
+			return nil, fmt.Errorf("unable to store index in local store: %w", err)
 		}
 	}
 
@@ -235,5 +236,5 @@ func FetchSociArtifacts(ctx context.Context, imageRef, indexDigest string, store
 		return nil, err
 	}
 
-	return &index, nil
+	return index, nil
 }
