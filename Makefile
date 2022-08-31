@@ -24,12 +24,13 @@ VERSION=$(shell git describe --match 'v[0-9]*' --dirty='.m' --always --tags)
 REVISION=$(shell git rev-parse HEAD)$(shell if ! git diff --no-ext-diff --quiet --exit-code; then echo .m; fi)
 GO_LD_FLAGS=-ldflags '-s -w -X $(PKG)/version.Version=$(VERSION) -X $(PKG)/version.Revision=$(REVISION) $(GO_EXTRA_LDFLAGS)'
 SOCI_SNAPSHOTTER_PROJECT_ROOT ?= $(shell pwd)
+LTAG_TEMPLATE_FLAG=-t ./.headers
 
 CMD=soci-snapshotter-grpc soci
 
 CMD_BINARIES=$(addprefix $(OUTDIR)/,$(CMD))
 
-.PHONY: all build pre-build check check-ltag check-dco check-lint install-check-tools install install-zlib uninstall clean test integration
+.PHONY: all build pre-build check check-ltag check-dco check-lint install-check-tools add-ltag install install-zlib uninstall clean test integration
 
 all: build
 
@@ -65,7 +66,7 @@ check-lint: pre-build
 	cd ./cmd ; GO111MODULE=$(GO111MODULE_VALUE) $(shell go env GOPATH)/bin/golangci-lint run
 
 check-ltag:
-	$(shell go env GOPATH)/bin/ltag -t ./.headers -check -v || (echo "The files listed above are missing a licence header"; exit 1)
+	$(shell go env GOPATH)/bin/ltag $(LTAG_TEMPLATE_FLAG) -check -v || (echo "The files listed above are missing a licence header. Please run make add-ltag"; exit 1)
 
 # the very first auto-commit doesn't have a DCO and the first real commit has a slightly different format. Exclude those when doing the check.
 check-dco:
@@ -84,6 +85,9 @@ install:
 uninstall:
 	@echo "$@"
 	@rm -f $(addprefix $(CMD_DESTDIR)/bin/,$(notdir $(CMD_BINARIES)))
+
+add-ltag:
+	$(shell go env GOPATH)/bin/ltag $(LTAG_TEMPLATE_FLAG) -v
 
 clean:
 	rm -rf $(OUTDIR)
