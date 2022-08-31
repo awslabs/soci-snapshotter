@@ -194,7 +194,7 @@ type filesystem struct {
 	metricsController     *layermetrics.Controller
 	attrTimeout           time.Duration
 	entryTimeout          time.Duration
-	sociIndex             *soci.SociIndex
+	sociIndex             *soci.Index
 	imageLayerToSociDesc  map[string]ocispec.Descriptor
 	loadIndexOnce         sync.Once
 	orasStore             orascontent.Storage
@@ -214,7 +214,7 @@ func (fs *filesystem) fetchSociArtifacts(ctx context.Context, imageRef, indexDig
 	return retErr
 }
 
-func (fs *filesystem) populateImageLayerToSociMapping(sociIndex *soci.SociIndex) {
+func (fs *filesystem) populateImageLayerToSociMapping(sociIndex *soci.Index) {
 	for _, desc := range sociIndex.Blobs {
 		ociDigest := desc.Annotations[soci.IndexAnnotationImageLayerDigest]
 		fs.imageLayerToSociDesc[ociDigest] = desc

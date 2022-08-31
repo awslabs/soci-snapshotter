@@ -88,7 +88,6 @@ level = "debug"
 	imageName := ubuntuImage
 	copyImage(sh, dockerhub(imageName), mirror(imageName))
 	indexDigest := optimizeImage(sh, mirror(imageName))
-
 	artifactsStoreContentDigest := getSociLocalStoreContentDigest(sh)
 	sh.X("soci", "push", "--user", registryCreds(), mirror(imageName).ref)
 	sh.X("rm", "-rf", "/var/lib/soci-snapshotter-grpc/content/blobs/sha256")

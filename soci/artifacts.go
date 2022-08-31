@@ -57,6 +57,7 @@ var (
 	bucketKeyPlatform       = []byte("platform")
 	bucketKeyLocation       = []byte("location")
 	bucketKeyType           = []byte("type")
+	bucketKeyMediaType      = []byte("media_type")
 
 	artifactsDbName = "artifacts.db"
 	// ArtifactEntryTypeIndex indicates that an ArtifactEntry is a SOCI index artifact
@@ -86,6 +87,8 @@ type ArtifactEntry struct {
 	Location string
 	// Type is the type of SOCI artifact.
 	Type ArtifactEntryType
+	// Media Type of the stored artifact
+	MediaType string
 }
 
 func getIndexArtifactEntries(indexDigest string) ([]ArtifactEntry, error) {
@@ -201,7 +204,7 @@ func (db *ArtifactsDb) GetArtifactEntry(digest string) (*ArtifactEntry, error) {
 // the old data is overwritten.
 func (db *ArtifactsDb) WriteArtifactEntry(entry *ArtifactEntry) error {
 	if entry == nil {
-		return fmt.Errorf("No entry to write")
+		return fmt.Errorf("no entry to write")
 	}
 	err := db.db.Update(func(tx *bolt.Tx) error {
 		bucket, err := tx.CreateBucketIfNotExists(bucketKeySociArtifacts)
@@ -239,13 +242,13 @@ func loadArtifact(artifactBkt *bolt.Bucket, digest string) (*ArtifactEntry, erro
 	if err != nil {
 		return nil, err
 	}
-
 	ae.Size = size
 	ae.Location = string(artifactBkt.Get(bucketKeyLocation))
 	ae.Type = ArtifactEntryType(artifactBkt.Get(bucketKeyType))
 	ae.OriginalDigest = string(artifactBkt.Get(bucketKeyOriginalDigest))
 	ae.ImageDigest = string(artifactBkt.Get(bucketKeyImageDigest))
 	ae.Platform = string(artifactBkt.Get(bucketKeyPlatform))
+	ae.MediaType = string(artifactBkt.Get(bucketKeyMediaType))
 	return &ae, nil
 }
 
@@ -274,6 +277,7 @@ func putArtifactEntry(artifacts *bolt.Bucket, ae *ArtifactEntry) error {
 		{bucketKeyImageDigest, []byte(ae.ImageDigest)},
 		{bucketKeyPlatform, []byte(ae.Platform)},
 		{bucketKeyType, []byte(ae.Type)},
+		{bucketKeyMediaType, []byte(ae.MediaType)},
 	}
 
 	for _, update := range updates {

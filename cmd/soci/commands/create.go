@@ -29,6 +29,10 @@ import (
 const (
 	buildToolIdentifier = "AWS SOCI CLI"
 	buildToolVersion    = "0.1"
+
+	spanSizeFlag           = "span-size"
+	minLayerSizeFlag       = "min-layer-size"
+	createORASManifestFlag = "oras"
 )
 
 // CreateCommand creates SOCI index for an image
@@ -41,14 +45,18 @@ var CreateCommand = cli.Command{
 	ArgsUsage: "[flags] <image_ref>",
 	Flags: []cli.Flag{
 		cli.Int64Flag{
-			Name:  "span-size",
-			Usage: "span size of index. Default is 4 MiB",
+			Name:  spanSizeFlag,
+			Usage: "Span size of index. Default is 4 MiB",
 			Value: 1 << 22,
 		},
 		cli.Int64Flag{
-			Name:  "min-layer-size",
+			Name:  minLayerSizeFlag,
 			Usage: "The minimum layer size in bytes to build zTOC for. Default is 0.",
 			Value: 0,
+		},
+		cli.BoolFlag{
+			Name:  createORASManifestFlag,
+			Usage: "If set, will create an ORAS manifest instead of an OCI Artifact manifest. Default is false.",
 		},
 	},
 	Action: func(cliContext *cli.Context) error {
@@ -69,17 +77,23 @@ var CreateCommand = cli.Command{
 		if err != nil {
 			return err
 		}
-		spanSize := cliContext.Int64("span-size")
-		minLayerSize := cliContext.Int64("min-layer-size")
+		spanSize := cliContext.Int64(spanSizeFlag)
+		minLayerSize := cliContext.Int64(minLayerSizeFlag)
 		blobStore, err := oci.New(config.SociContentStorePath)
 		if err != nil {
 			return err
 		}
 
+		manifestType := soci.ManifestOCIArtifact
+		if cliContext.Bool(createORASManifestFlag) {
+			manifestType = soci.ManifestORAS
+		}
+
 		sociIndex, err := soci.BuildSociIndex(ctx, cs, srcImg, spanSize, blobStore,
 			soci.WithMinLayerSize(minLayerSize),
 			soci.WithBuildToolIdentifier(buildToolIdentifier),
-			soci.WithBuildToolVersion(buildToolVersion))
+			soci.WithBuildToolVersion(buildToolVersion),
+			soci.WithManifestType(manifestType))
 
 		if err != nil {
 			return err
