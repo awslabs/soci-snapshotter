@@ -55,31 +55,10 @@ specified by the administrator.
 
 ***Note:*** **SOCI Load order optimization is not yet implemented in SOCI.**
 
-## Getting started
-
-### Build SOCI
-
-To build SOCI, clone this repo. Then `make && make install`.
-
-### Create a SOCI index
-
-Create the index, and then push the image and index to an OCI registry.
-SOCI reads container images from *Containerd*'s content store.
-
-```shell
-$ ctr i tag ${IMAGE} ${REGISTRY}/${IMAGE}
-$ soci create ${IMAGE}
-$ ctr i push --user ${REG_USER}:${REG_PASS} ${REGISTRY}/${REPO}
-$ soci push --user ${REG_USER}:${REG_PASS} ${REGISTRY}/${REPO}
-```
-
-### Run the SOCI snapshotter plugin
-
-Run the snapshotter, and create a mount point for lazy-loading the container image.
-```shell
-$ sudo soci-snapshotter-grpc >& /tmp/soci.logs &
-$ sudo soci rpull ${REGISTRY}/${IMAGE} --soci-index-digest --${SOCI_INDEX} --user ${REG_USER}:${REG_PASS} 1>&2
-```
+## Learning More
+Check out our docs area:
+- [Getting
+Started](https://github.com/awslabs/soci-snapshotter/blob/main/docs/GETTING_STARTED.md)
 
 ## Project Origin
 
