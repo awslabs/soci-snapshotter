@@ -58,7 +58,8 @@ specified by the administrator.
 ## Learning More
 Check out our docs area:
 - [Getting
-Started](https://github.com/awslabs/soci-snapshotter/blob/main/docs/GETTING_STARTED.md)
+Started](docs/GETTING_STARTED.md)
+- [Glossary](docs/GLOSSARY.md)
 
 ## Project Origin
 
