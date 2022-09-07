@@ -1,0 +1,52 @@
+namespace ztoc;
+
+table Xattr {
+	key : string;
+	value : string;
+}
+
+table FileMetadata {
+	name : string;
+	type : string;
+	uncompressed_offset : long;
+	uncompressed_size : long;
+	span_start : int;
+	span_end : int;
+	linkname : string;		// Target name of link (valid for TypeLink or TypeSymlink)
+	mode : long;			// Permission and mode bits
+	uid : uint32;			// User ID of owner
+	gid : uint32;			// Group ID of owner
+	uname : string;			// User name of owner
+	gname : string;			// Group name of owner
+
+	mod_time  : string;		// Modification time (is formatted in RFC 3339 format,
+							// with sub-second precision added if present: "2006-01-02T15:04:05.999999999Z07:00")
+	devmajor : long;		// Major device number (valid for TypeChar or TypeBlock)
+	devminor : long;		// Minor device number (valid for TypeChar or TypeBlock)
+
+	xattrs : [Xattr];
+}
+
+enum CompressionAlgorithm : byte { Gzip = 1 }
+
+table CompressionInfo {
+	compression_algorithm : CompressionAlgorithm = Gzip;
+	max_span_id : int;			// The total number of spans in Ztoc - 1
+	span_digests : [string];
+	index_byte_data : [ubyte];	// the binary data used to decompress the span
+}
+
+table TOC {
+	metadata : [FileMetadata];
+}
+
+table Ztoc {
+	version : string;			// The version of the Ztoc in format <major_version>.<minor_version>, e.g. 1.0
+	build_tool_identifier : string;
+	compressed_archive_size : long;
+	uncompressed_archive_size : long;
+	toc : TOC;
+	compression_info : CompressionInfo;
+}
+
+root_type Ztoc;

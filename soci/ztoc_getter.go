@@ -18,12 +18,13 @@ package soci
 
 import (
 	"archive/tar"
-	"encoding/gob"
 	"fmt"
 	"io"
 	"os"
+	"time"
 
-	"github.com/klauspost/compress/zstd"
+	ztoc_flatbuffers "github.com/awslabs/soci-snapshotter/soci/fbs/ztoc"
+	"github.com/opencontainers/go-digest"
 )
 
 func GetZtocFromFile(filename string) (*Ztoc, error) {
@@ -37,19 +38,69 @@ func GetZtocFromFile(filename string) (*Ztoc, error) {
 
 // GetZtoc reads and returns the Ztoc
 func GetZtoc(reader io.Reader) (*Ztoc, error) {
-	zs, err := zstd.NewReader(reader)
+	flatbuf, err := io.ReadAll(reader)
 	if err != nil {
-		return nil, fmt.Errorf("cannot create gzip reader: %v", err)
+		return nil, fmt.Errorf("cannot read ztoc: %v", err)
 	}
-	defer zs.Close()
-
-	decoder := gob.NewDecoder(zs)
-	ztoc := new(Ztoc)
-
-	if err := decoder.Decode(ztoc); err != nil {
-		return nil, fmt.Errorf("cannot decode ztoc: %w", err)
-	}
+	ztoc := flatbufToZtoc(flatbuf)
 	return ztoc, nil
+}
+
+func flatbufToZtoc(flatbuffer []byte) *Ztoc {
+	ztoc := new(Ztoc)
+	ztocFlatbuf := ztoc_flatbuffers.GetRootAsZtoc(flatbuffer, 0)
+	ztoc.Version = string(ztocFlatbuf.Version())
+	ztoc.BuildToolIdentifier = string(ztocFlatbuf.BuildToolIdentifier())
+	ztoc.CompressedFileSize = FileSize(ztocFlatbuf.CompressedArchiveSize())
+	ztoc.UncompressedFileSize = FileSize(ztocFlatbuf.UncompressedArchiveSize())
+
+	toc := new(ztoc_flatbuffers.TOC)
+	ztocFlatbuf.Toc(toc)
+	ztoc.Metadata = make([]FileMetadata, toc.MetadataLength())
+
+	for i := 0; i < toc.MetadataLength(); i++ {
+		metadataEntry := new(ztoc_flatbuffers.FileMetadata)
+		toc.Metadata(metadataEntry, i)
+		var me FileMetadata
+		me.Name = string(metadataEntry.Name())
+		me.Type = string(metadataEntry.Type())
+		me.UncompressedOffset = FileSize(metadataEntry.UncompressedOffset())
+		me.UncompressedSize = FileSize(metadataEntry.UncompressedSize())
+		me.SpanStart = SpanId(metadataEntry.SpanStart())
+		me.SpanEnd = SpanId(metadataEntry.SpanEnd())
+		me.Linkname = string(metadataEntry.Linkname())
+		me.Mode = metadataEntry.Mode()
+		me.UID = int(metadataEntry.Uid())
+		me.GID = int(metadataEntry.Gid())
+		me.Uname = string(metadataEntry.Uname())
+		me.Gname = string(metadataEntry.Gname())
+		modTime := new(time.Time)
+		modTime.UnmarshalText(metadataEntry.ModTime())
+		me.ModTime = *modTime
+		me.Devmajor = metadataEntry.Devmajor()
+		me.Devminor = metadataEntry.Devminor()
+		me.Xattrs = make(map[string]string)
+		for j := 0; j < metadataEntry.XattrsLength(); j++ {
+			xattrEntry := new(ztoc_flatbuffers.Xattr)
+			metadataEntry.Xattrs(xattrEntry, j)
+			key := string(xattrEntry.Key())
+			value := string(xattrEntry.Value())
+			me.Xattrs[key] = value
+		}
+
+		ztoc.Metadata[i] = me
+	}
+
+	compressionInfo := new(ztoc_flatbuffers.CompressionInfo)
+	ztocFlatbuf.CompressionInfo(compressionInfo)
+	ztoc.MaxSpanId = SpanId(compressionInfo.MaxSpanId())
+	ztoc.ZtocInfo.SpanDigests = make([]digest.Digest, compressionInfo.SpanDigestsLength())
+	for i := 0; i < compressionInfo.SpanDigestsLength(); i++ {
+		dgst, _ := digest.Parse(string(compressionInfo.SpanDigests(i)))
+		ztoc.ZtocInfo.SpanDigests[i] = dgst
+	}
+	ztoc.IndexByteData = compressionInfo.IndexByteDataBytes()
+	return ztoc
 }
 
 // Get file mode from ztoc
