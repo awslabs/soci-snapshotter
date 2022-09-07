@@ -30,7 +30,7 @@ CMD=soci-snapshotter-grpc soci
 
 CMD_BINARIES=$(addprefix $(OUTDIR)/,$(CMD))
 
-.PHONY: all build pre-build check check-ltag check-dco check-lint install-check-tools add-ltag install install-zlib uninstall clean test integration
+.PHONY: all build pre-build check check-ltag check-dco check-lint install-check-tools add-ltag install install-cmake install-flatc install-zlib uninstall clean test integration
 
 all: build
 
@@ -51,6 +51,18 @@ pre-build:
 	@ar rvs ${OUTDIR}/libindexer.a ${OUTDIR}/indexer.o
 	@rm -f ${OUTDIR}/indexer.o
 
+install-cmake:
+	@wget https://github.com/Kitware/CMake/releases/download/v3.24.1/cmake-3.24.1-Linux-x86_64.sh -O cmake.sh
+	@sh cmake.sh --prefix=/usr/local/ --exclude-subdir
+	@rm -rf cmake.sh
+
+install-flatc:
+	wget https://github.com/google/flatbuffers/archive/refs/tags/v2.0.8.tar.gz -O flatbuffers.tar.gz
+	tar xzvf flatbuffers.tar.gz
+	cd flatbuffers-2.0.8 && cmake -G "Unix Makefiles" -DCMAKE_BUILD_TYPE=Release && make && make install
+	rm -f flatbuffers.tar.gz
+	rm -rf flatbuffers-2.0.8
+
 install-zlib:
 	@wget https://zlib.net/fossils/zlib-1.2.12.tar.gz
 	@tar xzvf zlib-1.2.12.tar.gz
@@ -58,7 +70,16 @@ install-zlib:
 	@rm -rf zlib-1.2.12
 	@rm -f zlib-1.2.12.tar.gz
 
-check: check-ltag check-dco check-lint
+check: check-ltag check-dco check-lint check-flatc
+
+flatc:
+	flatc -o $(CURDIR)/soci/fbs -g $(CURDIR)/soci/fbs/ztoc.fbs
+
+check-flatc: flatc ## check if protobufs needs to be generated again
+	@echo "$(WHALE) $@"
+	@test -z "$$(git status --short | grep ".go" | tee /dev/stderr)" || \
+		((git diff | cat) && \
+		(echo "$(ONI) please run 'make flatc' when making changes to fbs files" && false))
 
 # "check-lint" depends "pre-build". out/libindexer.a seems needed to process cgo directives
 check-lint: pre-build

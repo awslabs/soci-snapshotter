@@ -401,6 +401,205 @@ func TestZtocGeneration(t *testing.T) {
 
 		})
 	}
+}
+
+func TestZtocSerialization(t *testing.T) {
+	testcases := []struct {
+		name         string
+		fileContents []fileContent
+		spanSize     int64
+		targzName    string
+		buildTool    string
+		version      string
+		xattrs       map[string]string
+	}{
+		{
+			name: "success serialize ztoc with multiple files, span_size=64KiB",
+			fileContents: []fileContent{
+				{fileName: "file1", content: genRandomByteData(10800333)},
+				{fileName: "file2", content: genRandomByteData(60305021)},
+				{fileName: "file3", content: genRandomByteData(93000)},
+				{fileName: "file4", content: genRandomByteData(10700210)},
+				{fileName: "file5", content: genRandomByteData(55333)},
+				{fileName: "file6", content: genRandomByteData(1070)},
+				{fileName: "file7", content: genRandomByteData(9999937)},
+				{fileName: "file8", content: genRandomByteData(10800333)},
+				{fileName: "file9", content: genRandomByteData(305)},
+				{fileName: "filea", content: genRandomByteData(3000)},
+				{fileName: "fileb", content: genRandomByteData(107)},
+				{fileName: "filec", content: genRandomByteData(559333)},
+				{fileName: "filed", content: genRandomByteData(100)},
+				{fileName: "filee", content: genRandomByteData(9899937)},
+			},
+			spanSize:  65535,
+			targzName: "testcase0.tar.gz",
+			buildTool: "AWS SOCI CLI",
+			xattrs:    map[string]string{"testKey": "testValue"},
+		},
+	}
+
+	for _, tc := range testcases {
+		t.Run(tc.name, func(t *testing.T) {
+			tarGzip, fileNames, err := buildTempTarGz(tc.fileContents, tc.targzName)
+			if err != nil {
+				t.Fatalf("cannot build targzip: error=%v", err)
+			}
+			defer os.Remove(*tarGzip)
+			spansize := tc.spanSize
+			cfg := &buildConfig{
+				buildToolIdentifier: tc.buildTool,
+				buildToolVersion:    tc.version,
+			}
+			createdZtoc, err := BuildZtoc(*tarGzip, spansize, cfg)
+			if err != nil {
+				t.Fatalf("can't build ztoc: error=%v", err)
+			}
+			if createdZtoc == nil {
+				t.Fatalf("ztoc should not be nil")
+			}
+
+			// append xattrs
+			for i := 0; i < len(createdZtoc.Metadata); i++ {
+				for key := range tc.xattrs {
+					createdZtoc.Metadata[i].Xattrs = make(map[string]string)
+					createdZtoc.Metadata[i].Xattrs[key] = tc.xattrs[key]
+				}
+			}
+
+			// verify the correctness of created ztoc
+			if createdZtoc.BuildToolIdentifier != tc.buildTool {
+				t.Fatalf("ztoc build tool identifiers do not match: expected %s, got %s", tc.buildTool, createdZtoc.BuildToolIdentifier)
+			}
+
+			if len(createdZtoc.Metadata) != len(fileNames) {
+				t.Fatalf("ztoc metadata count mismatch. expected: %d, actual: %d", len(fileNames), len(createdZtoc.Metadata))
+			}
+
+			for i := 0; i < len(createdZtoc.Metadata); i++ {
+				compressedFileName := createdZtoc.Metadata[i].Name
+				if compressedFileName != fileNames[i] {
+					t.Fatalf("%d file name mismatch. expected: %s, actual: %s", i, fileNames[i], compressedFileName)
+				}
+
+				if int(createdZtoc.Metadata[i].UncompressedSize) != len(tc.fileContents[i].content) {
+					t.Fatalf("%d uncompressed content size mismatch. expected: %d, actual: %d",
+						i, len(tc.fileContents[i].content), int(createdZtoc.Metadata[i].UncompressedSize))
+				}
+
+				extractedBytes, err := ExtractFromTarGz(*tarGzip, createdZtoc, compressedFileName)
+				if err != nil {
+					t.Fatalf("could not extract file %s from %s using generated ztoc: %v", compressedFileName, *tarGzip, err)
+				}
+
+				if extractedBytes != string(tc.fileContents[i].content) {
+					t.Fatalf("the extracted content does not match. expected: %s, actual: %s",
+						string(tc.fileContents[i].content), extractedBytes)
+				}
+			}
+			// serialize
+			r, _, err := NewZtocReader(createdZtoc)
+			if err != nil {
+				t.Fatalf("error occurred when getting ztoc reader: %v", err)
+			}
+
+			// replacing the original ztoc with the read version of it
+			readZtoc, err := GetZtoc(r)
+			if err != nil {
+				t.Fatalf("error occurred when getting ztoc: %v", err)
+			}
+			if readZtoc == nil {
+				t.Fatalf("ztoc should not be nil")
+			}
+
+			if readZtoc.BuildToolIdentifier != createdZtoc.BuildToolIdentifier {
+				t.Fatalf("serialized ztoc build tool identifiers do not match: expected %s, got %s", createdZtoc.BuildToolIdentifier, readZtoc.BuildToolIdentifier)
+			}
+
+			if readZtoc.Version != createdZtoc.Version {
+				t.Fatalf("serialized ztoc version identifiers do not match: expected %s, got %s", createdZtoc.Version, readZtoc.Version)
+			}
+
+			if readZtoc.CompressedFileSize != createdZtoc.CompressedFileSize {
+				t.Fatalf("readZtoc.CompressedFileSize should be equal to createdZtoc.CompressedFileSize")
+			}
+			if readZtoc.MaxSpanId != createdZtoc.MaxSpanId {
+				t.Fatalf("readZtoc.MaxSpanId should be equal to createdZtoc.MaxSpanId")
+			}
+
+			if len(readZtoc.Metadata) != len(createdZtoc.Metadata) {
+				t.Fatalf("ztoc metadata count mismatch. expected: %d, actual: %d", len(createdZtoc.Metadata), len(readZtoc.Metadata))
+			}
+
+			for i := 0; i < len(readZtoc.Metadata); i++ {
+				readZtocMetadata := readZtoc.Metadata[i]
+				createdZtocMetadata := createdZtoc.Metadata[i]
+				compressedFileName := readZtocMetadata.Name
+
+				if !reflect.DeepEqual(readZtocMetadata, createdZtocMetadata) {
+					if readZtocMetadata.Name != createdZtocMetadata.Name {
+						t.Fatalf("createdZtoc.Metadata[%d].Name should be equal to readZtoc.Metadata[%d].Name", i, i)
+					}
+					if readZtocMetadata.Type != createdZtocMetadata.Type {
+						t.Fatalf("createdZtoc.Metadata[%d].Type should be equal to readZtoc.Metadata[%d].Type", i, i)
+					}
+					if !readZtocMetadata.ModTime.Equal(createdZtocMetadata.ModTime) {
+						t.Fatalf("createdZtoc.Metadata[%d].ModTime=%v should be equal to readZtoc.Metadata[%d].ModTime=%v", i, createdZtocMetadata.ModTime, i, readZtocMetadata.ModTime)
+					}
+					if readZtocMetadata.UncompressedOffset != createdZtocMetadata.UncompressedOffset {
+						t.Fatalf("createdZtoc.Metadata[%d].UncompressedOffset should be equal to readZtoc.Metadata[%d].UncompressedOffset", i, i)
+					}
+					if readZtocMetadata.UncompressedSize != createdZtocMetadata.UncompressedSize {
+						t.Fatalf("createdZtoc.Metadata[%d].UncompressedSize should be equal to readZtoc.Metadata[%d].UncompressedSize", i, i)
+					}
+					if readZtocMetadata.SpanStart != createdZtocMetadata.SpanStart {
+						t.Fatalf("createdZtoc.Metadata[%d].SpanStart should be equal to readZtoc.Metadata[%d].SpanStart", i, i)
+					}
+					if readZtocMetadata.SpanEnd != createdZtocMetadata.SpanEnd {
+						t.Fatalf("createdZtoc.Metadata[%d].SpanEnd should be equal to readZtoc.Metadata[%d].SpanEnd", i, i)
+					}
+					if readZtocMetadata.Linkname != createdZtocMetadata.Linkname {
+						t.Fatalf("createdZtoc.Metadata[%d].Linkname should be equal to readZtoc.Metadata[%d].Linkname", i, i)
+					}
+					if readZtocMetadata.Mode != createdZtocMetadata.Mode {
+						t.Fatalf("createdZtoc.Metadata[%d].Mode should be equal to readZtoc.Metadata[%d].Mode", i, i)
+					}
+					if readZtocMetadata.UID != createdZtocMetadata.UID {
+						t.Fatalf("createdZtoc.Metadata[%d].UID should be equal to readZtoc.Metadata[%d].UID", i, i)
+					}
+					if readZtocMetadata.GID != createdZtocMetadata.GID {
+						t.Fatalf("createdZtoc.Metadata[%d].GID should be equal to readZtoc.Metadata[%d].GID", i, i)
+					}
+					if readZtocMetadata.Uname != createdZtocMetadata.Uname {
+						t.Fatalf("createdZtoc.Metadata[%d].Uname should be equal to readZtoc.Metadata[%d].Uname", i, i)
+					}
+					if readZtocMetadata.Gname != createdZtocMetadata.Gname {
+						t.Fatalf("createdZtoc.Metadata[%d].Gname should be equal to readZtoc.Metadata[%d].Gname", i, i)
+					}
+					if readZtocMetadata.Devmajor != createdZtocMetadata.Devmajor {
+						t.Fatalf("createdZtoc.Metadata[%d].Devmajor should be equal to readZtoc.Metadata[%d].Devmajor", i, i)
+					}
+					if readZtocMetadata.Devminor != createdZtocMetadata.Devminor {
+						t.Fatalf("createdZtoc.Metadata[%d].Devminor should be equal to readZtoc.Metadata[%d].Devminor", i, i)
+					}
+				}
+
+				extractedBytes, err := ExtractFromTarGz(*tarGzip, readZtoc, compressedFileName)
+				if err != nil {
+					t.Fatalf("could not extract file %s from %s using generated ztoc: %v", compressedFileName, *tarGzip, err)
+				}
+
+				if extractedBytes != string(tc.fileContents[i].content) {
+					t.Fatalf("the extracted content does not match. expected: %s, actual: %s",
+						string(tc.fileContents[i].content), extractedBytes)
+				}
+			}
+
+			// Compare raw IndexByteData
+			if !bytes.Equal(createdZtoc.IndexByteData, readZtoc.IndexByteData) {
+				t.Fatalf("createdZtoc.IndexByteData must be identical to readZtoc.IndexByteData")
+			}
+		})
+	}
 
 }
 
@@ -426,8 +625,8 @@ func TestWriteZtoc(t *testing.T) {
 			uncompressedFileSize: 2500000,
 			maxSpanID:            3,
 			buildTool:            "AWS SOCI CLI",
-			expDigest:            "sha256:8981c1a338a2600b5079588e09b639755c71c69bc4c099aedc68519d6fbf79fb",
-			expSize:              439,
+			expDigest:            "sha256:ee2fd7cf479ccbbe769fa67120a04b420133a7425ea0fa03791ed9ffe9b8340b",
+			expSize:              65936,
 		},
 	}
 
