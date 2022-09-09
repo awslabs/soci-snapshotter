@@ -314,6 +314,15 @@ func testExistenceWithOpaque(t *testing.T, factory metadata.Store, opaque Overla
 				hasExtraMode("test", os.ModeSticky),
 			},
 		},
+		{
+			name: "symlink_size",
+			in: []testutil.TarEntry{
+				testutil.Symlink("test", "target"),
+			},
+			want: []check{
+				hasSize("test", len("target")),
+			},
+		},
 	}
 
 	for _, tt := range tests {
@@ -341,6 +350,22 @@ func testExistenceWithOpaque(t *testing.T, factory metadata.Store, opaque Overla
 					want(t, rootNode)
 				}
 			})
+		}
+	}
+}
+
+func hasSize(name string, size int) check {
+	return func(t *testing.T, root *node) {
+		_, n, err := getDirentAndNode(t, root, name)
+		if err != nil {
+			t.Fatalf("failed to get node %q: %v", name, err)
+		}
+		var ao fuse.AttrOut
+		if errno := n.Operations().(fusefs.NodeGetattrer).Getattr(context.Background(), nil, &ao); errno != 0 {
+			t.Fatalf("failed to get attributes of node %q: %v", name, errno)
+		}
+		if ao.Attr.Size != uint64(size) {
+			t.Fatalf("got size = %d, want %d", ao.Attr.Size, size)
 		}
 	}
 }
