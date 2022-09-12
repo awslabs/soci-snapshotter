@@ -81,15 +81,7 @@ command.
 			return fmt.Errorf("please provide an image reference")
 		}
 
-		sociIndexDigest := context.String("soci-index-digest")
-
-		if sociIndexDigest == "" {
-			fmt.Printf("unable to find SOCI index digest for %v: the container image will be pulled in non-SOCI mode\n", ref)
-		} else {
-			fmt.Printf("using SOCI index digest: %v\n", sociIndexDigest)
-		}
-
-		config.indexDigest = sociIndexDigest
+		config.indexDigest = context.String("soci-index-digest")
 
 		client, ctx, cancel, err := commands.NewClient(context)
 		if err != nil {

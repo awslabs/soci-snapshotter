@@ -439,6 +439,121 @@ level = "debug"
 	}
 }
 
+// TestLazyPull tests if lazy pulling works when no index digest is provided (makes a Referrers API call)
+func TestLazyPullNoIndexDigest(t *testing.T) {
+	t.Parallel()
+	var (
+		registryHost  = "registry-" + xid.New().String() + ".test"
+		registryUser  = "dummyuser"
+		registryPass  = "dummypass"
+		registryCreds = func() string { return registryUser + ":" + registryPass }
+	)
+	dockerhub := func(name string) imageInfo {
+		return imageInfo{dockerLibrary + name, "", false}
+	}
+	mirror := func(name string) imageInfo {
+		return imageInfo{registryHost + "/" + name, registryUser + ":" + registryPass, false}
+	}
+	// Prepare config for containerd and snapshotter
+	getContainerdConfigYaml := func(disableVerification bool) []byte {
+		additionalConfig := ""
+		if !isTestingBuiltinSnapshotter() {
+			additionalConfig = proxySnapshotterConfig
+		}
+		return []byte(testutil.ApplyTextTemplate(t, `
+version = 2
+
+[plugins."io.containerd.snapshotter.v1.soci"]
+root_path = "/var/lib/soci-snapshotter-grpc/"
+disable_verification = {{.DisableVerification}}
+
+[plugins."io.containerd.snapshotter.v1.soci".blob]
+check_always = true
+
+[debug]
+format = "json"
+level = "debug"
+
+{{.AdditionalConfig}}
+`, struct {
+			DisableVerification bool
+			AdditionalConfig    string
+		}{
+			DisableVerification: disableVerification,
+			AdditionalConfig:    additionalConfig,
+		}))
+	}
+	getSnapshotterConfigYaml := func(disableVerification bool) []byte {
+		return []byte(fmt.Sprintf("disable_verification = %v", disableVerification))
+	}
+
+	// Setup environment
+	sh, _, done := newShellWithRegistry(t, registryHost, registryUser, registryPass)
+	defer done()
+	if err := testutil.WriteFileContents(sh, defaultContainerdConfigPath, getContainerdConfigYaml(false), 0600); err != nil {
+		t.Fatalf("failed to write %v: %v", defaultContainerdConfigPath, err)
+	}
+	if err := testutil.WriteFileContents(sh, defaultSnapshotterConfigPath, getSnapshotterConfigYaml(false), 0600); err != nil {
+		t.Fatalf("failed to write %v: %v", defaultSnapshotterConfigPath, err)
+	}
+
+	optimizedImageName := alpineImage
+	nonOptimizedImageName := ubuntuImage
+
+	// Mirror images
+	rebootContainerd(t, sh, "", "")
+	copyImage(sh, dockerhub(optimizedImageName), mirror(optimizedImageName))
+	copyImage(sh, dockerhub(nonOptimizedImageName), mirror(nonOptimizedImageName))
+	optimizeImage(sh, mirror(optimizedImageName))
+	sh.X("soci", "push", "--user", registryCreds(), mirror(optimizedImageName).ref)
+
+	// Test if contents are pulled
+	fromNormalSnapshotter := func(image string) tarPipeExporter {
+		return func(tarExportArgs ...string) {
+			rebootContainerd(t, sh, "", "")
+			sh.X("ctr", "i", "pull", "--user", registryCreds(), image)
+			sh.Pipe(nil, shell.C("ctr", "run", "--rm", image, "test", "tar", "-c", "/usr"), tarExportArgs)
+		}
+	}
+	export := func(sh *shell.Shell, image string, tarExportArgs []string) {
+		sh.X("soci", "image", "rpull", "--user", registryCreds(), image)
+		sh.Pipe(nil, shell.C("soci", "run", "--rm", "--snapshotter=soci", image, "test", "tar", "-c", "/usr"), tarExportArgs)
+	}
+
+	// NOTE: these tests must be executed sequentially.
+	tests := []struct {
+		name string
+		want tarPipeExporter
+		test tarPipeExporter
+	}{
+		{
+			name: "normal",
+			want: fromNormalSnapshotter(mirror(nonOptimizedImageName).ref),
+			test: func(tarExportArgs ...string) {
+				image := mirror(nonOptimizedImageName).ref
+				rebootContainerd(t, sh, "", "")
+				export(sh, image, tarExportArgs)
+			},
+		},
+		{
+			name: "soci",
+			want: fromNormalSnapshotter(mirror(optimizedImageName).ref),
+			test: func(tarExportArgs ...string) {
+				image := mirror(optimizedImageName).ref
+				m := rebootContainerd(t, sh, "", "")
+				sh.X("ctr", "i", "rm", mirror(optimizedImageName).ref)
+				export(sh, image, tarExportArgs)
+				m.CheckAllRemoteSnapshots(t)
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			testSameTarContents(t, sh, tt.want, tt.test)
+		})
+	}
+}
+
 // TestMirror tests if mirror & refreshing functionalities of snapshotter work
 func TestMirror(t *testing.T) {
 	t.Parallel()
