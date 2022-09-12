@@ -12,7 +12,11 @@ jobs:
     steps:
       - uses: actions/checkout@v3
         with:
-          fetch-depth: 20
+          # check-dco will check the last 20 commits, but commit ranges
+          # exclude the start commit in the result, but need that commit
+          # in order to calculate the range. i.e. HEAD~20..HEAD includes
+          # 20 commits, but including HEAD it needs 21 commits.
+          fetch-depth: 21
       - run: make install-check-tools
       - run: make check-ltag
       - run: make check-dco
