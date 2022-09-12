@@ -32,7 +32,6 @@ import (
 	"github.com/containerd/containerd/remotes"
 	"github.com/containerd/containerd/remotes/docker"
 	ctrdockerconfig "github.com/containerd/containerd/remotes/docker/config"
-	"github.com/opencontainers/go-digest"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"golang.org/x/sync/errgroup"
 	"oras.land/oras-go/v2/content"
@@ -68,7 +67,7 @@ func newArtifactFetcher(refspec reference.Spec, localStore, remoteStore content.
 	}, nil
 }
 
-func newRemoteStore(refspec reference.Spec) (content.Storage, error) {
+func newRemoteStore(refspec reference.Spec) (*remote.Repository, error) {
 	repo, err := remote.NewRepository(refspec.Locator)
 	if err != nil {
 		return nil, fmt.Errorf("cannot create repository %s: %w", refspec.Locator, err)
@@ -166,28 +165,16 @@ func (f *artifactFetcher) Store(ctx context.Context, desc ocispec.Descriptor, re
 	return nil
 }
 
-func FetchSociArtifacts(ctx context.Context, imageRef, indexDigest string, store content.Storage) (*soci.Index, error) {
-	refspec, err := reference.Parse(imageRef)
-	if err != nil {
-		return nil, fmt.Errorf("cannot parse image ref (%s): %w", imageRef, err)
-	}
-	remoteStore, err := newRemoteStore(refspec)
-	if err != nil {
-		return nil, fmt.Errorf("cannot create remote store: %w", err)
-	}
-	fetcher, err := newArtifactFetcher(refspec, store, remoteStore, newResolver())
+func FetchSociArtifacts(ctx context.Context, refspec reference.Spec, indexDesc ocispec.Descriptor, localStore, remoteStore content.Storage) (*soci.Index, error) {
+
+	fetcher, err := newArtifactFetcher(refspec, localStore, remoteStore, newResolver())
 	if err != nil {
 		return nil, fmt.Errorf("could not create an artifact fetcher: %w", err)
 	}
 
-	log.G(ctx).WithField("digest", indexDigest).Infof("fetching SOCI index from remote registry")
-	dgst, err := digest.Parse(indexDigest)
-	if err != nil {
-		log.G(ctx).WithField("digest", indexDigest).Warnf("could not parse soci index digest")
-		return nil, err
-	}
+	log.G(ctx).WithField("digest", indexDesc.Digest).Infof("fetching SOCI index from remote registry")
 
-	indexReader, local, err := fetcher.Fetch(ctx, ocispec.Descriptor{Digest: dgst})
+	indexReader, local, err := fetcher.Fetch(ctx, indexDesc)
 	if err != nil {
 		return nil, fmt.Errorf("unable to fetch SOCI index: %w", err)
 	}
@@ -206,8 +193,8 @@ func FetchSociArtifacts(ctx context.Context, imageRef, indexDigest string, store
 		if err != nil {
 			return nil, err
 		}
-		err = store.Push(ctx, ocispec.Descriptor{
-			Digest: dgst,
+		err = localStore.Push(ctx, ocispec.Descriptor{
+			Digest: indexDesc.Digest,
 			Size:   cw.Size(),
 		}, bytes.NewReader(b))
 

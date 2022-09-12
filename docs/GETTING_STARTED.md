@@ -241,6 +241,7 @@ for each layer.
 In this command the `--soci-index-digest` needs to be the digest of the SOCI
 index manifest.  The final argument is the tag of the image:
 
+**NOTE: Specifying `--soci-index-digest` is optional. If the argument is not provided, the snapshotter will use the [Referrers API](https://github.com/opencontainers/distribution-spec/blob/main/spec.md#listing-referrers) to fetch a list of available indices.**
 ```
 sudo ./soci image rpull --plain-http --soci-index-digest sha256:f5f2a8558d0036c0a316638c5575607c01d1fa1588dbe56c6a5a7253e30ce107 localhost:5000/rabbitmq:latest
 ```

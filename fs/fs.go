@@ -67,6 +67,7 @@ import (
 	metrics "github.com/docker/go-metrics"
 	fusefs "github.com/hanwen/go-fuse/v2/fs"
 	"github.com/hanwen/go-fuse/v2/fuse"
+	"github.com/opencontainers/go-digest"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
 	orascontent "oras.land/oras-go/v2/content"
@@ -78,6 +79,10 @@ const (
 	defaultFuseTimeout    = time.Second
 	defaultMaxConcurrency = 2
 	fusermountBin         = "fusermount"
+)
+
+var (
+	defaultIndexSelectionPolicy = SelectFirstPolicy
 )
 
 type Option func(*options)
@@ -187,10 +192,44 @@ type sociContext struct {
 	imageLayerToSociDesc map[string]ocispec.Descriptor
 }
 
-func (c *sociContext) Init(ctx context.Context, imageRef, indexDigest string, store orascontent.Storage) error {
+func (c *sociContext) Init(ctx context.Context, imageRef, indexDigest, imageManifestDigest string, store orascontent.Storage) error {
 	var retErr error
 	c.fetchOnce.Do(func() {
-		index, err := FetchSociArtifacts(ctx, imageRef, indexDigest, store)
+		refspec, err := reference.Parse(imageRef)
+		if err != nil {
+			retErr = err
+			return
+		}
+
+		remoteStore, err := newRemoteStore(refspec)
+		if err != nil {
+			retErr = err
+			return
+		}
+
+		client := NewORASClient(remoteStore)
+		indexDesc := ocispec.Descriptor{
+			Digest: digest.Digest(indexDigest),
+		}
+
+		if indexDigest == "" {
+			log.G(ctx).Info("index digest not provided, making a Referrers API call to fetch list of indices")
+			imgDigest, err := digest.Parse(imageManifestDigest)
+			if err != nil {
+				retErr = fmt.Errorf("unable to parse image digest: %w", err)
+			}
+
+			desc, err := client.SelectReferrer(ctx, ocispec.Descriptor{Digest: imgDigest}, defaultIndexSelectionPolicy)
+			if err != nil {
+				retErr = fmt.Errorf("cannot fetch list of referrers: %w", err)
+				return
+			}
+			indexDesc = desc
+		}
+
+		log.G(ctx).WithField("digest", indexDesc.Digest.String()).Infof("fetching SOCI artifacts using index descriptor")
+
+		index, err := FetchSociArtifacts(ctx, refspec, indexDesc, store, remoteStore)
 		if err != nil && !errors.Is(err, errdef.ErrAlreadyExists) {
 			retErr = fmt.Errorf("error trying to fetch SOCI artifacts: %w", err)
 			return
@@ -263,13 +302,13 @@ func (fs *filesystem) MountLocal(ctx context.Context, mountpoint string, labels 
 	return nil
 }
 
-func (fs *filesystem) getSociContext(ctx context.Context, imageRef, indexDigest string) (*sociContext, error) {
-	cAny, _ := fs.sociContexts.LoadOrStore(indexDigest, &sociContext{})
+func (fs *filesystem) getSociContext(ctx context.Context, imageRef, indexDigest, imageManifestDigest string) (*sociContext, error) {
+	cAny, _ := fs.sociContexts.LoadOrStore(imageManifestDigest, &sociContext{})
 	c, ok := cAny.(*sociContext)
 	if !ok {
 		return nil, fmt.Errorf("could not load index: fs soci context is invalid type for %s", indexDigest)
 	}
-	err := c.Init(ctx, imageRef, indexDigest, fs.orasStore)
+	err := c.Init(ctx, imageRef, indexDigest, imageManifestDigest, fs.orasStore)
 	return c, err
 }
 
@@ -292,8 +331,12 @@ func (fs *filesystem) Mount(ctx context.Context, mountpoint string, labels map[s
 	if !ok {
 		return fmt.Errorf("unable to get image ref from labels")
 	}
+	imgDigest, ok := labels[source.TargetImgManifestDigestLabel]
+	if !ok {
+		return fmt.Errorf("unable to get image digest from labels")
+	}
 
-	c, err := fs.getSociContext(ctx, imageRef, sociIndexDigest)
+	c, err := fs.getSociContext(ctx, imageRef, sociIndexDigest, imgDigest)
 	if err != nil {
 		return fmt.Errorf("unable to fetch SOCI artifacts: %w", err)
 	}
