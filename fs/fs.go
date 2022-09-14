@@ -61,6 +61,7 @@ import (
 	"github.com/awslabs/soci-snapshotter/soci"
 	"github.com/awslabs/soci-snapshotter/task"
 	"github.com/containerd/containerd/log"
+	"github.com/containerd/containerd/mount"
 	"github.com/containerd/containerd/reference"
 	"github.com/containerd/containerd/remotes/docker"
 	metrics "github.com/docker/go-metrics"
@@ -221,7 +222,7 @@ func (fs *filesystem) populateImageLayerToSociMapping(sociIndex *soci.Index) {
 	}
 }
 
-func (fs *filesystem) MountLocal(ctx context.Context, mountpoint string, labels map[string]string) error {
+func (fs *filesystem) MountLocal(ctx context.Context, mountpoint string, labels map[string]string, mounts []mount.Mount) error {
 	imageRef, ok := labels[source.TargetRefLabel]
 	if !ok {
 		return fmt.Errorf("unable to get image ref from labels")
@@ -250,7 +251,7 @@ func (fs *filesystem) MountLocal(ctx context.Context, mountpoint string, labels 
 	}
 	unpacker := NewLayerUnpacker(fetcher, archive)
 	desc := s.Target
-	err = unpacker.Unpack(ctx, desc, mountpoint)
+	err = unpacker.Unpack(ctx, desc, mountpoint, mounts)
 	if err != nil {
 		return fmt.Errorf("cannot unpack the layer: %w", err)
 	}

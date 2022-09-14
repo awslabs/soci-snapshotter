@@ -434,7 +434,7 @@ func (fs *bindFs) Unmount(ctx context.Context, mountpoint string) error {
 	return syscall.Unmount(mountpoint, 0)
 }
 
-func (fs *bindFs) MountLocal(ctx context.Context, mountpoint string, labels map[string]string) error {
+func (fs *bindFs) MountLocal(ctx context.Context, mountpoint string, labels map[string]string, mounts []mount.Mount) error {
 	if _, ok := labels[brokenLabel]; ok {
 		fs.broken[mountpoint] = true
 	}
@@ -460,7 +460,7 @@ func (fs *dummyFs) Unmount(ctx context.Context, mountpoint string) error {
 	return fmt.Errorf("dummy")
 }
 
-func (fs *dummyFs) MountLocal(ctx context.Context, mountpoint string, labels map[string]string) error {
+func (fs *dummyFs) MountLocal(ctx context.Context, mountpoint string, labels map[string]string, mounts []mount.Mount) error {
 	return fmt.Errorf("dummy")
 }
 

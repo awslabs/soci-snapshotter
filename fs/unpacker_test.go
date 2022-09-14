@@ -23,6 +23,8 @@ import (
 	"io"
 	"testing"
 
+	"github.com/containerd/containerd/archive"
+	"github.com/containerd/containerd/mount"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 )
 
@@ -67,7 +69,8 @@ func TestFailureModes(t *testing.T) {
 			fetcher := newFakeFetcher(false, tc.storeFails, tc.fetchFails)
 			archive := newFakeArchive(tc.unpackedSize, tc.applyFails)
 			unpacker := NewLayerUnpacker(fetcher, archive)
-			err := unpacker.Unpack(context.Background(), tc.desc, tc.mountpoint)
+			mounts := getFakeMounts()
+			err := unpacker.Unpack(context.Background(), tc.desc, tc.mountpoint, mounts)
 			if err == nil {
 				t.Fatalf("%v: there should've been an error due to the following cases: fetch=%v, store=%v, apply=%v",
 					tc.name, tc.fetchFails, tc.storeFails, tc.applyFails)
@@ -113,7 +116,8 @@ func TestUnpackHappyPath(t *testing.T) {
 			fetcher := newFakeFetcher(tc.hasLocal, false, false)
 			archive := newFakeArchive(tc.unpackedSize, false)
 			unpacker := NewLayerUnpacker(fetcher, archive)
-			err := unpacker.Unpack(context.Background(), tc.desc, tc.mountpoint)
+			mounts := getFakeMounts()
+			err := unpacker.Unpack(context.Background(), tc.desc, tc.mountpoint, mounts)
 			if err != nil {
 				t.Fatalf("%v: failed to unpack layer", tc.name)
 			}
@@ -185,10 +189,24 @@ func newFakeArchive(unpackedSize int64, applyFails bool) *fakeArchive {
 	}
 }
 
-func (a *fakeArchive) Apply(ctx context.Context, root string, r io.Reader) (int64, error) {
+func (a *fakeArchive) Apply(ctx context.Context, root string, r io.Reader, opts ...archive.ApplyOpt) (int64, error) {
 	a.applyCount++
 	if a.applyFails {
 		return 0, fmt.Errorf("dummy error on Apply()")
 	}
 	return a.unpackedSize, nil
+}
+
+func getFakeMounts() []mount.Mount {
+	return []mount.Mount{
+		{
+			Type:   "overlay",
+			Source: "overlay",
+			Options: []string{
+				"workdir=somedir1",
+				"upperdir=somedir2",
+				"lowerdir=somedir3:somedir4",
+			},
+		},
+	}
 }

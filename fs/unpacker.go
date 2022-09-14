@@ -20,23 +20,26 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"strings"
 
 	"github.com/containerd/containerd/archive"
 	"github.com/containerd/containerd/archive/compression"
+	"github.com/containerd/containerd/mount"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 )
 
 type Unpacker interface {
 	// Unpack takes care of getting the layer specified by descriptor `desc`,
-	// decompressing it and putting it in the directory with the path `mountpoint`.
+	// decompressing it, putting it in the directory with the path `mountpoint`
+	// and applying the difference to the parent layers if there is any.
 	// After that the layer can be mounted as non-remote snapshot.
-	Unpack(ctx context.Context, desc ocispec.Descriptor, mountpoint string) error
+	Unpack(ctx context.Context, desc ocispec.Descriptor, mountpoint string, mounts []mount.Mount) error
 }
 
 type Archive interface {
 	// Apply decompresses the compressed stream represented by reader `r` and
 	// applies it to the directory `root`.
-	Apply(ctx context.Context, root string, r io.Reader) (int64, error)
+	Apply(ctx context.Context, root string, r io.Reader, opts ...archive.ApplyOpt) (int64, error)
 }
 
 type layerArchive struct {
@@ -46,7 +49,7 @@ func NewLayerArchive() Archive {
 	return &layerArchive{}
 }
 
-func (la *layerArchive) Apply(ctx context.Context, root string, r io.Reader) (int64, error) {
+func (la *layerArchive) Apply(ctx context.Context, root string, r io.Reader, opts ...archive.ApplyOpt) (int64, error) {
 	// we use containerd implementation here
 	// decompress first and then apply
 	decompressReader, err := compression.DecompressStream(r)
@@ -54,7 +57,7 @@ func (la *layerArchive) Apply(ctx context.Context, root string, r io.Reader) (in
 		return 0, fmt.Errorf("cannot decompress the stream: %w", err)
 	}
 	defer decompressReader.Close()
-	return archive.Apply(ctx, root, decompressReader)
+	return archive.Apply(ctx, root, decompressReader, opts...)
 }
 
 type layerUnpacker struct {
@@ -69,7 +72,7 @@ func NewLayerUnpacker(fetcher Fetcher, archive Archive) Unpacker {
 	}
 }
 
-func (lu *layerUnpacker) Unpack(ctx context.Context, desc ocispec.Descriptor, mountpoint string) error {
+func (lu *layerUnpacker) Unpack(ctx context.Context, desc ocispec.Descriptor, mountpoint string, mounts []mount.Mount) error {
 	rc, local, err := lu.fetcher.Fetch(ctx, desc)
 	if err != nil {
 		return fmt.Errorf("cannot fetch layer: %w", err)
@@ -86,11 +89,31 @@ func (lu *layerUnpacker) Unpack(ctx context.Context, desc ocispec.Descriptor, mo
 			return fmt.Errorf("cannot fetch layer: %w", err)
 		}
 	}
-
-	_, err = lu.archive.Apply(ctx, mountpoint, rc)
+	parents, err := getLayerParents(mounts[0].Options)
+	if err != nil {
+		return fmt.Errorf("cannot get layer parents: %w", err)
+	}
+	opts := []archive.ApplyOpt{
+		archive.WithConvertWhiteout(archive.OverlayConvertWhiteout),
+	}
+	if len(parents) > 0 {
+		opts = append(opts, archive.WithParents(parents))
+	}
+	_, err = lu.archive.Apply(ctx, mountpoint, rc, opts...)
 	if err != nil {
 		return fmt.Errorf("cannot apply layer: %w", err)
 	}
 
 	return nil
+}
+
+func getLayerParents(options []string) (lower []string, err error) {
+	const lowerdirPrefix = "lowerdir="
+
+	for _, o := range options {
+		if strings.HasPrefix(o, lowerdirPrefix) {
+			lower = strings.Split(strings.TrimPrefix(o, lowerdirPrefix), ":")
+		}
+	}
+	return
 }

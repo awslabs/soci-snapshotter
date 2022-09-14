@@ -81,13 +81,14 @@ const (
 // Unmount() is called to unmount a remote snapshot from the specified mount point
 // directory.
 // MountLocal() is called to download and decompress a layer to a mount point
-// directory. If succeeded, the mountpoint directory will be treaded as a regular
-// layer snapshot. If MountLocal() fails, the mountpoint directory MUST be cleaned up.
+// directory. After that it applies the difference to the parent layers if there are any.
+// If succeeded, the mountpoint directory will be treated as a regular layer snapshot.
+// If MountLocal() fails, the mountpoint directory MUST be cleaned up.
 type FileSystem interface {
 	Mount(ctx context.Context, mountpoint string, labels map[string]string) error
 	Check(ctx context.Context, mountpoint string, labels map[string]string) error
 	Unmount(ctx context.Context, mountpoint string) error
-	MountLocal(ctx context.Context, mountpoint string, labels map[string]string) error
+	MountLocal(ctx context.Context, mountpoint string, labels map[string]string, mounts []mount.Mount) error
 }
 
 // SnapshotterConfig is used to configure the remote snapshotter instance
@@ -282,7 +283,12 @@ func (o *snapshotter) Prepare(ctx context.Context, key, parent string, opts ...s
 			// possible has done some work on this "upper" directory.
 			return nil, err
 		}
-		if err = o.prepareLocalSnapshot(lCtx, key, base.Labels); err != nil {
+		mounts, err := o.mounts(ctx, s, parent)
+		if err != nil {
+			// don't fallback here, since there was an error getting mounts
+			return nil, err
+		}
+		if err = o.prepareLocalSnapshot(lCtx, key, base.Labels, mounts); err != nil {
 			log.G(lCtx).WithField(remoteSnapshotLogKey, prepareFailed).
 				WithError(err).Warn("failed to prepare snapshot; deferring to container runtime")
 		} else {
@@ -684,7 +690,7 @@ func (o *snapshotter) Close() error {
 }
 
 // prepareLocalSnapshot tries to prepare the snapshot as a local snapshot.
-func (o *snapshotter) prepareLocalSnapshot(ctx context.Context, key string, labels map[string]string) error {
+func (o *snapshotter) prepareLocalSnapshot(ctx context.Context, key string, labels map[string]string, mounts []mount.Mount) error {
 	ctx, t, err := o.ms.TransactionContext(ctx, false)
 	if err != nil {
 		return err
@@ -696,7 +702,7 @@ func (o *snapshotter) prepareLocalSnapshot(ctx context.Context, key string, labe
 	}
 	mountpoint := o.upperPath(id)
 	log.G(ctx).Infof("preparing local filesystem at mountpoint=%v", mountpoint)
-	return o.fs.MountLocal(ctx, mountpoint, labels)
+	return o.fs.MountLocal(ctx, mountpoint, labels, mounts)
 }
 
 // prepareRemoteSnapshot tries to prepare the snapshot as a remote snapshot
