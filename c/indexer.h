@@ -50,6 +50,7 @@
 #include <zlib.h>
 
 typedef unsigned char uchar;
+typedef int64_t offset_t;
 
 /* Since gzip is compressed with 32 KiB window size, WINDOW_SIZE is fixed */
 #define WINSIZE 32768U
@@ -64,8 +65,8 @@ enum
 
 struct gzip_index_point
 {
-    off_t out;          /* corresponding offset in uncompressed data */
-    off_t in;           /* offset in input file of first full byte */
+    offset_t out;          /* corresponding offset in uncompressed data */
+    offset_t in;           /* offset in input file of first full byte */
     uint8_t bits;           /* number of bits (1-7) from byte at in - 1, or 0 */
     unsigned char window[WINSIZE];  /* preceding 32K of uncompressed data */    
 };
@@ -75,32 +76,32 @@ struct gzip_index
     int have;           /* number of list entries filled in */
     int size;           /* number of list entries allocated */
     struct gzip_index_point *list; /* allocated list */
-    off_t span_size;
+    offset_t span_size;
 };
 
 
 /* Get the index number of the point in the gzip index where
    the uncompressed offset is present 
 */
-int pt_index_from_ucmp_offset(struct gzip_index* index, off_t off);
+int pt_index_from_ucmp_offset(struct gzip_index* index, offset_t off);
 
-int generate_index_fp(FILE* fp, off_t span, struct gzip_index** index);
-int generate_index(const char* filepath, off_t span, struct gzip_index** index);
+int generate_index_fp(FILE* fp, offset_t span, struct gzip_index** index);
+int generate_index(const char* filepath, offset_t span, struct gzip_index** index);
 
 // TODO: Improve this
-int extract_data_from_buffer(void* d, off_t datalen, struct gzip_index* index, off_t offset, void* buffer, off_t len, int first_point_index);
-int extract_data_fp(FILE *in, struct gzip_index *index, off_t offset, void *buf, int len);
-int extract_data(const char* file, struct gzip_index* index, off_t offset, void* buf, int len);
+int extract_data_from_buffer(void* d, offset_t datalen, struct gzip_index* index, offset_t offset, void* buffer, offset_t len, int first_point_index);
+int extract_data_fp(FILE *in, struct gzip_index *index, offset_t offset, void *buf, int len);
+int extract_data(const char* file, struct gzip_index* index, offset_t offset, void* buf, int len);
 
 
 int has_bits(struct gzip_index* index, int point_index);
-off_t get_ucomp_off(struct gzip_index* index, int point_index);
-off_t get_comp_off(struct gzip_index* index, int point_index);
+offset_t get_ucomp_off(struct gzip_index* index, int point_index);
+offset_t get_comp_off(struct gzip_index* index, int point_index);
 
 /* Given a file's uncompressed start and end offset, returns the spans which
     contains those offsets
 */
-int span_indices_for_file(struct gzip_index* index, off_t start, off_t end, void* index_start, void* index_end);
+int span_indices_for_file(struct gzip_index* index, offset_t start, offset_t end, void* index_start, void* index_end);
 
 /* Subroutines to convert index to/from a binary blob */
 
