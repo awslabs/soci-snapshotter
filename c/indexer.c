@@ -59,7 +59,7 @@ void free_index(struct gzip_index *index)
 /* Add an entry to the access point list.  If out of memory, deallocate the
    existing list and return NULL. */
 static struct gzip_index *addpoint(struct gzip_index *index, uint8_t bits,
-    off_t in, off_t out, unsigned left, unsigned char *window)
+    offset_t in, offset_t out, unsigned left, unsigned char *window)
 {
     struct gzip_index_point *next;
 
@@ -105,11 +105,11 @@ static struct gzip_index *addpoint(struct gzip_index *index, uint8_t bits,
 
 
 /* Pretty much the same as from zran.c */
-int generate_index_fp(FILE* in, off_t span, struct gzip_index** idx)
+int generate_index_fp(FILE* in, offset_t span, struct gzip_index** idx)
 {
     int ret;
-    off_t totin, totout;        /* our own total counters to avoid 4GB limit */
-    off_t last;                 /* totout value of last access point */
+    offset_t totin, totout;        /* our own total counters to avoid 4GB limit */
+    offset_t last;                 /* totout value of last access point */
     struct gzip_index *index;       /* access points being generated */
     z_stream strm;
     unsigned char input[CHUNK];
@@ -220,12 +220,12 @@ static uint8_t get_bits(struct gzip_index* index, int point_index)
     return index->list[point_index].bits;
 }
 
-off_t get_ucomp_off(struct gzip_index* index, int point_index)
+offset_t get_ucomp_off(struct gzip_index* index, int point_index)
 {
     return index->list[point_index].out;
 }
 
-off_t get_comp_off(struct gzip_index* index, int point_index)
+offset_t get_comp_off(struct gzip_index* index, int point_index)
 {
     return index->list[point_index].in;
 }
@@ -236,7 +236,7 @@ static int min(int lhs, int rhs)
 }
 
 // This is the same as extract_data_fp, but instead of a file, it decompresses data from a buffer which contains the exact data to decompress 
-int extract_data_from_buffer(void* d, off_t datalen, struct gzip_index* index, off_t offset, void* buffer, off_t len, int first_point_index)
+int extract_data_from_buffer(void* d, offset_t datalen, struct gzip_index* index, offset_t offset, void* buffer, offset_t len, int first_point_index)
 {
     int ret, skip;
     z_stream strm;
@@ -322,7 +322,7 @@ int extract_data_from_buffer(void* d, off_t datalen, struct gzip_index* index, o
 }
 
 
-int extract_data_fp(FILE *in, struct gzip_index *index, off_t offset, void *buffer, int len)
+int extract_data_fp(FILE *in, struct gzip_index *index, offset_t offset, void *buffer, int len)
 {
     int ret, skip;
     z_stream strm;
@@ -423,7 +423,7 @@ int extract_data_fp(FILE *in, struct gzip_index *index, off_t offset, void *buff
     return ret;
 }
 
-int extract_data(const char* file, struct gzip_index* index, off_t offset, void* buf, int len)
+int extract_data(const char* file, struct gzip_index* index, offset_t offset, void* buf, int len)
 {
     FILE* fp = fopen(file, "rb");
     if (fp == NULL) 
@@ -436,7 +436,7 @@ int extract_data(const char* file, struct gzip_index* index, off_t offset, void*
     return ret;
 }
 
-int generate_index(const char* filepath, off_t span, struct gzip_index** index)
+int generate_index(const char* filepath, offset_t span, struct gzip_index** index)
 {
     FILE* fp = fopen(filepath, "rb");
     if (fp == NULL)
@@ -448,7 +448,7 @@ int generate_index(const char* filepath, off_t span, struct gzip_index** index)
     return ret;
 }
 
-int span_indices_for_file(struct gzip_index* index, off_t start, off_t end, void* is, void* ie)
+int span_indices_for_file(struct gzip_index* index, offset_t start, offset_t end, void* is, void* ie)
 {
     if (index == NULL)
     {
@@ -469,7 +469,7 @@ int span_indices_for_file(struct gzip_index* index, off_t start, off_t end, void
     return 1;
 }
 
-int pt_index_from_ucmp_offset(struct gzip_index* index, off_t off)
+int pt_index_from_ucmp_offset(struct gzip_index* index, offset_t off)
 {
     if (index == NULL)
     {
@@ -561,7 +561,7 @@ struct gzip_index* blob_to_index(void* buf)
     }
 
     unsigned size;
-    off_t span_size;
+    offset_t span_size;
 
     uchar* cur = buf;
     memcpy(&size, cur, 4);
