@@ -72,8 +72,6 @@ import (
 //         - uncompressedOffset : <varint>  : the offset in the uncompressed data, where the node is stored.
 //         - spanStart : <varint>           : the first span for the data.
 //         - spanEnd : <varint>             : the last span for the data.
-//         - firstSpanHasBits : <varint>    : flag for if there is partial uncompressed data that is stored in the previous byte.
-
 var (
 	bucketKeyFilesystems = []byte("filesystems")
 
@@ -99,7 +97,6 @@ var (
 	bucketKeyUncompressedOffset = []byte("uncompressedOffset")
 	bucketKeySpanStart          = []byte("spanStart")
 	bucketKeySpanEnd            = []byte("spanEnd")
-	bucketKeyFirstSpanHasBits   = []byte("firstSpanHasBits")
 )
 
 type childEntry struct {
@@ -112,7 +109,6 @@ type metadataEntry struct {
 	UncompressedOffset soci.FileSize
 	SpanStart          soci.SpanId
 	SpanEnd            soci.SpanId
-	FirstSpanHasBits   string
 }
 
 func getNodes(tx *bolt.Tx, fsID string) (*bolt.Bucket, error) {
@@ -365,9 +361,6 @@ func writeMetadataEntry(md *bolt.Bucket, m *metadataEntry) error {
 	}
 	if err := putSpanID(md, bucketKeySpanEnd, m.SpanEnd); err != nil {
 		return errors.Wrapf(err, "failed to set SpanEnd value %d", m.SpanEnd)
-	}
-	if err := md.Put(bucketKeyFirstSpanHasBits, []byte(m.FirstSpanHasBits)); err != nil {
-		return errors.Wrapf(err, "failed to set SpanEnd value %s", m.FirstSpanHasBits)
 	}
 	return nil
 }
