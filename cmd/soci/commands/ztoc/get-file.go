@@ -83,7 +83,7 @@ var getFileCommand = cli.Command{
 			FirstSpanHasBits:   fileMetadata.FirstSpanHasBits,
 			IndexByteData:      ztoc.IndexByteData,
 			CompressedFileSize: ztoc.CompressedFileSize,
-			MaxSpanId:          ztoc.MaxSpanId,
+			MaxSpanID:          ztoc.MaxSpanID,
 		}
 
 		data, err := soci.ExtractFile(io.NewSectionReader(layerReader, 0, int64(ztoc.CompressedFileSize)), &extractConfig)

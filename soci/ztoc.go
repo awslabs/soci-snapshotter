@@ -16,17 +16,11 @@
 
 package soci
 
-// #include "indexer.h"
-// #include <stdlib.h>
-// #include <stdio.h>
-import "C"
-
 import (
 	"context"
 	"fmt"
 	"io"
 	"time"
-	"unsafe"
 
 	"github.com/opencontainers/go-digest"
 	"golang.org/x/sync/errgroup"
@@ -36,15 +30,15 @@ import (
 type FileSize int64
 
 // SpanId will hold any span related values (SpanId, MaxSpanId, SpanStart, SpanEnd, etc)
-type SpanId int32
+type SpanID int32
 
 type FileMetadata struct {
 	Name               string
 	Type               string
 	UncompressedOffset FileSize
 	UncompressedSize   FileSize
-	SpanStart          SpanId
-	SpanEnd            SpanId
+	SpanStart          SpanID
+	SpanEnd            SpanID
 	FirstSpanHasBits   bool   // Flag for if there is partial uncompressed data that is stored in the previous byte
 	Linkname           string // Target name of link (valid for TypeLink or TypeSymlink)
 	Mode               int64  // Permission and mode bits
@@ -68,7 +62,7 @@ type Ztoc struct {
 
 	CompressedFileSize   FileSize
 	UncompressedFileSize FileSize
-	MaxSpanId            SpanId //The total number of spans in Ztoc - 1
+	MaxSpanID            SpanID //The total number of spans in Ztoc - 1
 	ZtocInfo             ztocInfo
 	IndexByteData        []byte
 }
@@ -80,19 +74,19 @@ type ztocInfo struct {
 type FileExtractConfig struct {
 	UncompressedSize   FileSize
 	UncompressedOffset FileSize
-	SpanStart          SpanId
-	SpanEnd            SpanId
+	SpanStart          SpanID
+	SpanEnd            SpanID
 	FirstSpanHasBits   bool
 	IndexByteData      []byte
 	CompressedFileSize FileSize
-	MaxSpanId          SpanId
+	MaxSpanID          SpanID
 }
 
 type MetadataEntry struct {
 	UncompressedSize   FileSize
 	UncompressedOffset FileSize
-	SpanStart          SpanId
-	SpanEnd            SpanId
+	SpanStart          SpanID
+	SpanEnd            SpanID
 	FirstSpanHasBits   bool
 }
 
@@ -104,23 +98,23 @@ func ExtractFile(r *io.SectionReader, config *FileExtractConfig) ([]byte, error)
 
 	numSpans := config.SpanEnd - config.SpanStart + 1
 
-	index := C.blob_to_index(unsafe.Pointer(&config.IndexByteData[0]))
-
-	if index == nil {
-		return bytes, fmt.Errorf("cannot convert blob to gzip_index")
+	gzipIndexer, err := NewGzipIndexer(config.IndexByteData)
+	if err != nil {
+		return bytes, nil
 	}
-	defer C.free_index(index)
+	defer gzipIndexer.Close()
+
 	var bufSize FileSize
 	starts := make([]FileSize, numSpans)
 	ends := make([]FileSize, numSpans)
 
-	var i SpanId
+	var i SpanID
 	for i = 0; i < numSpans; i++ {
-		starts[i] = FileSize(C.get_comp_off(index, C.int(i+config.SpanStart)))
-		if i+config.SpanStart == config.MaxSpanId {
+		starts[i] = gzipIndexer.GetCompressedOffset(i + config.SpanStart)
+		if i+config.SpanStart == config.MaxSpanID {
 			ends[i] = config.CompressedFileSize - 1
 		} else {
-			ends[i] = FileSize(C.get_comp_off(index, C.int(i+1+config.SpanStart)))
+			ends[i] = gzipIndexer.GetCompressedOffset(i + 1 + config.SpanStart)
 		}
 		bufSize += (ends[i] - starts[i] + 1)
 	}
@@ -128,8 +122,8 @@ func ExtractFile(r *io.SectionReader, config *FileExtractConfig) ([]byte, error)
 	start := starts[0]
 	// Fetch all span data in parallel
 	if config.FirstSpanHasBits {
-		bufSize += 1
-		start -= 1
+		bufSize++
+		start--
 	}
 
 	buf := make([]byte, bufSize)
@@ -141,7 +135,7 @@ func ExtractFile(r *io.SectionReader, config *FileExtractConfig) ([]byte, error)
 			rangeStart := starts[j]
 			rangeEnd := ends[j]
 			if j == 0 && config.FirstSpanHasBits {
-				rangeStart -= 1
+				rangeStart--
 			}
 			n, err := r.ReadAt(buf[rangeStart-start:rangeEnd-start+1], int64(rangeStart)) // need to convert rangeStart to int64 to use in ReadAt
 			if err != nil {
@@ -159,9 +153,9 @@ func ExtractFile(r *io.SectionReader, config *FileExtractConfig) ([]byte, error)
 		return bytes, err
 	}
 
-	ret := C.extract_data_from_buffer(unsafe.Pointer(&buf[0]), C.off_t(len(buf)), index, C.off_t(config.UncompressedOffset), unsafe.Pointer(&bytes[0]), C.off_t(config.UncompressedSize), C.int(config.SpanStart))
-	if ret <= 0 {
-		return bytes, fmt.Errorf("error extracting data; return code: %v", ret)
+	bytes, err = gzipIndexer.ExtractDataFromBuffer(buf, config.UncompressedSize, config.UncompressedOffset, config.SpanStart)
+	if err != nil {
+		return nil, err
 	}
 
 	return bytes, nil
@@ -196,22 +190,15 @@ func ExtractFromTarGz(gz string, ztoc *Ztoc, text string) (string, error) {
 		return "", nil
 	}
 
-	cstr := C.CString(gz)
-	defer C.free(unsafe.Pointer(cstr))
-
-	index := C.blob_to_index(unsafe.Pointer(&ztoc.IndexByteData[0]))
-
-	if index == nil {
-		return "", fmt.Errorf("cannot convert blob to gzip_index")
+	gzipIndexer, err := NewGzipIndexer(ztoc.IndexByteData)
+	if err != nil {
+		return "", err
 	}
+	defer gzipIndexer.Close()
 
-	defer C.free_index(index)
-
-	bytes := make([]byte, entry.UncompressedSize)
-	ret := C.extract_data(cstr, index, C.off_t(entry.UncompressedOffset), unsafe.Pointer(&bytes[0]), C.int(entry.UncompressedSize))
-
-	if ret <= 0 {
-		return "", fmt.Errorf("unable to extract data; return code = %v", ret)
+	bytes, err := gzipIndexer.ExtractData(gz, entry.UncompressedSize, entry.UncompressedOffset)
+	if err != nil {
+		return "", err
 	}
 
 	return string(bytes), nil

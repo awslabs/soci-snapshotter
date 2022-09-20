@@ -112,7 +112,7 @@ func TestDecompress(t *testing.T) {
 					FirstSpanHasBits:   m.FirstSpanHasBits,
 					IndexByteData:      ztoc.IndexByteData,
 					CompressedFileSize: ztoc.CompressedFileSize,
-					MaxSpanId:          ztoc.MaxSpanId,
+					MaxSpanID:          ztoc.MaxSpanID,
 				}
 				configs[m.Name] = extractConfig
 			}
@@ -221,7 +221,7 @@ func TestZtocGenerationConsistency(t *testing.T) {
 			if ztoc1.CompressedFileSize != ztoc2.CompressedFileSize {
 				t.Fatalf("ztoc1.CompressedFileSize should be equal to ztoc2.CompressedFileSize")
 			}
-			if ztoc1.MaxSpanId != ztoc2.MaxSpanId {
+			if ztoc1.MaxSpanID != ztoc2.MaxSpanID {
 				t.Fatalf("ztoc1.MaxSpanId should be equal to ztoc2.MaxSpanId")
 			}
 			if ztoc1.Version != ztoc2.Version {
@@ -413,7 +413,7 @@ func TestWriteZtoc(t *testing.T) {
 		metadata             []FileMetadata
 		compressedFileSize   FileSize
 		uncompressedFileSize FileSize
-		maxSpanID            SpanId
+		maxSpanID            SpanID
 		buildTool            string
 		expDigest            string
 		expSize              int64
@@ -440,7 +440,7 @@ func TestWriteZtoc(t *testing.T) {
 				Metadata:             tc.metadata,
 				CompressedFileSize:   tc.compressedFileSize,
 				UncompressedFileSize: tc.uncompressedFileSize,
-				MaxSpanId:            tc.maxSpanID,
+				MaxSpanID:            tc.maxSpanID,
 				BuildToolIdentifier:  tc.buildTool,
 			}
 

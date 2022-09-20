@@ -110,8 +110,8 @@ type childEntry struct {
 type metadataEntry struct {
 	children           map[string]childEntry
 	UncompressedOffset soci.FileSize
-	SpanStart          soci.SpanId
-	SpanEnd            soci.SpanId
+	SpanStart          soci.SpanID
+	SpanEnd            soci.SpanID
 	FirstSpanHasBits   string
 }
 
@@ -376,7 +376,7 @@ func putFileSize(b *bolt.Bucket, k []byte, v soci.FileSize) error {
 	return putInt(b, k, int64(v))
 }
 
-func putSpanID(b *bolt.Bucket, k []byte, v soci.SpanId) error {
+func putSpanID(b *bolt.Bucket, k []byte, v soci.SpanID) error {
 	return putInt(b, k, int64(v))
 }
 
