@@ -45,7 +45,6 @@ type FileMetadata struct {
 	UncompressedSize   FileSize
 	SpanStart          SpanId
 	SpanEnd            SpanId
-	FirstSpanHasBits   bool   // Flag for if there is partial uncompressed data that is stored in the previous byte
 	Linkname           string // Target name of link (valid for TypeLink or TypeSymlink)
 	Mode               int64  // Permission and mode bits
 	UID                int    // User ID of owner
@@ -82,7 +81,6 @@ type FileExtractConfig struct {
 	UncompressedOffset FileSize
 	SpanStart          SpanId
 	SpanEnd            SpanId
-	FirstSpanHasBits   bool
 	IndexByteData      []byte
 	CompressedFileSize FileSize
 	MaxSpanId          SpanId
@@ -93,7 +91,6 @@ type MetadataEntry struct {
 	UncompressedOffset FileSize
 	SpanStart          SpanId
 	SpanEnd            SpanId
-	FirstSpanHasBits   bool
 }
 
 func ExtractFile(r *io.SectionReader, config *FileExtractConfig) ([]byte, error) {
@@ -126,8 +123,11 @@ func ExtractFile(r *io.SectionReader, config *FileExtractConfig) ([]byte, error)
 	}
 
 	start := starts[0]
-	// Fetch all span data in parallel
-	if config.FirstSpanHasBits {
+
+	// It the first span the file is present in has partially uncompressed data,
+	// fetch the previous byte too.
+	firstSpanHasBits := C.has_bits(index, C.int(config.SpanStart)) != 0
+	if firstSpanHasBits {
 		bufSize += 1
 		start -= 1
 	}
@@ -135,12 +135,13 @@ func ExtractFile(r *io.SectionReader, config *FileExtractConfig) ([]byte, error)
 	buf := make([]byte, bufSize)
 	eg, _ := errgroup.WithContext(context.Background())
 
+	// Fetch all span data in parallel
 	for i = 0; i < numSpans; i++ {
 		j := i
 		eg.Go(func() error {
 			rangeStart := starts[j]
 			rangeEnd := ends[j]
-			if j == 0 && config.FirstSpanHasBits {
+			if j == 0 && firstSpanHasBits {
 				rangeStart -= 1
 			}
 			n, err := r.ReadAt(buf[rangeStart-start:rangeEnd-start+1], int64(rangeStart)) // need to convert rangeStart to int64 to use in ReadAt
@@ -178,7 +179,6 @@ func GetMetadataEntry(ztoc *Ztoc, text string) (*MetadataEntry, error) {
 				UncompressedOffset: v.UncompressedOffset,
 				SpanStart:          v.SpanStart,
 				SpanEnd:            v.SpanEnd,
-				FirstSpanHasBits:   v.FirstSpanHasBits,
 			}, nil
 		}
 	}

@@ -42,7 +42,6 @@ import (
 	"path"
 	"path/filepath"
 	"sort"
-	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -258,7 +257,6 @@ func (r *reader) initNodes(ztoc *soci.Ztoc) error {
 				md[id].UncompressedOffset = ent.UncompressedOffset
 				md[id].SpanStart = ent.SpanStart
 				md[id].SpanEnd = ent.SpanEnd
-				md[id].FirstSpanHasBits = strconv.FormatBool(ent.FirstSpanHasBits)
 			}
 		}
 		return nil

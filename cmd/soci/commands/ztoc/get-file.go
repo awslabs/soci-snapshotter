@@ -80,7 +80,6 @@ var getFileCommand = cli.Command{
 			UncompressedOffset: fileMetadata.UncompressedOffset,
 			SpanStart:          fileMetadata.SpanStart,
 			SpanEnd:            fileMetadata.SpanEnd,
-			FirstSpanHasBits:   fileMetadata.FirstSpanHasBits,
 			IndexByteData:      ztoc.IndexByteData,
 			CompressedFileSize: ztoc.CompressedFileSize,
 			MaxSpanId:          ztoc.MaxSpanId,

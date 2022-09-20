@@ -109,7 +109,6 @@ func TestDecompress(t *testing.T) {
 					UncompressedOffset: m.UncompressedOffset,
 					SpanStart:          m.SpanStart,
 					SpanEnd:            m.SpanEnd,
-					FirstSpanHasBits:   m.FirstSpanHasBits,
 					IndexByteData:      ztoc.IndexByteData,
 					CompressedFileSize: ztoc.CompressedFileSize,
 					MaxSpanId:          ztoc.MaxSpanId,
@@ -427,8 +426,8 @@ func TestWriteZtoc(t *testing.T) {
 			uncompressedFileSize: 2500000,
 			maxSpanID:            3,
 			buildTool:            "AWS SOCI CLI",
-			expDigest:            "sha256:4a2322b19c52ff5756b07bbc301e19ca9e95df6c017ababc7690bec03c3c8f25",
-			expSize:              455,
+			expDigest:            "sha256:8981c1a338a2600b5079588e09b639755c71c69bc4c099aedc68519d6fbf79fb",
+			expSize:              439,
 		},
 	}
 

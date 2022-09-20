@@ -219,14 +219,6 @@ func getGzipFileMetadata(gzipFile string, index *C.struct_gzip_index) ([]FileMet
 			return nil, 0, fmt.Errorf("cannot get the span indices for file with start and end offset: %d, %d; gzip error: %v", start, end, ret)
 		}
 
-		var hasBits bool
-		ret = C.has_bits(index, C.int(indexStart))
-		if ret == 0 {
-			hasBits = false
-		} else {
-			hasBits = true
-		}
-
 		fileType, err := getType(hdr)
 		if err != nil {
 			return nil, 0, err
@@ -239,7 +231,6 @@ func getGzipFileMetadata(gzipFile string, index *C.struct_gzip_index) ([]FileMet
 			UncompressedSize:   FileSize(hdr.Size),
 			SpanStart:          indexStart,
 			SpanEnd:            indexEnd,
-			FirstSpanHasBits:   hasBits,
 			Linkname:           hdr.Linkname,
 			Mode:               hdr.Mode,
 			UID:                hdr.Uid,
