@@ -16,13 +16,6 @@
 
 package spanmanager
 
-// #cgo CFLAGS: -I${SRCDIR}/../../c/
-// #cgo LDFLAGS: -L${SRCDIR}/../../out -lindexer -lz
-// #include "indexer.h"
-// #include <stdlib.h>
-// #include <stdio.h>
-import "C"
-
 import (
 	"bytes"
 	"context"
@@ -33,7 +26,6 @@ import (
 	"strconv"
 	"sync"
 	"sync/atomic"
-	"unsafe"
 
 	"github.com/awslabs/soci-snapshotter/cache"
 	"github.com/awslabs/soci-snapshotter/soci"
@@ -70,7 +62,7 @@ var (
 )
 
 type span struct {
-	id                soci.SpanId
+	id                soci.SpanID
 	startCompOffset   soci.FileSize
 	endCompOffset     soci.FileSize
 	startUncompOffset soci.FileSize
@@ -101,7 +93,7 @@ func (s *span) validateStateTransition(newState spanState) error {
 type SpanManager struct {
 	cache    cache.BlobCache
 	cacheOpt []cache.Option
-	index    *C.struct_gzip_index
+	index    *soci.GzipIndex
 	r        *io.SectionReader // reader for contents of the spans managed by SpanManager
 	spans    []*span
 	ztoc     *soci.Ztoc
@@ -109,9 +101,9 @@ type SpanManager struct {
 
 type spanInfo struct {
 	// starting span id of the requested contents
-	spanStart soci.SpanId
+	spanStart soci.SpanID
 	// ending span id of the requested contents
-	spanEnd soci.SpanId
+	spanEnd soci.SpanID
 	// start offsets of the requested contents within the spans
 	startOffInSpan []soci.FileSize
 	// end offsets the requested contents within the spans
@@ -121,8 +113,11 @@ type spanInfo struct {
 }
 
 func New(ztoc *soci.Ztoc, r *io.SectionReader, cache cache.BlobCache, cacheOpt ...cache.Option) *SpanManager {
-	index := C.blob_to_index(unsafe.Pointer(&ztoc.IndexByteData[0]))
-	spans := make([]*span, ztoc.MaxSpanId+1)
+	index, err := soci.NewGzipIndex(ztoc.IndexByteData)
+	if err != nil {
+		return nil
+	}
+	spans := make([]*span, ztoc.MaxSpanID+1)
 	m := &SpanManager{
 		cache:    cache,
 		cacheOpt: cacheOpt,
@@ -142,17 +137,18 @@ func New(ztoc *soci.Ztoc, r *io.SectionReader, cache cache.BlobCache, cacheOpt .
 func (m *SpanManager) buildAllSpans() {
 	m.spans[0] = &span{
 		id:                0,
-		startCompOffset:   soci.FileSize(C.get_comp_off(m.index, C.int(0))),
+		startCompOffset:   m.index.SpanIDToCompressedOffset(soci.SpanID(0)),
 		endCompOffset:     m.getEndCompressedOffset(0),
-		startUncompOffset: soci.FileSize(C.get_ucomp_off(m.index, C.int(0))),
+		startUncompOffset: m.index.SpanIDToUncompressedOffset(soci.SpanID(0)),
 		endUncompOffset:   m.getEndUncompressedOffset(0),
 	}
 	m.spans[0].state.Store(unrequested)
-	var i soci.SpanId
-	for i = 1; i <= m.ztoc.MaxSpanId; i++ {
+	var i soci.SpanID
+	for i = 1; i <= m.ztoc.MaxSpanID; i++ {
 		startCompOffset := m.spans[i-1].endCompOffset
-		if C.has_bits(m.index, C.int(i)) != 0 {
-			startCompOffset -= 1
+		hasBits := m.index.HasBits(i)
+		if hasBits {
+			startCompOffset--
 		}
 		s := span{
 			id:                i,
@@ -166,18 +162,18 @@ func (m *SpanManager) buildAllSpans() {
 	}
 }
 
-func (m *SpanManager) ResolveSpan(spanId soci.SpanId, r *io.SectionReader) error {
-	if spanId > m.ztoc.MaxSpanId {
+func (m *SpanManager) ResolveSpan(spanID soci.SpanID, r *io.SectionReader) error {
+	if spanID > m.ztoc.MaxSpanID {
 		return ErrExceedMaxSpan
 	}
 
 	// Check if the span exists in the cache
-	s := m.spans[spanId]
+	s := m.spans[spanID]
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	state := s.state.Load().(spanState)
 	if state == uncompressed {
-		id := strconv.Itoa(int(spanId))
+		id := strconv.Itoa(int(spanID))
 		_, err := m.cache.Get(id)
 		if err == nil {
 			// The span is already in cache.
@@ -186,7 +182,7 @@ func (m *SpanManager) ResolveSpan(spanId soci.SpanId, r *io.SectionReader) error
 	}
 
 	// The span is not available in cache. Fetch the span and add it to cache
-	_, err := m.fetchAndCacheSpan(spanId, r, true)
+	_, err := m.fetchAndCacheSpan(spanID, r, true)
 	if err != nil {
 		return err
 	}
@@ -202,13 +198,13 @@ func (m *SpanManager) GetContents(offsetStart, offsetEnd soci.FileSize) (io.Read
 	spanReaders := make([]io.Reader, numSpans)
 
 	eg, _ := errgroup.WithContext(context.Background())
-	var i soci.SpanId
+	var i soci.SpanID
 	for i = 0; i < numSpans; i++ {
 		j := i
 		eg.Go(func() error {
 			spanContentSize := si.endOffInSpan[j] - si.startOffInSpan[j]
-			spanId := j + si.spanStart
-			r, err := m.GetSpanContent(spanId, si.startOffInSpan[j], si.endOffInSpan[j], spanContentSize)
+			spanID := j + si.spanStart
+			r, err := m.GetSpanContent(spanID, si.startOffInSpan[j], si.endOffInSpan[j], spanContentSize)
 			if err != nil {
 				return err
 			}
@@ -225,8 +221,8 @@ func (m *SpanManager) GetContents(offsetStart, offsetEnd soci.FileSize) (io.Read
 
 // getSpanInfo returns spanInfo from the offsets of the requested file
 func (m *SpanManager) getSpanInfo(offsetStart, offsetEnd soci.FileSize) *spanInfo {
-	spanStart := soci.SpanId(C.pt_index_from_ucmp_offset(m.index, C.long(offsetStart)))
-	spanEnd := soci.SpanId(C.pt_index_from_ucmp_offset(m.index, C.long(offsetEnd)))
+	spanStart := m.index.UncompressedOffsetToSpanID(offsetStart)
+	spanEnd := m.index.UncompressedOffsetToSpanID(offsetEnd)
 	numSpans := spanEnd - spanStart + 1
 	start := make([]soci.FileSize, numSpans)
 	end := make([]soci.FileSize, numSpans)
@@ -258,9 +254,9 @@ func (m *SpanManager) getSpanInfo(offsetStart, offsetEnd soci.FileSize) *spanInf
 	return &spanInfo
 }
 
-func (m *SpanManager) GetSpanContent(spanId soci.SpanId, offsetStart, offsetEnd, size soci.FileSize) (io.Reader, error) {
+func (m *SpanManager) GetSpanContent(spanID soci.SpanID, offsetStart, offsetEnd, size soci.FileSize) (io.Reader, error) {
 	// Check if we can resolve the span from the cache
-	s := m.spans[spanId]
+	s := m.spans[spanID]
 	r, err := m.resolveSpanFromCache(s, offsetStart, size)
 	if err == nil {
 		return r, nil
@@ -279,7 +275,7 @@ func (m *SpanManager) GetSpanContent(spanId soci.SpanId, offsetStart, offsetEnd,
 		// if the span exists in the cache but resolveSpanFromCache fails, return the error to caller
 		return nil, err
 	}
-	uncompBuf, err := m.fetchAndCacheSpan(spanId, m.r, false)
+	uncompBuf, err := m.fetchAndCacheSpan(spanID, m.r, false)
 	if err != nil {
 		return nil, err
 	}
@@ -290,8 +286,8 @@ func (m *SpanManager) GetSpanContent(spanId soci.SpanId, offsetStart, offsetEnd,
 
 // getSpanFromCache returns the reader for the contents of the span stored in the cache.
 // offset is the offset of the requested contents within the span. size is the size of the requested contents.
-func (m *SpanManager) getSpanFromCache(spanId string, offset, size soci.FileSize) (io.Reader, error) {
-	r, err := m.cache.Get(spanId)
+func (m *SpanManager) getSpanFromCache(spanID string, offset, size soci.FileSize) (io.Reader, error) {
+	r, err := m.cache.Get(spanID)
 	if err != nil {
 		return nil, ErrSpanNotAvailable
 	}
@@ -302,7 +298,7 @@ func (m *SpanManager) getSpanFromCache(spanId string, offset, size soci.FileSize
 		nil
 }
 
-func (m *SpanManager) verifySpanContents(compressedData []byte, id soci.SpanId) error {
+func (m *SpanManager) verifySpanContents(compressedData []byte, id soci.SpanID) error {
 	actual := digest.FromBytes(compressedData)
 	expected := m.ztoc.ZtocInfo.SpanDigests[id]
 	if actual != expected {
@@ -312,8 +308,8 @@ func (m *SpanManager) verifySpanContents(compressedData []byte, id soci.SpanId) 
 }
 
 // addSpanToCache adds contents of the span to the cache.
-func (m *SpanManager) addSpanToCache(spanId string, contents []byte, opts ...cache.Option) {
-	if w, err := m.cache.Add(spanId, opts...); err == nil {
+func (m *SpanManager) addSpanToCache(spanID string, contents []byte, opts ...cache.Option) {
+	if w, err := m.cache.Add(spanID, opts...); err == nil {
 		if n, err := w.Write(contents); err != nil || n != len(contents) {
 			w.Abort()
 		} else {
@@ -364,13 +360,13 @@ func (m *SpanManager) resolveSpanFromCache(s *span, offsetStart, size soci.FileS
 		if err != nil {
 			return nil, err
 		}
-		return bytes.NewReader(uncompSpanBuf[offsetStart:offsetStart+size]), nil
+		return bytes.NewReader(uncompSpanBuf[offsetStart : offsetStart+size]), nil
 	}
 	return nil, ErrSpanNotAvailable
 }
 
-func (m *SpanManager) fetchSpan(buf []byte, spanId soci.SpanId, r *io.SectionReader) error {
-	s := m.spans[spanId]
+func (m *SpanManager) fetchSpan(buf []byte, spanID soci.SpanID, r *io.SectionReader) error {
+	s := m.spans[spanID]
 	err := s.setState(requested)
 	if err != nil {
 		return err
@@ -394,23 +390,23 @@ func (m *SpanManager) uncompressSpan(s *span, compressedBuf []byte) ([]byte, err
 		return bytes, nil
 	}
 
-	ret := C.extract_data_from_buffer(unsafe.Pointer(&compressedBuf[0]), C.off_t(len(compressedBuf)), m.index, C.off_t(s.startUncompOffset), unsafe.Pointer(&bytes[0]), C.off_t(uncompSize), C.int(s.id))
-	if ret <= 0 {
-		return bytes, fmt.Errorf("error extracting data; return code: %v", ret)
+	bytes, err := m.index.ExtractDataFromBuffer(compressedBuf, uncompSize, s.startUncompOffset, s.id)
+	if err != nil {
+		return nil, err
 	}
 	return bytes, nil
 }
 
-func (m *SpanManager) fetchAndCacheSpan(spanId soci.SpanId, r *io.SectionReader, isPrefetch bool) ([]byte, error) {
-	s := m.spans[spanId]
+func (m *SpanManager) fetchAndCacheSpan(spanID soci.SpanID, r *io.SectionReader, isPrefetch bool) ([]byte, error) {
+	s := m.spans[spanID]
 	compressedSize := s.endCompOffset - s.startCompOffset
 	compressedBuf := make([]byte, compressedSize)
-	err := m.fetchSpan(compressedBuf, spanId, r)
+	err := m.fetchSpan(compressedBuf, spanID, r)
 	if err != nil && err != io.EOF {
 		return nil, err
 	}
 
-	if err := m.verifySpanContents(compressedBuf, spanId); err != nil {
+	if err := m.verifySpanContents(compressedBuf, spanID); err != nil {
 		return nil, err
 	}
 	err = s.setState(fetched)
@@ -418,51 +414,51 @@ func (m *SpanManager) fetchAndCacheSpan(spanId soci.SpanId, r *io.SectionReader,
 		return nil, err
 	}
 
-	id := strconv.Itoa(int(spanId))
+	id := strconv.Itoa(int(spanID))
 	if isPrefetch {
 		m.addSpanToCache(id, compressedBuf, m.cacheOpt...)
 		if err != nil {
 			return nil, err
-		} else {
-			return nil, nil
 		}
-	} else {
-		uncompSpanBuf, err := m.uncompressSpan(s, compressedBuf)
-		if err != nil {
-			return nil, err
-		}
+		return nil, nil
 
-		// Cache the content of the whole span
-		m.addSpanToCache(id, uncompSpanBuf, m.cacheOpt...)
-		err = s.setState(uncompressed)
-		if err != nil {
-			return nil, err
-		}
-		return uncompSpanBuf, nil
 	}
+
+	uncompSpanBuf, err := m.uncompressSpan(s, compressedBuf)
+	if err != nil {
+		return nil, err
+	}
+
+	// Cache the content of the whole span
+	m.addSpanToCache(id, uncompSpanBuf, m.cacheOpt...)
+	err = s.setState(uncompressed)
+	if err != nil {
+		return nil, err
+	}
+	return uncompSpanBuf, nil
 }
 
-func (m *SpanManager) getEndCompressedOffset(spanId soci.SpanId) soci.FileSize {
+func (m *SpanManager) getEndCompressedOffset(spanID soci.SpanID) soci.FileSize {
 	var end soci.FileSize
-	if spanId == m.ztoc.MaxSpanId {
+	if spanID == m.ztoc.MaxSpanID {
 		end = m.ztoc.CompressedFileSize
 	} else {
-		end = soci.FileSize(C.get_comp_off(m.index, C.int(1+int(spanId))))
+		end = m.index.SpanIDToCompressedOffset(spanID + 1)
 	}
 	return end
 }
 
-func (m *SpanManager) getEndUncompressedOffset(spanId soci.SpanId) soci.FileSize {
+func (m *SpanManager) getEndUncompressedOffset(spanID soci.SpanID) soci.FileSize {
 	var end soci.FileSize
-	if spanId == m.ztoc.MaxSpanId {
+	if spanID == m.ztoc.MaxSpanID {
 		end = m.ztoc.UncompressedFileSize
 	} else {
-		end = soci.FileSize(C.get_ucomp_off(m.index, C.int(1+int(spanId))))
+		end = m.index.SpanIDToUncompressedOffset(spanID + 1)
 	}
 	return end
 }
 
 func (m *SpanManager) Close() {
-	C.free_index(m.index)
+	m.index.Close()
 	m.cache.Close()
 }

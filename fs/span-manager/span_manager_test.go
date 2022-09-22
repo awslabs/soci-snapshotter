@@ -39,7 +39,7 @@ func TestSpanManager(t *testing.T) {
 	fileName := "span-manager-test"
 	testCases := []struct {
 		name          string
-		maxSpans      soci.SpanId
+		maxSpans      soci.SpanID
 		sectionReader *io.SectionReader
 		expectedError error
 	}{
@@ -105,8 +105,8 @@ func TestSpanManager(t *testing.T) {
 			}
 
 			// Test resolving all spans
-			var i soci.SpanId
-			for i = 0; i <= ztoc.MaxSpanId; i++ {
+			var i soci.SpanID
+			for i = 0; i <= ztoc.MaxSpanID; i++ {
 				err := m.ResolveSpan(i, r)
 				if err != nil {
 					t.Fatalf("error resolving span %d. error: %v", i, err)
@@ -114,7 +114,7 @@ func TestSpanManager(t *testing.T) {
 			}
 
 			// Test ResolveSpan returning ErrExceedMaxSpan for span id larger than max span id
-			resolveSpanErr := m.ResolveSpan(ztoc.MaxSpanId+1, r)
+			resolveSpanErr := m.ResolveSpan(ztoc.MaxSpanID+1, r)
 			if !errors.Is(resolveSpanErr, ErrExceedMaxSpan) {
 				t.Fatalf("failed returning ErrExceedMaxSpan for span id larger than max span id")
 			}
@@ -136,7 +136,7 @@ func TestSpanManagerCache(t *testing.T) {
 	defer cache.Close()
 	m := New(ztoc, r, cache)
 	spanID := 0
-	err = m.ResolveSpan(soci.SpanId(spanID), r)
+	err = m.ResolveSpan(soci.SpanID(spanID), r)
 	if err != nil {
 		t.Fatalf("failed to resolve span 0: %v", err)
 	}
@@ -192,7 +192,7 @@ func TestStateTransition(t *testing.T) {
 	m := New(ztoc, r, cache)
 
 	// check initial span states
-	for i := uint32(0); i <= uint32(ztoc.MaxSpanId); i++ {
+	for i := uint32(0); i <= uint32(ztoc.MaxSpanID); i++ {
 		state := m.spans[i].state.Load().(spanState)
 		if state != unrequested {
 			t.Fatalf("failed initializing span states to Unrequested")
@@ -201,7 +201,7 @@ func TestStateTransition(t *testing.T) {
 
 	testCases := []struct {
 		name       string
-		spanID     soci.SpanId
+		spanID     soci.SpanID
 		isPrefetch bool
 	}{
 		{
@@ -216,12 +216,12 @@ func TestStateTransition(t *testing.T) {
 		},
 		{
 			name:       "max span - prefetch",
-			spanID:     m.ztoc.MaxSpanId,
+			spanID:     m.ztoc.MaxSpanID,
 			isPrefetch: true,
 		},
 		{
 			name:       "max span - on demand fetch",
-			spanID:     m.ztoc.MaxSpanId,
+			spanID:     m.ztoc.MaxSpanID,
 			isPrefetch: false,
 		},
 	}

@@ -98,11 +98,6 @@ int has_bits(struct gzip_index* index, int point_index);
 offset_t get_ucomp_off(struct gzip_index* index, int point_index);
 offset_t get_comp_off(struct gzip_index* index, int point_index);
 
-/* Given a file's uncompressed start and end offset, returns the spans which
-    contains those offsets
-*/
-int span_indices_for_file(struct gzip_index* index, offset_t start, offset_t end, void* index_start, void* index_end);
-
 /* Subroutines to convert index to/from a binary blob */
 
 /* Get size of blob given an index */

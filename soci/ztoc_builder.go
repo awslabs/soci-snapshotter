@@ -16,13 +16,6 @@
 
 package soci
 
-// #cgo CFLAGS: -I${SRCDIR}/../c/
-// #cgo LDFLAGS: -L${SRCDIR}/../out -lindexer -lz
-// #include "indexer.h"
-// #include <stdlib.h>
-// #include <stdint.h>
-import "C"
-
 import (
 	"archive/tar"
 	"bytes"
@@ -31,7 +24,6 @@ import (
 	"io"
 	"os"
 	"sort"
-	"unsafe"
 
 	ztoc_flatbuffers "github.com/awslabs/soci-snapshotter/soci/fbs/ztoc"
 	flatbuffers "github.com/google/flatbuffers/go"
@@ -45,11 +37,11 @@ func BuildZtoc(gzipFile string, span int64, cfg *buildConfig) (*Ztoc, error) {
 		return nil, fmt.Errorf("need to provide gzip file")
 	}
 
-	index, indexData, err := getGzipIndexByteData(gzipFile, span)
+	index, err := NewGzipIndexFromFile(gzipFile, span)
 	if err != nil {
 		return nil, err
 	}
-	defer C.free(unsafe.Pointer(index))
+	defer index.Close()
 
 	fm, uncompressedFileSize, err := getGzipFileMetadata(gzipFile, index)
 	if err != nil {
@@ -70,13 +62,18 @@ func BuildZtoc(gzipFile string, span int64, cfg *buildConfig) (*Ztoc, error) {
 		SpanDigests: digests,
 	}
 
+	indexData, err := index.Bytes()
+	if err != nil {
+		return nil, err
+	}
+
 	return &Ztoc{
 		Version:              "0.9",
 		IndexByteData:        indexData,
 		Metadata:             fm,
 		CompressedFileSize:   fs,
 		UncompressedFileSize: uncompressedFileSize,
-		MaxSpanId:            SpanId(index.have) - 1,
+		MaxSpanID:            index.MaxSpanID(),
 		BuildToolIdentifier:  cfg.buildToolIdentifier,
 		ZtocInfo:             ztocInfo,
 	}, nil
@@ -128,7 +125,7 @@ func ztocToFlatbuffer(ztoc *Ztoc) []byte {
 	}
 	spanDigests := builder.EndVector(len(spanDigestsOffsets))
 	ztoc_flatbuffers.CompressionInfoStart(builder)
-	ztoc_flatbuffers.CompressionInfoAddMaxSpanId(builder, int32(ztoc.MaxSpanId))
+	ztoc_flatbuffers.CompressionInfoAddMaxSpanId(builder, int32(ztoc.MaxSpanID))
 	ztoc_flatbuffers.CompressionInfoAddSpanDigests(builder, spanDigests)
 	ztoc_flatbuffers.CompressionInfoAddIndexByteData(builder, indexByteDataVector)
 	ztocInfo := ztoc_flatbuffers.CompressionInfoEnd(builder)
@@ -204,33 +201,33 @@ func prepareXattrsOffset(me FileMetadata, builder *flatbuffers.Builder) flatbuff
 	return xattrs
 }
 
-func getPerSpanDigests(gzipFile string, fileSize int64, index *C.struct_gzip_index) ([]digest.Digest, error) {
+func getPerSpanDigests(gzipFile string, fileSize int64, index *GzipIndex) ([]digest.Digest, error) {
 	file, err := os.Open(gzipFile)
 	if err != nil {
 		return nil, fmt.Errorf("could not open file for reading: %w", err)
 	}
 	defer file.Close()
 
-	gzipPoints := unsafe.Slice(index.list, index.have)
 	var digests []digest.Digest
-
-	for i := 0; i < len(gzipPoints); i++ {
+	var i SpanID
+	maxSpanID := index.MaxSpanID()
+	for i = 0; i <= maxSpanID; i++ {
 		var (
-			startOffset = int64(gzipPoints[i].in)
-			endOffset   int64
+			startOffset = index.SpanIDToCompressedOffset(i)
+			endOffset   FileSize
 		)
 
-		if gzipPoints[i].bits != 0 {
-			startOffset -= 1
+		if index.HasBits(i) {
+			startOffset--
 		}
 
-		if i == len(gzipPoints)-1 {
-			endOffset = fileSize
+		if i == maxSpanID {
+			endOffset = FileSize(fileSize)
 		} else {
-			endOffset = int64(gzipPoints[i+1].in)
+			endOffset = index.SpanIDToCompressedOffset(i + 1)
 		}
 
-		section := io.NewSectionReader(file, startOffset, endOffset-startOffset)
+		section := io.NewSectionReader(file, int64(startOffset), int64(endOffset-startOffset))
 		dgst, err := digest.FromReader(section)
 		if err != nil {
 			return nil, fmt.Errorf("unable to compute digest for section; start=%d, end=%d, file=%s, size=%d", startOffset, endOffset, gzipFile, fileSize)
@@ -240,34 +237,7 @@ func getPerSpanDigests(gzipFile string, fileSize int64, index *C.struct_gzip_ind
 	return digests, nil
 }
 
-func getGzipIndexByteData(gzipFile string, span int64) (*C.struct_gzip_index, []byte, error) {
-	cstr := C.CString(gzipFile)
-	defer C.free(unsafe.Pointer(cstr))
-
-	var index *C.struct_gzip_index
-
-	ret := C.generate_index(cstr, C.off_t(span), &index)
-
-	if int(ret) < 0 {
-		return nil, nil, fmt.Errorf("could not generate gzip index. gzip error: %v", ret)
-	}
-
-	blobSize := C.get_blob_size(index)
-	bytes := make([]byte, uint64(blobSize))
-
-	if bytes == nil {
-		return nil, nil, fmt.Errorf("could not allocate byte array of size %d", blobSize)
-	}
-	ret = C.index_to_blob(index, unsafe.Pointer(&bytes[0]))
-
-	if int(ret) <= 0 {
-		return nil, nil, fmt.Errorf("could not serialize gzip index to byte array; gzip error: %v", ret)
-	}
-
-	return index, bytes, nil
-}
-
-func getGzipFileMetadata(gzipFile string, index *C.struct_gzip_index) ([]FileMetadata, FileSize, error) {
+func getGzipFileMetadata(gzipFile string, index *GzipIndex) ([]FileMetadata, FileSize, error) {
 	file, err := os.Open(gzipFile)
 	if err != nil {
 		return nil, 0, fmt.Errorf("could not open file for reading: %v", err)
@@ -302,15 +272,8 @@ func getGzipFileMetadata(gzipFile string, index *C.struct_gzip_index) ([]FileMet
 
 		start := pt.CurrentPos()
 		end := pt.CurrentPos() + FileSize(hdr.Size)
-
-		var indexStart SpanId
-		var indexEnd SpanId
-
-		ret := C.span_indices_for_file(index, C.off_t(start), C.off_t(end), unsafe.Pointer(&indexStart), unsafe.Pointer(&indexEnd))
-
-		if int(ret) <= 0 {
-			return nil, 0, fmt.Errorf("cannot get the span indices for file with start and end offset: %d, %d; gzip error: %v", start, end, ret)
-		}
+		indexStart := index.UncompressedOffsetToSpanID(start)
+		indexEnd := index.UncompressedOffsetToSpanID(end)
 
 		fileType, err := getType(hdr)
 		if err != nil {

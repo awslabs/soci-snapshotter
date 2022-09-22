@@ -448,27 +448,6 @@ int generate_index(const char* filepath, offset_t span, struct gzip_index** inde
     return ret;
 }
 
-int span_indices_for_file(struct gzip_index* index, offset_t start, offset_t end, void* is, void* ie)
-{
-    if (index == NULL)
-    {
-        return 0;
-    }
-
-    uint32_t* index_start = is;
-    uint32_t* index_end = ie;
-
-    *index_start = pt_index_from_ucmp_offset(index, start);
-    *index_end = pt_index_from_ucmp_offset(index, end);
-
-    if (*index_start == -1 || *index_end == -1)
-    {
-        return 0;
-    }
-
-    return 1;
-}
-
 int pt_index_from_ucmp_offset(struct gzip_index* index, offset_t off)
 {
     if (index == NULL)

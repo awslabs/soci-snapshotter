@@ -66,8 +66,8 @@ func flatbufToZtoc(flatbuffer []byte) *Ztoc {
 		me.Type = string(metadataEntry.Type())
 		me.UncompressedOffset = FileSize(metadataEntry.UncompressedOffset())
 		me.UncompressedSize = FileSize(metadataEntry.UncompressedSize())
-		me.SpanStart = SpanId(metadataEntry.SpanStart())
-		me.SpanEnd = SpanId(metadataEntry.SpanEnd())
+		me.SpanStart = SpanID(metadataEntry.SpanStart())
+		me.SpanEnd = SpanID(metadataEntry.SpanEnd())
 		me.Linkname = string(metadataEntry.Linkname())
 		me.Mode = metadataEntry.Mode()
 		me.UID = int(metadataEntry.Uid())
@@ -93,7 +93,7 @@ func flatbufToZtoc(flatbuffer []byte) *Ztoc {
 
 	compressionInfo := new(ztoc_flatbuffers.CompressionInfo)
 	ztocFlatbuf.CompressionInfo(compressionInfo)
-	ztoc.MaxSpanId = SpanId(compressionInfo.MaxSpanId())
+	ztoc.MaxSpanID = SpanID(compressionInfo.MaxSpanId())
 	ztoc.ZtocInfo.SpanDigests = make([]digest.Digest, compressionInfo.SpanDigestsLength())
 	for i := 0; i < compressionInfo.SpanDigestsLength(); i++ {
 		dgst, _ := digest.Parse(string(compressionInfo.SpanDigests(i)))
