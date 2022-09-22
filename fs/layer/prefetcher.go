@@ -38,7 +38,7 @@ func newPrefetcher(r *io.SectionReader, spanManager *spanmanager.SpanManager) *p
 }
 
 func (p *prefetcher) prefetch() error {
-	var spanID soci.SpanId
+	var spanID soci.SpanID
 	for {
 		err := p.spanManager.ResolveSpan(spanID, p.r)
 		if errors.Is(err, spanmanager.ErrExceedMaxSpan) {
