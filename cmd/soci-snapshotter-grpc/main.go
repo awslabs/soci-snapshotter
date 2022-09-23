@@ -89,6 +89,7 @@ var (
 	configPath   = flag.String("config", defaultConfigPath, "path to the configuration file")
 	logLevel     = flag.String("log-level", defaultLogLevel.String(), "set the logging level [trace, debug, info, warn, error, fatal, panic]")
 	rootDir      = flag.String("root", defaultRootDir, "path to the root directory for this snapshotter")
+	imageServiceAddress = flag.String("image-service-address", defaultImageServiceAddress, "address for the containerd server")
 	printVersion = flag.Bool("version", false, "print the version")
 )
 
@@ -159,8 +160,9 @@ func main() {
 		credsFuncs = append(credsFuncs, kubeconfig.NewKubeconfigKeychain(ctx, opts...))
 	}
 	if config.Config.CRIKeychainConfig.EnableKeychain {
+                fmt.Printf("connecting to %s", imageServiceAddress)
 		// connects to the backend CRI service (defaults to containerd socket)
-		criAddr := defaultImageServiceAddress
+		criAddr := *imageServiceAddress
 		if cp := config.CRIKeychainConfig.ImageServicePath; cp != "" {
 			criAddr = cp
 		}
