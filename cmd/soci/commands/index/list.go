@@ -39,17 +39,23 @@ func originalDigestFilter(digest string) func(*soci.ArtifactEntry) bool {
 }
 
 var listCommand = cli.Command{
-	Name:  "list",
-	Usage: "list indices",
+	Name:    "list",
+	Usage:   "list indices",
+	Aliases: []string{"ls"},
 	Flags: []cli.Flag{
 		cli.StringFlag{
 			Name:  "ref",
 			Usage: "filter indices to those that are associated with a specific image ref",
 		},
+		cli.BoolFlag{
+			Name:  "quiet, q",
+			Usage: "only display the index digests",
+		},
 	},
 	Action: func(cliContext *cli.Context) error {
 		var artifacts []*soci.ArtifactEntry
 		ref := cliContext.String("ref")
+		quiet := cliContext.Bool("quiet")
 
 		filter := indexFilter
 		client, ctx, cancel, err := commands.NewClient(cliContext)
@@ -84,8 +90,16 @@ var listCommand = cli.Command{
 			return nil
 		})
 
+		if quiet {
+			for _, ae := range artifacts {
+				os.Stdout.Write([]byte(fmt.Sprintf("%s\n", ae.Digest)))
+			}
+			return nil
+		}
+
 		writer := tabwriter.NewWriter(os.Stdout, 8, 8, 4, ' ', 0)
 		writer.Write([]byte("DIGEST\tSIZE\tIMAGE REF\tPLATFORM\tORAS ARTIFACT\n"))
+
 		for _, ae := range artifacts {
 			imgs, _ := is.List(ctx, fmt.Sprintf("target.digest==%s", ae.ImageDigest))
 			if len(imgs) > 0 {

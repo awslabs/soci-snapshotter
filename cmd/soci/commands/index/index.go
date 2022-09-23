@@ -24,5 +24,6 @@ var Command = cli.Command{
 	Subcommands: []cli.Command{
 		listCommand,
 		infoCommand,
+		rmCommand,
 	},
 }
