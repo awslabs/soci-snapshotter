@@ -199,6 +199,57 @@ func (db *ArtifactsDb) GetArtifactEntry(digest string) (*ArtifactEntry, error) {
 	return &entry, nil
 }
 
+// RemoveArtifactEntryByIndexDigest removes an index's artifact entry using its digest
+func (db *ArtifactsDb) RemoveArtifactEntryByIndexDigest(digest string) error {
+	return db.db.Update(func(tx *bolt.Tx) error {
+		bucket, err := getArtifactsBucket(tx)
+		if err != nil {
+			return err
+		}
+
+		dgstBucket := bucket.Bucket([]byte(digest))
+		if dgstBucket == nil {
+			return nil
+		}
+
+		if indexBucket(dgstBucket) {
+			return bucket.DeleteBucket([]byte(digest))
+		}
+		return fmt.Errorf("the digest %v does not correspond to an index", digest)
+	})
+}
+
+// RemoveArtifactEntryByIndexDigest removes an index's artifact entry using the image digest
+func (db *ArtifactsDb) RemoveArtifactEntryByImageDigest(digest string) error {
+	return db.db.Update(func(tx *bolt.Tx) error {
+		bucket, err := getArtifactsBucket(tx)
+		if err != nil {
+			return err
+		}
+
+		c := bucket.Cursor()
+		for k, _ := c.First(); k != nil; k, _ = c.Next() {
+			artifactBucket := bucket.Bucket(k)
+			if indexBucket(artifactBucket) && hasImageDigest(artifactBucket, digest) {
+				bucket.DeleteBucket(k)
+			}
+		}
+		return nil
+	})
+}
+
+// Determines whether a bucket represents an index, as opposed to a zTOC
+func indexBucket(b *bolt.Bucket) bool {
+	mt := string(b.Get(bucketKeyMediaType))
+	return mt == OCIArtifactManifestMediaType || mt == ORASManifestMediaType
+}
+
+// Determines whether a bucket's image digest is the same as digest
+func hasImageDigest(b *bolt.Bucket, digest string) bool {
+	imgDigest := string(b.Get(bucketKeyImageDigest))
+	return digest == imgDigest
+}
+
 // WriteArtifactEntry stores a single ArtifactEntry into the ArtifactsDB.
 // If there is already an artifact in the ArtifactsDB with the same Digest,
 // the old data is overwritten.

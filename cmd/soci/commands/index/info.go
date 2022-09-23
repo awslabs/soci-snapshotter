@@ -30,6 +30,7 @@ import (
 
 var infoCommand = cli.Command{
 	Name:        "info",
+	Usage:       "display an index",
 	Description: "get detailed info about an index",
 	ArgsUsage:   "<digest>",
 	Action: func(cliContext *cli.Context) error {

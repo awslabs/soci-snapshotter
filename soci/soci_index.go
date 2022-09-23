@@ -346,6 +346,7 @@ func buildSociLayer(ctx context.Context, cs content.Store, desc ocispec.Descript
 		OriginalDigest: desc.Digest.String(),
 		Type:           ArtifactEntryTypeLayer,
 		Location:       desc.Digest.String(),
+		MediaType:      SociLayerMediaType,
 	}
 	err = writeArtifactEntry(entry)
 	if err != nil {
