@@ -83,7 +83,7 @@ func (i *GzipIndex) Bytes() ([]byte, error) {
 
 // MaxSpanID returns the max span ID.
 func (i *GzipIndex) MaxSpanID() SpanID {
-	return SpanID(i.index.have - 1)
+	return SpanID(C.get_max_span_id(i.index))
 }
 
 // UncompressedOffsetToSpanID returns the ID of the span containing the data pointed by uncompressed offset.

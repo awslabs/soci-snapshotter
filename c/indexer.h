@@ -43,6 +43,7 @@
 #ifndef INDEXER_H
 #define INDEXER_H
 
+#include <stdbool.h>
 #include <stdint.h>
 #include <stdio.h>
 
@@ -73,8 +74,8 @@ struct gzip_index_point
 
 struct gzip_index 
 {
-    int have;           /* number of list entries filled in */
-    int size;           /* number of list entries allocated */
+    int32_t have;           /* number of list entries filled in */
+    int32_t size;           /* number of list entries allocated */
     struct gzip_index_point *list; /* allocated list */
     offset_t span_size;
 };
@@ -103,6 +104,8 @@ offset_t get_comp_off(struct gzip_index* index, int point_index);
 /* Get size of blob given an index */
 unsigned get_blob_size(struct gzip_index* index);
 
+int32_t get_max_span_id(struct gzip_index* index);
+
 /* Converts index to blob
    Returns the size of the buffer on success
    This function assumes that the buffer is large enough already
@@ -112,5 +115,14 @@ int index_to_blob(struct gzip_index* index, void* buf);
 struct gzip_index* blob_to_index(void* buf);
 
 void free_index(struct gzip_index *index);
+
+/* Convert integer types to little endian and vice versa.
+   This is needed to keep index consistent across multiple architectures, ensuring that
+   all integer fields will be stored in little endian.
+*/
+offset_t store_offset(offset_t source);
+offset_t decode_offset(offset_t source);
+int32_t encode_int32(int32_t source);
+int32_t decode_int32(int32_t source);
 
 #endif // INDEXER_H
