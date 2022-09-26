@@ -177,9 +177,36 @@ func NewFilesystem(root string, cfg config.Config, opts ...Option) (_ snapshot.F
 		metricsController:     c,
 		attrTimeout:           attrTimeout,
 		entryTimeout:          entryTimeout,
-		imageLayerToSociDesc:  make(map[string]ocispec.Descriptor),
 		orasStore:             store,
 	}, nil
+}
+
+type sociContext struct {
+	fetchOnce            sync.Once
+	sociIndex            *soci.Index
+	imageLayerToSociDesc map[string]ocispec.Descriptor
+}
+
+func (c *sociContext) Init(ctx context.Context, imageRef, indexDigest string, store orascontent.Storage) error {
+	var retErr error
+	c.fetchOnce.Do(func() {
+		index, err := FetchSociArtifacts(ctx, imageRef, indexDigest, store)
+		if err != nil && !errors.Is(err, errdef.ErrAlreadyExists) {
+			retErr = fmt.Errorf("error trying to fetch SOCI artifacts: %w", err)
+			return
+		}
+		c.sociIndex = index
+		c.populateImageLayerToSociMapping(index)
+	})
+	return retErr
+}
+
+func (c *sociContext) populateImageLayerToSociMapping(sociIndex *soci.Index) {
+	c.imageLayerToSociDesc = make(map[string]ocispec.Descriptor, len(sociIndex.Blobs))
+	for _, desc := range sociIndex.Blobs {
+		ociDigest := desc.Annotations[soci.IndexAnnotationImageLayerDigest]
+		c.imageLayerToSociDesc[ociDigest] = desc
+	}
 }
 
 type filesystem struct {
@@ -195,31 +222,8 @@ type filesystem struct {
 	metricsController     *layermetrics.Controller
 	attrTimeout           time.Duration
 	entryTimeout          time.Duration
-	sociIndex             *soci.Index
-	imageLayerToSociDesc  map[string]ocispec.Descriptor
-	loadIndexOnce         sync.Once
+	sociContexts          sync.Map
 	orasStore             orascontent.Storage
-}
-
-func (fs *filesystem) fetchSociArtifacts(ctx context.Context, imageRef, indexDigest string) error {
-	var retErr error
-	fs.loadIndexOnce.Do(func() {
-		index, err := FetchSociArtifacts(ctx, imageRef, indexDigest, fs.orasStore)
-		if err != nil && !errors.Is(err, errdef.ErrAlreadyExists) {
-			retErr = fmt.Errorf("error trying to fetch SOCI artifacts: %w", err)
-			return
-		}
-		fs.sociIndex = index
-		fs.populateImageLayerToSociMapping(index)
-	})
-	return retErr
-}
-
-func (fs *filesystem) populateImageLayerToSociMapping(sociIndex *soci.Index) {
-	for _, desc := range sociIndex.Blobs {
-		ociDigest := desc.Annotations[soci.IndexAnnotationImageLayerDigest]
-		fs.imageLayerToSociDesc[ociDigest] = desc
-	}
 }
 
 func (fs *filesystem) MountLocal(ctx context.Context, mountpoint string, labels map[string]string, mounts []mount.Mount) error {
@@ -259,6 +263,16 @@ func (fs *filesystem) MountLocal(ctx context.Context, mountpoint string, labels 
 	return nil
 }
 
+func (fs *filesystem) getSociContext(ctx context.Context, imageRef, indexDigest string) (*sociContext, error) {
+	cAny, _ := fs.sociContexts.LoadOrStore(indexDigest, &sociContext{})
+	c, ok := cAny.(*sociContext)
+	if !ok {
+		return nil, fmt.Errorf("could not load index: fs soci context is invalid type for %s", indexDigest)
+	}
+	err := c.Init(ctx, imageRef, indexDigest, fs.orasStore)
+	return c, err
+}
+
 func (fs *filesystem) Mount(ctx context.Context, mountpoint string, labels map[string]string) (retErr error) {
 	// Setting the start time to measure the Mount operation duration.
 	start := time.Now()
@@ -279,7 +293,7 @@ func (fs *filesystem) Mount(ctx context.Context, mountpoint string, labels map[s
 		return fmt.Errorf("unable to get image ref from labels")
 	}
 
-	err := fs.fetchSociArtifacts(ctx, imageRef, sociIndexDigest)
+	c, err := fs.getSociContext(ctx, imageRef, sociIndexDigest)
 	if err != nil {
 		return fmt.Errorf("unable to fetch SOCI artifacts: %w", err)
 	}
@@ -301,7 +315,7 @@ func (fs *filesystem) Mount(ctx context.Context, mountpoint string, labels map[s
 		rErr := fmt.Errorf("failed to resolve target")
 		for _, s := range src {
 			sociDesc := ocispec.Descriptor{}
-			if desc, ok := fs.imageLayerToSociDesc[s.Target.Digest.String()]; ok {
+			if desc, ok := c.imageLayerToSociDesc[s.Target.Digest.String()]; ok {
 				sociDesc = desc
 			}
 
@@ -324,7 +338,7 @@ func (fs *filesystem) Mount(ctx context.Context, mountpoint string, labels map[s
 			// Avoids to get canceled by client.
 			ctx := log.WithLogger(context.Background(), log.G(ctx).WithField("mountpoint", mountpoint))
 			sociDesc := ocispec.Descriptor{}
-			if descriptor, ok := fs.imageLayerToSociDesc[desc.Digest.String()]; ok {
+			if descriptor, ok := c.imageLayerToSociDesc[desc.Digest.String()]; ok {
 				sociDesc = descriptor
 			}
 			l, err := fs.resolver.Resolve(ctx, preResolve.Hosts, preResolve.Name, desc, sociDesc)

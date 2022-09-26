@@ -52,6 +52,7 @@ const (
 	defaultContainerdConfigPath  = "/etc/containerd/config.toml"
 	defaultSnapshotterConfigPath = "/etc/soci-snapshotter-grpc/config.toml"
 	alpineImage                  = "alpine:latest"
+	nginxImage                   = "nginx:latest"
 	ubuntuImage                  = "ubuntu:latest"
 	dockerLibrary                = "public.ecr.aws/docker/library/"
 )
@@ -364,14 +365,17 @@ level = "debug"
 		t.Fatalf("failed to write %v: %v", defaultSnapshotterConfigPath, err)
 	}
 
-	optimizedImageName := alpineImage
+	optimizedImageName1 := alpineImage
+	optimizedImageName2 := nginxImage
 	nonOptimizedImageName := ubuntuImage
 
 	// Mirror images
 	rebootContainerd(t, sh, "", "")
-	copyImage(sh, dockerhub(optimizedImageName), mirror(optimizedImageName))
+	copyImage(sh, dockerhub(optimizedImageName1), mirror(optimizedImageName1))
+	copyImage(sh, dockerhub(optimizedImageName2), mirror(optimizedImageName2))
 	copyImage(sh, dockerhub(nonOptimizedImageName), mirror(nonOptimizedImageName))
-	indexDigest := optimizeImage(sh, mirror(optimizedImageName))
+	indexDigest1 := optimizeImage(sh, mirror(optimizedImageName1))
+	indexDigest2 := optimizeImage(sh, mirror(optimizedImageName2))
 
 	// Test if contents are pulled
 	fromNormalSnapshotter := func(image string) tarPipeExporter {
@@ -382,7 +386,7 @@ level = "debug"
 		}
 	}
 	export := func(sh *shell.Shell, image string, tarExportArgs []string) {
-		sh.X("soci", "image", "rpull", "--user", registryCreds(), "--soci-index-digest", indexDigest, image)
+		sh.X("soci", "image", "rpull", "--user", registryCreds(), "--soci-index-digest", indexDigest1, image)
 		sh.Pipe(nil, shell.C("soci", "run", "--rm", "--snapshotter=soci", image, "test", "tar", "-c", "/usr"), tarExportArgs)
 	}
 
@@ -403,12 +407,26 @@ level = "debug"
 		},
 		{
 			name: "Soci",
-			want: fromNormalSnapshotter(mirror(optimizedImageName).ref),
+			want: fromNormalSnapshotter(mirror(optimizedImageName1).ref),
 			test: func(tarExportArgs ...string) {
-				image := mirror(optimizedImageName).ref
+				image := mirror(optimizedImageName1).ref
 				m := rebootContainerd(t, sh, "", "")
-				optimizeImage(sh, mirror(optimizedImageName))
-				sh.X("ctr", "i", "rm", optimizedImageName)
+				optimizeImage(sh, mirror(optimizedImageName1))
+				sh.X("ctr", "i", "rm", optimizedImageName1)
+				export(sh, image, tarExportArgs)
+				m.CheckAllRemoteSnapshots(t)
+			},
+		},
+		{
+			name: "multi-image",
+			want: fromNormalSnapshotter(mirror(optimizedImageName1).ref),
+			test: func(tarExportArgs ...string) {
+				image := mirror(optimizedImageName1).ref
+				m := rebootContainerd(t, sh, "", "")
+				optimizeImage(sh, mirror(optimizedImageName2))
+				sh.X("soci", "image", "rpull", "--user", registryCreds(), "--soci-index-digest", indexDigest2, mirror(optimizedImageName2).ref)
+				optimizeImage(sh, mirror(optimizedImageName1))
+				sh.X("ctr", "i", "rm", optimizedImageName1)
 				export(sh, image, tarExportArgs)
 				m.CheckAllRemoteSnapshots(t)
 			},
