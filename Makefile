@@ -17,8 +17,8 @@
 CMD_DESTDIR ?= /usr/local
 GO111MODULE_VALUE=auto
 OUTDIR ?= $(CURDIR)/out
-UTIL_CFLAGS=-I${CURDIR}/c -L${OUTDIR} -lindexer -lz
-UTIL_LDFLAGS=-L${OUTDIR} -lindexer -lz
+UTIL_CFLAGS=-I${CURDIR}/c -L${OUTDIR} -lz
+UTIL_LDFLAGS=-L${OUTDIR} -lz
 PKG=github.com/awslabs/soci-snapshotter
 VERSION=$(shell git describe --match 'v[0-9]*' --dirty='.m' --always --tags)
 REVISION=$(shell git rev-parse HEAD)$(shell if ! git diff --no-ext-diff --quiet --exit-code; then echo .m; fi)
@@ -39,7 +39,7 @@ build: pre-build $(CMD)
 FORCE:
 
 soci-snapshotter-grpc: FORCE
-	cd cmd/ ; GO111MODULE=$(GO111MODULE_VALUE) go build -o $(OUTDIR)/$@ $(GO_BUILD_FLAGS) $(GO_LD_FLAGS) -v ./soci-snapshotter-grpc
+	cd cmd/ ; GO111MODULE=$(GO111MODULE_VALUE) go build -o $(OUTDIR)/$@ $(GO_BUILD_FLAGS) $(GO_LD_FLAGS) -v ./soci-snapshotter-grpc 
 
 soci: FORCE
 	cd cmd/ ; GO111MODULE=$(GO111MODULE_VALUE) go build -o $(OUTDIR)/$@ $(GO_BUILD_FLAGS) $(GO_LD_FLAGS) -v ./soci
@@ -47,9 +47,6 @@ soci: FORCE
 pre-build:
 	rm -rf ${OUTDIR}
 	@mkdir -p ${OUTDIR}
-	@gcc -c c/indexer.c -o ${OUTDIR}/indexer.o -O3 -Wall -Werror
-	@ar rvs ${OUTDIR}/libindexer.a ${OUTDIR}/indexer.o
-	@rm -f ${OUTDIR}/indexer.o
 
 install-cmake:
 	@wget https://github.com/Kitware/CMake/releases/download/v3.24.1/cmake-3.24.1-Linux-x86_64.sh -O cmake.sh

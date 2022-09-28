@@ -26,6 +26,7 @@ import (
 	"sort"
 
 	ztoc_flatbuffers "github.com/awslabs/soci-snapshotter/soci/fbs/ztoc"
+	sociindex "github.com/awslabs/soci-snapshotter/soci/index"
 	flatbuffers "github.com/google/flatbuffers/go"
 
 	"github.com/opencontainers/go-digest"
@@ -37,7 +38,7 @@ func BuildZtoc(gzipFile string, span int64, cfg *buildConfig) (*Ztoc, error) {
 		return nil, fmt.Errorf("need to provide gzip file")
 	}
 
-	index, err := NewGzipIndexFromFile(gzipFile, span)
+	index, err := sociindex.NewGzipIndexFromFile(gzipFile, span)
 	if err != nil {
 		return nil, err
 	}
@@ -204,7 +205,7 @@ func prepareXattrsOffset(me FileMetadata, builder *flatbuffers.Builder) flatbuff
 	return xattrs
 }
 
-func getPerSpanDigests(gzipFile string, fileSize int64, index *GzipIndex) ([]digest.Digest, error) {
+func getPerSpanDigests(gzipFile string, fileSize int64, index *sociindex.GzipIndex) ([]digest.Digest, error) {
 	file, err := os.Open(gzipFile)
 	if err != nil {
 		return nil, fmt.Errorf("could not open file for reading: %w", err)
@@ -212,12 +213,12 @@ func getPerSpanDigests(gzipFile string, fileSize int64, index *GzipIndex) ([]dig
 	defer file.Close()
 
 	var digests []digest.Digest
-	var i SpanID
+	var i sociindex.SpanID
 	maxSpanID := index.MaxSpanID()
 	for i = 0; i <= maxSpanID; i++ {
 		var (
 			startOffset = index.SpanIDToCompressedOffset(i)
-			endOffset   FileSize
+			endOffset   sociindex.FileSize
 		)
 
 		if index.HasBits(i) {
@@ -225,7 +226,7 @@ func getPerSpanDigests(gzipFile string, fileSize int64, index *GzipIndex) ([]dig
 		}
 
 		if i == maxSpanID {
-			endOffset = FileSize(fileSize)
+			endOffset = sociindex.FileSize(fileSize)
 		} else {
 			endOffset = index.SpanIDToCompressedOffset(i + 1)
 		}
@@ -240,7 +241,7 @@ func getPerSpanDigests(gzipFile string, fileSize int64, index *GzipIndex) ([]dig
 	return digests, nil
 }
 
-func getGzipFileMetadata(gzipFile string, index *GzipIndex) ([]FileMetadata, FileSize, error) {
+func getGzipFileMetadata(gzipFile string, index *sociindex.GzipIndex) ([]FileMetadata, sociindex.FileSize, error) {
 	file, err := os.Open(gzipFile)
 	if err != nil {
 		return nil, 0, fmt.Errorf("could not open file for reading: %v", err)
@@ -274,7 +275,7 @@ func getGzipFileMetadata(gzipFile string, index *GzipIndex) ([]FileMetadata, Fil
 		}
 
 		start := pt.CurrentPos()
-		end := pt.CurrentPos() + FileSize(hdr.Size)
+		end := pt.CurrentPos() + sociindex.FileSize(hdr.Size)
 		indexStart := index.UncompressedOffsetToSpanID(start)
 		indexEnd := index.UncompressedOffsetToSpanID(end)
 
@@ -287,7 +288,7 @@ func getGzipFileMetadata(gzipFile string, index *GzipIndex) ([]FileMetadata, Fil
 			Name:               hdr.Name,
 			Type:               fileType,
 			UncompressedOffset: pt.CurrentPos(),
-			UncompressedSize:   FileSize(hdr.Size),
+			UncompressedSize:   sociindex.FileSize(hdr.Size),
 			SpanStart:          indexStart,
 			SpanEnd:            indexEnd,
 			Linkname:           hdr.Linkname,
@@ -306,7 +307,7 @@ func getGzipFileMetadata(gzipFile string, index *GzipIndex) ([]FileMetadata, Fil
 	return md, uncompressedArchiveSize, nil
 }
 
-func getFileSize(file string) (FileSize, error) {
+func getFileSize(file string) (sociindex.FileSize, error) {
 	f, err := os.Open(file)
 	if err != nil {
 		return 0, err
@@ -316,10 +317,10 @@ func getFileSize(file string) (FileSize, error) {
 	if err != nil {
 		return 0, err
 	}
-	return FileSize(st.Size()), nil
+	return sociindex.FileSize(st.Size()), nil
 }
 
-func getTarReader(gzipReader io.Reader) (*os.File, *io.SectionReader, FileSize, error) {
+func getTarReader(gzipReader io.Reader) (*os.File, *io.SectionReader, sociindex.FileSize, error) {
 	file, err := os.CreateTemp("/tmp", "tempfile-ztoc-builder")
 	if err != nil {
 		return nil, nil, 0, err
@@ -360,28 +361,28 @@ func getType(header *tar.Header) (fileType string, e error) {
 	return
 }
 
-func tarSectionReaderFromFile(f *os.File) (*io.SectionReader, FileSize, error) {
+func tarSectionReaderFromFile(f *os.File) (*io.SectionReader, sociindex.FileSize, error) {
 	st, err := f.Stat()
 	if err != nil {
 		return nil, 0, err
 	}
 
-	return io.NewSectionReader(f, 0, st.Size()), FileSize(st.Size()), nil
+	return io.NewSectionReader(f, 0, st.Size()), sociindex.FileSize(st.Size()), nil
 }
 
 type positionTrackerReader struct {
 	r   io.ReaderAt
-	pos FileSize
+	pos sociindex.FileSize
 }
 
 func (p *positionTrackerReader) Read(b []byte) (int, error) {
 	n, err := p.r.ReadAt(b, int64(p.pos))
 	if err == nil {
-		p.pos += FileSize(n)
+		p.pos += sociindex.FileSize(n)
 	}
 	return n, err
 }
 
-func (p *positionTrackerReader) CurrentPos() FileSize {
+func (p *positionTrackerReader) CurrentPos() sociindex.FileSize {
 	return p.pos
 }

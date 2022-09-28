@@ -49,7 +49,7 @@ import (
 	commonmetrics "github.com/awslabs/soci-snapshotter/fs/metrics/common"
 	spanmanager "github.com/awslabs/soci-snapshotter/fs/span-manager"
 	"github.com/awslabs/soci-snapshotter/metadata"
-	"github.com/awslabs/soci-snapshotter/soci"
+	sociindex "github.com/awslabs/soci-snapshotter/soci/index"
 	"github.com/hashicorp/go-multierror"
 	digest "github.com/opencontainers/go-digest"
 	"github.com/pkg/errors"
@@ -212,14 +212,14 @@ type file struct {
 // ReadAt reads the file when the file is requested by the container
 func (sf *file) ReadAt(p []byte, offset int64) (int, error) {
 	uncompFileSize := sf.fr.GetUncompressedFileSize()
-	if soci.FileSize(offset) >= uncompFileSize {
+	if sociindex.FileSize(offset) >= uncompFileSize {
 		return 0, io.EOF
 	}
-	expectedSize := uncompFileSize - soci.FileSize(offset)
-	if expectedSize > soci.FileSize(len(p)) {
-		expectedSize = soci.FileSize(len(p))
+	expectedSize := uncompFileSize - sociindex.FileSize(offset)
+	if expectedSize > sociindex.FileSize(len(p)) {
+		expectedSize = sociindex.FileSize(len(p))
 	}
-	fileOffsetStart := sf.fr.GetUncompressedOffset() + soci.FileSize(offset)
+	fileOffsetStart := sf.fr.GetUncompressedOffset() + sociindex.FileSize(offset)
 	fileOffsetEnd := fileOffsetStart + expectedSize
 	r, err := sf.gr.spanManager.GetContents(fileOffsetStart, fileOffsetEnd)
 	if err != nil {
@@ -234,7 +234,7 @@ func (sf *file) ReadAt(p []byte, offset int64) (int, error) {
 		return 0, err
 	}
 	n := copy(p, contents)
-	if soci.FileSize(n) != expectedSize {
+	if sociindex.FileSize(n) != expectedSize {
 		return 0, fmt.Errorf("unexpected copied data size for on-demand fetch. read = %d, expected = %d", n, expectedSize)
 	}
 	commonmetrics.AddBytesCount(commonmetrics.OnDemandBytesServed, sf.gr.layerSha, int64(n)) // measure the number of on demand bytes served

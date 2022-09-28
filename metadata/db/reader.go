@@ -48,6 +48,7 @@ import (
 
 	"github.com/awslabs/soci-snapshotter/metadata"
 	"github.com/awslabs/soci-snapshotter/soci"
+	sociindex "github.com/awslabs/soci-snapshotter/soci/index"
 	"github.com/pkg/errors"
 	"github.com/rs/xid"
 	bolt "go.etcd.io/bbolt"
@@ -505,7 +506,7 @@ func (r *reader) ForeachChild(id uint32, f func(name string, id uint32, mode os.
 // OpenFile returns a section reader of the specified node.
 func (r *reader) OpenFile(id uint32) (metadata.File, error) {
 	var size int64
-	var uncompressedOffset soci.FileSize
+	var uncompressedOffset sociindex.FileSize
 
 	if err := r.view(func(tx *bolt.Tx) error {
 		nodes, err := getNodes(tx, r.fsID)
@@ -532,24 +533,24 @@ func (r *reader) OpenFile(id uint32) (metadata.File, error) {
 	}); err != nil {
 		return nil, err
 	}
-	return &file{uncompressedOffset, soci.FileSize(size)}, nil
+	return &file{uncompressedOffset, sociindex.FileSize(size)}, nil
 }
 
-func getUncompressedOffset(md *bolt.Bucket) soci.FileSize {
+func getUncompressedOffset(md *bolt.Bucket) sociindex.FileSize {
 	ucompOffset, _ := binary.Varint(md.Get(bucketKeyUncompressedOffset))
-	return soci.FileSize(ucompOffset)
+	return sociindex.FileSize(ucompOffset)
 }
 
 type file struct {
-	uncompressedOffset soci.FileSize
-	uncompressedSize   soci.FileSize
+	uncompressedOffset sociindex.FileSize
+	uncompressedSize   sociindex.FileSize
 }
 
-func (fr *file) GetUncompressedFileSize() soci.FileSize {
+func (fr *file) GetUncompressedFileSize() sociindex.FileSize {
 	return fr.uncompressedSize
 }
 
-func (fr *file) GetUncompressedOffset() soci.FileSize {
+func (fr *file) GetUncompressedOffset() sociindex.FileSize {
 	return fr.uncompressedOffset
 }
 

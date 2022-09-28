@@ -38,7 +38,7 @@ import (
 	"os"
 
 	"github.com/awslabs/soci-snapshotter/metadata"
-	"github.com/awslabs/soci-snapshotter/soci"
+	sociindex "github.com/awslabs/soci-snapshotter/soci/index"
 	"github.com/awslabs/soci-snapshotter/util/dbutil"
 	"github.com/pkg/errors"
 	bolt "go.etcd.io/bbolt"
@@ -106,9 +106,9 @@ type childEntry struct {
 
 type metadataEntry struct {
 	children           map[string]childEntry
-	UncompressedOffset soci.FileSize
-	SpanStart          soci.SpanID
-	SpanEnd            soci.SpanID
+	UncompressedOffset sociindex.FileSize
+	SpanStart          sociindex.SpanID
+	SpanEnd            sociindex.SpanID
 }
 
 func getNodes(tx *bolt.Tx, fsID string) (*bolt.Bucket, error) {
@@ -365,11 +365,11 @@ func writeMetadataEntry(md *bolt.Bucket, m *metadataEntry) error {
 	return nil
 }
 
-func putFileSize(b *bolt.Bucket, k []byte, v soci.FileSize) error {
+func putFileSize(b *bolt.Bucket, k []byte, v sociindex.FileSize) error {
 	return putInt(b, k, int64(v))
 }
 
-func putSpanID(b *bolt.Bucket, k []byte, v soci.SpanID) error {
+func putSpanID(b *bolt.Bucket, k []byte, v sociindex.SpanID) error {
 	return putInt(b, k, int64(v))
 }
 

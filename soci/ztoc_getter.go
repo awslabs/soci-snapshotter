@@ -24,6 +24,7 @@ import (
 	"time"
 
 	ztoc_flatbuffers "github.com/awslabs/soci-snapshotter/soci/fbs/ztoc"
+	sociindex "github.com/awslabs/soci-snapshotter/soci/index"
 	"github.com/opencontainers/go-digest"
 )
 
@@ -51,8 +52,8 @@ func flatbufToZtoc(flatbuffer []byte) *Ztoc {
 	ztocFlatbuf := ztoc_flatbuffers.GetRootAsZtoc(flatbuffer, 0)
 	ztoc.Version = string(ztocFlatbuf.Version())
 	ztoc.BuildToolIdentifier = string(ztocFlatbuf.BuildToolIdentifier())
-	ztoc.CompressedArchiveSize = FileSize(ztocFlatbuf.CompressedArchiveSize())
-	ztoc.UncompressedArchiveSize = FileSize(ztocFlatbuf.UncompressedArchiveSize())
+	ztoc.CompressedArchiveSize = sociindex.FileSize(ztocFlatbuf.CompressedArchiveSize())
+	ztoc.UncompressedArchiveSize = sociindex.FileSize(ztocFlatbuf.UncompressedArchiveSize())
 
 	toc := new(ztoc_flatbuffers.TOC)
 	ztocFlatbuf.Toc(toc)
@@ -68,10 +69,10 @@ func flatbufToZtoc(flatbuffer []byte) *Ztoc {
 		var me FileMetadata
 		me.Name = string(metadataEntry.Name())
 		me.Type = string(metadataEntry.Type())
-		me.UncompressedOffset = FileSize(metadataEntry.UncompressedOffset())
-		me.UncompressedSize = FileSize(metadataEntry.UncompressedSize())
-		me.SpanStart = SpanID(metadataEntry.SpanStart())
-		me.SpanEnd = SpanID(metadataEntry.SpanEnd())
+		me.UncompressedOffset = sociindex.FileSize(metadataEntry.UncompressedOffset())
+		me.UncompressedSize = sociindex.FileSize(metadataEntry.UncompressedSize())
+		me.SpanStart = sociindex.SpanID(metadataEntry.SpanStart())
+		me.SpanEnd = sociindex.SpanID(metadataEntry.SpanEnd())
 		me.Linkname = string(metadataEntry.Linkname())
 		me.Mode = metadataEntry.Mode()
 		me.UID = int(metadataEntry.Uid())
@@ -97,7 +98,7 @@ func flatbufToZtoc(flatbuffer []byte) *Ztoc {
 
 	compressionInfo := new(ztoc_flatbuffers.CompressionInfo)
 	ztocFlatbuf.CompressionInfo(compressionInfo)
-	ztoc.CompressionInfo.MaxSpanID = SpanID(compressionInfo.MaxSpanId())
+	ztoc.CompressionInfo.MaxSpanID = sociindex.SpanID(compressionInfo.MaxSpanId())
 	ztoc.CompressionInfo.SpanDigests = make([]digest.Digest, compressionInfo.SpanDigestsLength())
 	for i := 0; i < compressionInfo.SpanDigestsLength(); i++ {
 		dgst, _ := digest.Parse(string(compressionInfo.SpanDigests(i)))

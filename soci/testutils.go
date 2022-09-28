@@ -16,11 +16,6 @@
 
 package soci
 
-// #include "indexer.h"
-// #include <stdlib.h>
-// #include <stdio.h>
-import "C"
-
 import (
 	"archive/tar"
 	"bytes"
@@ -31,29 +26,12 @@ import (
 	"math/rand"
 	"os"
 	"sort"
-	"unsafe"
 
 	"github.com/awslabs/soci-snapshotter/util/testutil"
 	"github.com/containerd/containerd/content"
 	"github.com/opencontainers/go-digest"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 )
-
-const windowSize = 32768
-
-type gzipIndexPoint struct {
-	out    int64  /* corresponding offset in uncompressed data */
-	in     int64  /* offset in input file of first full byte */
-	bits   int8   /* number of bits (1-7) from byte at in - 1, or 0 */
-	window []byte /* preceding 32K of uncompressed data */
-}
-
-type gzipIndex struct {
-	have      uint64           /* number of list entries filled in */
-	size      uint64           /* number of list entries allocated */
-	list      []gzipIndexPoint /* allocated list */
-	span_size uint64
-}
 
 type TempDirMaker interface {
 	TempDir() string
@@ -62,37 +40,6 @@ type TempDirMaker interface {
 func parseDigest(digestString string) digest.Digest {
 	dgst, _ := digest.Parse(digestString)
 	return dgst
-}
-
-func unmarshalGzipIndex(blob byte) (*gzipIndex, error) {
-	var index *C.struct_gzip_index = C.blob_to_index(unsafe.Pointer(&blob))
-
-	if index == nil {
-		return nil, fmt.Errorf("cannot convert blob to gzip_index")
-	}
-
-	defer C.free_index(index)
-
-	list := make([]gzipIndexPoint, 0)
-	lst := unsafe.Slice(index.list, int(index.have))
-	for i := 0; i < int(index.have); i++ {
-		indexPoint := lst[i]
-		window := C.GoBytes(unsafe.Pointer(&indexPoint.window[0]), windowSize)
-		listEntry := gzipIndexPoint{
-			out:    int64(indexPoint.out),
-			in:     int64(indexPoint.in),
-			bits:   int8(indexPoint.bits),
-			window: window,
-		}
-		list = append(list, listEntry)
-	}
-
-	return &gzipIndex{
-		have:      uint64(index.have),
-		size:      uint64(index.size),
-		span_size: uint64(index.span_size),
-		list:      list,
-	}, nil
 }
 
 type fileContent struct {

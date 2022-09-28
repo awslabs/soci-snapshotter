@@ -26,6 +26,7 @@ import (
 	"sort"
 	"testing"
 
+	sociindex "github.com/awslabs/soci-snapshotter/soci/index"
 	"github.com/opencontainers/go-digest"
 )
 
@@ -236,50 +237,55 @@ func TestZtocGenerationConsistency(t *testing.T) {
 
 			// Compare raw IndexByteData
 			if !bytes.Equal(ztoc1.CompressionInfo.IndexByteData, ztoc2.CompressionInfo.IndexByteData) {
-
 				// compare IndexByteData within Go
-				index1, err := unmarshalGzipIndex(ztoc1.CompressionInfo.IndexByteData[0])
+				gzipIndex1, err := sociindex.NewGzipIndex(ztoc1.CompressionInfo.IndexByteData)
+				if err != nil {
+					t.Fatalf("cannot create gzipIndex from ztoc1: %v", err)
+				}
+				defer gzipIndex1.Close()
+
+				index1, err := gzipIndex1.UnmarshalGzipIndex()
 				if err != nil {
 					t.Fatalf("index from ztoc1 should contain data")
 				}
-				index2, err := unmarshalGzipIndex(ztoc2.CompressionInfo.IndexByteData[0])
+
+				gzipIndex2, err := sociindex.NewGzipIndex(ztoc2.CompressionInfo.IndexByteData)
+				if err != nil {
+					t.Fatalf("cannot create gzipIndex from ztoc2: %v", err)
+				}
+				defer gzipIndex2.Close()
+				index2, err := gzipIndex2.UnmarshalGzipIndex()
 				if err != nil {
 					t.Fatalf("index from ztoc2 should contain data")
 				}
 
-				if index1.have != index2.have {
-					t.Fatalf("index1.have=%d must be equal to index2.have=%d", index1.have, index2.have)
+				if index1.Have != index2.Have {
+					t.Fatalf("index1.have=%d must be equal to index2.have=%d", index1.Have, index2.Have)
+				}
+				if index1.Size != index2.Size {
+					t.Fatalf("index1.size=%d must be equal to index2.size=%d", index1.Size, index2.Size)
+				}
+				if index1.SpanSize != index2.SpanSize {
+					t.Fatalf("index1.span_size=%d must be equal to index2.span_size=%d", index1.SpanSize, index2.SpanSize)
+				}
+				if len(index1.List) != len(index2.List) {
+					t.Fatalf("len(index1.list)=%d must be equal to len(index2.list)=%d", len(index1.List), len(index2.List))
 				}
 
-				if index1.size != index2.size {
-					t.Fatalf("index1.size=%d must be equal to index2.size=%d", index1.size, index2.size)
-				}
+				for i := 0; i < len(index1.List); i++ {
+					indexPoint1 := index1.List[i]
+					indexPoint2 := index2.List[i]
 
-				if index1.span_size != index2.span_size {
-					t.Fatalf("index1.span_size=%d must be equal to index2.span_size=%d", index1.span_size, index2.span_size)
-				}
-
-				if len(index1.list) != len(index2.list) {
-					t.Fatalf("len(index1.list)=%d must be equal to len(index2.list)=%d", len(index1.list), len(index2.list))
-				}
-
-				for i := 0; i < len(index1.list); i++ {
-					indexPoint1 := index1.list[i]
-					indexPoint2 := index2.list[i]
-
-					if indexPoint1.bits != indexPoint2.bits {
-						t.Fatalf("index1.list[%d].bits=%d must be equal to index2.list[%d].bits=%d", i, index1.list[i].bits, i, index2.list[i].bits)
+					if indexPoint1.Bits != indexPoint2.Bits {
+						t.Fatalf("index1.list[%d].bits=%d must be equal to index2.list[%d].bits=%d", i, indexPoint1.Bits, i, indexPoint2.Bits)
 					}
-
-					if indexPoint1.in != indexPoint2.in {
-						t.Fatalf("index1.list[%d].in=%d must be equal to index2.list[%d].in=%d", i, index1.list[i].in, i, index2.list[i].in)
+					if indexPoint1.In != indexPoint2.In {
+						t.Fatalf("index1.list[%d].in=%d must be equal to index2.list[%d].in=%d", i, indexPoint1.In, i, indexPoint2.In)
 					}
-
-					if indexPoint1.out != indexPoint2.out {
-						t.Fatalf("index1.list[%d].out=%d must be equal to index2.list[%d].out=%d", i, index1.list[i].out, i, index2.list[i].out)
+					if indexPoint1.Out != indexPoint2.Out {
+						t.Fatalf("index1.list[%d].out=%d must be equal to index2.list[%d].out=%d", i, indexPoint1.Out, i, indexPoint2.Out)
 					}
-
-					if !reflect.DeepEqual(indexPoint1.window, indexPoint2.window) {
+					if !reflect.DeepEqual(indexPoint1.Window, indexPoint2.Window) {
 						t.Fatalf("index1.list[%d].window must be identical to index2.list[%d].window", i, i)
 					}
 				}
@@ -609,9 +615,9 @@ func TestWriteZtoc(t *testing.T) {
 		version                 string
 		indexByteData           []byte
 		metadata                []FileMetadata
-		compressedArchiveSize   FileSize
-		uncompressedArchiveSize FileSize
-		maxSpanID               SpanID
+		compressedArchiveSize   sociindex.FileSize
+		uncompressedArchiveSize sociindex.FileSize
+		maxSpanID               sociindex.SpanID
 		buildTool               string
 		expDigest               string
 		expSize                 int64

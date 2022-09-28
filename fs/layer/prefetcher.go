@@ -21,7 +21,7 @@ import (
 	"io"
 
 	spanmanager "github.com/awslabs/soci-snapshotter/fs/span-manager"
-	"github.com/awslabs/soci-snapshotter/soci"
+	sociindex "github.com/awslabs/soci-snapshotter/soci/index"
 )
 
 type prefetcher struct {
@@ -38,7 +38,7 @@ func newPrefetcher(r *io.SectionReader, spanManager *spanmanager.SpanManager) *p
 }
 
 func (p *prefetcher) prefetch() error {
-	var spanID soci.SpanID
+	var spanID sociindex.SpanID
 	for {
 		err := p.spanManager.ResolveSpan(spanID, p.r)
 		if errors.Is(err, spanmanager.ErrExceedMaxSpan) {

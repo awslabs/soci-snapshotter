@@ -14,10 +14,10 @@
    limitations under the License.
 */
 
-package soci
+package index
 
-// #cgo CFLAGS: -I${SRCDIR}/../c/
-// #cgo LDFLAGS: -L${SRCDIR}/../out -lindexer -lz
+// #cgo CFLAGS: -I${SRCDIR}/../soci/
+// #cgo LDFLAGS: -L${SRCDIR}/../out -lz
 // #include "indexer.h"
 // #include <stdlib.h>
 // #include <stdint.h>
@@ -27,6 +27,30 @@ import (
 	"fmt"
 	"unsafe"
 )
+
+const windowSize = 32768
+
+// FileSize will hold any file size and offset values
+type FileSize int64
+
+// SpanID will hold any span related values (SpanID, MaxSpanID, SpanStart, SpanEnd, etc)
+type SpanID int32
+
+// GzipIndexPoint corresponds to gzip_index_point in indexer.c
+type GzipIndexPoint struct {
+	Out    int64  /* corresponding offset in uncompressed data */
+	In     int64  /* offset in input file of first full byte */
+	Bits   int8   /* number of bits (1-7) from byte at in - 1, or 0 */
+	Window []byte /* preceding 32K of uncompressed data */
+}
+
+// GzIndex corresponds to gzip_index in indexer.c
+type GzIndex struct {
+	Have     int64            /* number of list entries filled in */
+	Size     int64            /* number of list entries allocated */
+	List     []GzipIndexPoint /* allocated list */
+	SpanSize int64
+}
 
 type GzipIndex struct {
 	index *C.struct_gzip_index
@@ -138,4 +162,27 @@ func (i *GzipIndex) ExtractData(fileName string, uncompressedSize, uncompressedO
 	}
 
 	return bytes, nil
+}
+
+func (idx *GzipIndex) UnmarshalGzipIndex() (*GzIndex, error) {
+	list := make([]GzipIndexPoint, 0)
+	lst := unsafe.Slice(idx.index.list, int(idx.index.have))
+	for i := 0; i < int(idx.index.have); i++ {
+		indexPoint := lst[i]
+		window := C.GoBytes(unsafe.Pointer(&indexPoint.window[0]), windowSize)
+		listEntry := GzipIndexPoint{
+			Out:    int64(indexPoint.out),
+			In:     int64(indexPoint.in),
+			Bits:   int8(indexPoint.bits),
+			Window: window,
+		}
+		list = append(list, listEntry)
+	}
+
+	return &GzIndex{
+		Have:     int64(idx.index.have),
+		Size:     int64(idx.index.size),
+		SpanSize: int64(idx.index.span_size),
+		List:     list,
+	}, nil
 }

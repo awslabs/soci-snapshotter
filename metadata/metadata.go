@@ -38,6 +38,7 @@ import (
 	"time"
 
 	"github.com/awslabs/soci-snapshotter/soci"
+	sociindex "github.com/awslabs/soci-snapshotter/soci/index"
 )
 
 // Attr reprensents the attributes of a node.
@@ -90,8 +91,8 @@ type Reader interface {
 }
 
 type File interface {
-	GetUncompressedFileSize() soci.FileSize
-	GetUncompressedOffset() soci.FileSize
+	GetUncompressedFileSize() sociindex.FileSize
+	GetUncompressedOffset() sociindex.FileSize
 }
 
 type Options struct {

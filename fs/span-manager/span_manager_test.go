@@ -27,6 +27,7 @@ import (
 
 	"github.com/awslabs/soci-snapshotter/cache"
 	"github.com/awslabs/soci-snapshotter/soci"
+	sociindex "github.com/awslabs/soci-snapshotter/soci/index"
 	"github.com/awslabs/soci-snapshotter/util/testutil"
 )
 
@@ -35,11 +36,11 @@ func init() {
 }
 
 func TestSpanManager(t *testing.T) {
-	var spanSize soci.FileSize = 65536 // 64 KiB
+	var spanSize sociindex.FileSize = 65536 // 64 KiB
 	fileName := "span-manager-test"
 	testCases := []struct {
 		name          string
-		maxSpans      soci.SpanID
+		maxSpans      sociindex.SpanID
 		sectionReader *io.SectionReader
 		expectedError error
 	}{
@@ -55,7 +56,7 @@ func TestSpanManager(t *testing.T) {
 			name:     "span digest verification fails",
 			maxSpans: 100,
 			sectionReader: io.NewSectionReader(readerFn(func(b []byte, _ int64) (int, error) {
-				var sz soci.FileSize = soci.FileSize(len(b))
+				var sz sociindex.FileSize = sociindex.FileSize(len(b))
 				copy(b, genRandomByteData(sz))
 				return len(b), nil
 			}), 0, 1000000),
@@ -105,7 +106,7 @@ func TestSpanManager(t *testing.T) {
 			}
 
 			// Test resolving all spans
-			var i soci.SpanID
+			var i sociindex.SpanID
 			for i = 0; i <= ztoc.CompressionInfo.MaxSpanID; i++ {
 				err := m.ResolveSpan(i, r)
 				if err != nil {
@@ -123,7 +124,7 @@ func TestSpanManager(t *testing.T) {
 }
 
 func TestSpanManagerCache(t *testing.T) {
-	var spanSize soci.FileSize = 65536 // 64 KiB
+	var spanSize sociindex.FileSize = 65536 // 64 KiB
 	content := genRandomByteData(spanSize)
 	tarEntries := []testutil.TarEntry{
 		testutil.File("span-manager-cache-test", string(content)),
@@ -136,15 +137,15 @@ func TestSpanManagerCache(t *testing.T) {
 	defer cache.Close()
 	m := New(ztoc, r, cache)
 	spanID := 0
-	err = m.ResolveSpan(soci.SpanID(spanID), r)
+	err = m.ResolveSpan(sociindex.SpanID(spanID), r)
 	if err != nil {
 		t.Fatalf("failed to resolve span 0: %v", err)
 	}
 
 	testCases := []struct {
 		name   string
-		offset soci.FileSize
-		size   soci.FileSize
+		offset sociindex.FileSize
+		size   sociindex.FileSize
 	}{
 		{
 			name:   "offset 0",
@@ -170,7 +171,7 @@ func TestSpanManagerCache(t *testing.T) {
 			if err != nil && err != io.EOF {
 				t.Fatalf("error reading span content")
 			}
-			if tc.size != soci.FileSize(len(spanContent)) {
+			if tc.size != sociindex.FileSize(len(spanContent)) {
 				t.Fatalf("size of span content from cache is not expected")
 			}
 		})
@@ -178,7 +179,7 @@ func TestSpanManagerCache(t *testing.T) {
 }
 
 func TestStateTransition(t *testing.T) {
-	var spanSize soci.FileSize = 65536 // 64 KiB
+	var spanSize sociindex.FileSize = 65536 // 64 KiB
 	content := genRandomByteData(spanSize)
 	tarEntries := []testutil.TarEntry{
 		testutil.File("set-span-test", string(content)),
@@ -201,7 +202,7 @@ func TestStateTransition(t *testing.T) {
 
 	testCases := []struct {
 		name       string
-		spanID     soci.SpanID
+		spanID     sociindex.SpanID
 		isPrefetch bool
 	}{
 		{
@@ -340,7 +341,7 @@ func getFileContentFromSpans(m *SpanManager, ztoc *soci.Ztoc, fileName string) (
 	return content, nil
 }
 
-func genRandomByteData(size soci.FileSize) []byte {
+func genRandomByteData(size sociindex.FileSize) []byte {
 	b := make([]byte, size)
 	rand.Read(b)
 	return b

@@ -22,23 +22,18 @@ import (
 	"io"
 	"time"
 
+	sociindex "github.com/awslabs/soci-snapshotter/soci/index"
 	"github.com/opencontainers/go-digest"
 	"golang.org/x/sync/errgroup"
 )
 
-// FileSize will hold any file size and offset values
-type FileSize int64
-
-// SpanID will hold any span related values (SpanID, MaxSpanID, SpanStart, SpanEnd, etc)
-type SpanID int32
-
 type FileMetadata struct {
 	Name               string
 	Type               string
-	UncompressedOffset FileSize
-	UncompressedSize   FileSize
-	SpanStart          SpanID
-	SpanEnd            SpanID
+	UncompressedOffset sociindex.FileSize
+	UncompressedSize   sociindex.FileSize
+	SpanStart          sociindex.SpanID
+	SpanEnd            sociindex.SpanID
 	Linkname           string // Target name of link (valid for TypeLink or TypeSymlink)
 	Mode               int64  // Permission and mode bits
 	UID                int    // User ID of owner
@@ -56,14 +51,14 @@ type FileMetadata struct {
 type Ztoc struct {
 	Version                 string
 	BuildToolIdentifier     string
-	CompressedArchiveSize   FileSize
-	UncompressedArchiveSize FileSize
+	CompressedArchiveSize   sociindex.FileSize
+	UncompressedArchiveSize sociindex.FileSize
 	TOC                     TOC
 	CompressionInfo         CompressionInfo
 }
 
 type CompressionInfo struct {
-	MaxSpanID     SpanID //The total number of spans in Ztoc - 1
+	MaxSpanID     sociindex.SpanID //The total number of spans in Ztoc - 1
 	SpanDigests   []digest.Digest
 	IndexByteData []byte
 }
@@ -73,20 +68,20 @@ type TOC struct {
 }
 
 type FileExtractConfig struct {
-	UncompressedSize      FileSize
-	UncompressedOffset    FileSize
-	SpanStart             SpanID
-	SpanEnd               SpanID
+	UncompressedSize      sociindex.FileSize
+	UncompressedOffset    sociindex.FileSize
+	SpanStart             sociindex.SpanID
+	SpanEnd               sociindex.SpanID
 	IndexByteData         []byte
-	CompressedArchiveSize FileSize
-	MaxSpanID             SpanID
+	CompressedArchiveSize sociindex.FileSize
+	MaxSpanID             sociindex.SpanID
 }
 
 type MetadataEntry struct {
-	UncompressedSize   FileSize
-	UncompressedOffset FileSize
-	SpanStart          SpanID
-	SpanEnd            SpanID
+	UncompressedSize   sociindex.FileSize
+	UncompressedOffset sociindex.FileSize
+	SpanStart          sociindex.SpanID
+	SpanEnd            sociindex.SpanID
 }
 
 func ExtractFile(r *io.SectionReader, config *FileExtractConfig) ([]byte, error) {
@@ -97,17 +92,17 @@ func ExtractFile(r *io.SectionReader, config *FileExtractConfig) ([]byte, error)
 
 	numSpans := config.SpanEnd - config.SpanStart + 1
 
-	gzipIndex, err := NewGzipIndex(config.IndexByteData)
+	gzipIndex, err := sociindex.NewGzipIndex(config.IndexByteData)
 	if err != nil {
 		return bytes, nil
 	}
 	defer gzipIndex.Close()
 
-	var bufSize FileSize
-	starts := make([]FileSize, numSpans)
-	ends := make([]FileSize, numSpans)
+	var bufSize sociindex.FileSize
+	starts := make([]sociindex.FileSize, numSpans)
+	ends := make([]sociindex.FileSize, numSpans)
 
-	var i SpanID
+	var i sociindex.SpanID
 	for i = 0; i < numSpans; i++ {
 		starts[i] = gzipIndex.SpanIDToCompressedOffset(i + config.SpanStart)
 		if i+config.SpanStart == config.MaxSpanID {
@@ -192,7 +187,7 @@ func ExtractFromTarGz(gz string, ztoc *Ztoc, text string) (string, error) {
 		return "", nil
 	}
 
-	gzipIndex, err := NewGzipIndex(ztoc.CompressionInfo.IndexByteData)
+	gzipIndex, err := sociindex.NewGzipIndex(ztoc.CompressionInfo.IndexByteData)
 	if err != nil {
 		return "", err
 	}
