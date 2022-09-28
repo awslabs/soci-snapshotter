@@ -54,30 +54,32 @@ type FileMetadata struct {
 }
 
 type Ztoc struct {
-	Version             string
-	BuildToolIdentifier string
-
-	Metadata []FileMetadata
-
-	CompressedFileSize   FileSize
-	UncompressedFileSize FileSize
-	MaxSpanID            SpanID //The total number of spans in Ztoc - 1
-	ZtocInfo             ztocInfo
-	IndexByteData        []byte
+	Version                 string
+	BuildToolIdentifier     string
+	CompressedArchiveSize   FileSize
+	UncompressedArchiveSize FileSize
+	TOC                     TOC
+	CompressionInfo         CompressionInfo
 }
 
-type ztocInfo struct {
-	SpanDigests []digest.Digest
+type CompressionInfo struct {
+	MaxSpanID     SpanID //The total number of spans in Ztoc - 1
+	SpanDigests   []digest.Digest
+	IndexByteData []byte
+}
+
+type TOC struct {
+	Metadata []FileMetadata
 }
 
 type FileExtractConfig struct {
-	UncompressedSize   FileSize
-	UncompressedOffset FileSize
-	SpanStart          SpanID
-	SpanEnd            SpanID
-	IndexByteData      []byte
-	CompressedFileSize FileSize
-	MaxSpanID          SpanID
+	UncompressedSize      FileSize
+	UncompressedOffset    FileSize
+	SpanStart             SpanID
+	SpanEnd               SpanID
+	IndexByteData         []byte
+	CompressedArchiveSize FileSize
+	MaxSpanID             SpanID
 }
 
 type MetadataEntry struct {
@@ -109,7 +111,7 @@ func ExtractFile(r *io.SectionReader, config *FileExtractConfig) ([]byte, error)
 	for i = 0; i < numSpans; i++ {
 		starts[i] = gzipIndex.SpanIDToCompressedOffset(i + config.SpanStart)
 		if i+config.SpanStart == config.MaxSpanID {
-			ends[i] = config.CompressedFileSize - 1
+			ends[i] = config.CompressedArchiveSize - 1
 		} else {
 			ends[i] = gzipIndex.SpanIDToCompressedOffset(i + 1 + config.SpanStart)
 		}
@@ -163,7 +165,7 @@ func ExtractFile(r *io.SectionReader, config *FileExtractConfig) ([]byte, error)
 }
 
 func GetMetadataEntry(ztoc *Ztoc, text string) (*MetadataEntry, error) {
-	for _, v := range ztoc.Metadata {
+	for _, v := range ztoc.TOC.Metadata {
 		if v.Name == text {
 			if v.Linkname != "" {
 				return GetMetadataEntry(ztoc, v.Linkname)
@@ -190,7 +192,7 @@ func ExtractFromTarGz(gz string, ztoc *Ztoc, text string) (string, error) {
 		return "", nil
 	}
 
-	gzipIndex, err := NewGzipIndex(ztoc.IndexByteData)
+	gzipIndex, err := NewGzipIndex(ztoc.CompressionInfo.IndexByteData)
 	if err != nil {
 		return "", err
 	}

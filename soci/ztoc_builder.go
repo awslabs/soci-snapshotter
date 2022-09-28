@@ -43,7 +43,7 @@ func BuildZtoc(gzipFile string, span int64, cfg *buildConfig) (*Ztoc, error) {
 	}
 	defer index.Close()
 
-	fm, uncompressedFileSize, err := getGzipFileMetadata(gzipFile, index)
+	fm, uncompressedArchiveSize, err := getGzipFileMetadata(gzipFile, index)
 	if err != nil {
 		return nil, err
 	}
@@ -58,24 +58,28 @@ func BuildZtoc(gzipFile string, span int64, cfg *buildConfig) (*Ztoc, error) {
 		return nil, err
 	}
 
-	ztocInfo := ztocInfo{
-		SpanDigests: digests,
-	}
-
 	indexData, err := index.Bytes()
 	if err != nil {
 		return nil, err
 	}
 
+	toc := TOC{
+		Metadata: fm,
+	}
+
+	compressionInfo := CompressionInfo{
+		MaxSpanID:     index.MaxSpanID(),
+		SpanDigests:   digests,
+		IndexByteData: indexData,
+	}
+
 	return &Ztoc{
-		Version:              "0.9",
-		IndexByteData:        indexData,
-		Metadata:             fm,
-		CompressedFileSize:   fs,
-		UncompressedFileSize: uncompressedFileSize,
-		MaxSpanID:            index.MaxSpanID(),
-		BuildToolIdentifier:  cfg.buildToolIdentifier,
-		ZtocInfo:             ztocInfo,
+		Version:                 "0.9",
+		TOC:                     toc,
+		CompressedArchiveSize:   fs,
+		UncompressedArchiveSize: uncompressedArchiveSize,
+		BuildToolIdentifier:     cfg.buildToolIdentifier,
+		CompressionInfo:         compressionInfo,
 	}, nil
 }
 
@@ -95,27 +99,26 @@ func ztocToFlatbuffer(ztoc *Ztoc) []byte {
 	version := builder.CreateString(ztoc.Version)
 	buildToolIdentifier := builder.CreateString(ztoc.BuildToolIdentifier)
 
-	metadataOffsetList := make([]flatbuffers.UOffsetT, len(ztoc.Metadata))
-	for i := len(ztoc.Metadata) - 1; i >= 0; i-- {
-		me := ztoc.Metadata[i]
+	metadataOffsetList := make([]flatbuffers.UOffsetT, len(ztoc.TOC.Metadata))
+	for i := len(ztoc.TOC.Metadata) - 1; i >= 0; i-- {
+		me := ztoc.TOC.Metadata[i]
 		// preparing the individual file medatada element
 		metadataOffsetList[i] = prepareMetadataOffset(builder, me)
 	}
-	ztoc_flatbuffers.TOCStartMetadataVector(builder, len(ztoc.Metadata))
+	ztoc_flatbuffers.TOCStartMetadataVector(builder, len(ztoc.TOC.Metadata))
 	for i := len(metadataOffsetList) - 1; i >= 0; i-- {
 		builder.PrependUOffsetT(metadataOffsetList[i])
 	}
-	metadata := builder.EndVector(len(ztoc.Metadata))
+	metadata := builder.EndVector(len(ztoc.TOC.Metadata))
 
 	ztoc_flatbuffers.TOCStart(builder)
 	ztoc_flatbuffers.TOCAddMetadata(builder, metadata)
 	toc := ztoc_flatbuffers.TOCEnd(builder)
 
-	indexByteDataVector := builder.CreateByteVector(ztoc.IndexByteData)
-
 	// CompressionInfo
-	spanDigestsOffsets := make([]flatbuffers.UOffsetT, 0, len(ztoc.ZtocInfo.SpanDigests))
-	for _, spanDigest := range ztoc.ZtocInfo.SpanDigests {
+	indexByteDataVector := builder.CreateByteVector(ztoc.CompressionInfo.IndexByteData)
+	spanDigestsOffsets := make([]flatbuffers.UOffsetT, 0, len(ztoc.CompressionInfo.SpanDigests))
+	for _, spanDigest := range ztoc.CompressionInfo.SpanDigests {
 		off := builder.CreateString(spanDigest.String())
 		spanDigestsOffsets = append(spanDigestsOffsets, off)
 	}
@@ -125,7 +128,7 @@ func ztocToFlatbuffer(ztoc *Ztoc) []byte {
 	}
 	spanDigests := builder.EndVector(len(spanDigestsOffsets))
 	ztoc_flatbuffers.CompressionInfoStart(builder)
-	ztoc_flatbuffers.CompressionInfoAddMaxSpanId(builder, int32(ztoc.MaxSpanID))
+	ztoc_flatbuffers.CompressionInfoAddMaxSpanId(builder, int32(ztoc.CompressionInfo.MaxSpanID))
 	ztoc_flatbuffers.CompressionInfoAddSpanDigests(builder, spanDigests)
 	ztoc_flatbuffers.CompressionInfoAddIndexByteData(builder, indexByteDataVector)
 	ztocInfo := ztoc_flatbuffers.CompressionInfoEnd(builder)
@@ -134,8 +137,8 @@ func ztocToFlatbuffer(ztoc *Ztoc) []byte {
 	ztoc_flatbuffers.ZtocAddVersion(builder, version)
 	ztoc_flatbuffers.ZtocAddBuildToolIdentifier(builder, buildToolIdentifier)
 	ztoc_flatbuffers.ZtocAddToc(builder, toc)
-	ztoc_flatbuffers.ZtocAddCompressedArchiveSize(builder, int64(ztoc.CompressedFileSize))
-	ztoc_flatbuffers.ZtocAddUncompressedArchiveSize(builder, int64(ztoc.UncompressedFileSize))
+	ztoc_flatbuffers.ZtocAddCompressedArchiveSize(builder, int64(ztoc.CompressedArchiveSize))
+	ztoc_flatbuffers.ZtocAddUncompressedArchiveSize(builder, int64(ztoc.UncompressedArchiveSize))
 	ztoc_flatbuffers.ZtocAddCompressionInfo(builder, ztocInfo)
 	ztocFlatbuf := ztoc_flatbuffers.ZtocEnd(builder)
 	builder.Finish(ztocFlatbuf)
@@ -249,7 +252,7 @@ func getGzipFileMetadata(gzipFile string, index *GzipIndex) ([]FileMetadata, Fil
 		return nil, 0, fmt.Errorf("could not create gzip reader: %v", err)
 	}
 
-	f, sr, uncompressedFileSize, err := getTarReader(gzipRdr)
+	f, sr, uncompressedArchiveSize, err := getTarReader(gzipRdr)
 
 	if err != nil {
 		return nil, 0, err
@@ -300,7 +303,7 @@ func getGzipFileMetadata(gzipFile string, index *GzipIndex) ([]FileMetadata, Fil
 		}
 		md = append(md, metadataEntry)
 	}
-	return md, uncompressedFileSize, nil
+	return md, uncompressedArchiveSize, nil
 }
 
 func getFileSize(file string) (FileSize, error) {
@@ -327,12 +330,12 @@ func getTarReader(gzipReader io.Reader) (*os.File, *io.SectionReader, FileSize, 
 		return nil, nil, 0, err
 	}
 
-	tarRdr, uncompressedFileSize, err := tarSectionReaderFromFile(file)
+	tarRdr, uncompressedArchiveSize, err := tarSectionReaderFromFile(file)
 	if err != nil {
 		return nil, nil, 0, err
 	}
 
-	return file, tarRdr, uncompressedFileSize, nil
+	return file, tarRdr, uncompressedArchiveSize, nil
 }
 
 func getType(header *tar.Header) (fileType string, e error) {

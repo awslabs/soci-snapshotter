@@ -76,16 +76,16 @@ var getFileCommand = cli.Command{
 			return err
 		}
 		extractConfig := soci.FileExtractConfig{
-			UncompressedSize:   fileMetadata.UncompressedSize,
-			UncompressedOffset: fileMetadata.UncompressedOffset,
-			SpanStart:          fileMetadata.SpanStart,
-			SpanEnd:            fileMetadata.SpanEnd,
-			IndexByteData:      ztoc.IndexByteData,
-			CompressedFileSize: ztoc.CompressedFileSize,
-			MaxSpanID:          ztoc.MaxSpanID,
+			UncompressedSize:      fileMetadata.UncompressedSize,
+			UncompressedOffset:    fileMetadata.UncompressedOffset,
+			SpanStart:             fileMetadata.SpanStart,
+			SpanEnd:               fileMetadata.SpanEnd,
+			IndexByteData:         ztoc.CompressionInfo.IndexByteData,
+			CompressedArchiveSize: ztoc.CompressedArchiveSize,
+			MaxSpanID:             ztoc.CompressionInfo.MaxSpanID,
 		}
 
-		data, err := soci.ExtractFile(io.NewSectionReader(layerReader, 0, int64(ztoc.CompressedFileSize)), &extractConfig)
+		data, err := soci.ExtractFile(io.NewSectionReader(layerReader, 0, int64(ztoc.CompressedArchiveSize)), &extractConfig)
 		if err != nil {
 			return err
 		}

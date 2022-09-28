@@ -113,11 +113,11 @@ type spanInfo struct {
 }
 
 func New(ztoc *soci.Ztoc, r *io.SectionReader, cache cache.BlobCache, cacheOpt ...cache.Option) *SpanManager {
-	index, err := soci.NewGzipIndex(ztoc.IndexByteData)
+	index, err := soci.NewGzipIndex(ztoc.CompressionInfo.IndexByteData)
 	if err != nil {
 		return nil
 	}
-	spans := make([]*span, ztoc.MaxSpanID+1)
+	spans := make([]*span, ztoc.CompressionInfo.MaxSpanID+1)
 	m := &SpanManager{
 		cache:    cache,
 		cacheOpt: cacheOpt,
@@ -144,7 +144,7 @@ func (m *SpanManager) buildAllSpans() {
 	}
 	m.spans[0].state.Store(unrequested)
 	var i soci.SpanID
-	for i = 1; i <= m.ztoc.MaxSpanID; i++ {
+	for i = 1; i <= m.ztoc.CompressionInfo.MaxSpanID; i++ {
 		startCompOffset := m.spans[i-1].endCompOffset
 		hasBits := m.index.HasBits(i)
 		if hasBits {
@@ -163,7 +163,7 @@ func (m *SpanManager) buildAllSpans() {
 }
 
 func (m *SpanManager) ResolveSpan(spanID soci.SpanID, r *io.SectionReader) error {
-	if spanID > m.ztoc.MaxSpanID {
+	if spanID > m.ztoc.CompressionInfo.MaxSpanID {
 		return ErrExceedMaxSpan
 	}
 
@@ -300,7 +300,7 @@ func (m *SpanManager) getSpanFromCache(spanID string, offset, size soci.FileSize
 
 func (m *SpanManager) verifySpanContents(compressedData []byte, id soci.SpanID) error {
 	actual := digest.FromBytes(compressedData)
-	expected := m.ztoc.ZtocInfo.SpanDigests[id]
+	expected := m.ztoc.CompressionInfo.SpanDigests[id]
 	if actual != expected {
 		return fmt.Errorf("expected %v but got %v: %w", expected, actual, ErrIncorrectSpanDigest)
 	}
@@ -440,8 +440,8 @@ func (m *SpanManager) fetchAndCacheSpan(spanID soci.SpanID, r *io.SectionReader,
 
 func (m *SpanManager) getEndCompressedOffset(spanID soci.SpanID) soci.FileSize {
 	var end soci.FileSize
-	if spanID == m.ztoc.MaxSpanID {
-		end = m.ztoc.CompressedFileSize
+	if spanID == m.ztoc.CompressionInfo.MaxSpanID {
+		end = m.ztoc.CompressedArchiveSize
 	} else {
 		end = m.index.SpanIDToCompressedOffset(spanID + 1)
 	}
@@ -450,8 +450,8 @@ func (m *SpanManager) getEndCompressedOffset(spanID soci.SpanID) soci.FileSize {
 
 func (m *SpanManager) getEndUncompressedOffset(spanID soci.SpanID) soci.FileSize {
 	var end soci.FileSize
-	if spanID == m.ztoc.MaxSpanID {
-		end = m.ztoc.UncompressedFileSize
+	if spanID == m.ztoc.CompressionInfo.MaxSpanID {
+		end = m.ztoc.UncompressedArchiveSize
 	} else {
 		end = m.index.SpanIDToUncompressedOffset(spanID + 1)
 	}

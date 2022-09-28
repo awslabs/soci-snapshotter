@@ -307,7 +307,7 @@ func (r *Resolver) Resolve(ctx context.Context, hosts source.RegistryHosts, refs
 	// log ztoc info
 	log.G(context.Background()).WithFields(logrus.Fields{
 		"layer_sha":      desc.Digest,
-		"files_in_layer": len(ztoc.Metadata),
+		"files_in_layer": len(ztoc.TOC.Metadata),
 	}).Debugf("[Resolver.Resolve] downloaded layer ZTOC")
 	// continue with resolving the layer presuming we handle ZTOC
 	// ztoc will belong to a layer
