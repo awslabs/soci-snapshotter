@@ -51,12 +51,16 @@ func flatbufToZtoc(flatbuffer []byte) *Ztoc {
 	ztocFlatbuf := ztoc_flatbuffers.GetRootAsZtoc(flatbuffer, 0)
 	ztoc.Version = string(ztocFlatbuf.Version())
 	ztoc.BuildToolIdentifier = string(ztocFlatbuf.BuildToolIdentifier())
-	ztoc.CompressedFileSize = FileSize(ztocFlatbuf.CompressedArchiveSize())
-	ztoc.UncompressedFileSize = FileSize(ztocFlatbuf.UncompressedArchiveSize())
+	ztoc.CompressedArchiveSize = FileSize(ztocFlatbuf.CompressedArchiveSize())
+	ztoc.UncompressedArchiveSize = FileSize(ztocFlatbuf.UncompressedArchiveSize())
 
 	toc := new(ztoc_flatbuffers.TOC)
 	ztocFlatbuf.Toc(toc)
-	ztoc.Metadata = make([]FileMetadata, toc.MetadataLength())
+
+	metadata := make([]FileMetadata, toc.MetadataLength())
+	ztoc.TOC = TOC{
+		Metadata: metadata,
+	}
 
 	for i := 0; i < toc.MetadataLength(); i++ {
 		metadataEntry := new(ztoc_flatbuffers.FileMetadata)
@@ -88,18 +92,18 @@ func flatbufToZtoc(flatbuffer []byte) *Ztoc {
 			me.Xattrs[key] = value
 		}
 
-		ztoc.Metadata[i] = me
+		ztoc.TOC.Metadata[i] = me
 	}
 
 	compressionInfo := new(ztoc_flatbuffers.CompressionInfo)
 	ztocFlatbuf.CompressionInfo(compressionInfo)
-	ztoc.MaxSpanID = SpanID(compressionInfo.MaxSpanId())
-	ztoc.ZtocInfo.SpanDigests = make([]digest.Digest, compressionInfo.SpanDigestsLength())
+	ztoc.CompressionInfo.MaxSpanID = SpanID(compressionInfo.MaxSpanId())
+	ztoc.CompressionInfo.SpanDigests = make([]digest.Digest, compressionInfo.SpanDigestsLength())
 	for i := 0; i < compressionInfo.SpanDigestsLength(); i++ {
 		dgst, _ := digest.Parse(string(compressionInfo.SpanDigests(i)))
-		ztoc.ZtocInfo.SpanDigests[i] = dgst
+		ztoc.CompressionInfo.SpanDigests[i] = dgst
 	}
-	ztoc.IndexByteData = compressionInfo.IndexByteDataBytes()
+	ztoc.CompressionInfo.IndexByteData = compressionInfo.IndexByteDataBytes()
 	return ztoc
 }
 

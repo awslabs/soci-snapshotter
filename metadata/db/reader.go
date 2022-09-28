@@ -188,7 +188,7 @@ func (r *reader) initNodes(ztoc *soci.Ztoc) error {
 		}
 		nodes.FillPercent = 1.0 // we only do sequential write to this bucket
 		var attr metadata.Attr
-		for _, ent := range ztoc.Metadata {
+		for _, ent := range ztoc.TOC.Metadata {
 			var id uint32
 			var b *bolt.Bucket
 			ent.Name = cleanEntryName(ent.Name)

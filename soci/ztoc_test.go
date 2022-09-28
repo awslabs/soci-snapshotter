@@ -103,15 +103,15 @@ func TestDecompress(t *testing.T) {
 
 		extractConfigs := func() map[string](*FileExtractConfig) {
 			configs := make(map[string](*FileExtractConfig))
-			for _, m := range ztoc.Metadata {
+			for _, m := range ztoc.TOC.Metadata {
 				extractConfig := &FileExtractConfig{
-					UncompressedSize:   m.UncompressedSize,
-					UncompressedOffset: m.UncompressedOffset,
-					SpanStart:          m.SpanStart,
-					SpanEnd:            m.SpanEnd,
-					IndexByteData:      ztoc.IndexByteData,
-					CompressedFileSize: ztoc.CompressedFileSize,
-					MaxSpanID:          ztoc.MaxSpanID,
+					UncompressedSize:      m.UncompressedSize,
+					UncompressedOffset:    m.UncompressedOffset,
+					SpanStart:             m.SpanStart,
+					SpanEnd:               m.SpanEnd,
+					IndexByteData:         ztoc.CompressionInfo.IndexByteData,
+					CompressedArchiveSize: ztoc.CompressedArchiveSize,
+					MaxSpanID:             ztoc.CompressionInfo.MaxSpanID,
 				}
 				configs[m.Name] = extractConfig
 			}
@@ -201,8 +201,8 @@ func TestZtocGenerationConsistency(t *testing.T) {
 			if ztoc1 == nil {
 				t.Fatalf("ztoc1 should not be nil")
 			}
-			if len(ztoc1.Metadata) != len(fileNames) {
-				t.Fatalf("ztoc1 metadata file count mismatch. expected: %d, actual: %d", len(fileNames), len(ztoc1.Metadata))
+			if len(ztoc1.TOC.Metadata) != len(fileNames) {
+				t.Fatalf("ztoc1 metadata file count mismatch. expected: %d, actual: %d", len(fileNames), len(ztoc1.TOC.Metadata))
 			}
 
 			ztoc2, err := BuildZtoc(*tarGzip, spansize, cfg)
@@ -212,37 +212,37 @@ func TestZtocGenerationConsistency(t *testing.T) {
 			if ztoc2 == nil {
 				t.Fatalf("ztoc2 should not be nil")
 			}
-			if len(ztoc2.Metadata) != len(fileNames) {
-				t.Fatalf("ztoc2 should contain the metadata for %d files, but found %d", len(fileNames), len(ztoc2.Metadata))
+			if len(ztoc2.TOC.Metadata) != len(fileNames) {
+				t.Fatalf("ztoc2 should contain the metadata for %d files, but found %d", len(fileNames), len(ztoc2.TOC.Metadata))
 			}
 
 			// compare two ztocs
-			if ztoc1.CompressedFileSize != ztoc2.CompressedFileSize {
-				t.Fatalf("ztoc1.CompressedFileSize should be equal to ztoc2.CompressedFileSize")
+			if ztoc1.CompressedArchiveSize != ztoc2.CompressedArchiveSize {
+				t.Fatalf("ztoc1.CompressedArchiveSize should be equal to ztoc2.CompressedArchiveSize")
 			}
-			if ztoc1.MaxSpanID != ztoc2.MaxSpanID {
+			if ztoc1.CompressionInfo.MaxSpanID != ztoc2.CompressionInfo.MaxSpanID {
 				t.Fatalf("ztoc1.MaxSpanID should be equal to ztoc2.MaxSpanID")
 			}
 			if ztoc1.Version != ztoc2.Version {
 				t.Fatalf("ztoc1.IndexByteData should be equal to ztoc2.IndexByteData")
 			}
-			for i := 0; i < len(ztoc1.Metadata); i++ {
-				metadata1 := ztoc1.Metadata[i]
-				metadata2 := ztoc2.Metadata[i]
+			for i := 0; i < len(ztoc1.TOC.Metadata); i++ {
+				metadata1 := ztoc1.TOC.Metadata[i]
+				metadata2 := ztoc2.TOC.Metadata[i]
 				if !reflect.DeepEqual(metadata1, metadata2) {
 					t.Fatalf("ztoc1.Metadata[%d] should be equal to ztoc2.Metadata[%d]", i, i)
 				}
 			}
 
 			// Compare raw IndexByteData
-			if !bytes.Equal(ztoc1.IndexByteData, ztoc2.IndexByteData) {
+			if !bytes.Equal(ztoc1.CompressionInfo.IndexByteData, ztoc2.CompressionInfo.IndexByteData) {
 
 				// compare IndexByteData within Go
-				index1, err := unmarshalGzipIndex(ztoc1.IndexByteData[0])
+				index1, err := unmarshalGzipIndex(ztoc1.CompressionInfo.IndexByteData[0])
 				if err != nil {
 					t.Fatalf("index from ztoc1 should contain data")
 				}
-				index2, err := unmarshalGzipIndex(ztoc2.IndexByteData[0])
+				index2, err := unmarshalGzipIndex(ztoc2.CompressionInfo.IndexByteData[0])
 				if err != nil {
 					t.Fatalf("index from ztoc2 should contain data")
 				}
@@ -373,19 +373,19 @@ func TestZtocGeneration(t *testing.T) {
 				t.Fatalf("ztoc build tool identifiers do not match: expected %s, got %s", tc.buildTool, ztoc.BuildToolIdentifier)
 			}
 
-			if len(ztoc.Metadata) != len(fileNames) {
-				t.Fatalf("ztoc metadata count mismatch. expected: %d, actual: %d", len(fileNames), len(ztoc.Metadata))
+			if len(ztoc.TOC.Metadata) != len(fileNames) {
+				t.Fatalf("ztoc metadata count mismatch. expected: %d, actual: %d", len(fileNames), len(ztoc.TOC.Metadata))
 			}
 
-			for i := 0; i < len(ztoc.Metadata); i++ {
-				compressedFileName := ztoc.Metadata[i].Name
+			for i := 0; i < len(ztoc.TOC.Metadata); i++ {
+				compressedFileName := ztoc.TOC.Metadata[i].Name
 				if compressedFileName != fileNames[i] {
 					t.Fatalf("%d file name mismatch. expected: %s, actual: %s", i, fileNames[i], compressedFileName)
 				}
 
-				if int(ztoc.Metadata[i].UncompressedSize) != len(tc.fileContents[i].content) {
+				if int(ztoc.TOC.Metadata[i].UncompressedSize) != len(tc.fileContents[i].content) {
 					t.Fatalf("%d uncompressed content size mismatch. expected: %d, actual: %d",
-						i, len(tc.fileContents[i].content), int(ztoc.Metadata[i].UncompressedSize))
+						i, len(tc.fileContents[i].content), int(ztoc.TOC.Metadata[i].UncompressedSize))
 				}
 
 				extractedBytes, err := ExtractFromTarGz(*tarGzip, ztoc, compressedFileName)
@@ -459,10 +459,10 @@ func TestZtocSerialization(t *testing.T) {
 			}
 
 			// append xattrs
-			for i := 0; i < len(createdZtoc.Metadata); i++ {
+			for i := 0; i < len(createdZtoc.TOC.Metadata); i++ {
 				for key := range tc.xattrs {
-					createdZtoc.Metadata[i].Xattrs = make(map[string]string)
-					createdZtoc.Metadata[i].Xattrs[key] = tc.xattrs[key]
+					createdZtoc.TOC.Metadata[i].Xattrs = make(map[string]string)
+					createdZtoc.TOC.Metadata[i].Xattrs[key] = tc.xattrs[key]
 				}
 			}
 
@@ -471,19 +471,19 @@ func TestZtocSerialization(t *testing.T) {
 				t.Fatalf("ztoc build tool identifiers do not match: expected %s, got %s", tc.buildTool, createdZtoc.BuildToolIdentifier)
 			}
 
-			if len(createdZtoc.Metadata) != len(fileNames) {
-				t.Fatalf("ztoc metadata count mismatch. expected: %d, actual: %d", len(fileNames), len(createdZtoc.Metadata))
+			if len(createdZtoc.TOC.Metadata) != len(fileNames) {
+				t.Fatalf("ztoc metadata count mismatch. expected: %d, actual: %d", len(fileNames), len(createdZtoc.TOC.Metadata))
 			}
 
-			for i := 0; i < len(createdZtoc.Metadata); i++ {
-				compressedFileName := createdZtoc.Metadata[i].Name
+			for i := 0; i < len(createdZtoc.TOC.Metadata); i++ {
+				compressedFileName := createdZtoc.TOC.Metadata[i].Name
 				if compressedFileName != fileNames[i] {
 					t.Fatalf("%d file name mismatch. expected: %s, actual: %s", i, fileNames[i], compressedFileName)
 				}
 
-				if int(createdZtoc.Metadata[i].UncompressedSize) != len(tc.fileContents[i].content) {
+				if int(createdZtoc.TOC.Metadata[i].UncompressedSize) != len(tc.fileContents[i].content) {
 					t.Fatalf("%d uncompressed content size mismatch. expected: %d, actual: %d",
-						i, len(tc.fileContents[i].content), int(createdZtoc.Metadata[i].UncompressedSize))
+						i, len(tc.fileContents[i].content), int(createdZtoc.TOC.Metadata[i].UncompressedSize))
 				}
 
 				extractedBytes, err := ExtractFromTarGz(*tarGzip, createdZtoc, compressedFileName)
@@ -519,20 +519,20 @@ func TestZtocSerialization(t *testing.T) {
 				t.Fatalf("serialized ztoc version identifiers do not match: expected %s, got %s", createdZtoc.Version, readZtoc.Version)
 			}
 
-			if readZtoc.CompressedFileSize != createdZtoc.CompressedFileSize {
-				t.Fatalf("readZtoc.CompressedFileSize should be equal to createdZtoc.CompressedFileSize")
+			if readZtoc.CompressedArchiveSize != createdZtoc.CompressedArchiveSize {
+				t.Fatalf("readZtoc.CompressedArchiveSize should be equal to createdZtoc.CompressedArchiveSize")
 			}
-			if readZtoc.MaxSpanID != createdZtoc.MaxSpanID {
+			if readZtoc.CompressionInfo.MaxSpanID != createdZtoc.CompressionInfo.MaxSpanID {
 				t.Fatalf("readZtoc.MaxSpanID should be equal to createdZtoc.MaxSpanID")
 			}
 
-			if len(readZtoc.Metadata) != len(createdZtoc.Metadata) {
-				t.Fatalf("ztoc metadata count mismatch. expected: %d, actual: %d", len(createdZtoc.Metadata), len(readZtoc.Metadata))
+			if len(readZtoc.TOC.Metadata) != len(createdZtoc.TOC.Metadata) {
+				t.Fatalf("ztoc metadata count mismatch. expected: %d, actual: %d", len(createdZtoc.TOC.Metadata), len(readZtoc.TOC.Metadata))
 			}
 
-			for i := 0; i < len(readZtoc.Metadata); i++ {
-				readZtocMetadata := readZtoc.Metadata[i]
-				createdZtocMetadata := createdZtoc.Metadata[i]
+			for i := 0; i < len(readZtoc.TOC.Metadata); i++ {
+				readZtocMetadata := readZtoc.TOC.Metadata[i]
+				createdZtocMetadata := createdZtoc.TOC.Metadata[i]
 				compressedFileName := readZtocMetadata.Name
 
 				if !reflect.DeepEqual(readZtocMetadata, createdZtocMetadata) {
@@ -595,7 +595,7 @@ func TestZtocSerialization(t *testing.T) {
 			}
 
 			// Compare raw IndexByteData
-			if !bytes.Equal(createdZtoc.IndexByteData, readZtoc.IndexByteData) {
+			if !bytes.Equal(createdZtoc.CompressionInfo.IndexByteData, readZtoc.CompressionInfo.IndexByteData) {
 				t.Fatalf("createdZtoc.IndexByteData must be identical to readZtoc.IndexByteData")
 			}
 		})
@@ -605,41 +605,47 @@ func TestZtocSerialization(t *testing.T) {
 
 func TestWriteZtoc(t *testing.T) {
 	testCases := []struct {
-		name                 string
-		version              string
-		indexByteData        []byte
-		metadata             []FileMetadata
-		compressedFileSize   FileSize
-		uncompressedFileSize FileSize
-		maxSpanID            SpanID
-		buildTool            string
-		expDigest            string
-		expSize              int64
+		name                    string
+		version                 string
+		indexByteData           []byte
+		metadata                []FileMetadata
+		compressedArchiveSize   FileSize
+		uncompressedArchiveSize FileSize
+		maxSpanID               SpanID
+		buildTool               string
+		expDigest               string
+		expSize                 int64
 	}{
 		{
-			name:                 "success write succeeds - same digest and size",
-			version:              "0.1",
-			indexByteData:        make([]byte, 1<<16),
-			metadata:             make([]FileMetadata, 2),
-			compressedFileSize:   2000000,
-			uncompressedFileSize: 2500000,
-			maxSpanID:            3,
-			buildTool:            "AWS SOCI CLI",
-			expDigest:            "sha256:ee2fd7cf479ccbbe769fa67120a04b420133a7425ea0fa03791ed9ffe9b8340b",
-			expSize:              65936,
+			name:                    "success write succeeds - same digest and size",
+			version:                 "0.1",
+			indexByteData:           make([]byte, 1<<16),
+			metadata:                make([]FileMetadata, 2),
+			compressedArchiveSize:   2000000,
+			uncompressedArchiveSize: 2500000,
+			maxSpanID:               3,
+			buildTool:               "AWS SOCI CLI",
+			expDigest:               "sha256:ee2fd7cf479ccbbe769fa67120a04b420133a7425ea0fa03791ed9ffe9b8340b",
+			expSize:                 65936,
 		},
 	}
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
+			toc := TOC{
+				Metadata: tc.metadata,
+			}
+			compressionInfo := CompressionInfo{
+				IndexByteData: tc.indexByteData,
+				MaxSpanID:     tc.maxSpanID,
+			}
 			ztoc := &Ztoc{
-				Version:              tc.version,
-				IndexByteData:        tc.indexByteData,
-				Metadata:             tc.metadata,
-				CompressedFileSize:   tc.compressedFileSize,
-				UncompressedFileSize: tc.uncompressedFileSize,
-				MaxSpanID:            tc.maxSpanID,
-				BuildToolIdentifier:  tc.buildTool,
+				Version:                 tc.version,
+				CompressedArchiveSize:   tc.compressedArchiveSize,
+				UncompressedArchiveSize: tc.uncompressedArchiveSize,
+				TOC:                     toc,
+				CompressionInfo:         compressionInfo,
+				BuildToolIdentifier:     tc.buildTool,
 			}
 
 			_, desc, err := NewZtocReader(ztoc)

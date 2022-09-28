@@ -106,7 +106,7 @@ func TestSpanManager(t *testing.T) {
 
 			// Test resolving all spans
 			var i soci.SpanID
-			for i = 0; i <= ztoc.MaxSpanID; i++ {
+			for i = 0; i <= ztoc.CompressionInfo.MaxSpanID; i++ {
 				err := m.ResolveSpan(i, r)
 				if err != nil {
 					t.Fatalf("error resolving span %d. error: %v", i, err)
@@ -114,7 +114,7 @@ func TestSpanManager(t *testing.T) {
 			}
 
 			// Test ResolveSpan returning ErrExceedMaxSpan for span id larger than max span id
-			resolveSpanErr := m.ResolveSpan(ztoc.MaxSpanID+1, r)
+			resolveSpanErr := m.ResolveSpan(ztoc.CompressionInfo.MaxSpanID+1, r)
 			if !errors.Is(resolveSpanErr, ErrExceedMaxSpan) {
 				t.Fatalf("failed returning ErrExceedMaxSpan for span id larger than max span id")
 			}
@@ -192,7 +192,7 @@ func TestStateTransition(t *testing.T) {
 	m := New(ztoc, r, cache)
 
 	// check initial span states
-	for i := uint32(0); i <= uint32(ztoc.MaxSpanID); i++ {
+	for i := uint32(0); i <= uint32(ztoc.CompressionInfo.MaxSpanID); i++ {
 		state := m.spans[i].state.Load().(spanState)
 		if state != unrequested {
 			t.Fatalf("failed initializing span states to Unrequested")
@@ -216,12 +216,12 @@ func TestStateTransition(t *testing.T) {
 		},
 		{
 			name:       "max span - prefetch",
-			spanID:     m.ztoc.MaxSpanID,
+			spanID:     m.ztoc.CompressionInfo.MaxSpanID,
 			isPrefetch: true,
 		},
 		{
 			name:       "max span - on demand fetch",
-			spanID:     m.ztoc.MaxSpanID,
+			spanID:     m.ztoc.CompressionInfo.MaxSpanID,
 			isPrefetch: false,
 		},
 	}
