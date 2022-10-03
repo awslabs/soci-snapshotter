@@ -23,6 +23,5 @@ var Command = cli.Command{
 	Usage: "manage images",
 	Subcommands: []cli.Command{
 		rpullCommand,
-		listIndicesCommand,
 	},
 }
