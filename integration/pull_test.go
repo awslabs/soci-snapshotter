@@ -832,8 +832,8 @@ func buildSparseIndex(sh *shell.Shell, src imageInfo, minLayerSize int64) string
 	indexDigest := sh.
 		X(append([]string{"ctr", "i", "pull"}, opts[0]...)...).
 		X("soci", "create", src.ref, "--min-layer-size", fmt.Sprintf("%d", minLayerSize), "--oras").
-		O("soci", "image", "list-indices", src.ref) // this will make SOCI artifact available locally
-	return string(indexDigest)
+		O("soci", "index", "list", "-q", "--ref", src.ref) // this will make SOCI artifact available locally
+	return strings.Trim(string(indexDigest), "\n")
 }
 
 func rebootContainerd(t *testing.T, sh *shell.Shell, customContainerdConfig, customSnapshotterConfig string) *testutil.RemoteSnapshotMonitor {
