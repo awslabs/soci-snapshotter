@@ -31,21 +31,21 @@ var (
 	ErrNoReferrers = errors.New("no existing referrers")
 )
 
-/// Determines which index will be selected from a list of index descriptors
+// Determines which index will be selected from a list of index descriptors
 type IndexSelectionPolicy func([]ocispec.Descriptor) (ocispec.Descriptor, error)
 
 func SelectFirstPolicy(descs []ocispec.Descriptor) (ocispec.Descriptor, error) {
 	return descs[0], nil
 }
 
-/// Responsible for making Referrers API calls to remote registry to fetch list of referrers.
+// Responsible for making Referrers API calls to remote registry to fetch list of referrers.
 type ReferrersClient interface {
 	/// Takes in an manifest descriptor and IndexSelectionPolicy and returns a single artifact descriptor.
 	/// Returns an error (ErrNoReferrers) if the manifest descriptor has no referrers.
 	SelectReferrer(context.Context, ocispec.Descriptor, IndexSelectionPolicy) (ocispec.Descriptor, error)
 }
 
-/// Interface for oras-go's Repository.Referrers call, for mocking
+// Interface for oras-go's Repository.Referrers call, for mocking
 type ORASReferrersCaller interface {
 	Referrers(ctx context.Context, desc ocispec.Descriptor, artifactType string, fn func(referrers []artifactsspec.Descriptor) error) error
 }
