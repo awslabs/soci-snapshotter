@@ -94,7 +94,7 @@ check-dco:
 	$(shell go env GOPATH)/bin/git-validation -run DCO -range HEAD~20..HEAD
 
 install-check-tools:
-	@curl -sfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(shell go env GOPATH)/bin v1.45.2
+	@curl -sfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(shell go env GOPATH)/bin v1.49.0
 	go install github.com/kunalkushwaha/ltag@v0.2.3
 	go install github.com/vbatts/git-validation@v1.1.0
 

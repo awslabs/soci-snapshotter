@@ -255,8 +255,8 @@ func TestZtocGenerationConsistency(t *testing.T) {
 					t.Fatalf("index1.size=%d must be equal to index2.size=%d", index1.size, index2.size)
 				}
 
-				if index1.span_size != index2.span_size {
-					t.Fatalf("index1.span_size=%d must be equal to index2.span_size=%d", index1.span_size, index2.span_size)
+				if index1.spanSize != index2.spanSize {
+					t.Fatalf("index1.span_size=%d must be equal to index2.span_size=%d", index1.spanSize, index2.spanSize)
 				}
 
 				if len(index1.list) != len(index2.list) {

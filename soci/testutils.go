@@ -49,10 +49,10 @@ type gzipIndexPoint struct {
 }
 
 type gzipIndex struct {
-	have      uint64           /* number of list entries filled in */
-	size      uint64           /* number of list entries allocated */
-	list      []gzipIndexPoint /* allocated list */
-	span_size uint64
+	have     uint64           /* number of list entries filled in */
+	size     uint64           /* number of list entries allocated */
+	list     []gzipIndexPoint /* allocated list */
+	spanSize uint64
 }
 
 type TempDirMaker interface {
@@ -88,10 +88,10 @@ func unmarshalGzipIndex(blob byte) (*gzipIndex, error) {
 	}
 
 	return &gzipIndex{
-		have:      uint64(index.have),
-		size:      uint64(index.size),
-		span_size: uint64(index.span_size),
-		list:      list,
+		have:     uint64(index.have),
+		size:     uint64(index.size),
+		spanSize: uint64(index.span_size),
+		list:     list,
 	}, nil
 }
 

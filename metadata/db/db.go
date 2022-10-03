@@ -72,6 +72,7 @@ import (
 //         - uncompressedOffset : <varint>  : the offset in the uncompressed data, where the node is stored.
 //         - spanStart : <varint>           : the first span for the data.
 //         - spanEnd : <varint>             : the last span for the data.
+
 var (
 	bucketKeyFilesystems = []byte("filesystems")
 
