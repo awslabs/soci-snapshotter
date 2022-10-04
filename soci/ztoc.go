@@ -17,14 +17,11 @@
 package soci
 
 import (
-	"context"
 	"fmt"
 	"io"
-	"sync"
 	"time"
 
 	"github.com/opencontainers/go-digest"
-	"golang.org/x/sync/errgroup"
 )
 
 // FileSize will hold any file size and offset values
@@ -130,34 +127,24 @@ func ExtractFile(r *io.SectionReader, config *FileExtractConfig) ([]byte, error)
 	}
 
 	buf := make([]byte, bufSize)
-	eg, _ := errgroup.WithContext(context.Background())
-	var mu sync.Mutex
 
-	// Fetch all span data in parallel
+	// Fetch all span data
 	for i = 0; i < numSpans; i++ {
-		j := i
-		eg.Go(func() error {
-			rangeStart := starts[j]
-			rangeEnd := ends[j]
-			if j == 0 && firstSpanHasBits {
-				rangeStart--
-			}
-			mu.Lock()
-			defer mu.Unlock()
-			n, err := r.ReadAt(buf[rangeStart-start:rangeEnd-start+1], int64(rangeStart)) // need to convert rangeStart to int64 to use in ReadAt
-			if err != nil {
-				return err
-			}
+		rangeStart := starts[i]
+		rangeEnd := ends[i]
+		if i == 0 && firstSpanHasBits {
+			rangeStart--
+		}
 
-			bytesToFetch := rangeEnd - rangeStart + 1
-			if n != int(bytesToFetch) {
-				return fmt.Errorf("unexpected data size. read = %d, expected = %d", n, bytesToFetch)
-			}
-			return nil
-		})
-	}
-	if err := eg.Wait(); err != nil {
-		return bytes, err
+		n, err := r.ReadAt(buf[rangeStart-start:rangeEnd-start+1], int64(rangeStart)) // need to convert rangeStart to int64 to use in ReadAt
+		if err != nil {
+			return bytes, err
+		}
+
+		bytesToFetch := rangeEnd - rangeStart + 1
+		if n != int(bytesToFetch) {
+			return bytes, fmt.Errorf("unexpected data size. read = %d, expected = %d", n, bytesToFetch)
+		}
 	}
 
 	bytes, err = gzipIndex.ExtractDataFromBuffer(buf, config.UncompressedSize, config.UncompressedOffset, config.SpanStart)
