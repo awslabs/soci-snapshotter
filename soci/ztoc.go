@@ -20,7 +20,6 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"sync"
 	"time"
 
 	"github.com/opencontainers/go-digest"
@@ -116,7 +115,7 @@ func ExtractFile(r *io.SectionReader, config *FileExtractConfig) ([]byte, error)
 		} else {
 			ends[i] = gzipIndex.SpanIDToCompressedOffset(i + 1 + config.SpanStart)
 		}
-		bufSize += (ends[i] - starts[i] + 1)
+		bufSize += (ends[i] - starts[i])
 	}
 
 	start := starts[0]
@@ -131,7 +130,6 @@ func ExtractFile(r *io.SectionReader, config *FileExtractConfig) ([]byte, error)
 
 	buf := make([]byte, bufSize)
 	eg, _ := errgroup.WithContext(context.Background())
-	var mu sync.Mutex
 
 	// Fetch all span data in parallel
 	for i = 0; i < numSpans; i++ {
@@ -142,14 +140,12 @@ func ExtractFile(r *io.SectionReader, config *FileExtractConfig) ([]byte, error)
 			if j == 0 && firstSpanHasBits {
 				rangeStart--
 			}
-			mu.Lock()
-			defer mu.Unlock()
-			n, err := r.ReadAt(buf[rangeStart-start:rangeEnd-start+1], int64(rangeStart)) // need to convert rangeStart to int64 to use in ReadAt
+			n, err := r.ReadAt(buf[rangeStart-start:rangeEnd-start], int64(rangeStart)) // need to convert rangeStart to int64 to use in ReadAt
 			if err != nil {
 				return err
 			}
 
-			bytesToFetch := rangeEnd - rangeStart + 1
+			bytesToFetch := rangeEnd - rangeStart
 			if n != int(bytesToFetch) {
 				return fmt.Errorf("unexpected data size. read = %d, expected = %d", n, bytesToFetch)
 			}
