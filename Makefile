@@ -76,10 +76,6 @@ flatc:
 	flatc -o $(CURDIR)/soci/fbs -g $(CURDIR)/soci/fbs/ztoc.fbs
 
 check-flatc: flatc ## check if protobufs needs to be generated again
-	@echo "$(WHALE) $@"
-	@test -z "$$(git status --short | grep ".go" | tee /dev/stderr)" || \
-		((git diff | cat) && \
-		(echo "$(ONI) please run 'make flatc' when making changes to fbs files" && false))
 
 # "check-lint" depends "pre-build". out/libindexer.a seems needed to process cgo directives
 check-lint: pre-build
