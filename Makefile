@@ -25,12 +25,13 @@ REVISION=$(shell git rev-parse HEAD)$(shell if ! git diff --no-ext-diff --quiet 
 GO_LD_FLAGS=-ldflags '-s -w -X $(PKG)/version.Version=$(VERSION) -X $(PKG)/version.Revision=$(REVISION) $(GO_EXTRA_LDFLAGS)'
 SOCI_SNAPSHOTTER_PROJECT_ROOT ?= $(shell pwd)
 LTAG_TEMPLATE_FLAG=-t ./.headers
+FBS_FILE_PATH=$(CURDIR)/soci/fbs/ztoc.fbs
 
 CMD=soci-snapshotter-grpc soci
 
 CMD_BINARIES=$(addprefix $(OUTDIR)/,$(CMD))
 
-.PHONY: all build pre-build check check-ltag check-dco check-lint install-check-tools add-ltag install install-cmake install-flatc install-zlib uninstall clean test integration
+.PHONY: all build pre-build check check-ltag check-dco check-lint check-flatc install-check-tools add-ltag install install-cmake install-flatc install-zlib uninstall clean test integration
 
 all: build
 
@@ -73,9 +74,15 @@ install-zlib:
 check: check-ltag check-dco check-lint check-flatc
 
 flatc:
-	flatc -o $(CURDIR)/soci/fbs -g $(CURDIR)/soci/fbs/ztoc.fbs
+	rm -rf $(CURDIR)/soci/fbs/ztoc
+	flatc -o $(CURDIR)/soci/fbs -g $(FBS_FILE_PATH)
 
-check-flatc: flatc ## check if protobufs needs to be generated again
+# check if flatbuffers needs to be generated again
+check-flatc:
+	$(eval TMPDIR := $(shell mktemp -d))
+	flatc -o $(TMPDIR) -g $(FBS_FILE_PATH)
+	diff -qr $(TMPDIR)/ztoc $(CURDIR)/soci/fbs/ztoc || (printf "\n\nThe Ztoc schema seems to be modified. Please run 'make flatc' to re-generate Go files\n\n"; exit 1)
+	rm -rf $(TMPDIR)
 
 # "check-lint" depends "pre-build". out/libindexer.a seems needed to process cgo directives
 check-lint: pre-build
