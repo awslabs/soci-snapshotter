@@ -17,10 +17,13 @@ jobs:
           # in order to calculate the range. i.e. HEAD~20..HEAD includes
           # 20 commits, but including HEAD it needs 21 commits.
           fetch-depth: 21
+      - run: wget https://github.com/google/flatbuffers/releases/download/v22.9.29/Linux.flatc.binary.g++-10.zip
+      - run: unzip Linux.flatc.binary.g++-10.zip
       - run: make install-check-tools
       - run: make check-ltag
       - run: make check-dco
       - run: make check-lint
+      - run: PATH=$PATH:$(pwd) make check-flatc
   test:
     runs-on: ubuntu-20.04
     steps:
