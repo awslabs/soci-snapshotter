@@ -155,7 +155,7 @@ func NewFilesystem(root string, cfg config.Config, opts ...Option) (_ snapshot.F
 		return nil, fmt.Errorf("cannot create local store: %w", err)
 	}
 
-	tm := task.NewBackgroundTaskManager(maxConcurrency, 5*time.Second)
+	tm := task.NewBackgroundTaskManager(maxConcurrency, time.Duration(cfg.PrioritizedTaskSilencePeriodMSec)*time.Millisecond)
 	r, err := layer.NewResolver(root, tm, cfg, fsOpts.resolveHandlers, metadataStore, store, fsOpts.overlayOpaqueType)
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to setup resolver")
