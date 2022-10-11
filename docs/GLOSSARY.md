@@ -17,15 +17,13 @@ The SOCI project introduces several new terms that sometimes have subtle differe
   containing the list of zTOCs in the SOCI Index as well as a reference to the image for
   which the manifest was generated.
 
-* __span__: A chunk of data that can be independently decompressed. A zTOC contains
-  periodic "snapshots" of compression state from which a process can resume
-  decompression. The chunk of data between two checkpoints is a span.
-
 * __zTOC__: A Table of Contents for compressed data. A zTOC is composed of 2 parts. 1) a
   table of contents containing file metadata and its offset in the decompressed TAR
-  archive (the "TOC"). 2) A collection of "snapshots" of the state of the compression
-  engine at various points in the layer (the "z").
+  archive (the "TOC"). 2) A collection of "checkpoints" of the state of the compression
+  engine at various points in the layer. We refer to this collection as the "zInfo".
 
+* __span__: A chunk of data that can be independently decompressed. Each checkpoint in the zInfo
+  corresponds to exactly one span in an image layer.
 
 ## Anti-terminology
 
