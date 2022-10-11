@@ -36,10 +36,6 @@ func TestSociCreateSparseIndex(t *testing.T) {
 	defer done()
 
 	rebootContainerd(t, sh, "", "")
-
-	dockerhub := func(name string) imageInfo {
-		return imageInfo{dockerLibrary + name, "", false}
-	}
 	tests := []struct {
 		name         string
 		minLayerSize int64
@@ -139,10 +135,6 @@ func TestSociCreate(t *testing.T) {
 	defer done()
 
 	rebootContainerd(t, sh, "", "")
-
-	dockerhub := func(name string) imageInfo {
-		return imageInfo{dockerLibrary + name, "", false}
-	}
 
 	tests := []struct {
 		name           string

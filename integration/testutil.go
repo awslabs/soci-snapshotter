@@ -51,13 +51,24 @@ import (
 	"github.com/awslabs/soci-snapshotter/util/dockershell/compose"
 	dexec "github.com/awslabs/soci-snapshotter/util/dockershell/exec"
 	"github.com/awslabs/soci-snapshotter/util/testutil"
+	"github.com/rs/xid"
 	"golang.org/x/crypto/bcrypt"
 )
 
 const (
-	builtinSnapshotterFlagEnv = "BUILTIN_SNAPSHOTTER"
-	buildArgsEnv              = "DOCKER_BUILD_ARGS"
+	defaultContainerdConfigPath  = "/etc/containerd/config.toml"
+	defaultSnapshotterConfigPath = "/etc/soci-snapshotter-grpc/config.toml"
+	builtinSnapshotterFlagEnv    = "BUILTIN_SNAPSHOTTER"
+	buildArgsEnv                 = "DOCKER_BUILD_ARGS"
+	dockerLibrary                = "public.ecr.aws/docker/library/"
 )
+
+const proxySnapshotterConfig = `
+[proxy_plugins]
+  [proxy_plugins.soci]
+    type = "snapshot"
+    address = "/run/soci-snapshotter-grpc/soci-snapshotter-grpc.sock"
+`
 
 func trimSha256Prefix(s string) string {
 	return strings.TrimPrefix(s, "sha256:")
@@ -88,13 +99,80 @@ func isDirExists(sh *shell.Shell, dir string) bool {
 	return sh.Command("test", "-d", dir).Run() == nil
 }
 
+type imageInfo struct {
+	ref       string
+	creds     string
+	plainHTTP bool
+}
+
+func dockerhub(name string) imageInfo {
+	return imageInfo{dockerLibrary + name, "", false}
+}
+
+type registryConfig struct {
+	host      string
+	user      string
+	pass      string
+	port      int
+	credstr   string
+	plainHTTP bool
+}
+
+type registryConfigOpt func(*registryConfig)
+
+func withPort(port int) registryConfigOpt {
+	return func(rc *registryConfig) {
+		rc.port = port
+	}
+}
+
+func withCreds(creds string) registryConfigOpt {
+	return func(rc *registryConfig) {
+		rc.credstr = creds
+	}
+}
+
+func withPlainHTTP() registryConfigOpt {
+	return func(rc *registryConfig) {
+		rc.plainHTTP = true
+	}
+}
+
+func newRegistryConfig(opts ...registryConfigOpt) registryConfig {
+	rc := registryConfig{
+		host: fmt.Sprintf("registry-%s.test", xid.New().String()),
+		user: "dummyuser",
+		pass: "dummypass",
+	}
+	rc.credstr = rc.user + ":" + rc.pass
+	for _, opt := range opts {
+		opt(&rc)
+	}
+	return rc
+}
+
+func (c registryConfig) hostWithPort() string {
+	if c.port != 0 {
+		return fmt.Sprintf("%s:%d", c.host, c.port)
+	}
+	return c.host
+}
+
+func (c registryConfig) creds() string {
+	return c.credstr
+}
+
+func (c registryConfig) mirror(imageName string) imageInfo {
+	return imageInfo{c.hostWithPort() + "/" + imageName, c.creds(), c.plainHTTP}
+}
+
 type registryOptions struct {
 	network string
 }
 
 type registryOpt func(o *registryOptions)
 
-func newShellWithRegistry(t *testing.T, registryHost, registryUser, registryPass string, opts ...registryOpt) (sh *shell.Shell, crtData []byte, done func() error) {
+func newShellWithRegistry(t *testing.T, r registryConfig, opts ...registryOpt) (sh *shell.Shell, done func() error) {
 	var rOpts registryOptions
 	for _, o := range opts {
 		o(&rOpts)
@@ -106,11 +184,11 @@ func newShellWithRegistry(t *testing.T, registryHost, registryUser, registryPass
 	)
 
 	// Setup dummy creds for test
-	crt, key, err := generateRegistrySelfSignedCert(registryHost)
+	crt, key, err := generateRegistrySelfSignedCert(r.host)
 	if err != nil {
 		t.Fatalf("failed to generate cert: %v", err)
 	}
-	htpasswd, err := generateBasicHtpasswd(registryUser, registryPass)
+	htpasswd, err := generateBasicHtpasswd(r.user, r.pass)
 	if err != nil {
 		t.Fatalf("failed to generate htpasswd: %v", err)
 	}
@@ -199,7 +277,7 @@ volumes:
 		ServiceName:     serviceName,
 		ImageContextDir: pRoot,
 		TargetStage:     targetStage,
-		RegistryHost:    registryHost,
+		RegistryHost:    r.host,
 		AuthDir:         authDir,
 		NetworkConfig:   networkConfig,
 	}), cOpts...)
@@ -218,8 +296,8 @@ volumes:
 	}
 	sh.
 		X("update-ca-certificates").
-		Retry(100, "nerdctl", "login", "-u", registryUser, "-p", registryPass, registryHost)
-	return sh, crt, func() error {
+		Retry(100, "nerdctl", "login", "-u", r.user, "-p", r.pass, r.host)
+	return sh, func() error {
 		if err := c.Cleanup(); err != nil {
 			return err
 		}
