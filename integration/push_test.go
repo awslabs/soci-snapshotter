@@ -23,18 +23,11 @@ import (
 	shell "github.com/awslabs/soci-snapshotter/util/dockershell"
 	"github.com/awslabs/soci-snapshotter/util/testutil"
 	"github.com/opencontainers/go-digest"
-	"github.com/rs/xid"
 )
 
 func TestSociArtifactsPushAndPull(t *testing.T) {
-	var (
-		registryHost  = "registry-" + xid.New().String() + ".test"
-		registryUser  = "dummyuser"
-		registryPass  = "dummypass"
-		registryCreds = func() string { return registryUser + ":" + registryPass }
-	)
-
-	sh, _, done := newShellWithRegistry(t, registryHost, registryUser, registryPass)
+	regConfig := newRegistryConfig()
+	sh, done := newShellWithRegistry(t, regConfig)
 	defer done()
 
 	getContainerdConfigYaml := func(disableVerification bool) []byte {
@@ -76,23 +69,16 @@ level = "debug"
 		t.Fatalf("failed to write %v: %v", defaultSnapshotterConfigPath, err)
 	}
 
-	dockerhub := func(name string) imageInfo {
-		return imageInfo{dockerLibrary + name, "", false}
-	}
-	mirror := func(name string) imageInfo {
-		return imageInfo{registryHost + "/" + name, registryUser + ":" + registryPass, false}
-	}
-
 	rebootContainerd(t, sh, "", "")
 
 	imageName := ubuntuImage
-	copyImage(sh, dockerhub(imageName), mirror(imageName))
-	indexDigest := optimizeImage(sh, mirror(imageName))
+	copyImage(sh, dockerhub(imageName), regConfig.mirror(imageName))
+	indexDigest := optimizeImage(sh, regConfig.mirror(imageName))
 	artifactsStoreContentDigest := getSociLocalStoreContentDigest(sh)
-	sh.X("soci", "push", "--user", registryCreds(), mirror(imageName).ref)
+	sh.X("soci", "push", "--user", regConfig.creds(), regConfig.mirror(imageName).ref)
 	sh.X("rm", "-rf", "/var/lib/soci-snapshotter-grpc/content/blobs/sha256")
 
-	sh.X("soci", "image", "rpull", "--user", registryCreds(), "--soci-index-digest", indexDigest, mirror(imageName).ref)
+	sh.X("soci", "image", "rpull", "--user", regConfig.creds(), "--soci-index-digest", indexDigest, regConfig.mirror(imageName).ref)
 	artifactsStoreContentDigestAfterRPull := getSociLocalStoreContentDigest(sh)
 
 	if artifactsStoreContentDigest != artifactsStoreContentDigestAfterRPull {

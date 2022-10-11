@@ -49,20 +49,10 @@ import (
 )
 
 const (
-	defaultContainerdConfigPath  = "/etc/containerd/config.toml"
-	defaultSnapshotterConfigPath = "/etc/soci-snapshotter-grpc/config.toml"
-	alpineImage                  = "alpine:latest"
-	nginxImage                   = "nginx:latest"
-	ubuntuImage                  = "ubuntu:latest"
-	dockerLibrary                = "public.ecr.aws/docker/library/"
+	alpineImage = "alpine:latest"
+	nginxImage  = "nginx:latest"
+	ubuntuImage = "ubuntu:latest"
 )
-
-const proxySnapshotterConfig = `
-[proxy_plugins]
-  [proxy_plugins.soci]
-    type = "snapshot"
-    address = "/run/soci-snapshotter-grpc/soci-snapshotter-grpc.sock"
-`
 
 // TestSnapshotterStartup tests to run containerd + snapshotter and check plugin is
 // recognized by containerd
@@ -98,20 +88,10 @@ func TestSnapshotterStartup(t *testing.T) {
 // Due to the reason that this test will be doing manipulations with local content store folder,
 // it should be never run in parallel with the other tests.
 func TestOptimizeConsistentSociArtifact(t *testing.T) {
-	var (
-		registryHost = "registry-" + xid.New().String() + ".test"
-		registryUser = "dummyuser"
-		registryPass = "dummypass"
-	)
-	dockerhub := func(name string) imageInfo {
-		return imageInfo{dockerLibrary + name, "", false}
-	}
-	mirror := func(name string) imageInfo {
-		return imageInfo{registryHost + "/" + name, registryUser + ":" + registryPass, false}
-	}
+	regConfig := newRegistryConfig()
 
 	// Setup environment
-	sh, _, done := newShellWithRegistry(t, registryHost, registryUser, registryPass)
+	sh, done := newShellWithRegistry(t, regConfig)
 	defer done()
 
 	tests := []struct {
@@ -135,11 +115,11 @@ func TestOptimizeConsistentSociArtifact(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			rebootContainerd(t, sh, "", "")
-			copyImage(sh, dockerhub(tt.containerImage), mirror(tt.containerImage))
+			copyImage(sh, dockerhub(tt.containerImage), regConfig.mirror(tt.containerImage))
 			// optimize for the first time
 			sh.
 				X("rm", "-rf", blobStorePath)
-			optimizeImage(sh, mirror(tt.containerImage))
+			optimizeImage(sh, regConfig.mirror(tt.containerImage))
 			// move the artifact to a folder
 			sh.
 				X("rm", "-rf", "copy").
@@ -147,7 +127,7 @@ func TestOptimizeConsistentSociArtifact(t *testing.T) {
 				X("cp", "-r", blobStorePath, "copy") // move the contents of soci dir to another folder
 
 			// optimize for the second time
-			optimizeImage(sh, mirror(tt.containerImage))
+			optimizeImage(sh, regConfig.mirror(tt.containerImage))
 
 			currContent := sh.O("ls", blobStorePath)
 			prevContent := sh.O("ls", "copy/sha256")
@@ -174,18 +154,7 @@ func TestOptimizeConsistentSociArtifact(t *testing.T) {
 
 func TestLazyPullWithSparseIndex(t *testing.T) {
 	t.Parallel()
-	var (
-		registryHost  = "registry-" + xid.New().String() + ".test"
-		registryUser  = "dummyuser"
-		registryPass  = "dummypass"
-		registryCreds = func() string { return registryUser + ":" + registryPass }
-	)
-	dockerhub := func(name string) imageInfo {
-		return imageInfo{dockerLibrary + name, "", false}
-	}
-	mirror := func(name string) imageInfo {
-		return imageInfo{registryHost + "/" + name, registryUser + ":" + registryPass, false}
-	}
+	regConfig := newRegistryConfig()
 	// Prepare config for containerd and snapshotter
 	getContainerdConfigYaml := func(disableVerification bool) []byte {
 		additionalConfig := ""
@@ -220,7 +189,7 @@ level = "debug"
 	}
 
 	// Setup environment
-	sh, _, done := newShellWithRegistry(t, registryHost, registryUser, registryPass)
+	sh, done := newShellWithRegistry(t, regConfig)
 	defer done()
 	if err := testutil.WriteFileContents(sh, defaultContainerdConfigPath, getContainerdConfigYaml(false), 0600); err != nil {
 		t.Fatalf("failed to write %v: %v", defaultContainerdConfigPath, err)
@@ -234,18 +203,18 @@ level = "debug"
 	const minLayerSize = 10000000
 
 	rebootContainerd(t, sh, "", "")
-	copyImage(sh, dockerhub(imageName), mirror(imageName))
-	indexDigest := buildSparseIndex(sh, mirror(imageName), minLayerSize)
+	copyImage(sh, dockerhub(imageName), regConfig.mirror(imageName))
+	indexDigest := buildSparseIndex(sh, regConfig.mirror(imageName), minLayerSize)
 
 	fromNormalSnapshotter := func(image string) tarPipeExporter {
 		return func(tarExportArgs ...string) {
 			rebootContainerd(t, sh, "", "")
-			sh.X("ctr", "i", "pull", "--user", registryCreds(), image)
+			sh.X("ctr", "i", "pull", "--user", regConfig.creds(), image)
 			sh.Pipe(nil, shell.C("ctr", "run", "--rm", image, "test", "tar", "-c", "/usr"), tarExportArgs)
 		}
 	}
 	export := func(sh *shell.Shell, image string, tarExportArgs []string) {
-		sh.X("soci", "image", "rpull", "--user", registryCreds(), "--soci-index-digest", indexDigest, image)
+		sh.X("soci", "image", "rpull", "--user", regConfig.creds(), "--soci-index-digest", indexDigest, image)
 		sh.Pipe(nil, shell.C("soci", "run", "--rm", "--snapshotter=soci", image, "test", "tar", "-c", "/usr"), tarExportArgs)
 	}
 
@@ -288,11 +257,11 @@ level = "debug"
 	}{
 		{
 			name: "Soci",
-			want: fromNormalSnapshotter(mirror(imageName).ref),
+			want: fromNormalSnapshotter(regConfig.mirror(imageName).ref),
 			test: func(tarExportArgs ...string) {
-				image := mirror(imageName).ref
+				image := regConfig.mirror(imageName).ref
 				rebootContainerd(t, sh, "", "")
-				buildSparseIndex(sh, mirror(imageName), minLayerSize)
+				buildSparseIndex(sh, regConfig.mirror(imageName), minLayerSize)
 				sh.X("ctr", "i", "rm", imageName)
 				export(sh, image, tarExportArgs)
 				checkFuseMounts(t, sh, remoteSnapshotsExpectedCount)
@@ -310,18 +279,7 @@ level = "debug"
 // TestLazyPull tests if lazy pulling works.
 func TestLazyPull(t *testing.T) {
 	t.Parallel()
-	var (
-		registryHost  = "registry-" + xid.New().String() + ".test"
-		registryUser  = "dummyuser"
-		registryPass  = "dummypass"
-		registryCreds = func() string { return registryUser + ":" + registryPass }
-	)
-	dockerhub := func(name string) imageInfo {
-		return imageInfo{dockerLibrary + name, "", false}
-	}
-	mirror := func(name string) imageInfo {
-		return imageInfo{registryHost + "/" + name, registryUser + ":" + registryPass, false}
-	}
+	regConfig := newRegistryConfig()
 	// Prepare config for containerd and snapshotter
 	getContainerdConfigYaml := func(disableVerification bool) []byte {
 		additionalConfig := ""
@@ -356,7 +314,7 @@ level = "debug"
 	}
 
 	// Setup environment
-	sh, _, done := newShellWithRegistry(t, registryHost, registryUser, registryPass)
+	sh, done := newShellWithRegistry(t, regConfig)
 	defer done()
 	if err := testutil.WriteFileContents(sh, defaultContainerdConfigPath, getContainerdConfigYaml(false), 0600); err != nil {
 		t.Fatalf("failed to write %v: %v", defaultContainerdConfigPath, err)
@@ -371,22 +329,22 @@ level = "debug"
 
 	// Mirror images
 	rebootContainerd(t, sh, "", "")
-	copyImage(sh, dockerhub(optimizedImageName1), mirror(optimizedImageName1))
-	copyImage(sh, dockerhub(optimizedImageName2), mirror(optimizedImageName2))
-	copyImage(sh, dockerhub(nonOptimizedImageName), mirror(nonOptimizedImageName))
-	indexDigest1 := optimizeImage(sh, mirror(optimizedImageName1))
-	indexDigest2 := optimizeImage(sh, mirror(optimizedImageName2))
+	copyImage(sh, dockerhub(optimizedImageName1), regConfig.mirror(optimizedImageName1))
+	copyImage(sh, dockerhub(optimizedImageName2), regConfig.mirror(optimizedImageName2))
+	copyImage(sh, dockerhub(nonOptimizedImageName), regConfig.mirror(nonOptimizedImageName))
+	indexDigest1 := optimizeImage(sh, regConfig.mirror(optimizedImageName1))
+	indexDigest2 := optimizeImage(sh, regConfig.mirror(optimizedImageName2))
 
 	// Test if contents are pulled
 	fromNormalSnapshotter := func(image string) tarPipeExporter {
 		return func(tarExportArgs ...string) {
 			rebootContainerd(t, sh, "", "")
-			sh.X("ctr", "i", "pull", "--user", registryCreds(), image)
+			sh.X("ctr", "i", "pull", "--user", regConfig.creds(), image)
 			sh.Pipe(nil, shell.C("ctr", "run", "--rm", image, "test", "tar", "-c", "/usr"), tarExportArgs)
 		}
 	}
 	export := func(sh *shell.Shell, image string, tarExportArgs []string) {
-		sh.X("soci", "image", "rpull", "--user", registryCreds(), "--soci-index-digest", indexDigest1, image)
+		sh.X("soci", "image", "rpull", "--user", regConfig.creds(), "--soci-index-digest", indexDigest1, image)
 		sh.Pipe(nil, shell.C("soci", "run", "--rm", "--snapshotter=soci", image, "test", "tar", "-c", "/usr"), tarExportArgs)
 	}
 
@@ -398,20 +356,20 @@ level = "debug"
 	}{
 		{
 			name: "normal",
-			want: fromNormalSnapshotter(mirror(nonOptimizedImageName).ref),
+			want: fromNormalSnapshotter(regConfig.mirror(nonOptimizedImageName).ref),
 			test: func(tarExportArgs ...string) {
-				image := mirror(nonOptimizedImageName).ref
+				image := regConfig.mirror(nonOptimizedImageName).ref
 				rebootContainerd(t, sh, "", "")
 				export(sh, image, tarExportArgs)
 			},
 		},
 		{
 			name: "Soci",
-			want: fromNormalSnapshotter(mirror(optimizedImageName1).ref),
+			want: fromNormalSnapshotter(regConfig.mirror(optimizedImageName1).ref),
 			test: func(tarExportArgs ...string) {
-				image := mirror(optimizedImageName1).ref
+				image := regConfig.mirror(optimizedImageName1).ref
 				m := rebootContainerd(t, sh, "", "")
-				optimizeImage(sh, mirror(optimizedImageName1))
+				optimizeImage(sh, regConfig.mirror(optimizedImageName1))
 				sh.X("ctr", "i", "rm", optimizedImageName1)
 				export(sh, image, tarExportArgs)
 				m.CheckAllRemoteSnapshots(t)
@@ -419,13 +377,13 @@ level = "debug"
 		},
 		{
 			name: "multi-image",
-			want: fromNormalSnapshotter(mirror(optimizedImageName1).ref),
+			want: fromNormalSnapshotter(regConfig.mirror(optimizedImageName1).ref),
 			test: func(tarExportArgs ...string) {
-				image := mirror(optimizedImageName1).ref
+				image := regConfig.mirror(optimizedImageName1).ref
 				m := rebootContainerd(t, sh, "", "")
-				optimizeImage(sh, mirror(optimizedImageName2))
-				sh.X("soci", "image", "rpull", "--user", registryCreds(), "--soci-index-digest", indexDigest2, mirror(optimizedImageName2).ref)
-				optimizeImage(sh, mirror(optimizedImageName1))
+				optimizeImage(sh, regConfig.mirror(optimizedImageName2))
+				sh.X("soci", "image", "rpull", "--user", regConfig.creds(), "--soci-index-digest", indexDigest2, regConfig.mirror(optimizedImageName2).ref)
+				optimizeImage(sh, regConfig.mirror(optimizedImageName1))
 				sh.X("ctr", "i", "rm", optimizedImageName1)
 				export(sh, image, tarExportArgs)
 				m.CheckAllRemoteSnapshots(t)
@@ -442,18 +400,6 @@ level = "debug"
 // TestLazyPull tests if lazy pulling works when no index digest is provided (makes a Referrers API call)
 func TestLazyPullNoIndexDigest(t *testing.T) {
 	t.Parallel()
-	var (
-		registryHost  = "registry-" + xid.New().String() + ".test"
-		registryUser  = "dummyuser"
-		registryPass  = "dummypass"
-		registryCreds = func() string { return registryUser + ":" + registryPass }
-	)
-	dockerhub := func(name string) imageInfo {
-		return imageInfo{dockerLibrary + name, "", false}
-	}
-	mirror := func(name string) imageInfo {
-		return imageInfo{registryHost + "/" + name, registryUser + ":" + registryPass, false}
-	}
 	// Prepare config for containerd and snapshotter
 	getContainerdConfigYaml := func(disableVerification bool) []byte {
 		additionalConfig := ""
@@ -486,9 +432,10 @@ level = "debug"
 	getSnapshotterConfigYaml := func(disableVerification bool) []byte {
 		return []byte(fmt.Sprintf("disable_verification = %v", disableVerification))
 	}
+	regConfig := newRegistryConfig()
 
 	// Setup environment
-	sh, _, done := newShellWithRegistry(t, registryHost, registryUser, registryPass)
+	sh, done := newShellWithRegistry(t, regConfig)
 	defer done()
 	if err := testutil.WriteFileContents(sh, defaultContainerdConfigPath, getContainerdConfigYaml(false), 0600); err != nil {
 		t.Fatalf("failed to write %v: %v", defaultContainerdConfigPath, err)
@@ -502,21 +449,21 @@ level = "debug"
 
 	// Mirror images
 	rebootContainerd(t, sh, "", "")
-	copyImage(sh, dockerhub(optimizedImageName), mirror(optimizedImageName))
-	copyImage(sh, dockerhub(nonOptimizedImageName), mirror(nonOptimizedImageName))
-	optimizeImage(sh, mirror(optimizedImageName))
-	sh.X("soci", "push", "--user", registryCreds(), mirror(optimizedImageName).ref)
+	copyImage(sh, dockerhub(optimizedImageName), regConfig.mirror(optimizedImageName))
+	copyImage(sh, dockerhub(nonOptimizedImageName), regConfig.mirror(nonOptimizedImageName))
+	optimizeImage(sh, regConfig.mirror(optimizedImageName))
+	sh.X("soci", "push", "--user", regConfig.creds(), regConfig.mirror(optimizedImageName).ref)
 
 	// Test if contents are pulled
 	fromNormalSnapshotter := func(image string) tarPipeExporter {
 		return func(tarExportArgs ...string) {
 			rebootContainerd(t, sh, "", "")
-			sh.X("ctr", "i", "pull", "--user", registryCreds(), image)
+			sh.X("ctr", "i", "pull", "--user", regConfig.creds(), image)
 			sh.Pipe(nil, shell.C("ctr", "run", "--rm", image, "test", "tar", "-c", "/usr"), tarExportArgs)
 		}
 	}
 	export := func(sh *shell.Shell, image string, tarExportArgs []string) {
-		sh.X("soci", "image", "rpull", "--user", registryCreds(), image)
+		sh.X("soci", "image", "rpull", "--user", regConfig.creds(), image)
 		sh.Pipe(nil, shell.C("soci", "run", "--rm", "--snapshotter=soci", image, "test", "tar", "-c", "/usr"), tarExportArgs)
 	}
 
@@ -528,20 +475,20 @@ level = "debug"
 	}{
 		{
 			name: "normal",
-			want: fromNormalSnapshotter(mirror(nonOptimizedImageName).ref),
+			want: fromNormalSnapshotter(regConfig.mirror(nonOptimizedImageName).ref),
 			test: func(tarExportArgs ...string) {
-				image := mirror(nonOptimizedImageName).ref
+				image := regConfig.mirror(nonOptimizedImageName).ref
 				rebootContainerd(t, sh, "", "")
 				export(sh, image, tarExportArgs)
 			},
 		},
 		{
 			name: "soci",
-			want: fromNormalSnapshotter(mirror(optimizedImageName).ref),
+			want: fromNormalSnapshotter(regConfig.mirror(optimizedImageName).ref),
 			test: func(tarExportArgs ...string) {
-				image := mirror(optimizedImageName).ref
+				image := regConfig.mirror(optimizedImageName).ref
 				m := rebootContainerd(t, sh, "", "")
-				sh.X("ctr", "i", "rm", mirror(optimizedImageName).ref)
+				sh.X("ctr", "i", "rm", regConfig.mirror(optimizedImageName).ref)
 				export(sh, image, tarExportArgs)
 				m.CheckAllRemoteSnapshots(t)
 			},
@@ -558,32 +505,20 @@ level = "debug"
 func TestMirror(t *testing.T) {
 	t.Parallel()
 	var (
-		reporter        = testutil.NewTestingReporter(t)
-		pRoot           = testutil.GetProjectRoot(t)
-		caCertDir       = "/usr/local/share/ca-certificates"
-		registryHost    = "registry-" + xid.New().String() + ".test"
-		registryAltHost = "registry-alt-" + xid.New().String() + ".test"
-		registryUser    = "dummyuser"
-		registryPass    = "dummypass"
-		registryCreds   = func() string { return registryUser + ":" + registryPass }
-		serviceName     = "testing_mirror"
+		reporter    = testutil.NewTestingReporter(t)
+		pRoot       = testutil.GetProjectRoot(t)
+		caCertDir   = "/usr/local/share/ca-certificates"
+		serviceName = "testing_mirror"
 	)
-	dockerhub := func(name string) imageInfo {
-		return imageInfo{dockerLibrary + name, "", false}
-	}
-	mirror := func(name string) imageInfo {
-		return imageInfo{registryHost + "/" + name, registryUser + ":" + registryPass, false}
-	}
-	mirror2 := func(name string) imageInfo {
-		return imageInfo{registryAltHost + ":5000/" + name, "", true}
-	}
+	regConfig := newRegistryConfig()
+	regAltConfig := newRegistryConfig(withPort(5000), withCreds(""), withPlainHTTP())
 
 	// Setup dummy creds for test
-	crt, key, err := generateRegistrySelfSignedCert(registryHost)
+	crt, key, err := generateRegistrySelfSignedCert(regConfig.host)
 	if err != nil {
 		t.Fatalf("failed to generate cert: %v", err)
 	}
-	htpasswd, err := generateBasicHtpasswd(registryUser, registryPass)
+	htpasswd, err := generateBasicHtpasswd(regConfig.user, regConfig.pass)
 	if err != nil {
 		t.Fatalf("failed to generate htpasswd: %v", err)
 	}
@@ -649,8 +584,8 @@ volumes:
 		TargetStage:     targetStage,
 		ServiceName:     serviceName,
 		ImageContextDir: pRoot,
-		RegistryHost:    registryHost,
-		RegistryAltHost: registryAltHost,
+		RegistryHost:    regConfig.host,
+		RegistryAltHost: regAltConfig.host,
 		AuthDir:         authDir,
 	}),
 		compose.WithBuildArgs(getBuildArgsFromEnv(t)...),
@@ -680,7 +615,7 @@ root_path = "/var/lib/soci-snapshotter-grpc/"
 check_always = true
 
 [[plugins."io.containerd.snapshotter.v1.soci".resolver.host."{{.RegistryHost}}".mirrors]]
-host = "{{.RegistryAltHost}}:5000"
+host = "{{.RegistryAltHost}}"
 insecure = true
 
 {{.AdditionalConfig}}
@@ -689,8 +624,8 @@ insecure = true
 		RegistryAltHost  string
 		AdditionalConfig string
 	}{
-		RegistryHost:     registryHost,
-		RegistryAltHost:  registryAltHost,
+		RegistryHost:     regConfig.host,
+		RegistryAltHost:  regAltConfig.hostWithPort(),
 		AdditionalConfig: additionalConfig,
 	})
 	snapshotterConfigYaml := testutil.ApplyTextTemplate(t, `
@@ -698,14 +633,14 @@ insecure = true
 check_always = true
 
 [[resolver.host."{{.RegistryHost}}".mirrors]]
-host = "{{.RegistryAltHost}}:5000"
+host = "{{.RegistryAltHost}}"
 insecure = true
 `, struct {
 		RegistryHost    string
 		RegistryAltHost string
 	}{
-		RegistryHost:    registryHost,
-		RegistryAltHost: registryAltHost,
+		RegistryHost:    regConfig.host,
+		RegistryAltHost: regAltConfig.hostWithPort(),
 	})
 
 	// Setup environment
@@ -721,29 +656,29 @@ insecure = true
 	sh.
 		X("apt-get", "--no-install-recommends", "install", "-y", "iptables").
 		X("update-ca-certificates").
-		Retry(100, "nerdctl", "login", "-u", registryUser, "-p", registryPass, registryHost)
+		Retry(100, "nerdctl", "login", "-u", regConfig.user, "-p", regConfig.pass, regConfig.host)
 
 	imageName := alpineImage
 	// Mirror images
 	rebootContainerd(t, sh, "", "")
-	copyImage(sh, dockerhub(imageName), mirror(imageName))
-	copyImage(sh, mirror(imageName), mirror2(imageName))
-	indexDigest := optimizeImage(sh, mirror(imageName))
+	copyImage(sh, dockerhub(imageName), regConfig.mirror(imageName))
+	copyImage(sh, regConfig.mirror(imageName), regAltConfig.mirror(imageName))
+	indexDigest := optimizeImage(sh, regConfig.mirror(imageName))
 
 	// Pull images
 	// NOTE: Registry connection will still be checked on each "run" because
 	//       we added "check_always = true" to the configuration in the above.
 	//       We use this behaviour for testing mirroring & refleshing functionality.
 	rebootContainerd(t, sh, "", "")
-	sh.X("ctr", "i", "pull", "--user", registryCreds(), mirror(imageName).ref)
-	sh.X("soci", "create", mirror(imageName).ref)
-	sh.X("soci", "image", "rpull", "--user", registryCreds(), "--soci-index-digest", indexDigest, mirror(imageName).ref)
-	registryHostIP, registryAltHostIP := getIP(t, sh, registryHost), getIP(t, sh, registryAltHost)
+	sh.X("ctr", "i", "pull", "--user", regConfig.creds(), regConfig.mirror(imageName).ref)
+	sh.X("soci", "create", regConfig.mirror(imageName).ref)
+	sh.X("soci", "image", "rpull", "--user", regConfig.creds(), "--soci-index-digest", indexDigest, regConfig.mirror(imageName).ref)
+	registryHostIP, registryAltHostIP := getIP(t, sh, regConfig.host), getIP(t, sh, regAltConfig.host)
 	export := func(image string) []string {
 		return shell.C("soci", "run", "--rm", "--snapshotter=soci", image, "test", "tar", "-c", "/usr")
 	}
 	sample := func(tarExportArgs ...string) {
-		sh.Pipe(nil, shell.C("ctr", "run", "--rm", mirror(imageName).ref, "test", "tar", "-c", "/usr"), tarExportArgs)
+		sh.Pipe(nil, shell.C("ctr", "run", "--rm", regConfig.mirror(imageName).ref, "test", "tar", "-c", "/usr"), tarExportArgs)
 	}
 
 	// test if mirroring is working (switching to registryAltHost)
@@ -752,7 +687,7 @@ insecure = true
 			sh.
 				X("iptables", "-A", "OUTPUT", "-d", registryHostIP, "-j", "DROP").
 				X("iptables", "-L").
-				Pipe(nil, export(mirror(imageName).ref), tarExportArgs).
+				Pipe(nil, export(regConfig.mirror(imageName).ref), tarExportArgs).
 				X("iptables", "-D", "OUTPUT", "-d", registryHostIP, "-j", "DROP")
 		},
 	)
@@ -763,7 +698,7 @@ insecure = true
 			sh.
 				X("iptables", "-A", "OUTPUT", "-d", registryAltHostIP, "-j", "DROP").
 				X("iptables", "-L").
-				Pipe(nil, export(mirror(imageName).ref), tarExportArgs).
+				Pipe(nil, export(regConfig.mirror(imageName).ref), tarExportArgs).
 				X("iptables", "-D", "OUTPUT", "-d", registryAltHostIP, "-j", "DROP")
 		},
 	)
@@ -791,12 +726,6 @@ func testSameTarContents(t *testing.T, sh *shell.Shell, aC, bC tarPipeExporter) 
 	aC("tar", "-xC", aDir)
 	bC("tar", "-xC", bDir)
 	sh.X("diff", "--no-dereference", "-qr", aDir+"/", bDir+"/")
-}
-
-type imageInfo struct {
-	ref       string
-	creds     string
-	plainHTTP bool
 }
 
 func encodeImageInfo(ii ...imageInfo) [][]string {
