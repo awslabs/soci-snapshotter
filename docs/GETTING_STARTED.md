@@ -132,15 +132,19 @@ does not have access to.
 
 ### Creating the SOCI index
 
-To create the index run:
+To create the index, which can be pushed to ORAS-compatible registry, run:
 ```
-sudo ./soci create localhost:5000/rabbitmq:latest
+sudo ./soci create --oras localhost:5000/rabbitmq:latest
 ```
-Behind the scenes SOCI is interacting with containerd.  So the tag
-`localhost:5000/rabbitmq` has to exist in containerd - that is what SOCI is
-referencing.  This created two kinds of objects.  The first is a series of ztocs
-(one per layer).  A ztoc is a table of contents for compressed data (z is the
-compression, toc is Table Of Contents).  The other is a manifest that relates
+The `--oras` flag instructs the CLI to build an ORAS-compatible manifest, 
+as opposed to an OCI Artifact Manifest. By default, the CLI will build the latter.
+Since the community is in the process of migrating from ORAS to OCI Artifact Manifest, 
+there's no available registry supporting latter. We suggest using ORAS registry along
+with `--oras` flag to be able to push SOCI index to the registry.
+Behind the scenes SOCI is interacting with containerd. So the tag `localhost:5000/rabbitmq` 
+has to exist in containerd. This created two kinds of objects.  
+The first is a series of ztocs (one per layer).  A ztoc is a table of contents for compressed data 
+(z is the compression, toc is Table Of Contents).  The other is a manifest that relates
 the ztocs to the various layers.  Example output is:
 ```
 layer sha256:aa5c1807c64faef5411fdf8d572336478d2ae55881a348ca98d27de0c1031012 -> ztoc sha256:7482d8b46f52b9abc85b417e5cd6ce596fe078de428b46afad2943ec1ea1110c
@@ -251,7 +255,6 @@ layers being fetched now, then SOCI has not worked.  It should look something
 like:
 
 ```
-using SOCI index digest: sha256:f5f2a8558d0036c0a316638c5575607c01d1fa1588dbe56c6a5a7253e30ce107
 fetching sha256:7e2a3a93... application/vnd.docker.distribution.manifest.v2+json
 fetching sha256:31b721ac... application/vnd.docker.container.image.v1+json
 ```
