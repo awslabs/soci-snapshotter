@@ -40,7 +40,7 @@ const (
 	// artifactType of index SOCI index
 	SociIndexArtifactType = "application/vnd.amazon.soci.index.v1+json"
 	// mediaType of ztoc
-	SociLayerMediaType = "application/zstd"
+	SociLayerMediaType = "application/octet-stream"
 	// index annotation for image layer media type
 	IndexAnnotationImageLayerMediaType = "com.amazon.soci.image-layer-mediaType"
 	// index annotation for image layer digest
