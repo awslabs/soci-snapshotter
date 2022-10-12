@@ -93,7 +93,7 @@ func (s *span) validateStateTransition(newState spanState) error {
 type SpanManager struct {
 	cache    cache.BlobCache
 	cacheOpt []cache.Option
-	index    *soci.GzipIndex
+	index    *soci.GzipZinfo
 	r        *io.SectionReader // reader for contents of the spans managed by SpanManager
 	spans    []*span
 	ztoc     *soci.Ztoc
@@ -113,7 +113,7 @@ type spanInfo struct {
 }
 
 func New(ztoc *soci.Ztoc, r *io.SectionReader, cache cache.BlobCache, cacheOpt ...cache.Option) *SpanManager {
-	index, err := soci.NewGzipIndex(ztoc.CompressionInfo.IndexByteData)
+	index, err := soci.NewGzipZinfo(ztoc.CompressionInfo.Checkpoints)
 	if err != nil {
 		return nil
 	}

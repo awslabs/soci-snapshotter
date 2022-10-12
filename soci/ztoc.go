@@ -64,9 +64,9 @@ type Ztoc struct {
 }
 
 type CompressionInfo struct {
-	MaxSpanID     SpanID //The total number of spans in Ztoc - 1
-	SpanDigests   []digest.Digest
-	IndexByteData []byte
+	MaxSpanID   SpanID //The total number of spans in Ztoc - 1
+	SpanDigests []digest.Digest
+	Checkpoints []byte
 }
 
 type TOC struct {
@@ -78,7 +78,7 @@ type FileExtractConfig struct {
 	UncompressedOffset    FileSize
 	SpanStart             SpanID
 	SpanEnd               SpanID
-	IndexByteData         []byte
+	Checkpoints           []byte
 	CompressedArchiveSize FileSize
 	MaxSpanID             SpanID
 }
@@ -98,11 +98,11 @@ func ExtractFile(r *io.SectionReader, config *FileExtractConfig) ([]byte, error)
 
 	numSpans := config.SpanEnd - config.SpanStart + 1
 
-	gzipIndex, err := NewGzipIndex(config.IndexByteData)
+	gzipZinfo, err := NewGzipZinfo(config.Checkpoints)
 	if err != nil {
 		return bytes, nil
 	}
-	defer gzipIndex.Close()
+	defer gzipZinfo.Close()
 
 	var bufSize FileSize
 	starts := make([]FileSize, numSpans)
@@ -110,11 +110,11 @@ func ExtractFile(r *io.SectionReader, config *FileExtractConfig) ([]byte, error)
 
 	var i SpanID
 	for i = 0; i < numSpans; i++ {
-		starts[i] = gzipIndex.SpanIDToCompressedOffset(i + config.SpanStart)
+		starts[i] = gzipZinfo.SpanIDToCompressedOffset(i + config.SpanStart)
 		if i+config.SpanStart == config.MaxSpanID {
 			ends[i] = config.CompressedArchiveSize - 1
 		} else {
-			ends[i] = gzipIndex.SpanIDToCompressedOffset(i + 1 + config.SpanStart)
+			ends[i] = gzipZinfo.SpanIDToCompressedOffset(i + 1 + config.SpanStart)
 		}
 		bufSize += (ends[i] - starts[i] + 1)
 	}
@@ -123,7 +123,7 @@ func ExtractFile(r *io.SectionReader, config *FileExtractConfig) ([]byte, error)
 
 	// It the first span the file is present in has partially uncompressed data,
 	// fetch the previous byte too.
-	firstSpanHasBits := gzipIndex.HasBits(config.SpanStart)
+	firstSpanHasBits := gzipZinfo.HasBits(config.SpanStart)
 	if firstSpanHasBits {
 		bufSize++
 		start--
@@ -160,7 +160,7 @@ func ExtractFile(r *io.SectionReader, config *FileExtractConfig) ([]byte, error)
 		return bytes, err
 	}
 
-	bytes, err = gzipIndex.ExtractDataFromBuffer(buf, config.UncompressedSize, config.UncompressedOffset, config.SpanStart)
+	bytes, err = gzipZinfo.ExtractDataFromBuffer(buf, config.UncompressedSize, config.UncompressedOffset, config.SpanStart)
 	if err != nil {
 		return nil, err
 	}
@@ -196,13 +196,13 @@ func ExtractFromTarGz(gz string, ztoc *Ztoc, text string) (string, error) {
 		return "", nil
 	}
 
-	gzipIndex, err := NewGzipIndex(ztoc.CompressionInfo.IndexByteData)
+	gzipZinfo, err := NewGzipZinfo(ztoc.CompressionInfo.Checkpoints)
 	if err != nil {
 		return "", err
 	}
-	defer gzipIndex.Close()
+	defer gzipZinfo.Close()
 
-	bytes, err := gzipIndex.ExtractData(gz, entry.UncompressedSize, entry.UncompressedOffset)
+	bytes, err := gzipZinfo.ExtractData(gz, entry.UncompressedSize, entry.UncompressedOffset)
 	if err != nil {
 		return "", err
 	}

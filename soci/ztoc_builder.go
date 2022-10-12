@@ -37,7 +37,7 @@ func BuildZtoc(gzipFile string, span int64, cfg *buildConfig) (*Ztoc, error) {
 		return nil, fmt.Errorf("need to provide gzip file")
 	}
 
-	index, err := NewGzipIndexFromFile(gzipFile, span)
+	index, err := NewGzipZinfoFromFile(gzipFile, span)
 	if err != nil {
 		return nil, err
 	}
@@ -58,7 +58,7 @@ func BuildZtoc(gzipFile string, span int64, cfg *buildConfig) (*Ztoc, error) {
 		return nil, err
 	}
 
-	indexData, err := index.Bytes()
+	checkpoints, err := index.Bytes()
 	if err != nil {
 		return nil, err
 	}
@@ -68,9 +68,9 @@ func BuildZtoc(gzipFile string, span int64, cfg *buildConfig) (*Ztoc, error) {
 	}
 
 	compressionInfo := CompressionInfo{
-		MaxSpanID:     index.MaxSpanID(),
-		SpanDigests:   digests,
-		IndexByteData: indexData,
+		MaxSpanID:   index.MaxSpanID(),
+		SpanDigests: digests,
+		Checkpoints: checkpoints,
 	}
 
 	return &Ztoc{
@@ -116,7 +116,7 @@ func ztocToFlatbuffer(ztoc *Ztoc) []byte {
 	toc := ztoc_flatbuffers.TOCEnd(builder)
 
 	// CompressionInfo
-	indexByteDataVector := builder.CreateByteVector(ztoc.CompressionInfo.IndexByteData)
+	checkpointsVector := builder.CreateByteVector(ztoc.CompressionInfo.Checkpoints)
 	spanDigestsOffsets := make([]flatbuffers.UOffsetT, 0, len(ztoc.CompressionInfo.SpanDigests))
 	for _, spanDigest := range ztoc.CompressionInfo.SpanDigests {
 		off := builder.CreateString(spanDigest.String())
@@ -130,7 +130,7 @@ func ztocToFlatbuffer(ztoc *Ztoc) []byte {
 	ztoc_flatbuffers.CompressionInfoStart(builder)
 	ztoc_flatbuffers.CompressionInfoAddMaxSpanId(builder, int32(ztoc.CompressionInfo.MaxSpanID))
 	ztoc_flatbuffers.CompressionInfoAddSpanDigests(builder, spanDigests)
-	ztoc_flatbuffers.CompressionInfoAddIndexByteData(builder, indexByteDataVector)
+	ztoc_flatbuffers.CompressionInfoAddCheckpoints(builder, checkpointsVector)
 	ztocInfo := ztoc_flatbuffers.CompressionInfoEnd(builder)
 
 	ztoc_flatbuffers.ZtocStart(builder)
@@ -204,7 +204,7 @@ func prepareXattrsOffset(me FileMetadata, builder *flatbuffers.Builder) flatbuff
 	return xattrs
 }
 
-func getPerSpanDigests(gzipFile string, fileSize int64, index *GzipIndex) ([]digest.Digest, error) {
+func getPerSpanDigests(gzipFile string, fileSize int64, index *GzipZinfo) ([]digest.Digest, error) {
 	file, err := os.Open(gzipFile)
 	if err != nil {
 		return nil, fmt.Errorf("could not open file for reading: %w", err)
@@ -240,7 +240,7 @@ func getPerSpanDigests(gzipFile string, fileSize int64, index *GzipIndex) ([]dig
 	return digests, nil
 }
 
-func getGzipFileMetadata(gzipFile string, index *GzipIndex) ([]FileMetadata, FileSize, error) {
+func getGzipFileMetadata(gzipFile string, index *GzipZinfo) ([]FileMetadata, FileSize, error) {
 	file, err := os.Open(gzipFile)
 	if err != nil {
 		return nil, 0, fmt.Errorf("could not open file for reading: %v", err)

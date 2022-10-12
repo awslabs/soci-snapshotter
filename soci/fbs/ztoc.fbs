@@ -33,7 +33,7 @@ table CompressionInfo {
 	compression_algorithm : CompressionAlgorithm = Gzip;
 	max_span_id : int;			// The total number of spans in Ztoc - 1
 	span_digests : [string];
-	index_byte_data : [ubyte];	// the binary data used to decompress the span
+	checkpoints : [ubyte];	// the binary data used to decompress the span
 }
 
 table TOC {

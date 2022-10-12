@@ -103,7 +103,7 @@ func flatbufToZtoc(flatbuffer []byte) *Ztoc {
 		dgst, _ := digest.Parse(string(compressionInfo.SpanDigests(i)))
 		ztoc.CompressionInfo.SpanDigests[i] = dgst
 	}
-	ztoc.CompressionInfo.IndexByteData = compressionInfo.IndexByteDataBytes()
+	ztoc.CompressionInfo.Checkpoints = compressionInfo.CheckpointsBytes()
 	return ztoc
 }
 

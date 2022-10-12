@@ -74,7 +74,7 @@ func (rcv *CompressionInfo) SpanDigestsLength() int {
 	return 0
 }
 
-func (rcv *CompressionInfo) IndexByteData(j int) byte {
+func (rcv *CompressionInfo) Checkpoints(j int) byte {
 	o := flatbuffers.UOffsetT(rcv._tab.Offset(10))
 	if o != 0 {
 		a := rcv._tab.Vector(o)
@@ -83,7 +83,7 @@ func (rcv *CompressionInfo) IndexByteData(j int) byte {
 	return 0
 }
 
-func (rcv *CompressionInfo) IndexByteDataLength() int {
+func (rcv *CompressionInfo) CheckpointsLength() int {
 	o := flatbuffers.UOffsetT(rcv._tab.Offset(10))
 	if o != 0 {
 		return rcv._tab.VectorLen(o)
@@ -91,7 +91,7 @@ func (rcv *CompressionInfo) IndexByteDataLength() int {
 	return 0
 }
 
-func (rcv *CompressionInfo) IndexByteDataBytes() []byte {
+func (rcv *CompressionInfo) CheckpointsBytes() []byte {
 	o := flatbuffers.UOffsetT(rcv._tab.Offset(10))
 	if o != 0 {
 		return rcv._tab.ByteVector(o + rcv._tab.Pos)
@@ -99,7 +99,7 @@ func (rcv *CompressionInfo) IndexByteDataBytes() []byte {
 	return nil
 }
 
-func (rcv *CompressionInfo) MutateIndexByteData(j int, n byte) bool {
+func (rcv *CompressionInfo) MutateCheckpoints(j int, n byte) bool {
 	o := flatbuffers.UOffsetT(rcv._tab.Offset(10))
 	if o != 0 {
 		a := rcv._tab.Vector(o)
@@ -123,10 +123,10 @@ func CompressionInfoAddSpanDigests(builder *flatbuffers.Builder, spanDigests fla
 func CompressionInfoStartSpanDigestsVector(builder *flatbuffers.Builder, numElems int) flatbuffers.UOffsetT {
 	return builder.StartVector(4, numElems, 4)
 }
-func CompressionInfoAddIndexByteData(builder *flatbuffers.Builder, indexByteData flatbuffers.UOffsetT) {
-	builder.PrependUOffsetTSlot(3, flatbuffers.UOffsetT(indexByteData), 0)
+func CompressionInfoAddCheckpoints(builder *flatbuffers.Builder, checkpoints flatbuffers.UOffsetT) {
+	builder.PrependUOffsetTSlot(3, flatbuffers.UOffsetT(checkpoints), 0)
 }
-func CompressionInfoStartIndexByteDataVector(builder *flatbuffers.Builder, numElems int) flatbuffers.UOffsetT {
+func CompressionInfoStartCheckpointsVector(builder *flatbuffers.Builder, numElems int) flatbuffers.UOffsetT {
 	return builder.StartVector(1, numElems, 1)
 }
 func CompressionInfoEnd(builder *flatbuffers.Builder) flatbuffers.UOffsetT {
