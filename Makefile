@@ -17,8 +17,8 @@
 CMD_DESTDIR ?= /usr/local
 GO111MODULE_VALUE=auto
 OUTDIR ?= $(CURDIR)/out
-UTIL_CFLAGS=-I${CURDIR}/c -L${OUTDIR} -lindexer -lz
-UTIL_LDFLAGS=-L${OUTDIR} -lindexer -lz
+UTIL_CFLAGS=-I${CURDIR}/c -L${OUTDIR} -lzinfo -lz
+UTIL_LDFLAGS=-L${OUTDIR} -lzinfo -lz
 PKG=github.com/awslabs/soci-snapshotter
 VERSION=$(shell git describe --match 'v[0-9]*' --dirty='.m' --always --tags)
 REVISION=$(shell git rev-parse HEAD)$(shell if ! git diff --no-ext-diff --quiet --exit-code; then echo .m; fi)
@@ -48,9 +48,9 @@ soci: FORCE
 pre-build:
 	rm -rf ${OUTDIR}
 	@mkdir -p ${OUTDIR}
-	@gcc -c c/indexer.c -o ${OUTDIR}/indexer.o -O3 -Wall -Werror
-	@ar rvs ${OUTDIR}/libindexer.a ${OUTDIR}/indexer.o
-	@rm -f ${OUTDIR}/indexer.o
+	@gcc -c c/zinfo.c -o ${OUTDIR}/zinfo.o -O3 -Wall -Werror
+	@ar rvs ${OUTDIR}/libzinfo.a ${OUTDIR}/zinfo.o
+	@rm -f ${OUTDIR}/zinfo.o
 
 install-cmake:
 	@wget https://github.com/Kitware/CMake/releases/download/v3.24.1/cmake-3.24.1-Linux-x86_64.sh -O cmake.sh
@@ -84,7 +84,7 @@ check-flatc:
 	diff -qr $(TMPDIR)/ztoc $(CURDIR)/soci/fbs/ztoc || (printf "\n\nThe Ztoc schema seems to be modified. Please run 'make flatc' to re-generate Go files\n\n"; exit 1)
 	rm -rf $(TMPDIR)
 
-# "check-lint" depends "pre-build". out/libindexer.a seems needed to process cgo directives
+# "check-lint" depends "pre-build". out/libzinfo.a seems needed to process cgo directives
 check-lint: pre-build
 	GO111MODULE=$(GO111MODULE_VALUE) $(shell go env GOPATH)/bin/golangci-lint run
 	cd ./cmd ; GO111MODULE=$(GO111MODULE_VALUE) $(shell go env GOPATH)/bin/golangci-lint run

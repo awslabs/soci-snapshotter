@@ -40,7 +40,7 @@
   from the original.
 */
 
-#include "indexer.h"
+#include "zinfo.h"
 
 #include <endian.h>
 #include <stdbool.h>
@@ -66,7 +66,7 @@ int32_t decode_int32(int32_t source) {
     return le32toh(source);
 }
 
-void free_index(struct gzip_index *index)
+void free_zinfo(struct gzip_zinfo *index)
 {
     if (index != NULL) {
         free(index->list);
@@ -76,16 +76,16 @@ void free_index(struct gzip_index *index)
 
 /* Add an entry to the access point list.  If out of memory, deallocate the
    existing list and return NULL. */
-static struct gzip_index *addpoint(struct gzip_index *index, uint8_t bits,
+static struct gzip_zinfo *add_checkpoint(struct gzip_zinfo *index, uint8_t bits,
     offset_t in, offset_t out, unsigned left, unsigned char *window)
 {
-    struct gzip_index_point *next;
+    struct gzip_checkpoint *next;
 
     /* if list is empty, create it (start with eight points) */
     if (index == NULL) {
-        index = malloc(sizeof(struct gzip_index));
+        index = malloc(sizeof(struct gzip_zinfo));
         if (index == NULL) return NULL;
-        index->list = malloc(sizeof(struct gzip_index_point) << 3);
+        index->list = malloc(sizeof(struct gzip_checkpoint) << 3);
         if (index->list == NULL) {
             free(index);
             return NULL;
@@ -97,9 +97,9 @@ static struct gzip_index *addpoint(struct gzip_index *index, uint8_t bits,
     /* if list is full, make it bigger */
     else if (index->have == index->size) {
         index->size <<= 1;
-        next = realloc(index->list, sizeof(struct gzip_index_point) * index->size);
+        next = realloc(index->list, sizeof(struct gzip_checkpoint) * index->size);
         if (next == NULL) {
-            free_index(index);
+            free_zinfo(index);
             return NULL;
         }
         index->list = next;
@@ -123,12 +123,12 @@ static struct gzip_index *addpoint(struct gzip_index *index, uint8_t bits,
 
 
 /* Pretty much the same as from zran.c */
-int generate_index_fp(FILE* in, offset_t span, struct gzip_index** idx)
+int generate_zinfo(FILE* in, offset_t span, struct gzip_zinfo** idx)
 {
     int ret;
     offset_t totin, totout;        /* our own total counters to avoid 4GB limit */
     offset_t last;                 /* totout value of last access point */
-    struct gzip_index *index;       /* access points being generated */
+    struct gzip_zinfo *index;       /* access points being generated */
     z_stream strm;
     unsigned char input[CHUNK];
     unsigned char window[WINSIZE];
@@ -148,7 +148,7 @@ int generate_index_fp(FILE* in, offset_t span, struct gzip_index** idx)
        also validates the integrity of the compressed data using the check
        information at the end of the gzip or zlib stream */
     totin = totout = last = 0;
-    index = NULL;               /* will be allocated by first addpoint() */
+    index = NULL;               /* will be allocated by first add_checkpoint() */
     strm.avail_out = 0;
     do {
         /* get some compressed data from input file */
@@ -197,7 +197,7 @@ int generate_index_fp(FILE* in, offset_t span, struct gzip_index** idx)
              */
             if ((strm.data_type & 128) && !(strm.data_type & 64) &&
                 (totout == 0 || totout - last > span)) {
-                index = addpoint(index, (uint8_t)(strm.data_type & 7), totin,
+                index = add_checkpoint(index, (uint8_t)(strm.data_type & 7), totin,
                                  totout, strm.avail_out, window);
                 if (index == NULL) {
                     ret = Z_MEM_ERROR;
@@ -210,7 +210,7 @@ int generate_index_fp(FILE* in, offset_t span, struct gzip_index** idx)
 
     /* clean up and return index (release unused entries in list) */
     (void)inflateEnd(&strm);
-    index->list = realloc(index->list, sizeof(struct gzip_index_point) * index->have);
+    index->list = realloc(index->list, sizeof(struct gzip_checkpoint) * index->have);
     index->size = index->have;
     index->have = encode_int32(index->have);
     int32_t sz = index->size;
@@ -222,33 +222,33 @@ int generate_index_fp(FILE* in, offset_t span, struct gzip_index** idx)
     /* return error */
   build_index_error:
     (void)inflateEnd(&strm);
-    free_index(index);
+    free_zinfo(index);
     return ret;
 
 }
 
-int has_bits(struct gzip_index* index, int point_index)
+int has_bits(struct gzip_zinfo* index, int checkpoint)
 {
-    if (point_index >= decode_int32(index->have))
+    if (checkpoint >= decode_int32(index->have))
     {
         return 0;
     }
-    return index->list[point_index].bits != 0;
+    return index->list[checkpoint].bits != 0;
 }
 
-static uint8_t get_bits(struct gzip_index* index, int point_index)
+static uint8_t get_bits(struct gzip_zinfo* index, int checkpoint)
 {
-    return index->list[point_index].bits;
+    return index->list[checkpoint].bits;
 }
 
-offset_t get_ucomp_off(struct gzip_index* index, int point_index)
+offset_t get_ucomp_off(struct gzip_zinfo* index, int checkpoint)
 {
-    return decode_offset(index->list[point_index].out);
+    return decode_offset(index->list[checkpoint].out);
 }
 
-offset_t get_comp_off(struct gzip_index* index, int point_index)
+offset_t get_comp_off(struct gzip_zinfo* index, int checkpoint)
 {
-    return decode_offset(index->list[point_index].in);
+    return decode_offset(index->list[checkpoint].in);
 }
 
 static int min(int lhs, int rhs)
@@ -257,7 +257,7 @@ static int min(int lhs, int rhs)
 }
 
 // This is the same as extract_data_fp, but instead of a file, it decompresses data from a buffer which contains the exact data to decompress 
-int extract_data_from_buffer(void* d, offset_t datalen, struct gzip_index* index, offset_t offset, void* buffer, offset_t len, int first_point_index)
+int extract_data_from_buffer(void* d, offset_t datalen, struct gzip_zinfo* index, offset_t offset, void* buffer, offset_t len, int first_checkpoint)
 {
     int ret, skip;
     z_stream strm;
@@ -269,7 +269,7 @@ int extract_data_from_buffer(void* d, offset_t datalen, struct gzip_index* index
     if (len < 0)
         return 0;
 
-    uint8_t bits = get_bits(index, first_point_index);
+    uint8_t bits = get_bits(index, first_checkpoint);
 
     strm.zalloc = Z_NULL;
     strm.zfree = Z_NULL;
@@ -285,8 +285,8 @@ int extract_data_from_buffer(void* d, offset_t datalen, struct gzip_index* index
         inflatePrime(&strm, bits, ret >> (8 - bits));
         data++;
     }
-    (void)inflateSetDictionary(&strm, index->list[first_point_index].window, WINSIZE);
-    offset -= decode_offset(index->list[first_point_index].out);
+    (void)inflateSetDictionary(&strm, index->list[first_checkpoint].window, WINSIZE);
+    offset -= decode_offset(index->list[first_checkpoint].out);
     strm.avail_in = 0;
     skip = 1;                               /* while skipping to offset */
     int remaining = datalen;
@@ -343,11 +343,11 @@ int extract_data_from_buffer(void* d, offset_t datalen, struct gzip_index* index
 }
 
 
-int extract_data_fp(FILE *in, struct gzip_index *index, offset_t offset, void *buffer, int len)
+int extract_data_fp(FILE *in, struct gzip_zinfo *index, offset_t offset, void *buffer, int len)
 {
     int ret, skip;
     z_stream strm;
-    struct gzip_index_point *here;
+    struct gzip_checkpoint *here;
     unsigned char input[CHUNK];
     unsigned char discard[WINSIZE];
     uchar* buf = buffer; 
@@ -444,12 +444,12 @@ int extract_data_fp(FILE *in, struct gzip_index *index, offset_t offset, void *b
     return ret;
 }
 
-int extract_data(const char* file, struct gzip_index* index, offset_t offset, void* buf, int len)
+int extract_data(const char* file, struct gzip_zinfo* index, offset_t offset, void* buf, int len)
 {
     FILE* fp = fopen(file, "rb");
     if (fp == NULL) 
     {
-        return GZIP_INDEXER_FILE_NOT_FOUND;
+        return GZIP_ZINFO_FILE_NOT_FOUND;
     }
 
     int ret = extract_data_fp(fp, index, offset, buf, len);
@@ -457,19 +457,19 @@ int extract_data(const char* file, struct gzip_index* index, offset_t offset, vo
     return ret;
 }
 
-int generate_index(const char* filepath, offset_t span, struct gzip_index** index)
+int generate_index(const char* filepath, offset_t span, struct gzip_zinfo** index)
 {
     FILE* fp = fopen(filepath, "rb");
     if (fp == NULL)
     {
-        return GZIP_INDEXER_FILE_NOT_FOUND;
+        return GZIP_ZINFO_FILE_NOT_FOUND;
     }
-    int ret = generate_index_fp(fp, span, index);
+    int ret = generate_zinfo(fp, span, index);
     fclose(fp);
     return ret;
 }
 
-int pt_index_from_ucmp_offset(struct gzip_index* index, offset_t off)
+int pt_index_from_ucmp_offset(struct gzip_zinfo* index, offset_t off)
 {
     if (index == NULL)
     {
@@ -477,7 +477,7 @@ int pt_index_from_ucmp_offset(struct gzip_index* index, offset_t off)
     }
 
     int res = 0;
-    struct gzip_index_point* here = index->list;
+    struct gzip_checkpoint* here = index->list;
     int ret = decode_int32(index->have);
     while (--ret && decode_offset(here[1].out) <= off)
     {
@@ -488,7 +488,7 @@ int pt_index_from_ucmp_offset(struct gzip_index* index, offset_t off)
 }
 
 
-unsigned get_blob_size(struct gzip_index* index)
+unsigned get_blob_size(struct gzip_zinfo* index)
 {
     if (index == NULL)
     {
@@ -510,7 +510,7 @@ unsigned get_blob_size(struct gzip_index* index)
     return  ((2 << 14) + 17) * (size - 1)  + 12;
 }
 
-int32_t get_max_span_id(struct gzip_index* index)
+int32_t get_max_span_id(struct gzip_zinfo* index)
 {
     if (index == NULL)
     {
@@ -519,11 +519,11 @@ int32_t get_max_span_id(struct gzip_index* index)
     return decode_int32(index->have) - 1;
 }
 
-int index_to_blob(struct gzip_index* index, void* buf)
+int index_to_blob(struct gzip_zinfo* index, void* buf)
 {
     if (index == NULL)
     {
-        return GZIP_INDEXER_INDEX_NULL;
+        return GZIP_ZINFO_INDEX_NULL;
     }
 
     // TODO: Since this will be serialized to file, we need to be mindful of endianness. Right now, we are just ignoring it
@@ -542,7 +542,7 @@ int index_to_blob(struct gzip_index* index, void* buf)
     // The values of dictionary 0 are known, so no need to save it
     for(int i = 1; i < decode_int32(index->have); i++)
     {
-        struct gzip_index_point* pt = &index->list[i];
+        struct gzip_checkpoint* pt = &index->list[i];
         memcpy(cur, &pt->in, 8);
         cur += 8;
         memcpy(cur, &pt->out, 8);
@@ -556,14 +556,14 @@ int index_to_blob(struct gzip_index* index, void* buf)
     return get_blob_size(index);
 }
 
-struct gzip_index* blob_to_index(void* buf)
+struct gzip_zinfo* blob_to_zinfo(void* buf)
 {
     if (buf == NULL)
     {
         return NULL;
     }
 
-    struct gzip_index* index = malloc(sizeof(struct gzip_index));
+    struct gzip_zinfo* index = malloc(sizeof(struct gzip_zinfo));
     if (index == NULL)
     {
         return NULL;
@@ -578,14 +578,14 @@ struct gzip_index* blob_to_index(void* buf)
     memcpy(&span_size, cur, 8);
     cur += 8;
 
-    index->list = malloc(sizeof(struct gzip_index_point) * decode_int32(size));
+    index->list = malloc(sizeof(struct gzip_checkpoint) * decode_int32(size));
     if (index->list == NULL)
     {
-        free_index(index);
+        free_zinfo(index);
         return NULL;
     }
 
-    struct gzip_index_point* pt0 = &index->list[0];
+    struct gzip_checkpoint* pt0 = &index->list[0];
     pt0->bits = 0; 
     // gzip header takes the first 10 bytes, so span 0 always starts at offset 10 in compressed file
     pt0->in = encode_offset(10); 
@@ -594,7 +594,7 @@ struct gzip_index* blob_to_index(void* buf)
 
     for(int32_t i = 1; i < decode_int32(size); i++)
     {
-        struct gzip_index_point* pt = &index->list[i];
+        struct gzip_checkpoint* pt = &index->list[i];
         memcpy(&pt->in, cur, 8);
         cur += 8;
         memcpy(&pt->out, cur, 8);

@@ -109,7 +109,7 @@ func TestDecompress(t *testing.T) {
 					UncompressedOffset:    m.UncompressedOffset,
 					SpanStart:             m.SpanStart,
 					SpanEnd:               m.SpanEnd,
-					IndexByteData:         ztoc.CompressionInfo.IndexByteData,
+					Checkpoints:           ztoc.CompressionInfo.Checkpoints,
 					CompressedArchiveSize: ztoc.CompressedArchiveSize,
 					MaxSpanID:             ztoc.CompressionInfo.MaxSpanID,
 				}
@@ -224,7 +224,7 @@ func TestZtocGenerationConsistency(t *testing.T) {
 				t.Fatalf("ztoc1.MaxSpanID should be equal to ztoc2.MaxSpanID")
 			}
 			if ztoc1.Version != ztoc2.Version {
-				t.Fatalf("ztoc1.IndexByteData should be equal to ztoc2.IndexByteData")
+				t.Fatalf("ztoc1.Checkpoints should be equal to ztoc2.Checkpoints")
 			}
 			for i := 0; i < len(ztoc1.TOC.Metadata); i++ {
 				metadata1 := ztoc1.TOC.Metadata[i]
@@ -234,15 +234,15 @@ func TestZtocGenerationConsistency(t *testing.T) {
 				}
 			}
 
-			// Compare raw IndexByteData
-			if !bytes.Equal(ztoc1.CompressionInfo.IndexByteData, ztoc2.CompressionInfo.IndexByteData) {
+			// Compare raw Checkpoints
+			if !bytes.Equal(ztoc1.CompressionInfo.Checkpoints, ztoc2.CompressionInfo.Checkpoints) {
 
-				// compare IndexByteData within Go
-				index1, err := unmarshalGzipIndex(ztoc1.CompressionInfo.IndexByteData[0])
+				// compare Checkpoints within Go
+				index1, err := unmarshalGzipZinfo(ztoc1.CompressionInfo.Checkpoints[0])
 				if err != nil {
 					t.Fatalf("index from ztoc1 should contain data")
 				}
-				index2, err := unmarshalGzipIndex(ztoc2.CompressionInfo.IndexByteData[0])
+				index2, err := unmarshalGzipZinfo(ztoc2.CompressionInfo.Checkpoints[0])
 				if err != nil {
 					t.Fatalf("index from ztoc2 should contain data")
 				}
@@ -594,9 +594,9 @@ func TestZtocSerialization(t *testing.T) {
 				}
 			}
 
-			// Compare raw IndexByteData
-			if !bytes.Equal(createdZtoc.CompressionInfo.IndexByteData, readZtoc.CompressionInfo.IndexByteData) {
-				t.Fatalf("createdZtoc.IndexByteData must be identical to readZtoc.IndexByteData")
+			// Compare raw Checkpoints
+			if !bytes.Equal(createdZtoc.CompressionInfo.Checkpoints, readZtoc.CompressionInfo.Checkpoints) {
+				t.Fatalf("createdZtoc.Checkpoints must be identical to readZtoc.Checkpoints")
 			}
 		})
 	}
@@ -607,7 +607,7 @@ func TestWriteZtoc(t *testing.T) {
 	testCases := []struct {
 		name                    string
 		version                 string
-		indexByteData           []byte
+		checkpoints             []byte
 		metadata                []FileMetadata
 		compressedArchiveSize   FileSize
 		uncompressedArchiveSize FileSize
@@ -619,7 +619,7 @@ func TestWriteZtoc(t *testing.T) {
 		{
 			name:                    "success write succeeds - same digest and size",
 			version:                 "0.1",
-			indexByteData:           make([]byte, 1<<16),
+			checkpoints:             make([]byte, 1<<16),
 			metadata:                make([]FileMetadata, 2),
 			compressedArchiveSize:   2000000,
 			uncompressedArchiveSize: 2500000,
@@ -636,8 +636,8 @@ func TestWriteZtoc(t *testing.T) {
 				Metadata: tc.metadata,
 			}
 			compressionInfo := CompressionInfo{
-				IndexByteData: tc.indexByteData,
-				MaxSpanID:     tc.maxSpanID,
+				Checkpoints: tc.checkpoints,
+				MaxSpanID:   tc.maxSpanID,
 			}
 			ztoc := &Ztoc{
 				Version:                 tc.version,

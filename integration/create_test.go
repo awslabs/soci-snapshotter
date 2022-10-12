@@ -70,9 +70,9 @@ func TestSociCreateSparseIndex(t *testing.T) {
 			rebootContainerd(t, sh, "", "")
 			imgInfo := dockerhub(containerImage)
 			indexDigest := buildSparseIndex(sh, imgInfo, tt.minLayerSize)
-			indexByteData := fetchContentFromPath(sh, blobStorePath+"/"+trimSha256Prefix(indexDigest))
+			checkpoints := fetchContentFromPath(sh, blobStorePath+"/"+trimSha256Prefix(indexDigest))
 
-			index, err := soci.NewIndexFromReader(bytes.NewReader(indexByteData))
+			index, err := soci.NewIndexFromReader(bytes.NewReader(checkpoints))
 			if err != nil {
 				t.Fatalf("cannot get index data: %v", err)
 			}
@@ -171,8 +171,8 @@ func TestSociCreate(t *testing.T) {
 			rebootContainerd(t, sh, "", "")
 			imgInfo := dockerhub(tt.containerImage)
 			indexDigest := optimizeImage(sh, imgInfo)
-			indexByteData := fetchContentFromPath(sh, blobStorePath+"/"+trimSha256Prefix(indexDigest))
-			sociIndex, err := soci.NewIndexFromReader(bytes.NewReader(indexByteData))
+			checkpoints := fetchContentFromPath(sh, blobStorePath+"/"+trimSha256Prefix(indexDigest))
+			sociIndex, err := soci.NewIndexFromReader(bytes.NewReader(checkpoints))
 			if err != nil {
 				t.Fatalf("cannot get soci index: %v", err)
 			}

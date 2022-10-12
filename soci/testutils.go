@@ -16,7 +16,7 @@
 
 package soci
 
-// #include "indexer.h"
+// #include "zinfo.h"
 // #include <stdlib.h>
 // #include <stdio.h>
 import "C"
@@ -41,17 +41,17 @@ import (
 
 const windowSize = 32768
 
-type gzipIndexPoint struct {
+type gzipCheckpoint struct {
 	out    int64  /* corresponding offset in uncompressed data */
 	in     int64  /* offset in input file of first full byte */
 	bits   int8   /* number of bits (1-7) from byte at in - 1, or 0 */
 	window []byte /* preceding 32K of uncompressed data */
 }
 
-type gzipIndex struct {
+type gzipZinfo struct {
 	have     uint64           /* number of list entries filled in */
 	size     uint64           /* number of list entries allocated */
-	list     []gzipIndexPoint /* allocated list */
+	list     []gzipCheckpoint /* allocated list */
 	spanSize uint64
 }
 
@@ -64,21 +64,21 @@ func parseDigest(digestString string) digest.Digest {
 	return dgst
 }
 
-func unmarshalGzipIndex(blob byte) (*gzipIndex, error) {
-	var index *C.struct_gzip_index = C.blob_to_index(unsafe.Pointer(&blob))
+func unmarshalGzipZinfo(blob byte) (*gzipZinfo, error) {
+	var index *C.struct_gzip_zinfo = C.blob_to_zinfo(unsafe.Pointer(&blob))
 
 	if index == nil {
-		return nil, fmt.Errorf("cannot convert blob to gzip_index")
+		return nil, fmt.Errorf("cannot convert blob to gzip_zinfo")
 	}
 
-	defer C.free_index(index)
+	defer C.free_zinfo(index)
 
-	list := make([]gzipIndexPoint, 0)
+	list := make([]gzipCheckpoint, 0)
 	lst := unsafe.Slice(index.list, int(index.have))
 	for i := 0; i < int(index.have); i++ {
 		indexPoint := lst[i]
 		window := C.GoBytes(unsafe.Pointer(&indexPoint.window[0]), windowSize)
-		listEntry := gzipIndexPoint{
+		listEntry := gzipCheckpoint{
 			out:    int64(indexPoint.out),
 			in:     int64(indexPoint.in),
 			bits:   int8(indexPoint.bits),
@@ -87,7 +87,7 @@ func unmarshalGzipIndex(blob byte) (*gzipIndex, error) {
 		list = append(list, listEntry)
 	}
 
-	return &gzipIndex{
+	return &gzipZinfo{
 		have:     uint64(index.have),
 		size:     uint64(index.size),
 		spanSize: uint64(index.span_size),
