@@ -141,6 +141,11 @@ func NewFilesystem(root string, cfg config.Config, opts ...Option) (_ snapshot.F
 		entryTimeout = defaultFuseTimeout
 	}
 
+	negativeTimeout := time.Duration(cfg.FuseConfig.NegativeTimeout) * time.Second
+	if negativeTimeout == 0 {
+		negativeTimeout = defaultFuseTimeout
+	}
+
 	metadataStore := fsOpts.metadataStore
 
 	getSources := fsOpts.getSources
@@ -182,6 +187,7 @@ func NewFilesystem(root string, cfg config.Config, opts ...Option) (_ snapshot.F
 		metricsController:     c,
 		attrTimeout:           attrTimeout,
 		entryTimeout:          entryTimeout,
+		negativeTimeout:       negativeTimeout,
 		orasStore:             store,
 	}, nil
 }
@@ -261,6 +267,7 @@ type filesystem struct {
 	metricsController     *layermetrics.Controller
 	attrTimeout           time.Duration
 	entryTimeout          time.Duration
+	negativeTimeout       time.Duration
 	sociContexts          sync.Map
 	orasStore             orascontent.Storage
 }
@@ -442,6 +449,7 @@ func (fs *filesystem) Mount(ctx context.Context, mountpoint string, labels map[s
 	rawFS := fusefs.NewNodeFS(node, &fusefs.Options{
 		AttrTimeout:     &fs.attrTimeout,
 		EntryTimeout:    &fs.entryTimeout,
+		NegativeTimeout: &fs.negativeTimeout,
 		NullPermissions: true,
 	})
 	mountOpts := &fuse.MountOptions{
