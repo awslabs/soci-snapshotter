@@ -99,4 +99,7 @@ type FuseConfig struct {
 
 	// EntryTimeout defines TTL for directory, name lookup in seconds.
 	EntryTimeout int64 `toml:"entry_timeout"`
+
+	// NegativeTimeout defines the overall entry timeout for failed lookups.
+	NegativeTimeout int64 `toml:"negative_timeout"`
 }
