@@ -144,12 +144,9 @@ func TestDecompress(t *testing.T) {
 				t.Fatalf("%s: could not read file %s", tc.name, fileName)
 			}
 			if !bytes.Equal(extracted, original) {
-				for i := 0; i < len(original); i++ {
-					if extracted[i] != original[i] {
-						t.Fatalf("%s: span_size=%d: file %s extracted bytes != original bytes; byte %d is different",
-							tc.name, tc.spanSize, fileName, i)
-					}
-				}
+				diffIdx := getPositionOfFirstDiffInByteSlice(extracted, original)
+				t.Fatalf("%s: span_size=%d: file %s extracted bytes != original bytes; byte %d is different",
+					tc.name, tc.spanSize, fileName, diffIdx)
 			}
 		}
 
@@ -236,53 +233,8 @@ func TestZtocGenerationConsistency(t *testing.T) {
 
 			// Compare raw Checkpoints
 			if !bytes.Equal(ztoc1.CompressionInfo.Checkpoints, ztoc2.CompressionInfo.Checkpoints) {
-
-				// compare Checkpoints within Go
-				index1, err := unmarshalGzipZinfo(ztoc1.CompressionInfo.Checkpoints[0])
-				if err != nil {
-					t.Fatalf("index from ztoc1 should contain data")
-				}
-				index2, err := unmarshalGzipZinfo(ztoc2.CompressionInfo.Checkpoints[0])
-				if err != nil {
-					t.Fatalf("index from ztoc2 should contain data")
-				}
-
-				if index1.have != index2.have {
-					t.Fatalf("index1.have=%d must be equal to index2.have=%d", index1.have, index2.have)
-				}
-
-				if index1.size != index2.size {
-					t.Fatalf("index1.size=%d must be equal to index2.size=%d", index1.size, index2.size)
-				}
-
-				if index1.spanSize != index2.spanSize {
-					t.Fatalf("index1.span_size=%d must be equal to index2.span_size=%d", index1.spanSize, index2.spanSize)
-				}
-
-				if len(index1.list) != len(index2.list) {
-					t.Fatalf("len(index1.list)=%d must be equal to len(index2.list)=%d", len(index1.list), len(index2.list))
-				}
-
-				for i := 0; i < len(index1.list); i++ {
-					indexPoint1 := index1.list[i]
-					indexPoint2 := index2.list[i]
-
-					if indexPoint1.bits != indexPoint2.bits {
-						t.Fatalf("index1.list[%d].bits=%d must be equal to index2.list[%d].bits=%d", i, index1.list[i].bits, i, index2.list[i].bits)
-					}
-
-					if indexPoint1.in != indexPoint2.in {
-						t.Fatalf("index1.list[%d].in=%d must be equal to index2.list[%d].in=%d", i, index1.list[i].in, i, index2.list[i].in)
-					}
-
-					if indexPoint1.out != indexPoint2.out {
-						t.Fatalf("index1.list[%d].out=%d must be equal to index2.list[%d].out=%d", i, index1.list[i].out, i, index2.list[i].out)
-					}
-
-					if !reflect.DeepEqual(indexPoint1.window, indexPoint2.window) {
-						t.Fatalf("index1.list[%d].window must be identical to index2.list[%d].window", i, i)
-					}
-				}
+				diffIdx := getPositionOfFirstDiffInByteSlice(ztoc1.CompressionInfo.Checkpoints, ztoc2.CompressionInfo.Checkpoints)
+				t.Fatalf("ztoc1.CompressionInfo.Checkpoints differ ztoc2.CompressionInfo.Checkpoints starting from position %d", diffIdx)
 			}
 
 		})
@@ -668,4 +620,18 @@ func genRandomByteData(size int) []byte {
 	b := make([]byte, size)
 	rand.Read(b)
 	return b
+}
+
+func getPositionOfFirstDiffInByteSlice(a, b []byte) int {
+	sz := len(a)
+	if len(b) < len(a) {
+		sz = len(b)
+	}
+	for i := 0; i < sz; i++ {
+		if a[i] != b[i] {
+			return i
+		}
+	}
+
+	return -1
 }

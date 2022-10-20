@@ -16,8 +16,8 @@
 
 package soci
 
-// #cgo CFLAGS: -I${SRCDIR}/../c/
-// #cgo LDFLAGS: -L${SRCDIR}/../out -lzinfo -lz
+// #cgo CFLAGS: -I${SRCDIR}/
+// #cgo LDFLAGS: -L${SRCDIR}/../out -lz
 // #include "zinfo.h"
 // #include <stdlib.h>
 // #include <stdint.h>
