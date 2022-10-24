@@ -102,7 +102,7 @@ func New(dockerComposeYaml string, opts ...Option) (*Compose, error) {
 		return nil, err
 	}
 	confFile := filepath.Join(tmpContext, "docker-compose.yml")
-	if err := os.WriteFile(confFile, []byte(dockerComposeYaml), 0666); err != nil {
+	if err := os.WriteFile(confFile, []byte(dockerComposeYaml), 0600); err != nil {
 		return nil, err
 	}
 
