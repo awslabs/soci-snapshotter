@@ -119,7 +119,7 @@ func writeArtifactEntry(entry *ArtifactEntry) error {
 func NewDB() (*ArtifactsDb, error) {
 	once.Do(func() {
 		path := path.Join(config.SociSnapshotterRootPath, artifactsDbName)
-		f, err := os.OpenFile(path, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+		f, err := os.OpenFile(path, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0600)
 		if err != nil {
 			log.G(context.Background()).Errorf("can't create or open the file %s", path)
 			return
