@@ -17,6 +17,8 @@
 package commands
 
 import (
+	"os"
+
 	"github.com/awslabs/soci-snapshotter/fs/config"
 	"github.com/awslabs/soci-snapshotter/soci"
 	"github.com/containerd/containerd/cmd/ctr/commands"
@@ -79,6 +81,16 @@ var CreateCommand = cli.Command{
 		}
 		spanSize := cliContext.Int64(spanSizeFlag)
 		minLayerSize := cliContext.Int64(minLayerSizeFlag)
+		// Creating the snapshotter's root path first if it does not exist, since this ensures, that
+		// it has the limited permission set as drwx--x--x.
+		// The subsequent oci.New creates a root path dir with too broad permission set.
+		if _, err := os.Stat(config.SociSnapshotterRootPath); os.IsNotExist(err) {
+			if err = os.Mkdir(config.SociSnapshotterRootPath, 0711); err != nil {
+				return err
+			}
+		} else if err != nil {
+			return err
+		}
 		blobStore, err := oci.New(config.SociContentStorePath)
 		if err != nil {
 			return err

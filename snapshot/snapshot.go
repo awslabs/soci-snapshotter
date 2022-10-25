@@ -593,7 +593,7 @@ func (o *snapshotter) prepareDirectory(ctx context.Context, snapshotDir string, 
 		return "", errors.Wrap(err, "failed to create temp dir")
 	}
 
-	if err := os.Mkdir(filepath.Join(td, "fs"), 0755); err != nil {
+	if err := os.Mkdir(filepath.Join(td, "fs"), 0711); err != nil {
 		return td, err
 	}
 
