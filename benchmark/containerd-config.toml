@@ -1,0 +1,7 @@
+version = 2
+[debug]
+  level = "DEBUG"
+[proxy_plugins]
+  [proxy_plugins.soci]
+    type = "snapshot"
+    address = "/tmp/soci-snapshotter-grpc/soci-snapshotter-grpc.sock"
