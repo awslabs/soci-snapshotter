@@ -20,8 +20,10 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"testing"
 
+	"github.com/containerd/containerd/images"
 	"github.com/google/go-cmp/cmp"
 	"github.com/opencontainers/go-digest"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
@@ -84,49 +86,51 @@ func TestSkipBuildingZtoc(t *testing.T) {
 
 func TestBuildSociIndexNotLayer(t *testing.T) {
 	testcases := []struct {
-		name          string
-		mediaType     string
-		errorNotLayer bool
+		name      string
+		mediaType string
+		err       error
 	}{
 		{
-			name:          "empty media type",
-			mediaType:     "",
-			errorNotLayer: true,
+			name:      "empty media type",
+			mediaType: "",
+			err:       errNotLayerType,
 		},
 		{
-			name:          "soci index manifest",
-			mediaType:     ORASManifestMediaType,
-			errorNotLayer: true,
+			name:      "soci index manifest",
+			mediaType: ORASManifestMediaType,
+			err:       errNotLayerType,
 		},
 		{
-			name:          "soci layer",
-			mediaType:     SociLayerMediaType,
-			errorNotLayer: true,
+			name:      "soci layer",
+			mediaType: SociLayerMediaType,
+			err:       errNotLayerType,
 		},
 		{
-			name:          "index manifest",
-			mediaType:     "application/vnd.oci.image.manifest.v1+json",
-			errorNotLayer: true,
+			name:      "index manifest",
+			mediaType: "application/vnd.oci.image.manifest.v1+json",
+			err:       errNotLayerType,
 		},
 		{
-			name:          "layer as tar",
-			mediaType:     "application/vnd.oci.image.layer.v1.tar",
-			errorNotLayer: false,
+			name:      "layer as tar",
+			mediaType: "application/vnd.oci.image.layer.v1.tar",
+			err:       errUnsupportedLayerFormat,
 		},
 		{
-			name:          "layer as tar+gzip",
-			mediaType:     "application/vnd.oci.image.layer.v1.tar+gzip",
-			errorNotLayer: false,
+			name:      "docker",
+			mediaType: images.MediaTypeDockerSchema2Layer,
+			err:       errUnsupportedLayerFormat,
 		},
 		{
-			name:          "layer as tar+zstd",
-			mediaType:     "application/vnd.oci.image.layer.v1.tar+zstd",
-			errorNotLayer: false,
+			name:      "layer as tar+gzip",
+			mediaType: "application/vnd.oci.image.layer.v1.tar+gzip",
 		},
 		{
-			name:          "layer prefix",
-			mediaType:     "application/vnd.oci.image.layer.",
-			errorNotLayer: false,
+			name:      "layer as tar+zstd",
+			mediaType: "application/vnd.oci.image.layer.v1.tar+zstd",
+		},
+		{
+			name:      "layer prefix",
+			mediaType: "application/vnd.oci.image.layer.",
 		},
 	}
 
@@ -136,13 +140,14 @@ func TestBuildSociIndexNotLayer(t *testing.T) {
 			cs := newFakeContentStore()
 			desc := ocispec.Descriptor{
 				MediaType: tc.mediaType,
+				Digest:    "layerdigest",
 			}
 			cfg := &buildConfig{}
 			spanSize := int64(65535)
 			blobStore := memory.New()
 			_, err := buildSociLayer(ctx, cs, desc, spanSize, blobStore, cfg)
-			if tc.errorNotLayer {
-				if err != errNotLayerType {
+			if tc.err != nil {
+				if !errors.Is(err, tc.err) {
 					t.Fatalf("%v: should error out as not a layer", tc.name)
 				}
 			} else {
