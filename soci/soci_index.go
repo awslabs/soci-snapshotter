@@ -63,7 +63,8 @@ const (
 )
 
 var (
-	errNotLayerType = errors.New("not a layer mediaType")
+	errNotLayerType           = errors.New("not a layer mediaType")
+	errUnsupportedLayerFormat = errors.New("unsupported layer format")
 )
 
 // Index represents an ORAS/OCI Artifact Manifest
@@ -300,7 +301,8 @@ func buildSociLayer(ctx context.Context, cs content.Store, desc ocispec.Descript
 		return nil, fmt.Errorf("could not determine layer compression: %w", err)
 	}
 	if compression != "gzip" {
-		return nil, errors.New("only layers compressed with gzip are supported")
+		return nil, fmt.Errorf("layer %s (%s) must be compressed by gzip, but got %q: %w",
+			desc.Digest, desc.MediaType, compression, errUnsupportedLayerFormat)
 	}
 
 	ra, err := cs.ReaderAt(ctx, desc)
