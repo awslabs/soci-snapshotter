@@ -82,8 +82,7 @@ func TestSociCreateSparseIndex(t *testing.T) {
 			}
 
 			expectedAnnotations := map[string]string{
-				soci.IndexAnnotationBuildToolIdentifier: "AWS SOCI CLI",
-				soci.IndexAnnotationBuildToolVersion:    "0.1",
+				soci.IndexAnnotationBuildToolIdentifier: "My cool SOCI CLI v1.0",
 			}
 
 			if diff := cmp.Diff(index.Annotations, expectedAnnotations); diff != "" {
@@ -178,8 +177,7 @@ func TestSociCreate(t *testing.T) {
 			}
 
 			expectedAnnotations := map[string]string{
-				soci.IndexAnnotationBuildToolIdentifier: "AWS SOCI CLI",
-				soci.IndexAnnotationBuildToolVersion:    "0.1",
+				soci.IndexAnnotationBuildToolIdentifier: "My cool SOCI CLI v0.1",
 			}
 
 			if diff := cmp.Diff(sociIndex.Annotations, expectedAnnotations); diff != "" {

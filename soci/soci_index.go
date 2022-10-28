@@ -47,8 +47,6 @@ const (
 	IndexAnnotationImageLayerDigest = "com.amazon.soci.image-layer-digest"
 	// index annotation for build tool identifier
 	IndexAnnotationBuildToolIdentifier = "com.amazon.soci.build-tool-identifier"
-	// index annotation for build tool version
-	IndexAnnotationBuildToolVersion = "com.amazon.soci.build-tool-version"
 	// media type for OCI Artifact manifest
 	OCIArtifactManifestMediaType = "application/vnd.oci.artifact.manifest.v1+json"
 	// media type for ORAS manifest
@@ -146,7 +144,6 @@ func GetIndexDescriptorCollection(ctx context.Context, cs content.Store, img ima
 type buildConfig struct {
 	minLayerSize        int64
 	buildToolIdentifier string
-	buildToolVersion    string
 	manifestType        ManifestType
 }
 
@@ -162,13 +159,6 @@ func WithMinLayerSize(minLayerSize int64) BuildOption {
 func WithBuildToolIdentifier(tool string) BuildOption {
 	return func(c *buildConfig) error {
 		c.buildToolIdentifier = tool
-		return nil
-	}
-}
-
-func WithBuildToolVersion(version string) BuildOption {
-	return func(c *buildConfig) error {
-		c.buildToolVersion = version
 		return nil
 	}
 }
@@ -226,7 +216,6 @@ func BuildSociIndex(ctx context.Context, cs content.Store, img images.Image, spa
 
 	annotations := map[string]string{
 		IndexAnnotationBuildToolIdentifier: config.buildToolIdentifier,
-		IndexAnnotationBuildToolVersion:    config.buildToolVersion,
 	}
 
 	refers := &ocispec.Descriptor{

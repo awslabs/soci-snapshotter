@@ -30,7 +30,6 @@ import (
 
 const (
 	buildToolIdentifier = "AWS SOCI CLI"
-	buildToolVersion    = "0.1"
 
 	spanSizeFlag           = "span-size"
 	minLayerSizeFlag       = "min-layer-size"
@@ -104,7 +103,6 @@ var CreateCommand = cli.Command{
 		sociIndex, err := soci.BuildSociIndex(ctx, cs, srcImg, spanSize, blobStore,
 			soci.WithMinLayerSize(minLayerSize),
 			soci.WithBuildToolIdentifier(buildToolIdentifier),
-			soci.WithBuildToolVersion(buildToolVersion),
 			soci.WithManifestType(manifestType))
 
 		if err != nil {
