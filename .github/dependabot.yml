@@ -1,0 +1,26 @@
+version: 2
+updates:
+  
+  # Automatic upgrade for go modules.
+  - package-ecosystem: "gomod"
+    directory: "/"
+    schedule:
+      interval: "daily"
+      
+  # Automatic upgrade for go modules of cmd package.
+  - package-ecosystem: "gomod"
+    directory: "/cmd"
+    schedule:
+      interval: "daily"
+  
+  # Automatic upgrade for base images used in the Dockerfile
+  - package-ecosystem: "docker"
+    directory: "/"
+    schedule:
+      interval: "daily"
+
+  # Automatic upgrade for Github Actions
+  - package-ecosystem: "github-actions"
+    directory: "/" # means ".github/workflows"
+    schedule:
+      interval: "daily"
