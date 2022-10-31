@@ -383,11 +383,10 @@ func (m *SpanManager) fetchSpan(buf []byte, spanID soci.SpanID, r *io.SectionRea
 
 func (m *SpanManager) uncompressSpan(s *span, compressedBuf []byte) ([]byte, error) {
 	uncompSize := s.endUncompOffset - s.startUncompOffset
-	bytes := make([]byte, uncompSize)
 
 	// Theoretically, a span can be empty. If that happens, just return an empty buffer.
 	if uncompSize == 0 {
-		return bytes, nil
+		return []byte{}, nil
 	}
 
 	bytes, err := m.index.ExtractDataFromBuffer(compressedBuf, uncompSize, s.startUncompOffset, s.id)
