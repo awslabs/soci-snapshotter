@@ -90,16 +90,15 @@ type MetadataEntry struct {
 }
 
 func ExtractFile(r *io.SectionReader, config *FileExtractConfig) ([]byte, error) {
-	bytes := make([]byte, config.UncompressedSize)
 	if config.UncompressedSize == 0 {
-		return bytes, nil
+		return []byte{}, nil
 	}
 
 	numSpans := config.SpanEnd - config.SpanStart + 1
 
 	gzipZinfo, err := NewGzipZinfo(config.Checkpoints)
 	if err != nil {
-		return bytes, nil
+		return nil, nil
 	}
 	defer gzipZinfo.Close()
 
@@ -153,10 +152,10 @@ func ExtractFile(r *io.SectionReader, config *FileExtractConfig) ([]byte, error)
 		})
 	}
 	if err := eg.Wait(); err != nil {
-		return bytes, err
+		return nil, err
 	}
 
-	bytes, err = gzipZinfo.ExtractDataFromBuffer(buf, config.UncompressedSize, config.UncompressedOffset, config.SpanStart)
+	bytes, err := gzipZinfo.ExtractDataFromBuffer(buf, config.UncompressedSize, config.UncompressedOffset, config.SpanStart)
 	if err != nil {
 		return nil, err
 	}
