@@ -448,7 +448,6 @@ func TestZtocSerialization(t *testing.T) {
 			spansize := tc.spanSize
 			cfg := &buildConfig{
 				buildToolIdentifier: tc.buildTool,
-				buildToolVersion:    tc.version,
 			}
 			createdZtoc, err := BuildZtoc(*tarGzip, spansize, cfg)
 			if err != nil {
