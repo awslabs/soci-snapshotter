@@ -41,7 +41,6 @@ import (
 	"time"
 
 	dexec "github.com/awslabs/soci-snapshotter/util/dockershell/exec"
-	"golang.org/x/sync/errgroup"
 )
 
 // Supported checks if this pkg can run on the current system.
@@ -229,8 +228,9 @@ func (s *Shell) Pipe(out io.Writer, commands ...[]string) *Shell {
 	if out == nil {
 		out = s.r.Stdout()
 	}
-	var eg errgroup.Group
 	var lastStdout io.ReadCloser
+	var err error
+	var cmds []*dexec.Cmd
 	for i, args := range commands {
 		i, args := i, args
 		if len(args) < 1 {
@@ -239,25 +239,38 @@ func (s *Shell) Pipe(out io.Writer, commands ...[]string) *Shell {
 		s.r.Logf(">>> Running: %v\n", args)
 		cmd := s.Command(args[0], args[1:]...)
 		cmd.Stdin = lastStdout
-		pr, pw := io.Pipe()
 		if i == len(commands)-1 {
 			cmd.Stdout = out
 		} else {
-			cmd.Stdout = pw
-			lastStdout = pr
-		}
-		cmd.Stderr = s.r.Stderr()
-		eg.Go(func() error {
-			if err := cmd.Run(); err != nil {
-				pw.CloseWithError(err)
-				return err
+			lastStdout, err = cmd.StdoutPipe()
+			if err != nil {
+				s.r.Errorf("failed to create stdout pipe for %v: %v", cmd.Args, err)
+				break
 			}
-			pw.Close()
-			return nil
-		})
+		}
+		err = cmd.Start()
+		if err != nil {
+			s.r.Errorf("failed to start %v: %v", cmd.Args, err)
+			break
+		}
+		cmds = append(cmds, cmd)
 	}
-	if err := eg.Wait(); err != nil {
-		return s.fatal("failed to run piped commands %v: %v", commands, err)
+	ok := true
+	// The lifecycle of `exec.Cmd.StdoutPipe` requires that we don't wait
+	// on a process until the reader end has completed reading or else we
+	// could truncate the pipe. Therefore, we wait on processes in reverse
+	// order so that we when we wait on a process, we can guarantee that we
+	// do not depend on its output.
+	// reference: https://pkg.go.dev/os/exec@go1.19#Cmd.StdoutPipe
+	for i := len(cmds) - 1; i >= 0; i-- {
+		cmd := cmds[i]
+		if err = cmd.Wait(); err != nil {
+			s.r.Errorf("error waiting on %v: %v", cmd.Args, err)
+			ok = false
+		}
+	}
+	if !ok {
+		return s.fatal("could not run %v", commands)
 	}
 
 	return s

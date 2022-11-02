@@ -127,9 +127,15 @@ func (cmd *Cmd) toDocker() *exec.Cmd {
 	}
 	base := append([]string{"docker", "exec"}, append(opts, cmd.containerName)...)
 	cmd.dockerExec.Args = append(base, cmd.Args...)
-	cmd.dockerExec.Stdin = cmd.Stdin
-	cmd.dockerExec.Stdout = cmd.Stdout
-	cmd.dockerExec.Stderr = cmd.Stderr
+	if cmd.dockerExec.Stdin == nil {
+		cmd.dockerExec.Stdin = cmd.Stdin
+	}
+	if cmd.dockerExec.Stdout == nil {
+		cmd.dockerExec.Stdout = cmd.Stdout
+	}
+	if cmd.dockerExec.Stderr == nil {
+		cmd.dockerExec.Stderr = cmd.Stderr
+	}
 	return cmd.dockerExec
 }
 
@@ -155,6 +161,14 @@ func (cmd *Cmd) Run() error {
 		return err
 	}
 	return cmd.toDocker().Run()
+}
+
+func (cmd *Cmd) Start() error {
+	return cmd.toDocker().Start()
+}
+
+func (cmd *Cmd) Wait() error {
+	return cmd.toDocker().Wait()
 }
 
 // StderrPipe returns the pipe that will be connected to stderr of the executed command.
