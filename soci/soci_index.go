@@ -113,7 +113,7 @@ type IndexDescriptorInfo struct {
 func GetIndexDescriptorCollection(ctx context.Context, cs content.Store, img images.Image) ([]IndexDescriptorInfo, error) {
 	descriptors := []IndexDescriptorInfo{}
 	platform := platforms.Default()
-	indexDesc, err := GetImageManifestDescriptor(ctx, cs, img, platform)
+	indexDesc, err := GetImageManifestDescriptor(ctx, cs, img.Target, platform)
 	if err != nil {
 		return descriptors, err
 	}
@@ -181,7 +181,7 @@ func BuildSociIndex(ctx context.Context, cs content.Store, img images.Image, spa
 	platform := platforms.Default()
 	// we get manifest descriptor before calling images.Manifest, since after calling
 	// images.Manifest, images.Children will error out when reading the manifest blob (this happens on containerd side)
-	imgManifestDesc, err := GetImageManifestDescriptor(ctx, cs, img, platform)
+	imgManifestDesc, err := GetImageManifestDescriptor(ctx, cs, img.Target, platform)
 	if err != nil {
 		return nil, err
 	}
@@ -314,7 +314,7 @@ func buildSociLayer(ctx context.Context, cs content.Store, desc ocispec.Descript
 		return nil, errors.New("the size of the temp file doesn't match that of the layer")
 	}
 
-	ztoc, err := BuildZtoc(tmpFile.Name(), spanSize, cfg)
+	ztoc, err := BuildZtoc(tmpFile.Name(), spanSize, cfg.buildToolIdentifier)
 	if err != nil {
 		return nil, err
 	}
@@ -355,10 +355,9 @@ func buildSociLayer(ctx context.Context, cs content.Store, desc ocispec.Descript
 }
 
 // getImageManifestDescriptor gets the descriptor of image manifest
-func GetImageManifestDescriptor(ctx context.Context, cs content.Store, img images.Image, platform platforms.MatchComparer) (*ocispec.Descriptor, error) {
-	target := img.Target
-	if images.IsIndexType(target.MediaType) {
-		manifests, err := images.Children(ctx, cs, target)
+func GetImageManifestDescriptor(ctx context.Context, cs content.Store, imageTarget ocispec.Descriptor, platform platforms.MatchComparer) (*ocispec.Descriptor, error) {
+	if images.IsIndexType(imageTarget.MediaType) {
+		manifests, err := images.Children(ctx, cs, imageTarget)
 		if err != nil {
 			return nil, err
 		}
@@ -371,8 +370,8 @@ func GetImageManifestDescriptor(ctx context.Context, cs content.Store, img image
 			}
 		}
 		return nil, errors.New("image manifest not found")
-	} else if images.IsManifestType(target.MediaType) {
-		return &target, nil
+	} else if images.IsManifestType(imageTarget.MediaType) {
+		return &imageTarget, nil
 	}
 
 	return nil, nil

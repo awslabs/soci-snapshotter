@@ -72,7 +72,7 @@ var listCommand = cli.Command{
 			}
 
 			cs := client.ContentStore()
-			desc, err := soci.GetImageManifestDescriptor(ctx, cs, img, platforms.Default())
+			desc, err := soci.GetImageManifestDescriptor(ctx, cs, img.Target, platforms.Default())
 			if err != nil {
 				return err
 			}
