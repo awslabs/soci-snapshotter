@@ -55,10 +55,10 @@ import (
 )
 
 const (
-	sampleChunkSize    = 3
-	sampleMiddleOffset = sampleChunkSize / 2
+	sampleSpanSize     = 3
+	sampleMiddleOffset = sampleSpanSize / 2
 	sampleData1        = "0123456789"
-	lastChunkOffset1   = sampleChunkSize * (int64(len(sampleData1)) / sampleChunkSize)
+	lastSpanOffset1    = sampleSpanSize * (int64(len(sampleData1)) / sampleSpanSize)
 )
 
 var spanSizeCond = [3]int64{64, 128, 256}
@@ -70,21 +70,21 @@ func TestSuiteReader(t *testing.T, store metadata.Store) {
 
 func testFileReadAt(t *testing.T, factory metadata.Store) {
 	sizeCond := map[string]int64{
-		"single_chunk": sampleChunkSize - sampleMiddleOffset,
-		"multi_chunks": sampleChunkSize + sampleMiddleOffset,
+		"single_span": sampleSpanSize - sampleMiddleOffset,
+		"multi_spans": sampleSpanSize + sampleMiddleOffset,
 	}
 	innerOffsetCond := map[string]int64{
 		"at_top":    0,
 		"at_middle": sampleMiddleOffset,
 	}
 	baseOffsetCond := map[string]int64{
-		"of_1st_chunk":  sampleChunkSize * 0,
-		"of_2nd_chunk":  sampleChunkSize * 1,
-		"of_last_chunk": lastChunkOffset1,
+		"of_1st_span":  sampleSpanSize * 0,
+		"of_2nd_span":  sampleSpanSize * 1,
+		"of_last_span": lastSpanOffset1,
 	}
 	fileSizeCond := map[string]int64{
-		"in_1_chunk_file":  sampleChunkSize * 1,
-		"in_2_chunks_file": sampleChunkSize * 2,
+		"in_1_span_file":   sampleSpanSize * 1,
+		"in_2_spans_file":  sampleSpanSize * 2,
 		"in_max_size_file": int64(len(sampleData1)),
 	}
 	for sn, size := range sizeCond {

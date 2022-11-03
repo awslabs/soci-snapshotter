@@ -69,10 +69,9 @@ type TestableReader interface {
 func TestReader(t *testing.T, factory ReaderFactory) {
 	sampleTime := time.Now().Truncate(time.Second)
 	tests := []struct {
-		name      string
-		chunkSize int
-		in        []testutil.TarEntry
-		want      []check
+		name string
+		in   []testutil.TarEntry
+		want []check
 	}{
 		{
 			name: "files",

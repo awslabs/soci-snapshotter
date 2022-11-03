@@ -71,7 +71,6 @@ import (
 )
 
 const (
-	defaultChunkSize        = 50000
 	defaultValidIntervalSec = 60
 	defaultFetchTimeoutSec  = 300
 
@@ -81,9 +80,6 @@ const (
 )
 
 func NewResolver(cfg config.BlobConfig, handlers map[string]Handler) *Resolver {
-	if cfg.ChunkSize == 0 { // zero means "use default chunk size"
-		cfg.ChunkSize = defaultChunkSize
-	}
 	if cfg.ValidInterval == 0 { // zero means "use default interval"
 		cfg.ValidInterval = defaultValidIntervalSec
 	}
@@ -128,7 +124,6 @@ func (r *Resolver) Resolve(ctx context.Context, hosts source.RegistryHosts, refs
 	blobConfig := &r.blobConfig
 	return makeBlob(f,
 		size,
-		blobConfig.ChunkSize,
 		time.Now(),
 		time.Duration(blobConfig.ValidInterval)*time.Second,
 		r,
@@ -439,7 +434,7 @@ func (f *httpFetcher) fetch(ctx context.Context, rs []region, retry bool) (multi
 		singleRangeMode = f.isSingleRangeMode()
 	)
 
-	// squash requesting chunks for reducing the total size of request header
+	// squash requesting regions for reducing the total size of request header
 	// (servers generally have limits for the size of headers)
 	// TODO: when our request has too many ranges, we need to divide it into
 	//       multiple requests to avoid huge header.
@@ -489,7 +484,7 @@ func (f *httpFetcher) fetch(ctx context.Context, rs []region, retry bool) (multi
 			return nil, errors.Wrapf(err, "invalid media type %q", mediaType)
 		}
 		if strings.HasPrefix(mediaType, "multipart/") {
-			// We are getting a set of chunks as a multipart body.
+			// We are getting a set of regions as a multipart body.
 			return newMultiPartReader(res.Body, params["boundary"]), nil
 		}
 

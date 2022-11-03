@@ -43,6 +43,7 @@ import (
 	"fmt"
 	"io"
 	"regexp"
+
 	"sync"
 	"time"
 
@@ -68,7 +69,6 @@ type blob struct {
 	fetcherMu sync.Mutex
 
 	size          int64
-	chunkSize     int64
 	lastCheck     time.Time
 	lastCheckMu   sync.Mutex
 	checkInterval time.Duration
@@ -83,12 +83,11 @@ type blob struct {
 	closedMu sync.Mutex
 }
 
-func makeBlob(fetcher fetcher, size int64, chunkSize int64, lastCheck time.Time, checkInterval time.Duration,
+func makeBlob(fetcher fetcher, size int64, lastCheck time.Time, checkInterval time.Duration,
 	r *Resolver, fetchTimeout time.Duration) *blob {
 	return &blob{
 		fetcher:       fetcher,
 		size:          size,
-		chunkSize:     chunkSize,
 		lastCheck:     lastCheck,
 		checkInterval: checkInterval,
 		resolver:      r,
@@ -176,7 +175,7 @@ func (b *blob) FetchedSize() int64 {
 	return sz
 }
 
-// ReadAt reads remote chunks from specified offset for the buffer size.
+// ReadAt reads remote blob from specified offset for the buffer size.
 // We can configure this function with options.
 func (b *blob) ReadAt(p []byte, offset int64, opts ...Option) (int, error) {
 	if b.isClosed() {
@@ -187,31 +186,18 @@ func (b *blob) ReadAt(p []byte, offset int64, opts ...Option) (int, error) {
 		return 0, nil
 	}
 
-	// Make the buffer chunk aligned
-	allRegion := region{floor(offset, b.chunkSize), ceil(offset+int64(len(p))-1, b.chunkSize) - 1}
-	allData := make(map[region]io.Writer)
+	reg := region{offset, offset + int64(len(p)) - 1}
 
 	var readAtOpts options
 	for _, o := range opts {
 		o(&readAtOpts)
 	}
 
-	b.walkChunks(allRegion, func(chunk region) error {
-		var (
-			base         = positive(chunk.b - offset)
-			lowerUnread  = positive(offset - chunk.b)
-			upperUnread  = positive(chunk.e + 1 - (offset + int64(len(p))))
-			expectedSize = chunk.size() - upperUnread - lowerUnread
-		)
-
-		// Take it from remote registry.
-		// We get the whole chunk here.
-		allData[chunk] = newBytesWriter(p[base:base+expectedSize], lowerUnread)
-		return nil
-	})
+	// Take it from remote registry.
+	w := newBytesWriter(p, 0)
 
 	// Read required data
-	if err := b.fetchRange(allData, &readAtOpts); err != nil {
+	if err := b.fetchRange(reg, w, &readAtOpts); err != nil {
 		return 0, err
 	}
 
@@ -226,31 +212,23 @@ func (b *blob) ReadAt(p []byte, offset int64, opts ...Option) (int, error) {
 	return len(p), nil
 }
 
-// fetchRegions fetches all specified chunks from remote blob.
+// fetchRegion fetches content from remote blob.
 // It must be called from within fetchRange and need to ensure that it is inside the singleflight `Do` operation.
-func (b *blob) fetchRegions(allData map[region]io.Writer, fetched map[region]bool, opts *options) error {
-	if len(allData) == 0 {
-		return nil
-	}
-
+func (b *blob) fetchRegion(reg region, w io.Writer, fetched bool, opts *options) error {
 	// Fetcher can be suddenly updated so we take and use the snapshot of it for
 	// consistency.
 	b.fetcherMu.Lock()
 	fr := b.fetcher
 	b.fetcherMu.Unlock()
 
-	// request missed regions
-	var req []region
-	for reg := range allData {
-		req = append(req, reg)
-		fetched[reg] = false
-	}
-
 	fetchCtx, cancel := context.WithTimeout(context.Background(), b.fetchTimeout)
 	defer cancel()
 	if opts.ctx != nil {
 		fetchCtx = opts.ctx
 	}
+
+	var req []region
+	req = append(req, reg)
 	mr, err := fr.fetch(fetchCtx, req, true)
 
 	if err != nil {
@@ -263,82 +241,34 @@ func (b *blob) fetchRegions(allData map[region]io.Writer, fetched map[region]boo
 	b.lastCheck = time.Now()
 	b.lastCheckMu.Unlock()
 
-	// chunk responsed data. Regions must be aligned by chunk size.
-	// TODO: Reorganize remoteData to make it be aligned by chunk size
 	for {
-		reg, p, err := mr.Next()
+		_, p, err := mr.Next()
 		if err == io.EOF {
 			break
 		} else if err != nil {
 			return errors.Wrapf(err, "failed to read multipart resp")
 		}
-		if err := b.walkChunks(reg, func(chunk region) (retErr error) {
-			w := io.Discard
 
-			// If this chunk is one of the targets, write the content to the
-			// passed reader too.
-			if _, ok := fetched[chunk]; ok {
-				w = io.MultiWriter(w, allData[chunk])
-			}
-
-			// Copy the target chunk
-			if _, err := io.CopyN(w, p, chunk.size()); err != nil {
-				return err
-			}
-
-			b.fetchedRegionSetMu.Lock()
-			b.fetchedRegionSet.add(chunk)
-			b.fetchedRegionSetMu.Unlock()
-			fetched[chunk] = true
-			return nil
-		}); err != nil {
-			return errors.Wrapf(err, "failed to get chunks")
-		}
-	}
-
-	// Check all chunks are fetched
-	var unfetched []region
-	for c, b := range fetched {
-		if !b {
-			unfetched = append(unfetched, c)
-		}
-	}
-	if unfetched != nil {
-		return fmt.Errorf("failed to fetch region %v", unfetched)
-	}
-
-	return nil
-}
-
-// fetchRange fetches all specified chunks from remote blob.
-func (b *blob) fetchRange(allData map[region]io.Writer, opts *options) error {
-	if len(allData) == 0 {
-		return nil
-	}
-
-	fetched := make(map[region]bool)
-	return b.fetchRegions(allData, fetched, opts)
-}
-
-type walkFunc func(reg region) error
-
-// walkChunks walks chunks from begin to end in order in the specified region.
-// specified region must be aligned by chunk size.
-func (b *blob) walkChunks(allRegion region, walkFn walkFunc) error {
-	if allRegion.b%b.chunkSize != 0 {
-		return fmt.Errorf("region (%d, %d) must be aligned by chunk size",
-			allRegion.b, allRegion.e)
-	}
-	for i := allRegion.b; i <= allRegion.e && i < b.size; i += b.chunkSize {
-		reg := region{i, i + b.chunkSize - 1}
-		if reg.e >= b.size {
-			reg.e = b.size - 1
-		}
-		if err := walkFn(reg); err != nil {
+		if _, err := io.CopyN(w, p, reg.size()); err != nil {
 			return err
 		}
+
+		b.fetchedRegionSetMu.Lock()
+		b.fetchedRegionSet.add(reg)
+		b.fetchedRegionSetMu.Unlock()
+		fetched = true
 	}
+
+	if !fetched {
+		return fmt.Errorf("failed to fetch region %v", reg)
+	}
+
 	return nil
+}
+
+// fetchRange fetches content from remote blob.
+func (b *blob) fetchRange(reg region, w io.Writer, opts *options) error {
+	return b.fetchRegion(reg, w, false, opts)
 }
 
 func newBytesWriter(dest []byte, destOff int64) io.Writer {
@@ -377,14 +307,6 @@ func (bw *bytesWriter) Write(p []byte) (int, error) {
 	copy(bw.dest[destBase:], p[pBegin:pEnd])
 
 	return len(p), nil
-}
-
-func floor(n int64, unit int64) int64 {
-	return (n / unit) * unit
-}
-
-func ceil(n int64, unit int64) int64 {
-	return (n/unit + 1) * unit
 }
 
 func positive(n int64) int64 {

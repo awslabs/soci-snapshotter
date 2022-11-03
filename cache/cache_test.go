@@ -180,15 +180,15 @@ func hit(sample string) check {
 	return func(t *testing.T, c BlobCache) {
 		// test whole blob
 		key := digestFor(sample)
-		testChunk(t, c, key, 0, sample)
+		testBlob(t, c, key, 0, sample)
 
 		// test a chunk
 		chunk := len(sample) / 3
-		testChunk(t, c, key, int64(chunk), sample[chunk:2*chunk])
+		testBlob(t, c, key, int64(chunk), sample[chunk:2*chunk])
 	}
 }
 
-func testChunk(t *testing.T, c BlobCache, key string, offset int64, sample string) {
+func testBlob(t *testing.T, c BlobCache, key string, offset int64, sample string) {
 	p := make([]byte, len(sample))
 	r, err := c.Get(key)
 	if err != nil {

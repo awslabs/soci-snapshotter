@@ -123,8 +123,6 @@ func (vr *VerifiableReader) isClosed() bool {
 }
 
 // NewReader creates a Reader based on the given soci blob and Span Manager.
-// It returns VerifiableReader so the caller must provide a metadata.ChunkVerifier
-// to use for verifying file or chunk contained in this stargz blob.
 func NewReader(r metadata.Reader, layerSha digest.Digest, spanManager *spanmanager.SpanManager) (*VerifiableReader, error) {
 	vr := &reader{
 		spanManager: spanManager,
@@ -268,10 +266,10 @@ func WithReader(sr *io.SectionReader) CacheOption {
 	}
 }
 
-func digestVerifier(id uint32, chunkDigestStr string) (digest.Verifier, error) {
-	chunkDigest, err := digest.Parse(chunkDigestStr)
+func digestVerifier(id uint32, digestStr string) (digest.Verifier, error) {
+	digest, err := digest.Parse(digestStr)
 	if err != nil {
-		return nil, errors.Wrap(err, "invalid chunk: no digset is recorded")
+		return nil, errors.Wrap(err, "no digset is recorded")
 	}
-	return chunkDigest.Verifier(), nil
+	return digest.Verifier(), nil
 }
