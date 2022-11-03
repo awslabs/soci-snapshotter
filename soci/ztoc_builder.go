@@ -32,7 +32,7 @@ import (
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 )
 
-func BuildZtoc(gzipFile string, span int64, cfg *buildConfig) (*Ztoc, error) {
+func BuildZtoc(gzipFile string, span int64, buildToolIdentifier string) (*Ztoc, error) {
 	if gzipFile == "" {
 		return nil, fmt.Errorf("need to provide gzip file")
 	}
@@ -78,7 +78,7 @@ func BuildZtoc(gzipFile string, span int64, cfg *buildConfig) (*Ztoc, error) {
 		TOC:                     toc,
 		CompressedArchiveSize:   fs,
 		UncompressedArchiveSize: uncompressedArchiveSize,
-		BuildToolIdentifier:     cfg.buildToolIdentifier,
+		BuildToolIdentifier:     buildToolIdentifier,
 		CompressionInfo:         compressionInfo,
 	}, nil
 }

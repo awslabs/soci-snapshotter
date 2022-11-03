@@ -79,7 +79,7 @@ func TestDecompress(t *testing.T) {
 	for _, tc := range tests {
 		spansize := tc.spanSize
 		cfg := &buildConfig{}
-		ztoc, err := BuildZtoc(*tarGzip, spansize, cfg)
+		ztoc, err := BuildZtoc(*tarGzip, spansize, cfg.buildToolIdentifier)
 		if err != nil {
 			t.Fatalf("%s: can't build ztoc: %v", tc.name, err)
 		}
@@ -194,7 +194,7 @@ func TestZtocGenerationConsistency(t *testing.T) {
 			defer os.Remove(*tarGzip)
 			spansize := tc.spanSize
 			cfg := &buildConfig{}
-			ztoc1, err := BuildZtoc(*tarGzip, spansize, cfg)
+			ztoc1, err := BuildZtoc(*tarGzip, spansize, cfg.buildToolIdentifier)
 			if err != nil {
 				t.Fatalf("can't build ztoc1: %v", err)
 			}
@@ -205,7 +205,7 @@ func TestZtocGenerationConsistency(t *testing.T) {
 				t.Fatalf("ztoc1 metadata file count mismatch. expected: %d, actual: %d", len(fileNames), len(ztoc1.TOC.Metadata))
 			}
 
-			ztoc2, err := BuildZtoc(*tarGzip, spansize, cfg)
+			ztoc2, err := BuildZtoc(*tarGzip, spansize, cfg.buildToolIdentifier)
 			if err != nil {
 				t.Fatalf("can't build ztoc2: %v", err)
 			}
@@ -361,7 +361,7 @@ func TestZtocGeneration(t *testing.T) {
 			cfg := &buildConfig{
 				buildToolIdentifier: tc.buildTool,
 			}
-			ztoc, err := BuildZtoc(*tarGzip, spansize, cfg)
+			ztoc, err := BuildZtoc(*tarGzip, spansize, cfg.buildToolIdentifier)
 			if err != nil {
 				t.Fatalf("can't build ztoc: error=%v", err)
 			}
@@ -449,7 +449,7 @@ func TestZtocSerialization(t *testing.T) {
 			cfg := &buildConfig{
 				buildToolIdentifier: tc.buildTool,
 			}
-			createdZtoc, err := BuildZtoc(*tarGzip, spansize, cfg)
+			createdZtoc, err := BuildZtoc(*tarGzip, spansize, cfg.buildToolIdentifier)
 			if err != nil {
 				t.Fatalf("can't build ztoc: error=%v", err)
 			}
