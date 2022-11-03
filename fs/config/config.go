@@ -74,11 +74,8 @@ type Config struct {
 }
 
 type BlobConfig struct {
-	ValidInterval int64 `toml:"valid_interval"`
-	CheckAlways   bool  `toml:"check_always"`
-	// ChunkSize is the granularity at which background fetch and on-demand reads
-	// are fetched from the remote registry.
-	ChunkSize            int64 `toml:"chunk_size"`
+	ValidInterval        int64 `toml:"valid_interval"`
+	CheckAlways          bool  `toml:"check_always"`
 	FetchTimeoutSec      int64 `toml:"fetching_timeout_sec"`
 	ForceSingleRangeMode bool  `toml:"force_single_range_mode"`
 	MaxRetries           int   `toml:"max_retries"`
