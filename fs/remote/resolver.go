@@ -129,7 +129,6 @@ func (r *Resolver) Resolve(ctx context.Context, hosts source.RegistryHosts, refs
 	return makeBlob(f,
 		size,
 		blobConfig.ChunkSize,
-		blobCache,
 		time.Now(),
 		time.Duration(blobConfig.ValidInterval)*time.Second,
 		r,
