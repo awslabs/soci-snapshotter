@@ -25,14 +25,13 @@ import (
 	"github.com/google/go-cmp/cmp"
 	"github.com/opencontainers/go-digest"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
-	artifactsspec "github.com/oras-project/artifacts-spec/specs-go/v1"
 )
 
 type fakeInner struct {
-	descs []artifactsspec.Descriptor
+	descs []ocispec.Descriptor
 }
 
-func newFakeInner(descs []artifactsspec.Descriptor) *fakeInner {
+func newFakeInner(descs []ocispec.Descriptor) *fakeInner {
 	return &fakeInner{
 		descs: descs,
 	}
@@ -52,26 +51,26 @@ func (f *fakeInner) Push(ctx context.Context, expected ocispec.Descriptor, conte
 	return nil
 }
 
-func (f *fakeInner) Referrers(ctx context.Context, desc ocispec.Descriptor, artifactType string, fn func(referrers []artifactsspec.Descriptor) error) error {
+func (f *fakeInner) Referrers(ctx context.Context, desc ocispec.Descriptor, artifactType string, fn func(referrers []ocispec.Descriptor) error) error {
 	return fn(f.descs)
 }
 
 func TestORASClientGet(t *testing.T) {
 	testCases := []struct {
 		name            string
-		descs           []artifactsspec.Descriptor
+		descs           []ocispec.Descriptor
 		expectedErr     error
 		expectedDesc    ocispec.Descriptor
 		selectionPolicy IndexSelectionPolicy
 	}{
 		{
 			name:        "empty referrers list returns ErrNoReferrers",
-			descs:       make([]artifactsspec.Descriptor, 0),
+			descs:       make([]ocispec.Descriptor, 0),
 			expectedErr: ErrNoReferrers,
 		},
 		{
 			name: "SelectFirstPolicy returns the first descriptor",
-			descs: []artifactsspec.Descriptor{
+			descs: []ocispec.Descriptor{
 				{
 					Digest: digest.FromBytes([]byte("foo")),
 					Size:   3,

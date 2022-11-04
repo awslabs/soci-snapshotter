@@ -92,8 +92,8 @@ if they are available in the snapshotter's local content store.
 		}
 
 		indexDesc := indexDescriptors[len(indexDescriptors)-1]
-		if indexDesc.MediaType == soci.OCIArtifactManifestMediaType {
-			return fmt.Errorf("cannot push index %v to remote since it is not an ORAS manifest", indexDesc.Digest.String()[7:15])
+		if indexDesc.MediaType == soci.ORASManifestMediaType {
+			return fmt.Errorf("cannot push index %v to remote since it is an ORAS manifest", indexDesc.Digest.String()[7:15])
 		}
 		refspec, err := reference.Parse(ref)
 		if err != nil {

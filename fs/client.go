@@ -23,7 +23,6 @@ import (
 
 	"github.com/awslabs/soci-snapshotter/soci"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
-	artifactsspec "github.com/oras-project/artifacts-spec/specs-go/v1"
 	"oras.land/oras-go/v2/content"
 )
 
@@ -46,13 +45,13 @@ type ReferrersClient interface {
 }
 
 // Interface for oras-go's Repository.Referrers call, for mocking
-type ORASReferrersCaller interface {
-	Referrers(ctx context.Context, desc ocispec.Descriptor, artifactType string, fn func(referrers []artifactsspec.Descriptor) error) error
+type ReferrersCaller interface {
+	Referrers(ctx context.Context, desc ocispec.Descriptor, artifactType string, fn func(referrers []ocispec.Descriptor) error) error
 }
 
 type Inner interface {
 	content.Storage
-	ORASReferrersCaller
+	ReferrersCaller
 }
 
 type OrasClient struct {
@@ -78,21 +77,9 @@ func (c *OrasClient) SelectReferrer(ctx context.Context, desc ocispec.Descriptor
 
 func (c *OrasClient) allReferrers(ctx context.Context, desc ocispec.Descriptor) ([]ocispec.Descriptor, error) {
 	descs := []ocispec.Descriptor{}
-	err := c.Referrers(ctx, desc, soci.SociIndexArtifactType, func(referrers []artifactsspec.Descriptor) error {
-		for _, v := range referrers {
-			descs = append(descs, artifactToOCIDesc(v))
-		}
+	err := c.Referrers(ctx, desc, soci.SociIndexArtifactType, func(referrers []ocispec.Descriptor) error {
+		descs = append(descs, referrers...)
 		return nil
 	})
 	return descs, err
-}
-
-func artifactToOCIDesc(ar artifactsspec.Descriptor) ocispec.Descriptor {
-	return ocispec.Descriptor{
-		MediaType:   ar.MediaType,
-		Digest:      ar.Digest,
-		Size:        ar.Size,
-		Annotations: ar.Annotations,
-		URLs:        ar.URLs,
-	}
 }
