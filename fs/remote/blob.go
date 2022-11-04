@@ -43,17 +43,13 @@ import (
 	"fmt"
 	"io"
 	"regexp"
-	"sort"
-	"strings"
 	"sync"
 	"time"
 
-	"github.com/awslabs/soci-snapshotter/cache"
 	"github.com/awslabs/soci-snapshotter/fs/source"
 	"github.com/containerd/containerd/reference"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
-	"golang.org/x/sync/singleflight"
 )
 
 var contentRangeRegexp = regexp.MustCompile(`bytes ([0-9]+)-([0-9]+)/([0-9]+|\\*)`)
@@ -63,7 +59,6 @@ type Blob interface {
 	Size() int64
 	FetchedSize() int64
 	ReadAt(p []byte, offset int64, opts ...Option) (int, error)
-	Cache(offset int64, size int64, opts ...Option) error
 	Refresh(ctx context.Context, host source.RegistryHosts, refspec reference.Spec, desc ocispec.Descriptor) error
 	Close() error
 }
@@ -74,16 +69,13 @@ type blob struct {
 
 	size          int64
 	chunkSize     int64
-	cache         cache.BlobCache
 	lastCheck     time.Time
 	lastCheckMu   sync.Mutex
 	checkInterval time.Duration
 	fetchTimeout  time.Duration
 
-	fetchedRegionSet    regionSet
-	fetchedRegionSetMu  sync.Mutex
-	fetchedRegionGroup  singleflight.Group
-	fetchedRegionCopyMu sync.Mutex
+	fetchedRegionSet   regionSet
+	fetchedRegionSetMu sync.Mutex
 
 	resolver *Resolver
 
@@ -91,14 +83,12 @@ type blob struct {
 	closedMu sync.Mutex
 }
 
-func makeBlob(fetcher fetcher, size int64, chunkSize int64,
-	blobCache cache.BlobCache, lastCheck time.Time, checkInterval time.Duration,
+func makeBlob(fetcher fetcher, size int64, chunkSize int64, lastCheck time.Time, checkInterval time.Duration,
 	r *Resolver, fetchTimeout time.Duration) *blob {
 	return &blob{
 		fetcher:       fetcher,
 		size:          size,
 		chunkSize:     chunkSize,
-		cache:         blobCache,
 		lastCheck:     lastCheck,
 		checkInterval: checkInterval,
 		resolver:      r,
@@ -109,11 +99,10 @@ func makeBlob(fetcher fetcher, size int64, chunkSize int64,
 func (b *blob) Close() error {
 	b.closedMu.Lock()
 	defer b.closedMu.Unlock()
-	if b.closed {
-		return nil
+	if !b.closed {
+		b.closed = true
 	}
-	b.closed = true
-	return b.cache.Close()
+	return nil
 }
 
 func (b *blob) isClosed() bool {
@@ -187,54 +176,7 @@ func (b *blob) FetchedSize() int64 {
 	return sz
 }
 
-func makeSyncKey(allData map[region]io.Writer) string {
-	keys := make([]string, len(allData))
-	keysIndex := 0
-	for key := range allData {
-		keys[keysIndex] = fmt.Sprintf("[%d,%d]", key.b, key.e)
-		keysIndex++
-	}
-	sort.Strings(keys)
-	return strings.Join(keys, ",")
-}
-
-func (b *blob) cacheAt(offset int64, size int64, fr fetcher, cacheOpts *options) error {
-	fetchReg := region{floor(offset, b.chunkSize), ceil(offset+size-1, b.chunkSize) - 1}
-	discard := make(map[region]io.Writer)
-
-	err := b.walkChunks(fetchReg, func(reg region) error {
-		if r, err := b.cache.Get(fr.genID(reg), cacheOpts.cacheOpts...); err == nil {
-			return r.Close() // nop if the cache hits
-		}
-		discard[reg] = io.Discard
-		return nil
-	})
-	if err != nil {
-		return err
-	}
-
-	return b.fetchRange(discard, cacheOpts)
-}
-
-func (b *blob) Cache(offset int64, size int64, opts ...Option) error {
-	if b.isClosed() {
-		return fmt.Errorf("blob is already closed")
-	}
-
-	var cacheOpts options
-	for _, o := range opts {
-		o(&cacheOpts)
-	}
-
-	b.fetcherMu.Lock()
-	fr := b.fetcher
-	b.fetcherMu.Unlock()
-
-	return b.cacheAt(offset, size, fr, &cacheOpts)
-}
-
 // ReadAt reads remote chunks from specified offset for the buffer size.
-// It tries to fetch as many chunks as possible from local cache.
 // We can configure this function with options.
 func (b *blob) ReadAt(p []byte, offset int64, opts ...Option) (int, error) {
 	if b.isClosed() {
@@ -254,12 +196,6 @@ func (b *blob) ReadAt(p []byte, offset int64, opts ...Option) (int, error) {
 		o(&readAtOpts)
 	}
 
-	// Fetcher can be suddenly updated so we take and use the snapshot of it for
-	// consistency.
-	b.fetcherMu.Lock()
-	fr := b.fetcher
-	b.fetcherMu.Unlock()
-
 	b.walkChunks(allRegion, func(chunk region) error {
 		var (
 			base         = positive(chunk.b - offset)
@@ -268,19 +204,8 @@ func (b *blob) ReadAt(p []byte, offset int64, opts ...Option) (int, error) {
 			expectedSize = chunk.size() - upperUnread - lowerUnread
 		)
 
-		// Check if the content exists in the cache
-		r, err := b.cache.Get(fr.genID(chunk), readAtOpts.cacheOpts...)
-		if err == nil {
-			defer r.Close()
-			n, err := r.ReadAt(p[base:base+expectedSize], lowerUnread)
-			if (err == nil || err == io.EOF) && int64(n) == expectedSize {
-				return nil
-			}
-		}
-
-		// We missed cache. Take it from remote registry.
-		// We get the whole chunk here and add it to the cache so that following
-		// reads against neighboring chunks can take the data without making HTTP requests.
+		// Take it from remote registry.
+		// We get the whole chunk here.
 		allData[chunk] = newBytesWriter(p[base:base+expectedSize], lowerUnread)
 		return nil
 	})
@@ -301,7 +226,7 @@ func (b *blob) ReadAt(p []byte, offset int64, opts ...Option) (int, error) {
 	return len(p), nil
 }
 
-// fetchRegions fetches all specified chunks from remote blob and puts it in the local cache.
+// fetchRegions fetches all specified chunks from remote blob.
 // It must be called from within fetchRange and need to ensure that it is inside the singleflight `Do` operation.
 func (b *blob) fetchRegions(allData map[region]io.Writer, fetched map[region]bool, opts *options) error {
 	if len(allData) == 0 {
@@ -338,7 +263,7 @@ func (b *blob) fetchRegions(allData map[region]io.Writer, fetched map[region]boo
 	b.lastCheck = time.Now()
 	b.lastCheckMu.Unlock()
 
-	// chunk and cache responsed data. Regions must be aligned by chunk size.
+	// chunk responsed data. Regions must be aligned by chunk size.
 	// TODO: Reorganize remoteData to make it be aligned by chunk size
 	for {
 		reg, p, err := mr.Next()
@@ -348,13 +273,7 @@ func (b *blob) fetchRegions(allData map[region]io.Writer, fetched map[region]boo
 			return errors.Wrapf(err, "failed to read multipart resp")
 		}
 		if err := b.walkChunks(reg, func(chunk region) (retErr error) {
-			id := fr.genID(chunk)
-			cw, err := b.cache.Add(id, opts.cacheOpts...)
-			if err != nil {
-				return err
-			}
-			defer cw.Close()
-			w := io.Writer(cw)
+			w := io.Discard
 
 			// If this chunk is one of the targets, write the content to the
 			// passed reader too.
@@ -364,12 +283,6 @@ func (b *blob) fetchRegions(allData map[region]io.Writer, fetched map[region]boo
 
 			// Copy the target chunk
 			if _, err := io.CopyN(w, p, chunk.size()); err != nil {
-				cw.Abort()
-				return err
-			}
-
-			// Add the target chunk to the cache
-			if err := cw.Commit(); err != nil {
 				return err
 			}
 
@@ -397,62 +310,14 @@ func (b *blob) fetchRegions(allData map[region]io.Writer, fetched map[region]boo
 	return nil
 }
 
-// fetchRange fetches all specified chunks from local cache and remote blob.
+// fetchRange fetches all specified chunks from remote blob.
 func (b *blob) fetchRange(allData map[region]io.Writer, opts *options) error {
 	if len(allData) == 0 {
 		return nil
 	}
 
-	// We build a key based on regions we need to fetch and pass it to singleflightGroup.Do(...)
-	// to block simultaneous same requests. Once the request is finished and the data is ready,
-	// all blocked callers will be unblocked and that same data will be returned by all blocked callers.
-	key := makeSyncKey(allData)
 	fetched := make(map[region]bool)
-	_, err, shared := b.fetchedRegionGroup.Do(key, func() (interface{}, error) {
-		return nil, b.fetchRegions(allData, fetched, opts)
-	})
-
-	// When unblocked try to read from cache in case if there were no errors
-	// If we fail reading from cache, fetch from remote registry again
-	if err == nil && shared {
-		for reg := range allData {
-			if _, ok := fetched[reg]; ok {
-				continue
-			}
-			err = b.walkChunks(reg, func(chunk region) error {
-				b.fetcherMu.Lock()
-				fr := b.fetcher
-				b.fetcherMu.Unlock()
-
-				// Check if the content exists in the cache
-				// And if exists, read from cache
-				r, err := b.cache.Get(fr.genID(chunk), opts.cacheOpts...)
-				if err != nil {
-					return err
-				}
-				defer r.Close()
-				rr := io.NewSectionReader(r, 0, chunk.size())
-
-				// Copy the target chunk
-				b.fetchedRegionCopyMu.Lock()
-				defer b.fetchedRegionCopyMu.Unlock()
-				if _, err := io.CopyN(allData[chunk], rr, chunk.size()); err != nil {
-					return err
-				}
-				return nil
-			})
-			if err != nil {
-				break
-			}
-		}
-
-		// if we cannot read the data from cache, do fetch again
-		if err != nil {
-			return b.fetchRange(allData, opts)
-		}
-	}
-
-	return err
+	return b.fetchRegions(allData, fetched, opts)
 }
 
 type walkFunc func(reg region) error

@@ -53,8 +53,6 @@ import (
 	"sync/atomic"
 	"testing"
 	"time"
-
-	"github.com/awslabs/soci-snapshotter/cache"
 )
 
 const (
@@ -63,10 +61,9 @@ const (
 	sampleChunkSize    = 3
 	sampleMiddleOffset = sampleChunkSize / 2
 	sampleData1        = "0123456789"
-	lastChunkOffset1   = sampleChunkSize * (int64(len(sampleData1)) / sampleChunkSize)
 )
 
-// Tests ReadAt and Cache method of each file.
+// Tests ReadAt method of each file.
 func TestReadAt(t *testing.T) {
 	sizeCond := map[string]int64{
 		"single_chunk": sampleChunkSize - sampleMiddleOffset,
@@ -86,49 +83,14 @@ func TestReadAt(t *testing.T) {
 		"in_3_chunks_blob": sampleChunkSize * 3,
 		"in_max_size_blob": int64(len(sampleData1)),
 	}
-	type cacheCond struct {
-		reg     region
-		mustHit bool
-	}
 	transportCond := map[string]struct {
 		allowMultiRange bool
-		cacheCond       []cacheCond
 	}{
-		"with_multi_reg_with_clean_cache": {
+		"with_multi_reg": {
 			allowMultiRange: true,
-			cacheCond:       nil,
 		},
-		"with_single_reg_with_clean_cache": {
+		"with_single_reg": {
 			allowMultiRange: false,
-			cacheCond:       nil,
-		},
-		"with_multi_reg_with_edge_filled_cache": {
-			allowMultiRange: true,
-			cacheCond: []cacheCond{
-				{region{0, sampleChunkSize - 1}, true},
-				{region{lastChunkOffset1, int64(len(sampleData1)) - 1}, true},
-			},
-		},
-		"with_single_reg_with_edge_filled_cache": {
-			allowMultiRange: false,
-			cacheCond: []cacheCond{
-				{region{0, sampleChunkSize - 1}, true},
-				{region{lastChunkOffset1, int64(len(sampleData1)) - 1}, true},
-			},
-		},
-		"with_multi_reg_with_sparse_cache": {
-			allowMultiRange: true,
-			cacheCond: []cacheCond{
-				{region{0, sampleChunkSize - 1}, true},
-				{region{2 * sampleChunkSize, 3*sampleChunkSize - 1}, true},
-			},
-		},
-		"with_single_reg_with_sparse_cache": {
-			allowMultiRange: false,
-			cacheCond: []cacheCond{
-				{region{0, sampleChunkSize - 1}, true},
-				{region{2 * sampleChunkSize, 3*sampleChunkSize - 1}, false},
-			},
 		},
 	}
 
@@ -164,51 +126,17 @@ func TestReadAt(t *testing.T) {
 							blob := []byte(sampleData1)[:blobsize]
 
 							// Check with allowing multi range requests
-							var cacheChunks []region
-							var except []region
-							for _, cond := range trCond.cacheCond {
-								cacheChunks = append(cacheChunks, cond.reg)
-								if cond.mustHit {
-									except = append(except, cond.reg)
-								}
-							}
-							tr := multiRoundTripper(t, blob, allowMultiRange(trCond.allowMultiRange), exceptChunks(except))
+							tr := multiRoundTripper(t, blob, allowMultiRange(trCond.allowMultiRange))
 
 							// Check ReadAt method
 							bb1 := makeTestBlob(t, blobsize, sampleChunkSize, tr)
-							cacheAll(t, bb1, cacheChunks)
 							checkRead(t, wantData, bb1, offset, size)
-
-							// Check Cache method
-							bb2 := makeTestBlob(t, blobsize, sampleChunkSize, tr)
-							cacheAll(t, bb2, cacheChunks)
-							checkCache(t, bb2, offset, size)
 						})
 					}
 
 				}
 			}
 		}
-	}
-}
-
-func cacheAll(t *testing.T, b *blob, chunks []region) {
-	for _, reg := range chunks {
-		id := b.fetcher.genID(reg)
-		w, err := b.cache.Add(id)
-		if err != nil {
-			w.Close()
-			t.Fatalf("failed to add cache %v: %v", id, err)
-		}
-		if _, err := w.Write([]byte(sampleData1[reg.b : reg.e+1])); err != nil {
-			w.Close()
-			t.Fatalf("failed to write cache %v: %v", id, err)
-		}
-		if err := w.Commit(); err != nil {
-			w.Close()
-			t.Fatalf("failed to commit cache %v: %v", id, err)
-		}
-		w.Close()
 	}
 }
 
@@ -225,42 +153,6 @@ func checkRead(t *testing.T, wantData []byte, r *blob, offset int64, wantSize in
 	if !bytes.Equal(wantData, respData) {
 		t.Errorf("off=%d, blobsize=%d; read data{size=%d,data=%q}; want (size=%d,data=%q)",
 			offset, r.Size(), len(respData), string(respData), len(wantData), string(wantData))
-		return
-	}
-
-	// check cache has valid contents.
-	checkAllCached(t, r, offset, wantSize)
-}
-
-func checkCache(t *testing.T, r *blob, offset int64, size int64) {
-	if err := r.Cache(offset, size); err != nil {
-		t.Errorf("failed to cache off=%d, size=%d, blobsize=%d: %v", offset, size, r.Size(), err)
-		return
-	}
-
-	// check cache has valid contents.
-	checkAllCached(t, r, offset, size)
-}
-
-func checkAllCached(t *testing.T, r *blob, offset, size int64) {
-	cn := 0
-	whole := region{floor(offset, r.chunkSize), ceil(offset+size-1, r.chunkSize) - 1}
-	if err := r.walkChunks(whole, func(reg region) error {
-		data := make([]byte, reg.size())
-		id := r.fetcher.genID(reg)
-
-		r, err := r.cache.Get(id)
-		if err != nil {
-			return fmt.Errorf("missed cache of region={%d,%d}(size=%d): %v", reg.b, reg.e, reg.size(), err)
-		}
-		defer r.Close()
-		if n, err := r.ReadAt(data, 0); (err != nil && err != io.EOF) || int64(n) != reg.size() {
-			return fmt.Errorf("failed to read cache of region={%d,%d}(size=%d): %v", reg.b, reg.e, reg.size(), err)
-		}
-		cn++
-		return nil
-	}); err != nil {
-		t.Errorf("%v", err)
 		return
 	}
 }
@@ -365,7 +257,7 @@ func TestParallelDownloadingBehavior(t *testing.T) {
 					end:   3,
 				},
 			},
-			roundtripCount: 1,
+			roundtripCount: 3,
 			chunkSize:      4,
 			content:        "test",
 		},
@@ -415,7 +307,7 @@ func TestParallelDownloadingBehavior(t *testing.T) {
 					end:   7,
 				},
 			},
-			roundtripCount: 1,
+			roundtripCount: 3,
 			chunkSize:      4,
 			content:        "test1234",
 		},
@@ -491,7 +383,7 @@ func TestParallelDownloadingBehavior(t *testing.T) {
 					end:   7,
 				},
 			},
-			roundtripCount: 2,
+			roundtripCount: 3,
 			chunkSize:      4,
 			content:        "test1234",
 		},
@@ -513,7 +405,6 @@ func TestParallelDownloadingBehavior(t *testing.T) {
 				},
 				chunkSize: tst.chunkSize,
 				size:      int64(len(tst.content)),
-				cache:     cache.NewMemoryCache(),
 			}
 		)
 
@@ -580,7 +471,6 @@ func makeTestBlob(t *testing.T, size int64, chunkSize int64, fn RoundTripFunc) *
 		},
 		size,
 		chunkSize,
-		cache.NewMemoryCache(),
 		lastCheck,
 		checkInterval,
 		&Resolver{},
