@@ -556,7 +556,7 @@ services:
     - "lazy-containerd-data:/var/lib/containerd"
     - "lazy-soci-snapshotter-grpc-data:/var/lib/soci-snapshotter-grpc"
   registry:
-    image: ghcr.io/oras-project/registry:v1.0.0-rc
+    image: ghcr.io/oci-playground/registry:v3.0.0-alpha.1
     container_name: {{.RegistryHost}}
     environment:
     - REGISTRY_AUTH=htpasswd
@@ -760,7 +760,7 @@ func buildSparseIndex(sh *shell.Shell, src imageInfo, minLayerSize int64) string
 	opts := encodeImageInfo(src)
 	indexDigest := sh.
 		X(append([]string{"ctr", "i", "pull"}, opts[0]...)...).
-		X("soci", "create", src.ref, "--min-layer-size", fmt.Sprintf("%d", minLayerSize), "--oras").
+		X("soci", "create", src.ref, "--min-layer-size", fmt.Sprintf("%d", minLayerSize)).
 		O("soci", "index", "list", "-q", "--ref", src.ref) // this will make SOCI artifact available locally
 	return strings.Trim(string(indexDigest), "\n")
 }

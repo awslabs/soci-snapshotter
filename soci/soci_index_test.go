@@ -279,18 +279,14 @@ func TestNewIndex(t *testing.T) {
 			mt := index.MediaType
 			if tc.manifestType == ManifestORAS {
 				if mt != ORASManifestMediaType {
-					t.Fatalf("unexpected media type; expected = %v, got = %v", ManifestORAS, mt)
+					t.Fatalf("unexpected media type; expected = %v, got = %v", ORASManifestMediaType, mt)
 				}
-				if diff := cmp.Diff(index.Subject, &tc.subject); diff != "" {
-					t.Fatalf("the subject field is not equal; diff = %v", diff)
-				}
-			} else {
-				if mt != OCIArtifactManifestMediaType {
-					t.Fatalf("unexpected media type; expected = %v, got = %v", ManifestORAS, mt)
-				}
-				if diff := cmp.Diff(index.Refers, &tc.subject); diff != "" {
-					t.Fatalf("the refers field is not equal; diff = %v", diff)
-				}
+			} else if mt != OCIArtifactManifestMediaType {
+				t.Fatalf("unexpected media type; expected = %v, got = %v", OCIArtifactManifestMediaType, mt)
+			}
+
+			if diff := cmp.Diff(index.Subject, &tc.subject); diff != "" {
+				t.Fatalf("the subject field is not equal; diff = %v", diff)
 			}
 		})
 	}

@@ -251,7 +251,7 @@ services:
     - "lazy-containerd-data:/var/lib/containerd"
     - "lazy-soci-snapshotter-grpc-data:/var/lib/soci-snapshotter-grpc"
   registry:
-    image: ghcr.io/oras-project/registry:v1.0.0-rc
+    image: ghcr.io/oci-playground/registry:v3.0.0-alpha.1
     container_name: {{.RegistryHost}}
     environment:
     - REGISTRY_AUTH=htpasswd

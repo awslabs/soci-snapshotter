@@ -73,7 +73,7 @@ func TestSociCreateSparseIndex(t *testing.T) {
 				t.Fatalf("cannot get index data: %v", err)
 			}
 
-			if index.MediaType != artifactsspec.MediaTypeArtifactManifest {
+			if index.MediaType != ocispec.MediaTypeArtifactManifest {
 				t.Fatalf("unexpected index media type; expected = %v, got = %v", artifactsspec.MediaTypeArtifactManifest, index.MediaType)
 			}
 
@@ -168,7 +168,7 @@ func TestSociCreate(t *testing.T) {
 				t.Fatalf("cannot get soci index: %v", err)
 			}
 
-			if sociIndex.MediaType != artifactsspec.MediaTypeArtifactManifest {
+			if sociIndex.MediaType != ocispec.MediaTypeArtifactManifest {
 				t.Fatalf("unexpected index media type; expected = %v, got = %v", artifactsspec.MediaTypeArtifactManifest, sociIndex.MediaType)
 			}
 

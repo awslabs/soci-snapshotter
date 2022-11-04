@@ -76,28 +76,10 @@ type Index struct {
 	// Blobs referenced by the manifest
 	Blobs []ocispec.Descriptor `json:"blobs,omitempty"`
 
-	// Optional reference to manifest to refer to
-	// ORAS and OCI Artifact have different names for the field
-	// During deserialization, the appropriate field is filled.
-
-	// For ORAS
 	Subject *ocispec.Descriptor `json:"subject,omitempty"`
-
-	// For OCI Artifact
-	Refers *ocispec.Descriptor `json:"refers,omitempty"`
 
 	// Optional annotations in the manifest
 	Annotations map[string]string `json:"annotations,omitempty"`
-}
-
-func (i *Index) refers() *ocispec.Descriptor {
-	switch i.MediaType {
-	case ORASManifestMediaType:
-		return i.Subject
-	case OCIArtifactManifestMediaType:
-		return i.Refers
-	}
-	return nil
 }
 
 type IndexWithMetadata struct {
@@ -240,7 +222,7 @@ func newOCIArtifactManifest(blobs []ocispec.Descriptor, subject *ocispec.Descrip
 		Blobs:        blobs,
 		ArtifactType: SociIndexArtifactType,
 		Annotations:  annotations,
-		Refers:       subject,
+		Subject:      subject,
 		MediaType:    OCIArtifactManifestMediaType,
 	}
 }
@@ -399,7 +381,7 @@ func WriteSociIndex(ctx context.Context, indexWithMetadata IndexWithMetadata, st
 
 	log.G(ctx).WithField("digest", dgst.String()).Debugf("soci index has been written")
 
-	refers := indexWithMetadata.Index.refers()
+	refers := indexWithMetadata.Index.Subject
 
 	if refers == nil {
 		return errors.New("cannot write soci index: the Refers field is nil")
