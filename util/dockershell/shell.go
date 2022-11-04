@@ -248,6 +248,7 @@ func (s *Shell) Pipe(out io.Writer, commands ...[]string) *Shell {
 				break
 			}
 		}
+		cmd.Stderr = s.r.Stderr()
 		err = cmd.Start()
 		if err != nil {
 			s.r.Errorf("failed to start %v: %v", cmd.Args, err)
