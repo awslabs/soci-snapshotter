@@ -246,10 +246,10 @@ services:
     - NO_PROXY=127.0.0.1,localhost,{{.RegistryHost}}:443
     tmpfs:
     - /tmp:exec,mode=777
+    - /var/lib/containerd
+    - /var/lib/soci-snapshotter-grpc
     volumes:
     - /dev/fuse:/dev/fuse
-    - "lazy-containerd-data:/var/lib/containerd"
-    - "lazy-soci-snapshotter-grpc-data:/var/lib/soci-snapshotter-grpc"
   registry:
     image: ghcr.io/oras-project/registry:v1.0.0-rc
     container_name: {{.RegistryHost}}
@@ -262,9 +262,6 @@ services:
     - REGISTRY_HTTP_ADDR={{.RegistryHost}}:443
     volumes:
     - {{.AuthDir}}:/auth:ro
-volumes:
-  lazy-containerd-data:
-  lazy-soci-snapshotter-grpc-data:
 {{.NetworkConfig}}
 `, struct {
 		ServiceName     string
@@ -332,13 +329,10 @@ services:
     - NO_PROXY=127.0.0.1,localhost
     tmpfs:
     - /tmp:exec,mode=777
+    - /var/lib/containerd
+    - /var/lib/soci-snapshotter-grpc
     volumes:
     - /dev/fuse:/dev/fuse
-    - "containerd-data:/var/lib/containerd"
-    - "soci-snapshotter-grpc-data:/var/lib/soci-snapshotter-grpc"
-volumes:
-  containerd-data:
-  soci-snapshotter-grpc-data:
 `, struct {
 		ServiceName     string
 		ImageContextDir string
