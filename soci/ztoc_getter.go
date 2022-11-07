@@ -70,8 +70,6 @@ func flatbufToZtoc(flatbuffer []byte) *Ztoc {
 		me.Type = string(metadataEntry.Type())
 		me.UncompressedOffset = FileSize(metadataEntry.UncompressedOffset())
 		me.UncompressedSize = FileSize(metadataEntry.UncompressedSize())
-		me.SpanStart = SpanID(metadataEntry.SpanStart())
-		me.SpanEnd = SpanID(metadataEntry.SpanEnd())
 		me.Linkname = string(metadataEntry.Linkname())
 		me.Mode = metadataEntry.Mode()
 		me.UID = int(metadataEntry.Uid())

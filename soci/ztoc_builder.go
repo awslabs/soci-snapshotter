@@ -161,8 +161,6 @@ func prepareMetadataOffset(builder *flatbuffers.Builder, me FileMetadata) flatbu
 	ztoc_flatbuffers.FileMetadataAddType(builder, t)
 	ztoc_flatbuffers.FileMetadataAddUncompressedOffset(builder, int64(me.UncompressedOffset))
 	ztoc_flatbuffers.FileMetadataAddUncompressedSize(builder, int64(me.UncompressedSize))
-	ztoc_flatbuffers.FileMetadataAddSpanStart(builder, int32(me.SpanStart))
-	ztoc_flatbuffers.FileMetadataAddSpanEnd(builder, int32(me.SpanEnd))
 	ztoc_flatbuffers.FileMetadataAddLinkname(builder, linkName)
 	ztoc_flatbuffers.FileMetadataAddMode(builder, me.Mode)
 	ztoc_flatbuffers.FileMetadataAddUid(builder, uint32(me.UID))
@@ -273,11 +271,6 @@ func getGzipFileMetadata(gzipFile string, index *GzipZinfo) ([]FileMetadata, Fil
 			}
 		}
 
-		start := pt.CurrentPos()
-		end := pt.CurrentPos() + FileSize(hdr.Size)
-		indexStart := index.UncompressedOffsetToSpanID(start)
-		indexEnd := index.UncompressedOffsetToSpanID(end)
-
 		fileType, err := getType(hdr)
 		if err != nil {
 			return nil, 0, err
@@ -288,8 +281,6 @@ func getGzipFileMetadata(gzipFile string, index *GzipZinfo) ([]FileMetadata, Fil
 			Type:               fileType,
 			UncompressedOffset: pt.CurrentPos(),
 			UncompressedSize:   FileSize(hdr.Size),
-			SpanStart:          indexStart,
-			SpanEnd:            indexEnd,
 			Linkname:           hdr.Linkname,
 			Mode:               hdr.Mode,
 			UID:                hdr.Uid,

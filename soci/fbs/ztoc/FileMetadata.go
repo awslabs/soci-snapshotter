@@ -73,32 +73,8 @@ func (rcv *FileMetadata) MutateUncompressedSize(n int64) bool {
 	return rcv._tab.MutateInt64Slot(10, n)
 }
 
-func (rcv *FileMetadata) SpanStart() int32 {
-	o := flatbuffers.UOffsetT(rcv._tab.Offset(12))
-	if o != 0 {
-		return rcv._tab.GetInt32(o + rcv._tab.Pos)
-	}
-	return 0
-}
-
-func (rcv *FileMetadata) MutateSpanStart(n int32) bool {
-	return rcv._tab.MutateInt32Slot(12, n)
-}
-
-func (rcv *FileMetadata) SpanEnd() int32 {
-	o := flatbuffers.UOffsetT(rcv._tab.Offset(14))
-	if o != 0 {
-		return rcv._tab.GetInt32(o + rcv._tab.Pos)
-	}
-	return 0
-}
-
-func (rcv *FileMetadata) MutateSpanEnd(n int32) bool {
-	return rcv._tab.MutateInt32Slot(14, n)
-}
-
 func (rcv *FileMetadata) Linkname() []byte {
-	o := flatbuffers.UOffsetT(rcv._tab.Offset(16))
+	o := flatbuffers.UOffsetT(rcv._tab.Offset(12))
 	if o != 0 {
 		return rcv._tab.ByteVector(o + rcv._tab.Pos)
 	}
@@ -106,7 +82,7 @@ func (rcv *FileMetadata) Linkname() []byte {
 }
 
 func (rcv *FileMetadata) Mode() int64 {
-	o := flatbuffers.UOffsetT(rcv._tab.Offset(18))
+	o := flatbuffers.UOffsetT(rcv._tab.Offset(14))
 	if o != 0 {
 		return rcv._tab.GetInt64(o + rcv._tab.Pos)
 	}
@@ -114,11 +90,11 @@ func (rcv *FileMetadata) Mode() int64 {
 }
 
 func (rcv *FileMetadata) MutateMode(n int64) bool {
-	return rcv._tab.MutateInt64Slot(18, n)
+	return rcv._tab.MutateInt64Slot(14, n)
 }
 
 func (rcv *FileMetadata) Uid() uint32 {
-	o := flatbuffers.UOffsetT(rcv._tab.Offset(20))
+	o := flatbuffers.UOffsetT(rcv._tab.Offset(16))
 	if o != 0 {
 		return rcv._tab.GetUint32(o + rcv._tab.Pos)
 	}
@@ -126,11 +102,11 @@ func (rcv *FileMetadata) Uid() uint32 {
 }
 
 func (rcv *FileMetadata) MutateUid(n uint32) bool {
-	return rcv._tab.MutateUint32Slot(20, n)
+	return rcv._tab.MutateUint32Slot(16, n)
 }
 
 func (rcv *FileMetadata) Gid() uint32 {
-	o := flatbuffers.UOffsetT(rcv._tab.Offset(22))
+	o := flatbuffers.UOffsetT(rcv._tab.Offset(18))
 	if o != 0 {
 		return rcv._tab.GetUint32(o + rcv._tab.Pos)
 	}
@@ -138,11 +114,11 @@ func (rcv *FileMetadata) Gid() uint32 {
 }
 
 func (rcv *FileMetadata) MutateGid(n uint32) bool {
-	return rcv._tab.MutateUint32Slot(22, n)
+	return rcv._tab.MutateUint32Slot(18, n)
 }
 
 func (rcv *FileMetadata) Uname() []byte {
-	o := flatbuffers.UOffsetT(rcv._tab.Offset(24))
+	o := flatbuffers.UOffsetT(rcv._tab.Offset(20))
 	if o != 0 {
 		return rcv._tab.ByteVector(o + rcv._tab.Pos)
 	}
@@ -150,7 +126,7 @@ func (rcv *FileMetadata) Uname() []byte {
 }
 
 func (rcv *FileMetadata) Gname() []byte {
-	o := flatbuffers.UOffsetT(rcv._tab.Offset(26))
+	o := flatbuffers.UOffsetT(rcv._tab.Offset(22))
 	if o != 0 {
 		return rcv._tab.ByteVector(o + rcv._tab.Pos)
 	}
@@ -158,7 +134,7 @@ func (rcv *FileMetadata) Gname() []byte {
 }
 
 func (rcv *FileMetadata) ModTime() []byte {
-	o := flatbuffers.UOffsetT(rcv._tab.Offset(28))
+	o := flatbuffers.UOffsetT(rcv._tab.Offset(24))
 	if o != 0 {
 		return rcv._tab.ByteVector(o + rcv._tab.Pos)
 	}
@@ -166,7 +142,7 @@ func (rcv *FileMetadata) ModTime() []byte {
 }
 
 func (rcv *FileMetadata) Devmajor() int64 {
-	o := flatbuffers.UOffsetT(rcv._tab.Offset(30))
+	o := flatbuffers.UOffsetT(rcv._tab.Offset(26))
 	if o != 0 {
 		return rcv._tab.GetInt64(o + rcv._tab.Pos)
 	}
@@ -174,11 +150,11 @@ func (rcv *FileMetadata) Devmajor() int64 {
 }
 
 func (rcv *FileMetadata) MutateDevmajor(n int64) bool {
-	return rcv._tab.MutateInt64Slot(30, n)
+	return rcv._tab.MutateInt64Slot(26, n)
 }
 
 func (rcv *FileMetadata) Devminor() int64 {
-	o := flatbuffers.UOffsetT(rcv._tab.Offset(32))
+	o := flatbuffers.UOffsetT(rcv._tab.Offset(28))
 	if o != 0 {
 		return rcv._tab.GetInt64(o + rcv._tab.Pos)
 	}
@@ -186,11 +162,11 @@ func (rcv *FileMetadata) Devminor() int64 {
 }
 
 func (rcv *FileMetadata) MutateDevminor(n int64) bool {
-	return rcv._tab.MutateInt64Slot(32, n)
+	return rcv._tab.MutateInt64Slot(28, n)
 }
 
 func (rcv *FileMetadata) Xattrs(obj *Xattr, j int) bool {
-	o := flatbuffers.UOffsetT(rcv._tab.Offset(34))
+	o := flatbuffers.UOffsetT(rcv._tab.Offset(30))
 	if o != 0 {
 		x := rcv._tab.Vector(o)
 		x += flatbuffers.UOffsetT(j) * 4
@@ -202,7 +178,7 @@ func (rcv *FileMetadata) Xattrs(obj *Xattr, j int) bool {
 }
 
 func (rcv *FileMetadata) XattrsLength() int {
-	o := flatbuffers.UOffsetT(rcv._tab.Offset(34))
+	o := flatbuffers.UOffsetT(rcv._tab.Offset(30))
 	if o != 0 {
 		return rcv._tab.VectorLen(o)
 	}
@@ -210,7 +186,7 @@ func (rcv *FileMetadata) XattrsLength() int {
 }
 
 func FileMetadataStart(builder *flatbuffers.Builder) {
-	builder.StartObject(16)
+	builder.StartObject(14)
 }
 func FileMetadataAddName(builder *flatbuffers.Builder, name flatbuffers.UOffsetT) {
 	builder.PrependUOffsetTSlot(0, flatbuffers.UOffsetT(name), 0)
@@ -224,41 +200,35 @@ func FileMetadataAddUncompressedOffset(builder *flatbuffers.Builder, uncompresse
 func FileMetadataAddUncompressedSize(builder *flatbuffers.Builder, uncompressedSize int64) {
 	builder.PrependInt64Slot(3, uncompressedSize, 0)
 }
-func FileMetadataAddSpanStart(builder *flatbuffers.Builder, spanStart int32) {
-	builder.PrependInt32Slot(4, spanStart, 0)
-}
-func FileMetadataAddSpanEnd(builder *flatbuffers.Builder, spanEnd int32) {
-	builder.PrependInt32Slot(5, spanEnd, 0)
-}
 func FileMetadataAddLinkname(builder *flatbuffers.Builder, linkname flatbuffers.UOffsetT) {
-	builder.PrependUOffsetTSlot(6, flatbuffers.UOffsetT(linkname), 0)
+	builder.PrependUOffsetTSlot(4, flatbuffers.UOffsetT(linkname), 0)
 }
 func FileMetadataAddMode(builder *flatbuffers.Builder, mode int64) {
-	builder.PrependInt64Slot(7, mode, 0)
+	builder.PrependInt64Slot(5, mode, 0)
 }
 func FileMetadataAddUid(builder *flatbuffers.Builder, uid uint32) {
-	builder.PrependUint32Slot(8, uid, 0)
+	builder.PrependUint32Slot(6, uid, 0)
 }
 func FileMetadataAddGid(builder *flatbuffers.Builder, gid uint32) {
-	builder.PrependUint32Slot(9, gid, 0)
+	builder.PrependUint32Slot(7, gid, 0)
 }
 func FileMetadataAddUname(builder *flatbuffers.Builder, uname flatbuffers.UOffsetT) {
-	builder.PrependUOffsetTSlot(10, flatbuffers.UOffsetT(uname), 0)
+	builder.PrependUOffsetTSlot(8, flatbuffers.UOffsetT(uname), 0)
 }
 func FileMetadataAddGname(builder *flatbuffers.Builder, gname flatbuffers.UOffsetT) {
-	builder.PrependUOffsetTSlot(11, flatbuffers.UOffsetT(gname), 0)
+	builder.PrependUOffsetTSlot(9, flatbuffers.UOffsetT(gname), 0)
 }
 func FileMetadataAddModTime(builder *flatbuffers.Builder, modTime flatbuffers.UOffsetT) {
-	builder.PrependUOffsetTSlot(12, flatbuffers.UOffsetT(modTime), 0)
+	builder.PrependUOffsetTSlot(10, flatbuffers.UOffsetT(modTime), 0)
 }
 func FileMetadataAddDevmajor(builder *flatbuffers.Builder, devmajor int64) {
-	builder.PrependInt64Slot(13, devmajor, 0)
+	builder.PrependInt64Slot(11, devmajor, 0)
 }
 func FileMetadataAddDevminor(builder *flatbuffers.Builder, devminor int64) {
-	builder.PrependInt64Slot(14, devminor, 0)
+	builder.PrependInt64Slot(12, devminor, 0)
 }
 func FileMetadataAddXattrs(builder *flatbuffers.Builder, xattrs flatbuffers.UOffsetT) {
-	builder.PrependUOffsetTSlot(15, flatbuffers.UOffsetT(xattrs), 0)
+	builder.PrependUOffsetTSlot(13, flatbuffers.UOffsetT(xattrs), 0)
 }
 func FileMetadataStartXattrsVector(builder *flatbuffers.Builder, numElems int) flatbuffers.UOffsetT {
 	return builder.StartVector(4, numElems, 4)

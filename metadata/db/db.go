@@ -70,8 +70,6 @@ import (
 //         - childrenExtra                  : 2nd and following child nodes of directory.
 //           - *basename* : <node id>       : map of basename string to the child node id
 //         - uncompressedOffset : <varint>  : the offset in the uncompressed data, where the node is stored.
-//         - spanStart : <varint>           : the first span for the data.
-//         - spanEnd : <varint>             : the last span for the data.
 
 var (
 	bucketKeyFilesystems = []byte("filesystems")
@@ -96,8 +94,6 @@ var (
 	bucketKeyChildrenExtra = []byte("childrenExtra")
 
 	bucketKeyUncompressedOffset = []byte("uncompressedOffset")
-	bucketKeySpanStart          = []byte("spanStart")
-	bucketKeySpanEnd            = []byte("spanEnd")
 )
 
 type childEntry struct {
@@ -108,8 +104,7 @@ type childEntry struct {
 type metadataEntry struct {
 	children           map[string]childEntry
 	UncompressedOffset soci.FileSize
-	SpanStart          soci.SpanID
-	SpanEnd            soci.SpanID
+	UncompressedSize   soci.FileSize
 }
 
 func getNodes(tx *bolt.Tx, fsID string) (*bolt.Bucket, error) {
@@ -357,20 +352,11 @@ func writeMetadataEntry(md *bolt.Bucket, m *metadataEntry) error {
 	if err := putFileSize(md, bucketKeyUncompressedOffset, m.UncompressedOffset); err != nil {
 		return errors.Wrapf(err, "failed to set UncompressedOffset value %d", m.UncompressedOffset)
 	}
-	if err := putSpanID(md, bucketKeySpanStart, m.SpanStart); err != nil {
-		return errors.Wrapf(err, "failed to set SpanStart value %d", m.SpanStart)
-	}
-	if err := putSpanID(md, bucketKeySpanEnd, m.SpanEnd); err != nil {
-		return errors.Wrapf(err, "failed to set SpanEnd value %d", m.SpanEnd)
-	}
+
 	return nil
 }
 
 func putFileSize(b *bolt.Bucket, k []byte, v soci.FileSize) error {
-	return putInt(b, k, int64(v))
-}
-
-func putSpanID(b *bolt.Bucket, k []byte, v soci.SpanID) error {
 	return putInt(b, k, int64(v))
 }
 
