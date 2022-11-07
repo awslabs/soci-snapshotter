@@ -78,8 +78,6 @@ var getFileCommand = cli.Command{
 		extractConfig := soci.FileExtractConfig{
 			UncompressedSize:      fileMetadata.UncompressedSize,
 			UncompressedOffset:    fileMetadata.UncompressedOffset,
-			SpanStart:             fileMetadata.SpanStart,
-			SpanEnd:               fileMetadata.SpanEnd,
 			Checkpoints:           ztoc.CompressionInfo.Checkpoints,
 			CompressedArchiveSize: ztoc.CompressedArchiveSize,
 			MaxSpanID:             ztoc.CompressionInfo.MaxSpanID,

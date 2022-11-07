@@ -29,7 +29,7 @@ import (
 // FileSize will hold any file size and offset values
 type FileSize int64
 
-// SpanID will hold any span related values (SpanID, MaxSpanID, SpanStart, SpanEnd, etc)
+// SpanID will hold any span related values (SpanID, MaxSpanID, etc)
 type SpanID int32
 
 type FileMetadata struct {
@@ -37,8 +37,6 @@ type FileMetadata struct {
 	Type               string
 	UncompressedOffset FileSize
 	UncompressedSize   FileSize
-	SpanStart          SpanID
-	SpanEnd            SpanID
 	Linkname           string // Target name of link (valid for TypeLink or TypeSymlink)
 	Mode               int64  // Permission and mode bits
 	UID                int    // User ID of owner
@@ -75,8 +73,6 @@ type TOC struct {
 type FileExtractConfig struct {
 	UncompressedSize      FileSize
 	UncompressedOffset    FileSize
-	SpanStart             SpanID
-	SpanEnd               SpanID
 	Checkpoints           []byte
 	CompressedArchiveSize FileSize
 	MaxSpanID             SpanID
@@ -85,8 +81,6 @@ type FileExtractConfig struct {
 type MetadataEntry struct {
 	UncompressedSize   FileSize
 	UncompressedOffset FileSize
-	SpanStart          SpanID
-	SpanEnd            SpanID
 }
 
 func ExtractFile(r *io.SectionReader, config *FileExtractConfig) ([]byte, error) {
@@ -94,13 +88,15 @@ func ExtractFile(r *io.SectionReader, config *FileExtractConfig) ([]byte, error)
 		return []byte{}, nil
 	}
 
-	numSpans := config.SpanEnd - config.SpanStart + 1
-
 	gzipZinfo, err := NewGzipZinfo(config.Checkpoints)
 	if err != nil {
 		return nil, nil
 	}
 	defer gzipZinfo.Close()
+
+	spanStart := gzipZinfo.UncompressedOffsetToSpanID(config.UncompressedOffset)
+	spanEnd := gzipZinfo.UncompressedOffsetToSpanID(config.UncompressedOffset + config.UncompressedSize)
+	numSpans := spanEnd - spanStart + 1
 
 	var bufSize FileSize
 	starts := make([]FileSize, numSpans)
@@ -108,11 +104,11 @@ func ExtractFile(r *io.SectionReader, config *FileExtractConfig) ([]byte, error)
 
 	var i SpanID
 	for i = 0; i < numSpans; i++ {
-		starts[i] = gzipZinfo.SpanIDToCompressedOffset(i + config.SpanStart)
-		if i+config.SpanStart == config.MaxSpanID {
+		starts[i] = gzipZinfo.SpanIDToCompressedOffset(i + spanStart)
+		if i+spanStart == config.MaxSpanID {
 			ends[i] = config.CompressedArchiveSize - 1
 		} else {
-			ends[i] = gzipZinfo.SpanIDToCompressedOffset(i + 1 + config.SpanStart)
+			ends[i] = gzipZinfo.SpanIDToCompressedOffset(i + 1 + spanStart)
 		}
 		bufSize += (ends[i] - starts[i])
 	}
@@ -121,7 +117,7 @@ func ExtractFile(r *io.SectionReader, config *FileExtractConfig) ([]byte, error)
 
 	// It the first span the file is present in has partially uncompressed data,
 	// fetch the previous byte too.
-	firstSpanHasBits := gzipZinfo.HasBits(config.SpanStart)
+	firstSpanHasBits := gzipZinfo.HasBits(spanStart)
 	if firstSpanHasBits {
 		bufSize++
 		start--
@@ -155,7 +151,7 @@ func ExtractFile(r *io.SectionReader, config *FileExtractConfig) ([]byte, error)
 		return nil, err
 	}
 
-	bytes, err := gzipZinfo.ExtractDataFromBuffer(buf, config.UncompressedSize, config.UncompressedOffset, config.SpanStart)
+	bytes, err := gzipZinfo.ExtractDataFromBuffer(buf, config.UncompressedSize, config.UncompressedOffset, spanStart)
 	if err != nil {
 		return nil, err
 	}
@@ -172,8 +168,6 @@ func GetMetadataEntry(ztoc *Ztoc, text string) (*MetadataEntry, error) {
 			return &MetadataEntry{
 				UncompressedSize:   v.UncompressedSize,
 				UncompressedOffset: v.UncompressedOffset,
-				SpanStart:          v.SpanStart,
-				SpanEnd:            v.SpanEnd,
 			}, nil
 		}
 	}

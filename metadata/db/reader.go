@@ -255,8 +255,6 @@ func (r *reader) initNodes(ztoc *soci.Ztoc) error {
 					md[id] = &metadataEntry{}
 				}
 				md[id].UncompressedOffset = ent.UncompressedOffset
-				md[id].SpanStart = ent.SpanStart
-				md[id].SpanEnd = ent.SpanEnd
 			}
 		}
 		return nil

@@ -56,7 +56,7 @@ var infoCommand = cli.Command{
 		fmt.Printf("build tool: %s\n\n\n", ztoc.BuildToolIdentifier)
 
 		for _, v := range ztoc.TOC.Metadata {
-			fmt.Printf("filename: %s, offset: %d, size: %d, span_start: %d, span_end: %d\n", v.Name, v.UncompressedOffset, v.UncompressedSize, v.SpanStart, v.SpanEnd)
+			fmt.Printf("filename: %s, offset: %d, size: %d\n", v.Name, v.UncompressedOffset, v.UncompressedSize)
 		}
 		return nil
 	},

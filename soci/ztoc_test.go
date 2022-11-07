@@ -107,8 +107,6 @@ func TestDecompress(t *testing.T) {
 				extractConfig := &FileExtractConfig{
 					UncompressedSize:      m.UncompressedSize,
 					UncompressedOffset:    m.UncompressedOffset,
-					SpanStart:             m.SpanStart,
-					SpanEnd:               m.SpanEnd,
 					Checkpoints:           ztoc.CompressionInfo.Checkpoints,
 					CompressedArchiveSize: ztoc.CompressedArchiveSize,
 					MaxSpanID:             ztoc.CompressionInfo.MaxSpanID,
@@ -502,12 +500,6 @@ func TestZtocSerialization(t *testing.T) {
 					if readZtocMetadata.UncompressedSize != createdZtocMetadata.UncompressedSize {
 						t.Fatalf("createdZtoc.Metadata[%d].UncompressedSize should be equal to readZtoc.Metadata[%d].UncompressedSize", i, i)
 					}
-					if readZtocMetadata.SpanStart != createdZtocMetadata.SpanStart {
-						t.Fatalf("createdZtoc.Metadata[%d].SpanStart should be equal to readZtoc.Metadata[%d].SpanStart", i, i)
-					}
-					if readZtocMetadata.SpanEnd != createdZtocMetadata.SpanEnd {
-						t.Fatalf("createdZtoc.Metadata[%d].SpanEnd should be equal to readZtoc.Metadata[%d].SpanEnd", i, i)
-					}
 					if readZtocMetadata.Linkname != createdZtocMetadata.Linkname {
 						t.Fatalf("createdZtoc.Metadata[%d].Linkname should be equal to readZtoc.Metadata[%d].Linkname", i, i)
 					}
@@ -576,8 +568,8 @@ func TestWriteZtoc(t *testing.T) {
 			uncompressedArchiveSize: 2500000,
 			maxSpanID:               3,
 			buildTool:               "AWS SOCI CLI",
-			expDigest:               "sha256:ee2fd7cf479ccbbe769fa67120a04b420133a7425ea0fa03791ed9ffe9b8340b",
-			expSize:                 65936,
+			expDigest:               "sha256:9c8effca78ecc82fad49a4d591dd81615555b05eaaae605a621c927ecf6fc1e7",
+			expSize:                 65928,
 		},
 	}
 

@@ -10,8 +10,6 @@ table FileMetadata {
 	type : string;
 	uncompressed_offset : long;
 	uncompressed_size : long;
-	span_start : int;
-	span_end : int;
 	linkname : string;		// Target name of link (valid for TypeLink or TypeSymlink)
 	mode : long;			// Permission and mode bits
 	uid : uint32;			// User ID of owner
