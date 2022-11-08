@@ -22,7 +22,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"os"
 
 	"github.com/containerd/containerd/content"
 	"github.com/containerd/containerd/images"
@@ -31,7 +30,6 @@ import (
 	"github.com/opencontainers/go-digest"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
-	"golang.org/x/sync/errgroup"
 	orascontent "oras.land/oras-go/v2/content"
 	"oras.land/oras-go/v2/errdef"
 )
@@ -129,94 +127,6 @@ type buildConfig struct {
 	manifestType        ManifestType
 }
 
-type BuildOption func(c *buildConfig) error
-
-func WithMinLayerSize(minLayerSize int64) BuildOption {
-	return func(c *buildConfig) error {
-		c.minLayerSize = minLayerSize
-		return nil
-	}
-}
-
-func WithBuildToolIdentifier(tool string) BuildOption {
-	return func(c *buildConfig) error {
-		c.buildToolIdentifier = tool
-		return nil
-	}
-}
-
-func WithManifestType(val ManifestType) BuildOption {
-	return func(c *buildConfig) error {
-		c.manifestType = val
-		return nil
-	}
-}
-
-func BuildSociIndex(ctx context.Context, cs content.Store, img images.Image, spanSize int64, store orascontent.Storage, opts ...BuildOption) (*Index, error) {
-	var config buildConfig
-	for _, o := range opts {
-		if err := o(&config); err != nil {
-			return nil, err
-		}
-	}
-
-	platform := platforms.Default()
-	// we get manifest descriptor before calling images.Manifest, since after calling
-	// images.Manifest, images.Children will error out when reading the manifest blob (this happens on containerd side)
-	imgManifestDesc, err := GetImageManifestDescriptor(ctx, cs, img.Target, platform)
-	if err != nil {
-		return nil, err
-	}
-	manifest, err := images.Manifest(ctx, cs, img.Target, platform)
-	if err != nil {
-		return nil, err
-	}
-
-	sociLayersDesc := make([]*ocispec.Descriptor, len(manifest.Layers))
-	eg, ctx := errgroup.WithContext(ctx)
-	for i, l := range manifest.Layers {
-		i, l := i, l
-		eg.Go(func() error {
-			desc, err := buildSociLayer(ctx, cs, l, spanSize, store, &config)
-			if err != nil {
-				return fmt.Errorf("could not build zTOC for %s: %w", l.Digest.String(), err)
-			}
-			sociLayersDesc[i] = desc
-			return nil
-		})
-	}
-	if err := eg.Wait(); err != nil {
-		return nil, err
-	}
-
-	ztocsDesc := make([]ocispec.Descriptor, 0, len(manifest.Layers))
-	for _, desc := range sociLayersDesc {
-		if desc != nil {
-			ztocsDesc = append(ztocsDesc, *desc)
-		}
-	}
-
-	annotations := map[string]string{
-		IndexAnnotationBuildToolIdentifier: config.buildToolIdentifier,
-	}
-
-	refers := &ocispec.Descriptor{
-		MediaType:   imgManifestDesc.MediaType,
-		Digest:      imgManifestDesc.Digest,
-		Size:        imgManifestDesc.Size,
-		Annotations: imgManifestDesc.Annotations,
-	}
-	return NewIndex(ztocsDesc, refers, annotations, config.manifestType), nil
-}
-
-// Returns a new index.
-func NewIndex(blobs []ocispec.Descriptor, subject *ocispec.Descriptor, annotations map[string]string, manifestType ManifestType) *Index {
-	if manifestType == ManifestOCIArtifact {
-		return newOCIArtifactManifest(blobs, subject, annotations)
-	}
-	return newORASManifest(blobs, subject, annotations)
-}
-
 func newOCIArtifactManifest(blobs []ocispec.Descriptor, subject *ocispec.Descriptor, annotations map[string]string) *Index {
 	return &Index{
 		Blobs:        blobs,
@@ -224,16 +134,6 @@ func newOCIArtifactManifest(blobs []ocispec.Descriptor, subject *ocispec.Descrip
 		Annotations:  annotations,
 		Subject:      subject,
 		MediaType:    OCIArtifactManifestMediaType,
-	}
-}
-
-func newORASManifest(blobs []ocispec.Descriptor, subject *ocispec.Descriptor, annotations map[string]string) *Index {
-	return &Index{
-		Blobs:        blobs,
-		ArtifactType: SociIndexArtifactType,
-		Annotations:  annotations,
-		Subject:      subject,
-		MediaType:    ORASManifestMediaType,
 	}
 }
 
@@ -255,85 +155,6 @@ func skipBuildingZtoc(desc ocispec.Descriptor, cfg *buildConfig) bool {
 		return true
 	}
 	return false
-}
-
-// buildSociLayer builds the ztoc for an image layer and returns a Descriptor for the new ztoc.
-func buildSociLayer(ctx context.Context, cs content.Store, desc ocispec.Descriptor, spanSize int64, store orascontent.Storage, cfg *buildConfig) (*ocispec.Descriptor, error) {
-	if !images.IsLayerType(desc.MediaType) {
-		return nil, errNotLayerType
-	}
-	// check if we need to skip building the zTOC
-	if skipBuildingZtoc(desc, cfg) {
-		fmt.Printf("layer %s -> ztoc skipped\n", desc.Digest)
-		return nil, nil
-	}
-	compression, err := images.DiffCompression(ctx, desc.MediaType)
-	if err != nil {
-		return nil, fmt.Errorf("could not determine layer compression: %w", err)
-	}
-	if compression != "gzip" {
-		return nil, fmt.Errorf("layer %s (%s) must be compressed by gzip, but got %q: %w",
-			desc.Digest, desc.MediaType, compression, errUnsupportedLayerFormat)
-	}
-
-	ra, err := cs.ReaderAt(ctx, desc)
-	if err != nil {
-		return nil, err
-	}
-	defer ra.Close()
-	sr := io.NewSectionReader(ra, 0, desc.Size)
-
-	tmpFile, err := os.CreateTemp("", "tmp.*")
-	if err != nil {
-		return nil, err
-	}
-	defer os.Remove(tmpFile.Name())
-	n, err := io.Copy(tmpFile, sr)
-	if err != nil {
-		return nil, err
-	}
-	if n != desc.Size {
-		return nil, errors.New("the size of the temp file doesn't match that of the layer")
-	}
-
-	ztoc, err := BuildZtoc(tmpFile.Name(), spanSize, cfg.buildToolIdentifier)
-	if err != nil {
-		return nil, err
-	}
-
-	ztocReader, ztocDesc, err := NewZtocReader(ztoc)
-	if err != nil {
-		return nil, err
-	}
-
-	err = store.Push(ctx, ztocDesc, ztocReader)
-	if err != nil && !errors.Is(err, errdef.ErrAlreadyExists) {
-		return nil, fmt.Errorf("cannot push ztoc to local store: %w", err)
-	}
-
-	// write the artifact entry for soci layer
-	// this part is needed for local store only
-	entry := &ArtifactEntry{
-		Size:           ztocDesc.Size,
-		Digest:         ztocDesc.Digest.String(),
-		OriginalDigest: desc.Digest.String(),
-		Type:           ArtifactEntryTypeLayer,
-		Location:       desc.Digest.String(),
-		MediaType:      SociLayerMediaType,
-	}
-	err = writeArtifactEntry(entry)
-	if err != nil {
-		return nil, err
-	}
-
-	fmt.Printf("layer %s -> ztoc %s\n", desc.Digest, ztocDesc.Digest)
-
-	ztocDesc.MediaType = SociLayerMediaType
-	ztocDesc.Annotations = map[string]string{
-		IndexAnnotationImageLayerMediaType: ocispec.MediaTypeImageLayerGzip,
-		IndexAnnotationImageLayerDigest:    desc.Digest.String(),
-	}
-	return &ztocDesc, err
 }
 
 // getImageManifestDescriptor gets the descriptor of image manifest

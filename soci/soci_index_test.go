@@ -27,7 +27,6 @@ import (
 	"github.com/google/go-cmp/cmp"
 	"github.com/opencontainers/go-digest"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
-	"oras.land/oras-go/v2/content/memory"
 )
 
 func TestSkipBuildingZtoc(t *testing.T) {
@@ -142,10 +141,11 @@ func TestBuildSociIndexNotLayer(t *testing.T) {
 				MediaType: tc.mediaType,
 				Digest:    "layerdigest",
 			}
-			cfg := &buildConfig{}
 			spanSize := int64(65535)
-			blobStore := memory.New()
-			_, err := buildSociLayer(ctx, cs, desc, spanSize, blobStore, cfg)
+
+			ib, _ := NewIndexBuilder(cs, WithSpanSizeOption(spanSize))
+
+			_, _, err := ib.buildSociLayer(ctx, desc, spanSize)
 			if tc.err != nil {
 				if !errors.Is(err, tc.err) {
 					t.Fatalf("%v: should error out as not a layer", tc.name)
@@ -200,12 +200,11 @@ func TestBuildSociIndexWithLimits(t *testing.T) {
 				MediaType: "application/vnd.oci.image.layer.",
 				Size:      tc.layerSize,
 			}
-			cfg := &buildConfig{
-				minLayerSize: tc.minLayerSize,
-			}
 			spanSize := int64(65535)
-			blobStore := memory.New()
-			ztoc, err := buildSociLayer(ctx, cs, desc, spanSize, blobStore, cfg)
+
+			ib, _ := NewIndexBuilder(cs, WithSpanSizeOption(spanSize), WithMinLayerSizeOption(tc.minLayerSize))
+
+			ztoc, _, err := ib.buildSociLayer(ctx, desc, spanSize)
 			if tc.ztocGenerated {
 				// we check only for build skip, which is indicated as nil value for ztoc and nil value for error
 				if ztoc == nil && err == nil {
@@ -222,29 +221,11 @@ func TestBuildSociIndexWithLimits(t *testing.T) {
 
 func TestNewIndex(t *testing.T) {
 	testcases := []struct {
-		name         string
-		blobs        []ocispec.Descriptor
-		subject      ocispec.Descriptor
-		annotations  map[string]string
-		manifestType ManifestType
+		name        string
+		blobs       []ocispec.Descriptor
+		subject     ocispec.Descriptor
+		annotations map[string]string
 	}{
-		{
-			name: "successfully build oras manifest",
-			blobs: []ocispec.Descriptor{
-				{
-					Size:   4,
-					Digest: digest.FromBytes([]byte("test")),
-				},
-			},
-			subject: ocispec.Descriptor{
-				Size:   4,
-				Digest: digest.FromBytes([]byte("test")),
-			},
-			annotations: map[string]string{
-				"foo": "bar",
-			},
-			manifestType: ManifestORAS,
-		},
 		{
 			name: "successfully build OCI ref type manifest",
 			blobs: []ocispec.Descriptor{
@@ -260,13 +241,12 @@ func TestNewIndex(t *testing.T) {
 			annotations: map[string]string{
 				"foo": "bar",
 			},
-			manifestType: ManifestOCIArtifact,
 		},
 	}
 
 	for _, tc := range testcases {
 		t.Run(tc.name, func(t *testing.T) {
-			index := NewIndex(tc.blobs, &tc.subject, tc.annotations, tc.manifestType)
+			index := newOCIArtifactManifest(tc.blobs, &tc.subject, tc.annotations)
 
 			if diff := cmp.Diff(index.Blobs, tc.blobs); diff != "" {
 				t.Fatalf("unexpected blobs; diff = %v", diff)
@@ -274,15 +254,6 @@ func TestNewIndex(t *testing.T) {
 
 			if index.ArtifactType != SociIndexArtifactType {
 				t.Fatalf("unexpected artifact type; expected = %s, got = %s", SociIndexArtifactType, index.ArtifactType)
-			}
-
-			mt := index.MediaType
-			if tc.manifestType == ManifestORAS {
-				if mt != ORASManifestMediaType {
-					t.Fatalf("unexpected media type; expected = %v, got = %v", ORASManifestMediaType, mt)
-				}
-			} else if mt != OCIArtifactManifestMediaType {
-				t.Fatalf("unexpected media type; expected = %v, got = %v", OCIArtifactManifestMediaType, mt)
 			}
 
 			if diff := cmp.Diff(index.Subject, &tc.subject); diff != "" {
@@ -294,29 +265,11 @@ func TestNewIndex(t *testing.T) {
 
 func TestNewIndexFromReader(t *testing.T) {
 	testcases := []struct {
-		name         string
-		blobs        []ocispec.Descriptor
-		subject      ocispec.Descriptor
-		annotations  map[string]string
-		manifestType ManifestType
+		name        string
+		blobs       []ocispec.Descriptor
+		subject     ocispec.Descriptor
+		annotations map[string]string
 	}{
-		{
-			name: "successfully build oras manifest",
-			blobs: []ocispec.Descriptor{
-				{
-					Size:   4,
-					Digest: digest.FromBytes([]byte("test")),
-				},
-			},
-			subject: ocispec.Descriptor{
-				Size:   4,
-				Digest: digest.FromBytes([]byte("test")),
-			},
-			annotations: map[string]string{
-				"foo": "bar",
-			},
-			manifestType: ManifestORAS,
-		},
 		{
 			name: "successfully build OCI ref type manifest",
 			blobs: []ocispec.Descriptor{
@@ -332,13 +285,12 @@ func TestNewIndexFromReader(t *testing.T) {
 			annotations: map[string]string{
 				"foo": "bar",
 			},
-			manifestType: ManifestOCIArtifact,
 		},
 	}
 
 	for _, tc := range testcases {
 		t.Run(tc.name, func(t *testing.T) {
-			index := NewIndex(tc.blobs, &tc.subject, tc.annotations, tc.manifestType)
+			index := newOCIArtifactManifest(tc.blobs, &tc.subject, tc.annotations)
 			jsonBytes, err := json.Marshal(index)
 			if err != nil {
 				t.Fatalf("cannot convert index to json byte data: %v", err)
