@@ -53,8 +53,8 @@ var CreateCommand = cli.Command{
 		},
 		cli.Int64Flag{
 			Name:  minLayerSizeFlag,
-			Usage: "The minimum layer size in bytes to build zTOC for. Default is 0.",
-			Value: 0,
+			Usage: "The minimum layer size in bytes to build zTOC for. Default is 10 MiB.",
+			Value: 10 << 20,
 		},
 		cli.BoolFlag{
 			Name:  createORASManifestFlag,
