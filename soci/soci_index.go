@@ -85,6 +85,7 @@ type Index struct {
 
 type IndexWithMetadata struct {
 	Index       *Index
+	Platform    *ocispec.Platform
 	ImageDigest digest.Digest
 }
 
@@ -215,11 +216,11 @@ func BuildSociIndex(ctx context.Context, cs content.Store, img images.Image, spa
 		Digest:      imgManifestDesc.Digest,
 		Size:        imgManifestDesc.Size,
 		Annotations: imgManifestDesc.Annotations,
-		Platform:    &config.platform,
 	}
 	index := NewIndex(ztocsDesc, refers, annotations, config.manifestType)
 	return &IndexWithMetadata{
 		Index:       index,
+		Platform:    &config.platform,
 		ImageDigest: img.Target.Digest,
 	}, nil
 }
@@ -406,7 +407,7 @@ func WriteSociIndex(ctx context.Context, indexWithMetadata *IndexWithMetadata, s
 		Digest:         dgst.String(),
 		OriginalDigest: refers.Digest.String(),
 		ImageDigest:    indexWithMetadata.ImageDigest.String(),
-		Platform:       platforms.Format(*refers.Platform),
+		Platform:       platforms.Format(*indexWithMetadata.Platform),
 		Type:           ArtifactEntryTypeIndex,
 		Location:       refers.Digest.String(),
 		Size:           size,
