@@ -213,7 +213,7 @@ func (c *sociContext) Init(ctx context.Context, imageRef, indexDigest, imageMani
 			return
 		}
 
-		client := NewORASClient(remoteStore)
+		client := NewOCIArtifactClient(remoteStore)
 		indexDesc := ocispec.Descriptor{
 			Digest: digest.Digest(indexDigest),
 		}

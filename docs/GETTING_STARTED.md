@@ -45,7 +45,7 @@ project.  We will run it on port 5000 as an HTTP (**NOT** HTTPS) server without
 certificates.  To do this we will use Docker:
 
 ```
-docker run -d -p 5000:5000 --restart=always --name registry ghcr.io/oras-project/registry:v1.0.0-rc
+docker run -d -p 5000:5000 --restart=always --name registry ghcr.io/oci-playground/registry:v3.0.0-alpha.1
 ```
 
 Since this is just a locally run HTTP server we can interact with
@@ -134,13 +134,8 @@ does not have access to.
 
 To create the index, which can be pushed to ORAS-compatible registry, run:
 ```
-sudo ./soci create --oras localhost:5000/rabbitmq:latest
+sudo ./soci create localhost:5000/rabbitmq:latest
 ```
-The `--oras` flag instructs the CLI to build an ORAS-compatible manifest, 
-as opposed to an OCI Artifact Manifest. By default, the CLI will build the latter.
-Since the community is in the process of migrating from ORAS to OCI Artifact Manifest, 
-there's no available registry supporting latter. We suggest using ORAS registry along
-with `--oras` flag to be able to push SOCI index to the registry.
 Behind the scenes SOCI is interacting with containerd. So the tag `localhost:5000/rabbitmq` 
 has to exist in containerd. This created two kinds of objects.  
 The first is a series of ztocs (one per layer).  A ztoc is a table of contents for compressed data 

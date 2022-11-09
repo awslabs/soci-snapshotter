@@ -12,8 +12,7 @@ The SOCI project introduces several new terms that sometimes have subtle differe
   layers.
 
 * __SOCI index manifest__: An
-  [ORAS manifest](https://github.com/oras-project/artifacts-spec/blob/v1.0.0-rc.2/artifact-manifest.md)
-  (soon to be an [OCI Reference Types manifest](https://github.com/opencontainers/wg-reference-types/blob/256c257cc8b725fd324722ee40ead6925b1c8ad8/docs/proposals/PROPOSAL_E.md))
+  [OCI Artifact manifest](https://github.com/opencontainers/image-spec/blob/main/artifact.md)
   containing the list of zTOCs in the SOCI Index as well as a reference to the image for
   which the manifest was generated.
 

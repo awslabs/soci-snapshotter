@@ -134,7 +134,7 @@ func (b *IndexBuilder) BuildIndex(ctx context.Context, desc ocispec.Descriptor) 
 		Size:        imgManifestDesc.Size,
 		Annotations: imgManifestDesc.Annotations,
 	}
-	return newOCIArtifactManifest(ztocsDesc, refers, annotations), ztocReaders, nil
+	return NewIndex(ztocsDesc, refers, annotations), ztocReaders, nil
 }
 
 // buildSociLayer builds the ztoc for an image layer and returns a Descriptor for the new ztoc.
