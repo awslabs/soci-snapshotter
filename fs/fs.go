@@ -175,6 +175,11 @@ func NewFilesystem(root string, cfg config.Config, opts ...Option) (_ snapshot.F
 	if ns != nil {
 		metrics.Register(ns) // Register layer metrics.
 	}
+
+	// We are turning off the background fetch until it gets re-worked.
+	// See https://github.com/awslabs/soci-snapshotter/issues/106 for more details.
+	cfg.NoBackgroundFetch = true
+
 	return &filesystem{
 		resolver:              r,
 		getSources:            getSources,
