@@ -50,15 +50,6 @@ const (
 	IndexAnnotationBuildToolIdentifier = "com.amazon.soci.build-tool-identifier"
 	// media type for OCI Artifact manifest
 	OCIArtifactManifestMediaType = "application/vnd.oci.artifact.manifest.v1+json"
-	// media type for ORAS manifest
-	ORASManifestMediaType = "application/vnd.cncf.oras.artifact.manifest.v1+json"
-)
-
-type ManifestType int
-
-const (
-	ManifestOCIArtifact ManifestType = iota
-	ManifestORAS
 )
 
 var (
@@ -129,7 +120,6 @@ func GetIndexDescriptorCollection(ctx context.Context, cs content.Store, img ima
 type buildConfig struct {
 	minLayerSize        int64
 	buildToolIdentifier string
-	manifestType        ManifestType
 	platform            ocispec.Platform
 }
 
@@ -145,13 +135,6 @@ func WithMinLayerSize(minLayerSize int64) BuildOption {
 func WithBuildToolIdentifier(tool string) BuildOption {
 	return func(c *buildConfig) error {
 		c.buildToolIdentifier = tool
-		return nil
-	}
-}
-
-func WithManifestType(val ManifestType) BuildOption {
-	return func(c *buildConfig) error {
-		c.manifestType = val
 		return nil
 	}
 }
@@ -217,7 +200,7 @@ func BuildSociIndex(ctx context.Context, cs content.Store, img images.Image, spa
 		Annotations: imgManifestDesc.Annotations,
 		Platform:    &config.platform,
 	}
-	index := NewIndex(ztocsDesc, refers, annotations, config.manifestType)
+	index := NewIndex(ztocsDesc, refers, annotations)
 	return &IndexWithMetadata{
 		Index:       index,
 		ImageDigest: img.Target.Digest,
@@ -225,30 +208,13 @@ func BuildSociIndex(ctx context.Context, cs content.Store, img images.Image, spa
 }
 
 // Returns a new index.
-func NewIndex(blobs []ocispec.Descriptor, subject *ocispec.Descriptor, annotations map[string]string, manifestType ManifestType) *Index {
-	if manifestType == ManifestOCIArtifact {
-		return newOCIArtifactManifest(blobs, subject, annotations)
-	}
-	return newORASManifest(blobs, subject, annotations)
-}
-
-func newOCIArtifactManifest(blobs []ocispec.Descriptor, subject *ocispec.Descriptor, annotations map[string]string) *Index {
+func NewIndex(blobs []ocispec.Descriptor, subject *ocispec.Descriptor, annotations map[string]string) *Index {
 	return &Index{
 		Blobs:        blobs,
 		ArtifactType: SociIndexArtifactType,
 		Annotations:  annotations,
 		Subject:      subject,
 		MediaType:    OCIArtifactManifestMediaType,
-	}
-}
-
-func newORASManifest(blobs []ocispec.Descriptor, subject *ocispec.Descriptor, annotations map[string]string) *Index {
-	return &Index{
-		Blobs:        blobs,
-		ArtifactType: SociIndexArtifactType,
-		Annotations:  annotations,
-		Subject:      subject,
-		MediaType:    ORASManifestMediaType,
 	}
 }
 

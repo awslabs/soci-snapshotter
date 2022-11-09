@@ -55,7 +55,7 @@ func (f *fakeInner) Referrers(ctx context.Context, desc ocispec.Descriptor, arti
 	return fn(f.descs)
 }
 
-func TestORASClientGet(t *testing.T) {
+func TestOCIArtifactClientSelectReferrer(t *testing.T) {
 	testCases := []struct {
 		name            string
 		descs           []ocispec.Descriptor
@@ -91,7 +91,7 @@ func TestORASClientGet(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			inner := newFakeInner(tc.descs)
-			client := NewORASClient(inner)
+			client := NewOCIArtifactClient(inner)
 
 			desc, err := client.SelectReferrer(context.Background(), ocispec.Descriptor{}, tc.selectionPolicy)
 			if err != nil && !errors.Is(err, tc.expectedErr) {

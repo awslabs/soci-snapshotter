@@ -54,17 +54,17 @@ type Inner interface {
 	ReferrersCaller
 }
 
-type OrasClient struct {
+type OCIArtifactClient struct {
 	Inner
 }
 
-func NewORASClient(inner Inner) *OrasClient {
-	return &OrasClient{
+func NewOCIArtifactClient(inner Inner) *OCIArtifactClient {
+	return &OCIArtifactClient{
 		Inner: inner,
 	}
 }
 
-func (c *OrasClient) SelectReferrer(ctx context.Context, desc ocispec.Descriptor, fn IndexSelectionPolicy) (ocispec.Descriptor, error) {
+func (c *OCIArtifactClient) SelectReferrer(ctx context.Context, desc ocispec.Descriptor, fn IndexSelectionPolicy) (ocispec.Descriptor, error) {
 	descs, err := c.allReferrers(ctx, desc)
 	if err != nil {
 		return ocispec.Descriptor{}, fmt.Errorf("unable to fetch referrers: %w", err)
@@ -75,7 +75,7 @@ func (c *OrasClient) SelectReferrer(ctx context.Context, desc ocispec.Descriptor
 	return fn(descs)
 }
 
-func (c *OrasClient) allReferrers(ctx context.Context, desc ocispec.Descriptor) ([]ocispec.Descriptor, error) {
+func (c *OCIArtifactClient) allReferrers(ctx context.Context, desc ocispec.Descriptor) ([]ocispec.Descriptor, error) {
 	descs := []ocispec.Descriptor{}
 	err := c.Referrers(ctx, desc, soci.SociIndexArtifactType, func(referrers []ocispec.Descriptor) error {
 		descs = append(descs, referrers...)
