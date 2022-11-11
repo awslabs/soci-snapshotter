@@ -62,22 +62,61 @@ const (
 
 // Lists all metric labels.
 const (
-	// prometheus metrics
-	Mount                         = "mount"
-	RemoteRegistryGet             = "remote_registry_get"
-	NodeReaddir                   = "node_readdir"
-	InitMetadataStore             = "init_metadata_store"
-	ReadOnDemand                  = "read_on_demand"
+	/**
+	Metrics emitted via prometheus endpoint. All latency metrics are measured in milliseconds,
+	unless specified otherwise.
+	*/
+	// Mount measures the duration of Mount operation for resolved layer.
+	Mount = "mount"
+
+	// RemoteRegistryGet records the roundtrip latency for remote registry GET operation.
+	RemoteRegistryGet = "remote_registry_get"
+
+	// NodeReaddir measures how long readdir operation takes (in microseconds).
+	NodeReaddir = "node_readdir"
+
+	// InitMetadataStore measures how long it takes to initialize the file metadata store.
+	InitMetadataStore = "init_metadata_store"
+
+	// ReadOnDemand measures the latency of on-demand reads (in microseconds).
+	ReadOnDemand = "read_on_demand"
+
+	// OnDemandReadAccessCount records the count of on-demand reads.
+	OnDemandReadAccessCount = "on_demand_read_access_count"
+
+	// OnDemandRemoteRegistryFetchCount records the count of the on-demand fetch requests to remote registry.
+	OnDemandRemoteRegistryFetchCount = "on_demand_remote_registry_fetch_count"
+
+	// OnDemandBytesServed counts the number of bytes served on-demand.
+	OnDemandBytesServed = "on_demand_bytes_served"
+
+	// OnDemandBytesFetched counts the number of bytes fetched on-demand.
+	OnDemandBytesFetched = "on_demand_bytes_fetched"
+
+	/**
+	Metrics logged in snapshotter's log.
+	All latencies here are measured in milliseconds, unless stated otherwise.
+	*/
+	// MountLayerToLastOnDemandFetch measures the latency of last on demand fetch,
+	// which must be invoked at the end of background fetch operation only.
+	// Since this is expected to happen only once per container launch, it is recorded as a log line,
+	// instead of being emitted as a metric.
+	// The algorithm for recording is as follows:
+	// 1. Record the mount start time.
+	// 2. Constantly record the timestamps when the on-demand fetch happening for each layer.
+	// 3. On background fetch completed, measure the difference between the last on demand fetch
+	// and mount start time and record it.
 	MountLayerToLastOnDemandFetch = "mount_layer_to_last_on_demand_fetch"
 
-	OnDemandReadAccessCount          = "on_demand_read_access_count"
-	OnDemandRemoteRegistryFetchCount = "on_demand_remote_registry_fetch_count"
-	OnDemandBytesServed              = "on_demand_bytes_served"
-	OnDemandBytesFetched             = "on_demand_bytes_fetched"
+	// BackgroundFetchTotal measures how long it took for background fetch to complete for a specific layer.
+	BackgroundFetchTotal = "background_fetch_total"
 
-	// logs metrics
-	BackgroundFetchTotal      = "background_fetch_total"
-	BackgroundFetchDownload   = "background_fetch_download"
+	// BackgroundFetchDownload measures the time to download all data for a specific layer during background fetch.
+	BackgroundFetchDownload = "background_fetch_download"
+
+	// BackgroundFetchDecompress used to measure the time to decompress all data for a specific layer
+	// during background fetch. Since we plan to re-work the background fetch, it may not be needed anymore.
+	// Keeping it here until background fetcher re-work is completed.
 	BackgroundFetchDecompress = "background_fetch_decompress"
 )
 
