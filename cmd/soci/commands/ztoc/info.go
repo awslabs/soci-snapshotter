@@ -48,7 +48,8 @@ var infoCommand = cli.Command{
 			return err
 		}
 		defer reader.Close()
-		ztoc, err := soci.GetZtoc(reader)
+		zm := soci.ZtocMarshaler{}
+		ztoc, err := zm.Unmarshal(reader)
 		if err != nil {
 			return err
 		}

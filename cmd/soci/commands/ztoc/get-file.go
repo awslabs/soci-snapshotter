@@ -110,7 +110,8 @@ func getZtoc(ctx context.Context, d digest.Digest) (*soci.Ztoc, error) {
 	}
 	defer reader.Close()
 
-	return soci.GetZtoc(reader)
+	zm := soci.ZtocMarshaler{}
+	return zm.Unmarshal(reader)
 }
 
 func getLayer(ctx context.Context, ztocDigest digest.Digest, cs content.Store) (content.ReaderAt, error) {

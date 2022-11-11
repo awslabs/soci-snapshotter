@@ -446,13 +446,14 @@ func TestZtocSerialization(t *testing.T) {
 				}
 			}
 			// serialize
-			r, _, err := NewZtocReader(createdZtoc)
+			zm := ZtocMarshaler{}
+			r, _, err := zm.Marshal(createdZtoc)
 			if err != nil {
 				t.Fatalf("error occurred when getting ztoc reader: %v", err)
 			}
 
 			// replacing the original ztoc with the read version of it
-			readZtoc, err := GetZtoc(r)
+			readZtoc, err := zm.Unmarshal(r)
 			if err != nil {
 				t.Fatalf("error occurred when getting ztoc: %v", err)
 			}
@@ -591,7 +592,8 @@ func TestWriteZtoc(t *testing.T) {
 				BuildToolIdentifier:     tc.buildTool,
 			}
 
-			_, desc, err := NewZtocReader(ztoc)
+			zm := ZtocMarshaler{}
+			_, desc, err := zm.Marshal(ztoc)
 			if err != nil {
 				t.Fatalf("error occurred when getting ztoc reader: %v", err)
 			}
@@ -602,6 +604,28 @@ func TestWriteZtoc(t *testing.T) {
 
 			if desc.Size != tc.expSize {
 				t.Fatalf("unexpected size; expected %d, got %d", tc.expSize, desc.Size)
+			}
+		})
+	}
+}
+
+func TestReadZtocInWrongFormat(t *testing.T) {
+	testCases := []struct {
+		name           string
+		serializedZtoc []byte
+	}{
+		{
+			name:           "ztoc unmarshal returns error and does not panic",
+			serializedZtoc: genRandomByteData(50000),
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			zm := ZtocMarshaler{}
+			r := bytes.NewReader(tc.serializedZtoc)
+			if _, err := zm.Unmarshal(r); err == nil {
+				t.Fatalf("expected error, but got nil")
 			}
 		})
 	}

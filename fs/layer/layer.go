@@ -283,7 +283,8 @@ func (r *Resolver) Resolve(ctx context.Context, hosts source.RegistryHosts, refs
 	// If it exists, we decide if we want to lazily load layer, or
 	// download/decompress the entire layer
 	// If we decide to download/decompress the entire layer, getZtoc will not return the ztoc
-	ztoc, err := soci.GetZtoc(ztocReader)
+	zm := soci.ZtocMarshaler{}
+	ztoc, err := zm.Unmarshal(ztocReader)
 
 	if err != nil {
 		// for now error out and let container runtime handle the layer download

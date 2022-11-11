@@ -319,7 +319,8 @@ func (b *IndexBuilder) buildSociLayer(ctx context.Context, desc ocispec.Descript
 		return nil, err
 	}
 
-	ztocReader, ztocDesc, err := NewZtocReader(ztoc)
+	zm := ZtocMarshaler{}
+	ztocReader, ztocDesc, err := zm.Marshal(ztoc)
 	if err != nil {
 		return nil, err
 	}
