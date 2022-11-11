@@ -134,18 +134,22 @@ func TestBuildSociIndexNotLayer(t *testing.T) {
 		},
 	}
 
+	spanSize := int64(65535)
+	ctx := context.Background()
+	cs := newFakeContentStore()
+	blobStore := memory.New()
+	builder, err := NewIndexBuilder(cs, blobStore, WithSpanSize(spanSize), WithMinLayerSize(0))
+
+	if err != nil {
+		t.Fatalf("cannot create index builer: %v", err)
+	}
 	for _, tc := range testcases {
 		t.Run(tc.name, func(t *testing.T) {
-			ctx := context.Background()
-			cs := newFakeContentStore()
 			desc := ocispec.Descriptor{
 				MediaType: tc.mediaType,
 				Digest:    "layerdigest",
 			}
-			cfg := &buildConfig{}
-			spanSize := int64(65535)
-			blobStore := memory.New()
-			_, err := buildSociLayer(ctx, cs, desc, spanSize, blobStore, cfg)
+			_, err := builder.buildSociLayer(ctx, desc)
 			if tc.err != nil {
 				if !errors.Is(err, tc.err) {
 					t.Fatalf("%v: should error out as not a layer", tc.name)
@@ -200,12 +204,10 @@ func TestBuildSociIndexWithLimits(t *testing.T) {
 				MediaType: "application/vnd.oci.image.layer.",
 				Size:      tc.layerSize,
 			}
-			cfg := &buildConfig{
-				minLayerSize: tc.minLayerSize,
-			}
 			spanSize := int64(65535)
 			blobStore := memory.New()
-			ztoc, err := buildSociLayer(ctx, cs, desc, spanSize, blobStore, cfg)
+			builder, _ := NewIndexBuilder(cs, blobStore, WithSpanSize(spanSize), WithMinLayerSize(tc.minLayerSize))
+			ztoc, err := builder.buildSociLayer(ctx, desc)
 			if tc.ztocGenerated {
 				// we check only for build skip, which is indicated as nil value for ztoc and nil value for error
 				if ztoc == nil && err == nil {

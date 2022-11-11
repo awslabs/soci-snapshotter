@@ -50,6 +50,12 @@ const (
 	IndexAnnotationBuildToolIdentifier = "com.amazon.soci.build-tool-identifier"
 	// media type for OCI Artifact manifest
 	OCIArtifactManifestMediaType = "application/vnd.oci.artifact.manifest.v1+json"
+	// default span size (4MiB)
+	defaultSpanSize = int64(1 << 22)
+	// min layer size (10MiB)
+	minLayerSize = 10 << 20
+	// default build tool identier
+	defaultBuildToolIdentifier = "AWS SOCI CLI v0.1"
 )
 
 var (
@@ -119,12 +125,20 @@ func GetIndexDescriptorCollection(ctx context.Context, cs content.Store, img ima
 }
 
 type buildConfig struct {
+	spanSize            int64
 	minLayerSize        int64
 	buildToolIdentifier string
 	platform            ocispec.Platform
 }
 
 type BuildOption func(c *buildConfig) error
+
+func WithSpanSize(spanSize int64) BuildOption {
+	return func(c *buildConfig) error {
+		c.spanSize = spanSize
+		return nil
+	}
+}
 
 func WithMinLayerSize(minLayerSize int64) BuildOption {
 	return func(c *buildConfig) error {
@@ -147,20 +161,42 @@ func WithPlatform(platform ocispec.Platform) BuildOption {
 	}
 }
 
-func BuildSociIndex(ctx context.Context, cs content.Store, img images.Image, spanSize int64, store orascontent.Storage, opts ...BuildOption) (*IndexWithMetadata, error) {
-	var config buildConfig
-	for _, o := range opts {
-		if err := o(&config); err != nil {
+type IndexBuilder struct {
+	contentStore content.Store
+	blobStore    orascontent.Storage
+	config       *buildConfig
+}
+
+func NewIndexBuilder(contentStore content.Store, blobStore orascontent.Storage, opts ...BuildOption) (*IndexBuilder, error) {
+	defaultPlatform := platforms.DefaultSpec()
+	config := &buildConfig{
+		spanSize:            defaultSpanSize,
+		minLayerSize:        minLayerSize,
+		buildToolIdentifier: defaultBuildToolIdentifier,
+		platform:            defaultPlatform,
+	}
+
+	for _, opt := range opts {
+		if err := opt(config); err != nil {
 			return nil, err
 		}
 	}
+
+	return &IndexBuilder{
+		contentStore: contentStore,
+		blobStore:    blobStore,
+		config:       config,
+	}, nil
+}
+
+func (b *IndexBuilder) Build(ctx context.Context, img images.Image) (*IndexWithMetadata, error) {
 	// we get manifest descriptor before calling images.Manifest, since after calling
 	// images.Manifest, images.Children will error out when reading the manifest blob (this happens on containerd side)
-	imgManifestDesc, err := GetImageManifestDescriptor(ctx, cs, img.Target, platforms.OnlyStrict(config.platform))
+	imgManifestDesc, err := GetImageManifestDescriptor(ctx, b.contentStore, img.Target, platforms.OnlyStrict(b.config.platform))
 	if err != nil {
 		return nil, err
 	}
-	manifest, err := images.Manifest(ctx, cs, img.Target, platforms.OnlyStrict(config.platform))
+	manifest, err := images.Manifest(ctx, b.contentStore, img.Target, platforms.OnlyStrict(b.config.platform))
 
 	if err != nil {
 		return nil, err
@@ -171,7 +207,7 @@ func BuildSociIndex(ctx context.Context, cs content.Store, img images.Image, spa
 	for i, l := range manifest.Layers {
 		i, l := i, l
 		eg.Go(func() error {
-			desc, err := buildSociLayer(ctx, cs, l, spanSize, store, &config)
+			desc, err := b.buildSociLayer(ctx, l)
 			if err != nil {
 				return fmt.Errorf("could not build zTOC for %s: %w", l.Digest.String(), err)
 			}
@@ -191,7 +227,7 @@ func BuildSociIndex(ctx context.Context, cs content.Store, img images.Image, spa
 	}
 
 	annotations := map[string]string{
-		IndexAnnotationBuildToolIdentifier: config.buildToolIdentifier,
+		IndexAnnotationBuildToolIdentifier: b.config.buildToolIdentifier,
 	}
 
 	refers := &ocispec.Descriptor{
@@ -203,7 +239,7 @@ func BuildSociIndex(ctx context.Context, cs content.Store, img images.Image, spa
 	index := NewIndex(ztocsDesc, refers, annotations)
 	return &IndexWithMetadata{
 		Index:       index,
-		Platform:    &config.platform,
+		Platform:    &b.config.platform,
 		ImageDigest: img.Target.Digest,
 	}, nil
 }
@@ -240,12 +276,12 @@ func skipBuildingZtoc(desc ocispec.Descriptor, cfg *buildConfig) bool {
 }
 
 // buildSociLayer builds the ztoc for an image layer and returns a Descriptor for the new ztoc.
-func buildSociLayer(ctx context.Context, cs content.Store, desc ocispec.Descriptor, spanSize int64, store orascontent.Storage, cfg *buildConfig) (*ocispec.Descriptor, error) {
+func (b *IndexBuilder) buildSociLayer(ctx context.Context, desc ocispec.Descriptor) (*ocispec.Descriptor, error) {
 	if !images.IsLayerType(desc.MediaType) {
 		return nil, errNotLayerType
 	}
 	// check if we need to skip building the zTOC
-	if skipBuildingZtoc(desc, cfg) {
+	if skipBuildingZtoc(desc, b.config) {
 		fmt.Printf("layer %s -> ztoc skipped\n", desc.Digest)
 		return nil, nil
 	}
@@ -258,7 +294,7 @@ func buildSociLayer(ctx context.Context, cs content.Store, desc ocispec.Descript
 			desc.Digest, desc.MediaType, compression, errUnsupportedLayerFormat)
 	}
 
-	ra, err := cs.ReaderAt(ctx, desc)
+	ra, err := b.contentStore.ReaderAt(ctx, desc)
 	if err != nil {
 		return nil, err
 	}
@@ -278,7 +314,7 @@ func buildSociLayer(ctx context.Context, cs content.Store, desc ocispec.Descript
 		return nil, errors.New("the size of the temp file doesn't match that of the layer")
 	}
 
-	ztoc, err := BuildZtoc(tmpFile.Name(), spanSize, cfg.buildToolIdentifier)
+	ztoc, err := BuildZtoc(tmpFile.Name(), b.config.spanSize, b.config.buildToolIdentifier)
 	if err != nil {
 		return nil, err
 	}
@@ -288,7 +324,7 @@ func buildSociLayer(ctx context.Context, cs content.Store, desc ocispec.Descript
 		return nil, err
 	}
 
-	err = store.Push(ctx, ztocDesc, ztocReader)
+	err = b.blobStore.Push(ctx, ztocDesc, ztocReader)
 	if err != nil && !errors.Is(err, errdef.ErrAlreadyExists) {
 		return nil, fmt.Errorf("cannot push ztoc to local store: %w", err)
 	}

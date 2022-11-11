@@ -97,11 +97,17 @@ var CreateCommand = cli.Command{
 		}
 
 		for _, plat := range ps {
-			sociIndexWithMetadata, err := soci.BuildSociIndex(ctx, cs, srcImg, spanSize, blobStore,
+			builder, err := soci.NewIndexBuilder(cs, blobStore,
 				soci.WithMinLayerSize(minLayerSize),
+				soci.WithSpanSize(spanSize),
 				soci.WithBuildToolIdentifier(buildToolIdentifier),
 				soci.WithPlatform(plat))
 
+			if err != nil {
+				return err
+			}
+
+			sociIndexWithMetadata, err := builder.Build(ctx, srcImg)
 			if err != nil {
 				return err
 			}
