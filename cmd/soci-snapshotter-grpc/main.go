@@ -46,6 +46,8 @@ import (
 	"path/filepath"
 	"time"
 
+	_ "net/http/pprof"
+
 	"github.com/awslabs/soci-snapshotter/fs"
 	"github.com/awslabs/soci-snapshotter/metadata"
 	dbmetadata "github.com/awslabs/soci-snapshotter/metadata/db"
@@ -62,7 +64,6 @@ import (
 	"github.com/containerd/containerd/log"
 	"github.com/containerd/containerd/pkg/dialer"
 	"github.com/containerd/containerd/snapshots"
-	"github.com/containerd/containerd/sys"
 	sddaemon "github.com/coreos/go-systemd/v22/daemon"
 	metrics "github.com/docker/go-metrics"
 	"github.com/pelletier/go-toml"
@@ -248,12 +249,8 @@ func serve(ctx context.Context, rpc *grpc.Server, addr string, rs snapshots.Snap
 
 	if config.DebugAddress != "" {
 		log.G(ctx).Infof("listen %q for debugging", config.DebugAddress)
-		l, err := sys.GetLocalListener(config.DebugAddress, 0, 0)
-		if err != nil {
-			return false, errors.Wrapf(err, "failed to listen %q", config.DebugAddress)
-		}
 		go func() {
-			if err := http.Serve(l, debugServerMux()); err != nil {
+			if err := http.ListenAndServe(config.DebugAddress, nil); err != nil {
 				errCh <- errors.Wrapf(err, "error on serving a debug endpoint via socket %q", addr)
 			}
 		}()
