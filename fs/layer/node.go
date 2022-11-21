@@ -88,7 +88,7 @@ var opaqueXattrs = map[OverlayOpaqueType][]string{
 	OverlayOpaqueUser:    {"user.overlay.opaque"},
 }
 
-func newNode(layerDgst digest.Digest, r reader.Reader, blob remote.Blob, baseInode uint32, opaque OverlayOpaqueType) (fusefs.InodeEmbedder, error) {
+func newNode(layerDgst digest.Digest, r reader.Reader, blob remote.Blob, baseInode uint32, opaque OverlayOpaqueType, logFSOperations bool) (fusefs.InodeEmbedder, error) {
 	rootID := r.Metadata().RootID()
 	rootAttr, err := r.Metadata().GetAttr(rootID)
 	if err != nil {
@@ -99,11 +99,12 @@ func newNode(layerDgst digest.Digest, r reader.Reader, blob remote.Blob, baseIno
 		return nil, fmt.Errorf("unknown overlay opaque type")
 	}
 	ffs := &fs{
-		r:            r,
-		layerDigest:  layerDgst,
-		baseInode:    baseInode,
-		rootID:       rootID,
-		opaqueXattrs: opq,
+		r:               r,
+		layerDigest:     layerDgst,
+		baseInode:       baseInode,
+		rootID:          rootID,
+		opaqueXattrs:    opq,
+		logFSOperations: logFSOperations,
 	}
 	ffs.s = ffs.newState(layerDgst, blob)
 	return &node{
@@ -115,12 +116,13 @@ func newNode(layerDgst digest.Digest, r reader.Reader, blob remote.Blob, baseIno
 
 // fs contains global metadata used by nodes
 type fs struct {
-	r            reader.Reader
-	s            *state
-	layerDigest  digest.Digest
-	baseInode    uint32
-	rootID       uint32
-	opaqueXattrs []string
+	r               reader.Reader
+	s               *state
+	layerDigest     digest.Digest
+	baseInode       uint32
+	rootID          uint32
+	opaqueXattrs    []string
+	logFSOperations bool
 }
 
 func (fs *fs) inodeOfState() uint64 {
@@ -149,6 +151,15 @@ type node struct {
 	entsCached bool
 }
 
+func (n *node) logOperation(ctx context.Context, operationName string) {
+	if n.fs.logFSOperations {
+		log.G(ctx).WithFields(logrus.Fields{
+			"operation": operationName,
+			"path":      n.Path(nil),
+		}).Debug("FUSE operation")
+	}
+}
+
 func (n *node) isRootNode() bool {
 	return n.id == n.fs.rootID
 }
@@ -165,6 +176,7 @@ var _ = (fusefs.InodeEmbedder)((*node)(nil))
 var _ = (fusefs.NodeReaddirer)((*node)(nil))
 
 func (n *node) Readdir(ctx context.Context) (fusefs.DirStream, syscall.Errno) {
+	n.logOperation(ctx, "Readdir")
 	ents, errno := n.readdir()
 	if errno != 0 {
 		return nil, errno
@@ -328,6 +340,7 @@ func (n *node) Lookup(ctx context.Context, name string, out *fuse.EntryOut) (*fu
 var _ = (fusefs.NodeOpener)((*node)(nil))
 
 func (n *node) Open(ctx context.Context, flags uint32) (fh fusefs.FileHandle, fuseFlags uint32, errno syscall.Errno) {
+	n.logOperation(ctx, "Open")
 	ra, err := n.fs.r.OpenFile(n.id)
 	if err != nil {
 		n.fs.s.report(fmt.Errorf("node.Open: %v", err))
@@ -342,6 +355,7 @@ func (n *node) Open(ctx context.Context, flags uint32) (fh fusefs.FileHandle, fu
 var _ = (fusefs.NodeGetattrer)((*node)(nil))
 
 func (n *node) Getattr(ctx context.Context, f fusefs.FileHandle, out *fuse.AttrOut) syscall.Errno {
+	n.logOperation(ctx, "Getattr")
 	ino, err := n.fs.inodeOfID(n.id)
 	if err != nil {
 		n.fs.s.report(fmt.Errorf("node.Getattr: %v", err))
@@ -354,6 +368,7 @@ func (n *node) Getattr(ctx context.Context, f fusefs.FileHandle, out *fuse.AttrO
 var _ = (fusefs.NodeGetxattrer)((*node)(nil))
 
 func (n *node) Getxattr(ctx context.Context, attr string, dest []byte) (uint32, syscall.Errno) {
+	n.logOperation(ctx, "Getxattr")
 	ent := n.attr
 	opq := n.isOpaque()
 	for _, opaqueXattr := range n.fs.opaqueXattrs {
@@ -377,6 +392,7 @@ func (n *node) Getxattr(ctx context.Context, attr string, dest []byte) (uint32, 
 var _ = (fusefs.NodeListxattrer)((*node)(nil))
 
 func (n *node) Listxattr(ctx context.Context, dest []byte) (uint32, syscall.Errno) {
+	n.logOperation(ctx, "Listxattr")
 	ent := n.attr
 	opq := n.isOpaque()
 	var attrs []byte
@@ -398,6 +414,7 @@ func (n *node) Listxattr(ctx context.Context, dest []byte) (uint32, syscall.Errn
 var _ = (fusefs.NodeReadlinker)((*node)(nil))
 
 func (n *node) Readlink(ctx context.Context) ([]byte, syscall.Errno) {
+	n.logOperation(ctx, "ReadLink")
 	ent := n.attr
 	return []byte(ent.LinkName), 0
 }
@@ -418,6 +435,7 @@ type file struct {
 var _ = (fusefs.FileReader)((*file)(nil))
 
 func (f *file) Read(ctx context.Context, dest []byte, off int64) (fuse.ReadResult, syscall.Errno) {
+	f.n.logOperation(ctx, "Read")
 	defer commonmetrics.MeasureLatencyInMicroseconds(commonmetrics.ReadOnDemand, f.n.fs.layerDigest, time.Now()) // measure time for on-demand file reads (in microseconds)
 	defer commonmetrics.IncOperationCount(commonmetrics.OnDemandReadAccessCount, f.n.fs.layerDigest)             // increment the counter for on-demand file accesses
 	n, err := f.ra.ReadAt(dest, off)
