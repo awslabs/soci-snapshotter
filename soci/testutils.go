@@ -125,7 +125,6 @@ func iterDirectory(dirPath string, tw *tar.Writer) error {
 		if fi.IsDir() {
 			iterDirectory(curPath, tw)
 		} else {
-			fmt.Printf("adding... %s\n", curPath)
 			writeTempTarGz(curPath, tw, fi)
 		}
 	}
