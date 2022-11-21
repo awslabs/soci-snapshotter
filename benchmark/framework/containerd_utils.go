@@ -31,8 +31,10 @@ import (
 	"github.com/containerd/containerd"
 	"github.com/containerd/containerd/cio"
 	"github.com/containerd/containerd/images"
+	"github.com/containerd/containerd/log"
 	"github.com/containerd/containerd/namespaces"
 	"github.com/containerd/containerd/oci"
+	"github.com/sirupsen/logrus"
 )
 
 var (
@@ -96,7 +98,7 @@ func StartContainerd(
 		Client:  client}, nil
 }
 
-func (proc *ContainerdProcess) StopProcess(cancelContext context.CancelFunc) {
+func (proc *ContainerdProcess) StopProcess() {
 	if proc.Client != nil {
 		proc.Client.Close()
 	}
@@ -105,9 +107,6 @@ func (proc *ContainerdProcess) StopProcess(cancelContext context.CancelFunc) {
 	}
 	if proc.stderr != nil {
 		proc.stderr.Close()
-	}
-	if cancelContext != nil {
-		cancelContext()
 	}
 	if proc.command != nil {
 		proc.command.Process.Kill()
@@ -289,8 +288,19 @@ func GetRemoteOpts(ctx context.Context, platform string) []containerd.RemoteOpt 
 	return opts
 }
 
-func GetTestContext() (context.Context, context.CancelFunc) {
-	ctx, cancel := context.WithCancel(context.Background())
+func GetTestContext(logFile io.Writer) (context.Context, context.CancelFunc) {
+	logrus.SetLevel(logrus.InfoLevel)
+	logrus.SetFormatter(&logrus.JSONFormatter{
+		TimestampFormat: log.RFC3339NanoFixed,
+	})
+	if logFile != nil {
+		logrus.SetOutput(logFile)
+	} else {
+		logrus.SetOutput(os.Stderr)
+	}
+
+	ctx := log.WithLogger(context.Background(), log.L)
+	ctx, cancel := context.WithCancel(ctx)
 	ctx = namespaces.WithNamespace(ctx, testNamespace)
 	return ctx, cancel
 }

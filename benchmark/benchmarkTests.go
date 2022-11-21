@@ -21,6 +21,7 @@ import (
 	"testing"
 
 	"github.com/awslabs/soci-snapshotter/benchmark/framework"
+	"github.com/containerd/containerd/log"
 )
 
 var (
@@ -37,13 +38,12 @@ var (
 	awsSecretFile     = "../aws_secret"
 )
 
-func PullImageFromECR(b *testing.B, imageRef string) {
-	ctx, cancelCtx := framework.GetTestContext()
+func PullImageFromECR(ctx context.Context, b *testing.B, imageRef string) {
 	containerdProcess, err := getContainerdProcess(ctx)
 	if err != nil {
 		b.Fatalf("Error Starting Containerd: %v\n", err)
 	}
-	defer containerdProcess.StopProcess(cancelCtx)
+	defer containerdProcess.StopProcess()
 	b.ResetTimer()
 	_, err = containerdProcess.PullImageFromECR(ctx, imageRef, platform, awsSecretFile)
 	if err != nil {
@@ -57,15 +57,15 @@ func PullImageFromECR(b *testing.B, imageRef string) {
 }
 
 func SociRPullPullImage(
+	ctx context.Context,
 	b *testing.B,
 	imageRef string,
 	indexDigest string) {
-	ctx, cancelCtx := framework.GetTestContext()
 	containerdProcess, err := getContainerdProcess(ctx)
 	if err != nil {
 		b.Fatalf("Failed to create containerd proc: %v\n", err)
 	}
-	defer containerdProcess.StopProcess(cancelCtx)
+	defer containerdProcess.StopProcess()
 	sociProcess, err := getSociProcess()
 	if err != nil {
 		b.Fatalf("Failed to create soci proc: %v\n", err)
@@ -81,16 +81,18 @@ func SociRPullPullImage(
 }
 
 func SociFullRun(
+	ctx context.Context,
 	b *testing.B,
 	imageRef string,
 	indexDigest string,
-	readyLine string) {
-	ctx, cancelCtx := framework.GetTestContext()
+	readyLine string,
+	testName string) {
+	log.G(ctx).WithField("test_name", testName).WithField("benchmark", "Test").WithField("event", "Start").Infof("Start Test")
 	containerdProcess, err := getContainerdProcess(ctx)
 	if err != nil {
 		b.Fatalf("Failed to create containerd proc: %v\n", err)
 	}
-	defer containerdProcess.StopProcess(cancelCtx)
+	defer containerdProcess.StopProcess()
 	sociProcess, err := getSociProcess()
 	if err != nil {
 		b.Fatalf("Failed to create soci proc: %v\n", err)
@@ -121,15 +123,17 @@ func SociFullRun(
 }
 
 func OverlayFSFullRun(
+	ctx context.Context,
 	b *testing.B,
 	imageRef string,
-	readyLine string) {
-	ctx, cancelCtx := framework.GetTestContext()
+	readyLine string,
+	testName string) {
+	log.G(ctx).WithField("test_name", testName).WithField("benchmark", "Test").WithField("event", "Start").Infof("Start Test")
 	containerdProcess, err := getContainerdProcess(ctx)
 	if err != nil {
 		b.Fatalf("Failed to create containerd proc: %v\n", err)
 	}
-	defer containerdProcess.StopProcess(cancelCtx)
+	defer containerdProcess.StopProcess()
 	b.ResetTimer()
 	image, err := containerdProcess.PullImageFromECR(ctx, imageRef, platform, awsSecretFile)
 	if err != nil {

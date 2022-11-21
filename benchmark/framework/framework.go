@@ -17,13 +17,16 @@
 package framework
 
 import (
+	"context"
 	"encoding/json"
 	"flag"
 	"fmt"
 	"io/fs"
 	"os"
+	"strconv"
 	"testing"
 
+	"github.com/containerd/containerd/log"
 	"github.com/montanaflynn/stats"
 )
 
@@ -56,7 +59,7 @@ type BenchmarkTestDriver struct {
 	Max            float64          `json:"max"`
 }
 
-func (frame *BenchmarkFramework) Run() {
+func (frame *BenchmarkFramework) Run(ctx context.Context) {
 	testing.Init()
 	flag.Set("test.benchtime", "1x")
 	flag.Parse()
@@ -67,6 +70,7 @@ func (frame *BenchmarkFramework) Run() {
 			testDriver.BeforeFunction()
 		}
 		for j := 0; j < testDriver.NumberOfTests; j++ {
+			log.G(ctx).WithField("test_name", testDriver.TestName).Infof("TestStart for " + testDriver.TestName + "_" + strconv.Itoa(j+1))
 			fmt.Printf("Running test %d of %d\n", j+1, testDriver.NumberOfTests)
 			res := testing.Benchmark(testDriver.TestFunction)
 			testDriver.TestTimes = append(testDriver.TestTimes, res.T.Seconds())
