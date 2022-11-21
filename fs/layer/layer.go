@@ -57,7 +57,6 @@ import (
 	spanmanager "github.com/awslabs/soci-snapshotter/fs/span-manager"
 	"github.com/awslabs/soci-snapshotter/metadata"
 	"github.com/awslabs/soci-snapshotter/soci"
-	"github.com/awslabs/soci-snapshotter/task"
 	"github.com/awslabs/soci-snapshotter/util/lrucache"
 	"github.com/awslabs/soci-snapshotter/util/namedmutex"
 	"github.com/containerd/containerd/log"
@@ -102,10 +101,6 @@ type Layer interface {
 	// ReadAt reads this layer.
 	ReadAt([]byte, int64, ...remote.Option) (int, error)
 
-	// BackgroundFetch fetches the entire layer contents to the cache.
-	// Fetching contents is done as a background task.
-	BackgroundFetch() error
-
 	// Done releases the reference to this layer. The resources related to this layer will be
 	// discarded sooner or later. Queries after calling this function won't be serviced.
 	Done()
@@ -121,22 +116,21 @@ type Info struct {
 
 // Resolver resolves the layer location and provieds the handler of that layer.
 type Resolver struct {
-	rootDir               string
-	resolver              *remote.Resolver
-	layerCache            *lrucache.Cache
-	layerCacheMu          sync.Mutex
-	blobCache             *lrucache.Cache
-	blobCacheMu           sync.Mutex
-	backgroundTaskManager *task.BackgroundTaskManager
-	resolveLock           *namedmutex.NamedMutex
-	config                config.Config
-	metadataStore         metadata.Store
-	artifactStore         content.Storage
-	overlayOpaqueType     OverlayOpaqueType
+	rootDir           string
+	resolver          *remote.Resolver
+	layerCache        *lrucache.Cache
+	layerCacheMu      sync.Mutex
+	blobCache         *lrucache.Cache
+	blobCacheMu       sync.Mutex
+	resolveLock       *namedmutex.NamedMutex
+	config            config.Config
+	metadataStore     metadata.Store
+	artifactStore     content.Storage
+	overlayOpaqueType OverlayOpaqueType
 }
 
 // NewResolver returns a new layer resolver.
-func NewResolver(root string, backgroundTaskManager *task.BackgroundTaskManager, cfg config.Config, resolveHandlers map[string]remote.Handler,
+func NewResolver(root string, cfg config.Config, resolveHandlers map[string]remote.Handler,
 	metadataStore metadata.Store, artifactStore content.Storage, overlayOpaqueType OverlayOpaqueType) (*Resolver, error) {
 	resolveResultEntry := cfg.ResolveResultEntry
 	if resolveResultEntry == 0 {
@@ -170,16 +164,15 @@ func NewResolver(root string, backgroundTaskManager *task.BackgroundTaskManager,
 	}
 
 	return &Resolver{
-		rootDir:               root,
-		resolver:              remote.NewResolver(cfg.BlobConfig, resolveHandlers),
-		layerCache:            layerCache,
-		blobCache:             blobCache,
-		backgroundTaskManager: backgroundTaskManager,
-		config:                cfg,
-		resolveLock:           new(namedmutex.NamedMutex),
-		metadataStore:         metadataStore,
-		artifactStore:         artifactStore,
-		overlayOpaqueType:     overlayOpaqueType,
+		rootDir:           root,
+		resolver:          remote.NewResolver(cfg.BlobConfig, resolveHandlers),
+		layerCache:        layerCache,
+		blobCache:         blobCache,
+		config:            cfg,
+		resolveLock:       new(namedmutex.NamedMutex),
+		metadataStore:     metadataStore,
+		artifactStore:     artifactStore,
+		overlayOpaqueType: overlayOpaqueType,
 	}, nil
 }
 
@@ -317,8 +310,6 @@ func (r *Resolver) Resolve(ctx context.Context, hosts source.RegistryHosts, refs
 	// will be stopped during the execution so this can avoid being disturbed for
 	// NW traffic by background tasks.
 	sr := io.NewSectionReader(readerAtFunc(func(p []byte, offset int64) (n int, err error) {
-		r.backgroundTaskManager.DoPrioritizedTask()
-		defer r.backgroundTaskManager.DonePrioritizedTask()
 		return blobR.ReadAt(p, offset)
 	}), 0, blobR.Size())
 	// define telemetry hooks to measure latency metrics for the metadata store
@@ -339,11 +330,8 @@ func (r *Resolver) Resolve(ctx context.Context, hosts source.RegistryHosts, refs
 		return nil, errors.Wrap(err, "failed to read layer")
 	}
 
-	pr := newPrefetcherReader(r, blobR, desc.Digest)
-	prefetcher := newPrefetcher(pr, spanManager)
-
 	// Combine layer information together and cache it.
-	l := newLayer(r, desc, blobR, vr, prefetcher)
+	l := newLayer(r, desc, blobR, vr)
 	r.layerCacheMu.Lock()
 	cachedL, done2, added := r.layerCache.Add(name, l)
 	r.layerCacheMu.Unlock()
@@ -403,19 +391,16 @@ func newLayer(
 	desc ocispec.Descriptor,
 	blob *blobRef,
 	vr *reader.VerifiableReader,
-	prefetcher *prefetcher,
 ) *layer {
 	return &layer{
 		resolver:         resolver,
 		desc:             desc,
 		blob:             blob,
 		verifiableReader: vr,
-		prefetcher:       prefetcher,
 	}
 }
 
 type layer struct {
-	prefetcher       *prefetcher
 	resolver         *Resolver
 	desc             ocispec.Descriptor
 	blob             *blobRef
@@ -425,8 +410,6 @@ type layer struct {
 
 	closed   bool
 	closedMu sync.Mutex
-
-	backgroundFetchOnce sync.Once
 }
 
 func (l *layer) Info() Info {
@@ -474,47 +457,8 @@ func (l *layer) SkipVerify() {
 	l.r = l.verifiableReader.SkipVerify()
 }
 
-func (l *layer) BackgroundFetch() (err error) {
-	l.backgroundFetchOnce.Do(func() {
-		ctx := context.Background()
-		err = l.backgroundFetch(ctx)
-		if err != nil {
-			log.G(ctx).WithError(err).Warnf("failed to fetch whole layer=%v", l.desc.Digest)
-			return
-		}
-		log.G(ctx).Debug("completed to fetch all layer data in background")
-	})
-	return
-}
-
-func (l *layer) backgroundFetch(ctx context.Context) error {
-	defer commonmetrics.WriteLatencyLogValue(ctx, l.desc.Digest, commonmetrics.BackgroundFetchTotal, time.Now())
-	if l.isClosed() {
-		return fmt.Errorf("layer is already closed")
-	}
-	err := l.prefetcher.prefetch()
-	return err
-}
-
 func (l *layerRef) Done() {
 	l.done()
-}
-
-func newPrefetcherReader(resolver *Resolver, blob *blobRef, digest digest.Digest) *io.SectionReader {
-	r := io.NewSectionReader(readerAtFunc(func(p []byte, offset int64) (retN int, retErr error) {
-		resolver.backgroundTaskManager.InvokeBackgroundTask(func(ctx context.Context) {
-			// Measuring the time to download background fetch data (in milliseconds)
-			defer commonmetrics.MeasureLatencyInMilliseconds(commonmetrics.BackgroundFetchDownload, digest, time.Now()) // time to download background fetch data
-			retN, retErr = blob.ReadAt(
-				p,
-				offset,
-				remote.WithContext(ctx),              // Make cancellable
-				remote.WithCacheOpts(cache.Direct()), // Do not pollute mem cache
-			)
-		}, 120*time.Second)
-		return
-	}), 0, blob.Size())
-	return r
 }
 
 func (l *layer) RootNode(baseInode uint32) (fusefs.InodeEmbedder, error) {

@@ -42,12 +42,10 @@ import (
 	"context"
 	"fmt"
 	"testing"
-	"time"
 
 	"github.com/awslabs/soci-snapshotter/fs/layer"
 	"github.com/awslabs/soci-snapshotter/fs/remote"
 	"github.com/awslabs/soci-snapshotter/fs/source"
-	"github.com/awslabs/soci-snapshotter/task"
 	"github.com/containerd/containerd/reference"
 	"github.com/containerd/containerd/remotes/docker"
 	fusefs "github.com/hanwen/go-fuse/v2/fs"
@@ -61,7 +59,6 @@ func TestCheck(t *testing.T) {
 		layer: map[string]layer.Layer{
 			"test": bl,
 		},
-		backgroundTaskManager: task.NewBackgroundTaskManager(1, time.Millisecond),
 		getSources: source.FromDefaultLabels(func(refspec reference.Spec) (hosts []docker.RegistryHost, _ error) {
 			return docker.ConfigureDefaultRegistries(docker.WithPlainHTTP(docker.MatchLocalhost))(refspec.Hostname())
 		}),

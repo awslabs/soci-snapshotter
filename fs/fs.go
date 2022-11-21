@@ -59,7 +59,6 @@ import (
 	"github.com/awslabs/soci-snapshotter/metadata"
 	"github.com/awslabs/soci-snapshotter/snapshot"
 	"github.com/awslabs/soci-snapshotter/soci"
-	"github.com/awslabs/soci-snapshotter/task"
 	"github.com/containerd/containerd/log"
 	"github.com/containerd/containerd/mount"
 	"github.com/containerd/containerd/reference"
@@ -126,10 +125,6 @@ func NewFilesystem(root string, cfg config.Config, opts ...Option) (_ snapshot.F
 	for _, o := range opts {
 		o(&fsOpts)
 	}
-	maxConcurrency := cfg.MaxConcurrency
-	if maxConcurrency == 0 {
-		maxConcurrency = defaultMaxConcurrency
-	}
 
 	attrTimeout := time.Duration(cfg.FuseConfig.AttrTimeout) * time.Second
 	if attrTimeout == 0 {
@@ -160,8 +155,7 @@ func NewFilesystem(root string, cfg config.Config, opts ...Option) (_ snapshot.F
 		return nil, fmt.Errorf("cannot create local store: %w", err)
 	}
 
-	tm := task.NewBackgroundTaskManager(maxConcurrency, time.Duration(cfg.PrioritizedTaskSilencePeriodMSec)*time.Millisecond)
-	r, err := layer.NewResolver(root, tm, cfg, fsOpts.resolveHandlers, metadataStore, store, fsOpts.overlayOpaqueType)
+	r, err := layer.NewResolver(root, cfg, fsOpts.resolveHandlers, metadataStore, store, fsOpts.overlayOpaqueType)
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to setup resolver")
 	}
@@ -176,19 +170,18 @@ func NewFilesystem(root string, cfg config.Config, opts ...Option) (_ snapshot.F
 		metrics.Register(ns) // Register layer metrics.
 	}
 	return &filesystem{
-		resolver:              r,
-		getSources:            getSources,
-		noBackgroundFetch:     cfg.NoBackgroundFetch,
-		debug:                 cfg.Debug,
-		layer:                 make(map[string]layer.Layer),
-		backgroundTaskManager: tm,
-		allowNoVerification:   cfg.AllowNoVerification,
-		disableVerification:   true,
-		metricsController:     c,
-		attrTimeout:           attrTimeout,
-		entryTimeout:          entryTimeout,
-		negativeTimeout:       negativeTimeout,
-		orasStore:             store,
+		resolver:            r,
+		getSources:          getSources,
+		noBackgroundFetch:   cfg.NoBackgroundFetch,
+		debug:               cfg.Debug,
+		layer:               make(map[string]layer.Layer),
+		allowNoVerification: cfg.AllowNoVerification,
+		disableVerification: true,
+		metricsController:   c,
+		attrTimeout:         attrTimeout,
+		entryTimeout:        entryTimeout,
+		negativeTimeout:     negativeTimeout,
+		orasStore:           store,
 	}, nil
 }
 
@@ -255,21 +248,20 @@ func (c *sociContext) populateImageLayerToSociMapping(sociIndex *soci.Index) {
 }
 
 type filesystem struct {
-	resolver              *layer.Resolver
-	noBackgroundFetch     bool
-	debug                 bool
-	layer                 map[string]layer.Layer
-	layerMu               sync.Mutex
-	backgroundTaskManager *task.BackgroundTaskManager
-	allowNoVerification   bool
-	disableVerification   bool
-	getSources            source.GetSources
-	metricsController     *layermetrics.Controller
-	attrTimeout           time.Duration
-	entryTimeout          time.Duration
-	negativeTimeout       time.Duration
-	sociContexts          sync.Map
-	orasStore             orascontent.Storage
+	resolver            *layer.Resolver
+	noBackgroundFetch   bool
+	debug               bool
+	layer               map[string]layer.Layer
+	layerMu             sync.Mutex
+	allowNoVerification bool
+	disableVerification bool
+	getSources          source.GetSources
+	metricsController   *layermetrics.Controller
+	attrTimeout         time.Duration
+	entryTimeout        time.Duration
+	negativeTimeout     time.Duration
+	sociContexts        sync.Map
+	orasStore           orascontent.Storage
 }
 
 func (fs *filesystem) MountLocal(ctx context.Context, mountpoint string, labels map[string]string, mounts []mount.Mount) error {
@@ -322,12 +314,6 @@ func (fs *filesystem) getSociContext(ctx context.Context, imageRef, indexDigest,
 func (fs *filesystem) Mount(ctx context.Context, mountpoint string, labels map[string]string) (retErr error) {
 	// Setting the start time to measure the Mount operation duration.
 	start := time.Now()
-
-	// This is a prioritized task and all background tasks will be stopped
-	// execution so this can avoid being disturbed for NW traffic by background
-	// tasks.
-	fs.backgroundTaskManager.DoPrioritizedTask()
-	defer fs.backgroundTaskManager.DonePrioritizedTask()
 	ctx = log.WithLogger(ctx, log.G(ctx).WithField("mountpoint", mountpoint))
 
 	sociIndexDigest, ok := labels[source.TargetSociIndexDigestLabel]
@@ -372,7 +358,6 @@ func (fs *filesystem) Mount(ctx context.Context, mountpoint string, labels map[s
 			l, err := fs.resolver.Resolve(ctx, s.Hosts, s.Name, s.Target, sociDesc)
 			if err == nil {
 				resultChan <- l
-				fs.backgroundFetch(ctx, l, start)
 				return
 			}
 			rErr = errors.Wrapf(rErr, "failed to resolve layer %q from %q: %v", s.Target.Digest, s.Name, err)
@@ -396,7 +381,6 @@ func (fs *filesystem) Mount(ctx context.Context, mountpoint string, labels map[s
 				log.G(ctx).WithError(err).Debug("failed to pre-resolve")
 				return
 			}
-			fs.backgroundFetch(ctx, l, start)
 
 			// Release this layer because this isn't target and we don't use it anymore here.
 			// However, this will remain on the resolver cache until eviction.
@@ -474,11 +458,6 @@ func (fs *filesystem) Mount(ctx context.Context, mountpoint string, labels map[s
 }
 
 func (fs *filesystem) Check(ctx context.Context, mountpoint string, labels map[string]string) error {
-	// This is a prioritized task and all background tasks will be stopped
-	// execution so this can avoid being disturbed for NW traffic by background
-	// tasks.
-	fs.backgroundTaskManager.DoPrioritizedTask()
-	defer fs.backgroundTaskManager.DonePrioritizedTask()
 
 	ctx = log.WithLogger(ctx, log.G(ctx).WithField("mountpoint", mountpoint))
 
@@ -550,18 +529,6 @@ func (fs *filesystem) Unmount(ctx context.Context, mountpoint string) error {
 	// goroutine using channel, etc.
 	// See also: https://www.kernel.org/doc/html/latest/filesystems/fuse.html#aborting-a-filesystem-connection
 	return syscall.Unmount(mountpoint, syscall.MNT_FORCE)
-}
-
-func (fs *filesystem) backgroundFetch(ctx context.Context, l layer.Layer, start time.Time) {
-	// Fetch whole layer aggressively in background.
-	if !fs.noBackgroundFetch {
-		go func() {
-			if err := l.BackgroundFetch(); err == nil {
-				// write log record for the latency between mount start and last on demand fetch
-				commonmetrics.LogLatencyForLastOnDemandFetch(ctx, l.Info().Digest, start, l.Info().ReadTime)
-			}
-		}()
-	}
 }
 
 // neighboringLayers returns layer descriptors except the `target` layer in the specified manifest.
