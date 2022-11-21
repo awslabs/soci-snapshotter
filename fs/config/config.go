@@ -99,4 +99,8 @@ type FuseConfig struct {
 
 	// NegativeTimeout defines the overall entry timeout for failed lookups.
 	NegativeTimeout int64 `toml:"negative_timeout"`
+
+	// LogFuseOperations enables logging of operations on FUSE FS. This is to be used
+	// for debugging purposes only.
+	LogFuseOperations bool `toml:"log_fuse_operations"`
 }
