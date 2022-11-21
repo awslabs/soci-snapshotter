@@ -16,7 +16,7 @@ require (
 	go.etcd.io/bbolt v1.3.6
 	golang.org/x/sys v0.0.0-20220722155257-8c9f86f7a55f
 	google.golang.org/grpc v1.51.0
-	k8s.io/cri-api v0.25.0
+	k8s.io/cri-api v0.25.4
 	oras.land/oras-go/v2 v2.0.0-rc.4
 )
 
@@ -47,7 +47,7 @@ require (
 	github.com/golang/groupcache v0.0.0-20210331224755-41bb18bfe9da // indirect
 	github.com/golang/protobuf v1.5.2 // indirect
 	github.com/google/flatbuffers v2.0.8+incompatible // indirect
-	github.com/google/go-cmp v0.5.6 // indirect
+	github.com/google/go-cmp v0.5.8 // indirect
 	github.com/google/gofuzz v1.2.0 // indirect
 	github.com/google/uuid v1.2.0 // indirect
 	github.com/googleapis/gnostic v0.5.5 // indirect
