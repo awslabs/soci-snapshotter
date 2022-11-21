@@ -51,6 +51,15 @@ func main() {
 		errMsg := fmt.Sprintf("Failed to read csv file %s with error:%v\n", configCsv, err)
 		panic(errMsg)
 	}
+
+	logFile, err := os.OpenFile(outputDir+"/benchmark_log", os.O_RDWR|os.O_CREATE, 0664)
+	if err != nil {
+		panic(err)
+	}
+	defer logFile.Close()
+	ctx, cancelCtx := framework.GetTestContext(logFile)
+	defer cancelCtx()
+
 	var drivers []framework.BenchmarkTestDriver
 	for _, image := range imageList {
 		shortName := image.shortName
@@ -61,14 +70,14 @@ func main() {
 			TestName:      "OverlayFSFull" + shortName,
 			NumberOfTests: numberOfTests,
 			TestFunction: func(b *testing.B) {
-				benchmark.OverlayFSFullRun(b, imageRef, readyLine)
+				benchmark.OverlayFSFullRun(ctx, b, imageRef, readyLine, "OverlayFSFull"+shortName)
 			},
 		})
 		drivers = append(drivers, framework.BenchmarkTestDriver{
 			TestName:      "SociFull" + shortName,
 			NumberOfTests: numberOfTests,
 			TestFunction: func(b *testing.B) {
-				benchmark.SociFullRun(b, imageRef, sociIndexManifestRef, readyLine)
+				benchmark.SociFullRun(ctx, b, imageRef, sociIndexManifestRef, readyLine, "SociFull"+shortName)
 			},
 		})
 	}
@@ -78,7 +87,7 @@ func main() {
 		CommitID:  commit,
 		Drivers:   drivers,
 	}
-	benchmarks.Run()
+	benchmarks.Run(ctx)
 }
 
 func getImageListFromCsv(csvLoc string) ([]ImageDescriptor, error) {
