@@ -27,7 +27,6 @@ import (
 	"github.com/google/go-cmp/cmp"
 	"github.com/opencontainers/go-digest"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
-	artifactsspec "github.com/oras-project/artifacts-spec/specs-go/v1"
 )
 
 const blobStorePath = "/var/lib/soci-snapshotter-grpc/content/blobs/sha256"
@@ -75,7 +74,7 @@ func TestSociCreateSparseIndex(t *testing.T) {
 			}
 
 			if index.MediaType != ocispec.MediaTypeArtifactManifest {
-				t.Fatalf("unexpected index media type; expected = %v, got = %v", artifactsspec.MediaTypeArtifactManifest, index.MediaType)
+				t.Fatalf("unexpected index media type; expected = %v, got = %v", ocispec.MediaTypeArtifactManifest, index.MediaType)
 			}
 
 			if index.ArtifactType != soci.SociIndexArtifactType {
@@ -192,7 +191,7 @@ func TestSociCreate(t *testing.T) {
 			}
 
 			if sociIndex.MediaType != ocispec.MediaTypeArtifactManifest {
-				t.Fatalf("unexpected index media type; expected = %v, got = %v", artifactsspec.MediaTypeArtifactManifest, sociIndex.MediaType)
+				t.Fatalf("unexpected index media type; expected = %v, got = %v", ocispec.MediaTypeArtifactManifest, sociIndex.MediaType)
 			}
 
 			if sociIndex.ArtifactType != soci.SociIndexArtifactType {
