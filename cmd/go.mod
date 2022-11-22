@@ -12,7 +12,7 @@ require (
 	github.com/pelletier/go-toml v1.9.4
 	github.com/pkg/errors v0.9.1
 	github.com/sirupsen/logrus v1.8.1
-	github.com/urfave/cli v1.22.5
+	github.com/urfave/cli v1.22.10
 	go.etcd.io/bbolt v1.3.6
 	golang.org/x/sys v0.0.0-20220722155257-8c9f86f7a55f
 	google.golang.org/grpc v1.51.0
