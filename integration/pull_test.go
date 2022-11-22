@@ -470,16 +470,16 @@ level = "debug"
 
 	// NOTE: these tests must be executed sequentially.
 	tests := []struct {
-		name string
-		want tarPipeExporter
-		test tarPipeExporter
+		name                    string
+		want                    tarPipeExporter
+		test                    tarPipeExporter
+		checkAllRemoteSnapshots bool
 	}{
 		{
 			name: "normal",
 			want: fromNormalSnapshotter(regConfig.mirror(nonOptimizedImageName).ref),
 			test: func(tarExportArgs ...string) {
 				image := regConfig.mirror(nonOptimizedImageName).ref
-				rebootContainerd(t, sh, "", "")
 				export(sh, image, tarExportArgs)
 			},
 		},
@@ -488,16 +488,18 @@ level = "debug"
 			want: fromNormalSnapshotter(regConfig.mirror(optimizedImageName).ref),
 			test: func(tarExportArgs ...string) {
 				image := regConfig.mirror(optimizedImageName).ref
-				m := rebootContainerd(t, sh, "", "")
 				sh.X("ctr", "i", "rm", regConfig.mirror(optimizedImageName).ref)
 				export(sh, image, tarExportArgs)
-				m.CheckAllRemoteSnapshots(t)
 			},
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			m := rebootContainerd(t, sh, "", "")
 			testSameTarContents(t, sh, tt.want, tt.test)
+			if tt.checkAllRemoteSnapshots {
+				m.CheckAllRemoteSnapshots(t)
+			}
 		})
 	}
 }
