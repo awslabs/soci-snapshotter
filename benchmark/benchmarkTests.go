@@ -153,6 +153,25 @@ func OverlayFSFullRun(
 	b.StopTimer()
 }
 
+func StargzFullRun(
+	b *testing.B,
+	imageRef string,
+	readyLine string) {
+	ctx, cancelCtx := framework.GetTestContext()
+	containerdProcess, err := getContainerdProcess(ctx)
+	if err != nil {
+		b.Fatalf("Failed to create containerd proc: %v\n", err)
+	}
+	defer containerdProcess.StopProcess(cancelCtx)
+	stargzProcess, err := getStargzProcess()
+	if err != nil {
+		b.Fatalf("Failed to create stargz proc: %v\n", err)
+	}
+	defer stargzProcess.StopProcess()
+	b.ResetTimer()
+	b.StopTimer()
+}
+
 func getContainerdProcess(ctx context.Context) (*framework.ContainerdProcess, error) {
 	return framework.StartContainerd(
 		containerdAddress,
@@ -170,4 +189,9 @@ func getSociProcess() (*SociProcess, error) {
 		containerdAddress,
 		sociConfig,
 		outputDir)
+}
+
+func getStargzProcess() (*StargzProcess, error) {
+	//TODO
+	return nil, nil
 }
