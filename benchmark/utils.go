@@ -45,12 +45,12 @@ func GetImageListFromCsv(csvLoc string) ([]ImageDescriptor, error) {
 		}
 		var sociIndexManifestRef string
 		if len(image) == 4 {
-			sociIndexManifestRef = image[3]
+			sociIndexManifestRef = image[2]
 		}
 		images = append(images, ImageDescriptor{
 			ShortName:            image[0],
 			ImageRef:             image[1],
-			ReadyLine:            image[2],
+			ReadyLine:            image[3],
 			SociIndexManifestRef: sociIndexManifestRef})
 	}
 	return images, nil

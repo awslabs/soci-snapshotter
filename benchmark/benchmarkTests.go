@@ -23,6 +23,7 @@ import (
 	"github.com/awslabs/soci-snapshotter/benchmark/framework"
 	"github.com/containerd/containerd"
 	"github.com/containerd/containerd/log"
+	"github.com/google/uuid"
 )
 
 var (
@@ -92,7 +93,9 @@ func SociFullRun(
 	indexDigest string,
 	readyLine string,
 	testName string) {
-	log.G(ctx).WithField("test_name", testName).WithField("benchmark", "Test").WithField("event", "Start").Infof("Start Test")
+	testUUID := uuid.New().String()
+	ctx = log.WithLogger(ctx, log.G(ctx).WithField("test_name", testName))
+	ctx = log.WithLogger(ctx, log.G(ctx).WithField("uuid", testUUID))
 	containerdProcess, err := getContainerdProcess(ctx, containerdSociConfig)
 	if err != nil {
 		b.Fatalf("Failed to create containerd proc: %v\n", err)
@@ -105,25 +108,52 @@ func SociFullRun(
 	defer sociProcess.StopProcess()
 	sociContainerdProc := SociContainerdProcess{containerdProcess}
 	b.ResetTimer()
+	log.G(ctx).WithField("benchmark", "Test").WithField("event", "Start").Infof("Start Test")
+	log.G(ctx).WithField("benchmark", "Pull").WithField("event", "Start").Infof("Start Pull Image")
 	image, err := sociContainerdProc.SociRPullImageFromECR(ctx, imageRef, indexDigest, awsSecretFile)
+	log.G(ctx).WithField("benchmark", "Pull").WithField("event", "Stop").Infof("Stop Pull Image")
 	if err != nil {
 		b.Fatalf("%s", err)
 	}
+	log.G(ctx).WithField("benchmark", "CreateContainer").WithField("event", "Start").Infof("Start Create Container")
 	container, cleanupContainer, err := sociContainerdProc.CreateSociContainer(ctx, image)
+	log.G(ctx).WithField("benchmark", "CreateContainer").WithField("event", "Stop").Infof("Stop Create Container")
 	if err != nil {
 		b.Fatalf("%s", err)
 	}
 	defer cleanupContainer()
+	log.G(ctx).WithField("benchmark", "CreateTask").WithField("event", "Start").Infof("Start Create Task")
 	taskDetails, cleanupTask, err := sociContainerdProc.CreateTask(ctx, container)
+	log.G(ctx).WithField("benchmark", "CreateTask").WithField("event", "Stop").Infof("Stop Create Task")
 	if err != nil {
 		b.Fatalf("%s", err)
 	}
 	defer cleanupTask()
+	log.G(ctx).WithField("benchmark", "RunTask").WithField("event", "Start").Infof("Start Run Task")
 	cleanupRun, err := sociContainerdProc.RunContainerTaskForReadyLine(ctx, taskDetails, readyLine)
+	log.G(ctx).WithField("benchmark", "RunTask").WithField("event", "Stop").Infof("Stop Run Task")
 	if err != nil {
 		b.Fatalf("%s", err)
 	}
 	defer cleanupRun()
+	containerSecondRun, cleanupContainerSecondRun, err := sociContainerdProc.CreateSociContainer(ctx, image)
+	if err != nil {
+		b.Fatalf("%s", err)
+	}
+	defer cleanupContainerSecondRun()
+	taskDetailsSecondRun, cleanupTaskSecondRun, err := sociContainerdProc.CreateTask(ctx, containerSecondRun)
+	if err != nil {
+		b.Fatalf("%s", err)
+	}
+	defer cleanupTaskSecondRun()
+	log.G(ctx).WithField("benchmark", "RunTaskTwice").WithField("event", "Start").Infof("Start Run Task Twice")
+	cleanupRunSecond, err := sociContainerdProc.RunContainerTaskForReadyLine(ctx, taskDetailsSecondRun, readyLine)
+	log.G(ctx).WithField("benchmark", "RunTaskTwice").WithField("event", "Stop").Infof("Stop Run Task Twice")
+	if err != nil {
+		b.Fatalf("%s", err)
+	}
+	defer cleanupRunSecond()
+	log.G(ctx).WithField("benchmark", "Test").WithField("event", "Stop").Infof("Stop Test")
 	b.StopTimer()
 }
 
@@ -133,32 +163,67 @@ func OverlayFSFullRun(
 	imageRef string,
 	readyLine string,
 	testName string) {
-	log.G(ctx).WithField("test_name", testName).WithField("benchmark", "Test").WithField("event", "Start").Infof("Start Test")
+	testUUID := uuid.New().String()
+	ctx = log.WithLogger(ctx, log.G(ctx).WithField("test_name", testName))
+	ctx = log.WithLogger(ctx, log.G(ctx).WithField("uuid", testUUID))
 	containerdProcess, err := getContainerdProcess(ctx, containerdSociConfig)
 	if err != nil {
 		b.Fatalf("Failed to create containerd proc: %v\n", err)
 	}
 	defer containerdProcess.StopProcess()
 	b.ResetTimer()
+	log.G(ctx).WithField("benchmark", "Test").WithField("event", "Start").Infof("Start Test")
+	log.G(ctx).WithField("benchmark", "Pull").WithField("event", "Start").Infof("Start Pull Image")
 	image, err := containerdProcess.PullImageFromECR(ctx, imageRef, platform, awsSecretFile)
+	log.G(ctx).WithField("benchmark", "Pull").WithField("event", "Stop").Infof("Stop Pull Image")
 	if err != nil {
 		b.Fatalf("%s", err)
 	}
+	log.G(ctx).WithField("benchmark", "Unpack").WithField("event", "Start").Infof("Start Unpack Image")
+	err = image.Unpack(ctx, "overlayfs")
+	log.G(ctx).WithField("benchmark", "Unpack").WithField("event", "Stop").Infof("Stop Unpack Image")
+	if err != nil {
+		b.Fatalf("%s", err)
+	}
+	log.G(ctx).WithField("benchmark", "CreateContainer").WithField("event", "Start").Infof("Start Create Container")
 	container, cleanupContainer, err := containerdProcess.CreateContainer(ctx, image)
+	log.G(ctx).WithField("benchmark", "CreateContainer").WithField("event", "Stop").Infof("Stop Create Container")
 	if err != nil {
 		b.Fatalf("%s", err)
 	}
 	defer cleanupContainer()
+	log.G(ctx).WithField("benchmark", "CreateTask").WithField("event", "Start").Infof("Start Create Task")
 	taskDetails, cleanupTask, err := containerdProcess.CreateTask(ctx, container)
+	log.G(ctx).WithField("benchmark", "CreateTask").WithField("event", "Stop").Infof("Stop Create Task")
 	if err != nil {
 		b.Fatalf("%s", err)
 	}
 	defer cleanupTask()
+	log.G(ctx).WithField("benchmark", "RunTask").WithField("event", "Start").Infof("Start Run Task")
 	cleanupRun, err := containerdProcess.RunContainerTaskForReadyLine(ctx, taskDetails, readyLine)
+	log.G(ctx).WithField("benchmark", "RunTask").WithField("event", "Stop").Infof("Stop Run Task")
 	if err != nil {
 		b.Fatalf("%s", err)
 	}
 	defer cleanupRun()
+	containerSecondRun, cleanupContainerSecondRun, err := containerdProcess.CreateContainer(ctx, image)
+	if err != nil {
+		b.Fatalf("%s", err)
+	}
+	defer cleanupContainerSecondRun()
+	taskDetailsSecondRun, cleanupTaskSecondRun, err := containerdProcess.CreateTask(ctx, containerSecondRun)
+	if err != nil {
+		b.Fatalf("%s", err)
+	}
+	defer cleanupTaskSecondRun()
+	log.G(ctx).WithField("benchmark", "RunTaskTwice").WithField("event", "Start").Infof("Start Run Task Twice")
+	cleanupRunSecond, err := containerdProcess.RunContainerTaskForReadyLine(ctx, taskDetailsSecondRun, readyLine)
+	log.G(ctx).WithField("benchmark", "RunTaskTwice").WithField("event", "Stop").Infof("Stop Run Task Twice")
+	if err != nil {
+		b.Fatalf("%s", err)
+	}
+	defer cleanupRunSecond()
+	log.G(ctx).WithField("benchmark", "Test").WithField("event", "Stop").Infof("Stop Test")
 	b.StopTimer()
 }
 
