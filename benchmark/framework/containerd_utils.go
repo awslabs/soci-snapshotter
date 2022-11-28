@@ -283,7 +283,6 @@ func (proc *ContainerdProcess) RunContainerTaskForReadyLine(
 func GetRemoteOpts(ctx context.Context, platform string) []containerd.RemoteOpt {
 	var opts []containerd.RemoteOpt
 	opts = append(opts, containerd.WithPlatform(platform))
-	opts = append(opts, containerd.WithPullUnpack)
 
 	return opts
 }
