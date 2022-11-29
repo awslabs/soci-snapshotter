@@ -501,6 +501,130 @@ level = "debug"
 	}
 }
 
+// TestLazyPull tests if lazy pulling works without background fetch.
+func TestLazyPullNoBackgroundFetch(t *testing.T) {
+	regConfig := newRegistryConfig()
+	// Prepare config for containerd and snapshotter
+	getContainerdConfigYaml := func(disableVerification bool) []byte {
+		additionalConfig := ""
+		if !isTestingBuiltinSnapshotter() {
+			additionalConfig = proxySnapshotterConfig
+		}
+		return []byte(testutil.ApplyTextTemplate(t, `
+version = 2
+
+[plugins."io.containerd.snapshotter.v1.soci"]
+root_path = "/var/lib/soci-snapshotter-grpc/"
+disable_verification = {{.DisableVerification}}
+
+[plugins."io.containerd.snapshotter.v1.soci".blob]
+check_always = true
+
+[debug]
+format = "json"
+level = "debug"
+
+{{.AdditionalConfig}}
+`, struct {
+			DisableVerification bool
+			AdditionalConfig    string
+		}{
+			DisableVerification: disableVerification,
+			AdditionalConfig:    additionalConfig,
+		}))
+	}
+	getSnapshotterConfigYaml := func() []byte {
+		// return []byte(fmt.Sprintf("disable_verification = %v", disableVerification))
+		return []byte(`
+[background_fetch]
+disable = true
+`)
+	}
+
+	// Setup environment
+	sh, done := newShellWithRegistry(t, regConfig)
+	defer done()
+	if err := testutil.WriteFileContents(sh, defaultContainerdConfigPath, getContainerdConfigYaml(false), 0600); err != nil {
+		t.Fatalf("failed to write %v: %v", defaultContainerdConfigPath, err)
+	}
+	if err := testutil.WriteFileContents(sh, defaultSnapshotterConfigPath, getSnapshotterConfigYaml(), 0600); err != nil {
+		t.Fatalf("failed to write %v: %v", defaultSnapshotterConfigPath, err)
+	}
+
+	optimizedImageName1 := alpineImage
+	optimizedImageName2 := nginxImage
+	nonOptimizedImageName := ubuntuImage
+
+	// Mirror images
+	rebootContainerd(t, sh, "", "")
+	copyImage(sh, dockerhub(optimizedImageName1), regConfig.mirror(optimizedImageName1))
+	copyImage(sh, dockerhub(optimizedImageName2), regConfig.mirror(optimizedImageName2))
+	copyImage(sh, dockerhub(nonOptimizedImageName), regConfig.mirror(nonOptimizedImageName))
+	indexDigest1 := optimizeImage(sh, regConfig.mirror(optimizedImageName1))
+	indexDigest2 := optimizeImage(sh, regConfig.mirror(optimizedImageName2))
+
+	// Test if contents are pulled
+	fromNormalSnapshotter := func(image string) tarPipeExporter {
+		return func(t *testing.T, tarExportArgs ...string) {
+			rebootContainerd(t, sh, "", "")
+			sh.X("ctr", "i", "pull", "--user", regConfig.creds(), image)
+			sh.Pipe(nil, shell.C("ctr", "run", "--rm", image, "test", "tar", "-zc", "/usr"), tarExportArgs)
+		}
+	}
+	export := func(sh *shell.Shell, image string, tarExportArgs []string) {
+		sh.X("soci", "image", "rpull", "--user", regConfig.creds(), "--soci-index-digest", indexDigest1, image)
+		sh.Pipe(nil, shell.C("soci", "run", "--rm", "--snapshotter=soci", image, "test", "tar", "-zc", "/usr"), tarExportArgs)
+	}
+
+	// NOTE: these tests must be executed sequentially.
+	tests := []struct {
+		name string
+		want tarPipeExporter
+		test tarPipeExporter
+	}{
+		{
+			name: "normal",
+			want: fromNormalSnapshotter(regConfig.mirror(nonOptimizedImageName).ref),
+			test: func(t *testing.T, tarExportArgs ...string) {
+				image := regConfig.mirror(nonOptimizedImageName).ref
+				rebootContainerd(t, sh, "", "")
+				export(sh, image, tarExportArgs)
+			},
+		},
+		{
+			name: "Soci",
+			want: fromNormalSnapshotter(regConfig.mirror(optimizedImageName1).ref),
+			test: func(t *testing.T, tarExportArgs ...string) {
+				image := regConfig.mirror(optimizedImageName1).ref
+				m := rebootContainerd(t, sh, "", "")
+				optimizeImage(sh, regConfig.mirror(optimizedImageName1))
+				sh.X("ctr", "i", "rm", optimizedImageName1)
+				export(sh, image, tarExportArgs)
+				m.CheckAllRemoteSnapshots(t)
+			},
+		},
+		{
+			name: "multi-image",
+			want: fromNormalSnapshotter(regConfig.mirror(optimizedImageName1).ref),
+			test: func(t *testing.T, tarExportArgs ...string) {
+				image := regConfig.mirror(optimizedImageName1).ref
+				m := rebootContainerd(t, sh, "", "")
+				optimizeImage(sh, regConfig.mirror(optimizedImageName2))
+				sh.X("soci", "image", "rpull", "--user", regConfig.creds(), "--soci-index-digest", indexDigest2, regConfig.mirror(optimizedImageName2).ref)
+				optimizeImage(sh, regConfig.mirror(optimizedImageName1))
+				sh.X("ctr", "i", "rm", optimizedImageName1)
+				export(sh, image, tarExportArgs)
+				m.CheckAllRemoteSnapshots(t)
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			testSameTarContents(t, sh, tt.want, tt.test)
+		})
+	}
+}
+
 // TestMirror tests if mirror & refreshing functionalities of snapshotter work
 func TestMirror(t *testing.T) {
 	var (

@@ -71,6 +71,8 @@ type Config struct {
 	DirectoryCacheConfig `toml:"directory_cache"`
 
 	FuseConfig `toml:"fuse"`
+
+	BackgroundFetchConfig `toml:"background_fetch"`
 }
 
 type BlobConfig struct {
@@ -103,4 +105,21 @@ type FuseConfig struct {
 	// LogFuseOperations enables logging of operations on FUSE FS. This is to be used
 	// for debugging purposes only.
 	LogFuseOperations bool `toml:"log_fuse_operations"`
+}
+
+type BackgroundFetchConfig struct {
+	Disable bool `toml:"disable"`
+
+	// SilencePeriodMSec defines the time (in ms) the background fetcher
+	// will be paused for when a new image is mounted.
+	SilencePeriodMSec int64 `toml:"silence_period_msec"`
+
+	// FetchPeriodMSec specifies how often a background fetch will occur.
+	// The background fetcher will fetch one span every FetchPeriodMSec.
+	FetchPeriodMSec int64 `toml:"fetch_period_msec"`
+
+	// MaxQueueSize specifies the maximum size of the work queue
+	// i.e., the maximum number of span managers that can be queued
+	// in the background fetcher.
+	MaxQueueSize int `toml:"max_queue_size"`
 }
