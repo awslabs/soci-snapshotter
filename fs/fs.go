@@ -50,6 +50,7 @@ import (
 	"syscall"
 	"time"
 
+	bf "github.com/awslabs/soci-snapshotter/fs/backgroundfetcher"
 	"github.com/awslabs/soci-snapshotter/fs/config"
 	"github.com/awslabs/soci-snapshotter/fs/layer"
 	commonmetrics "github.com/awslabs/soci-snapshotter/fs/metrics/common"
@@ -69,6 +70,7 @@ import (
 	"github.com/opencontainers/go-digest"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
+	"github.com/sirupsen/logrus"
 	orascontent "oras.land/oras-go/v2/content"
 	"oras.land/oras-go/v2/content/oci"
 	"oras.land/oras-go/v2/errdef"
@@ -77,6 +79,19 @@ import (
 const (
 	defaultFuseTimeout = time.Second
 	fusermountBin      = "fusermount"
+
+	// Amount of time the background fetcher will wait once a new layer comes in
+	// before (re)starting fetches.
+	defaultBgSilencePeriod = 30 * time.Second
+
+	// Specifies how often the fetch will occur.
+	// The background fetcher will fetch a single span every `defaultFetchPeriod`.
+	defaultBgFetchPeriod = 500 * time.Millisecond
+
+	// Specifies the maximum size of the bg-fetcher work queue i.e., the maximum number
+	// of span managers that can be queued. In case of overflow, the `Add` call
+	// will block until a span manager is removed from the workqueue.
+	defaultBgMaxQueueSize = 100
 )
 
 var (
@@ -149,12 +164,47 @@ func NewFilesystem(root string, cfg config.Config, opts ...Option) (_ snapshot.F
 		})
 	}
 
+	bgFetchPeriod := time.Duration(cfg.BackgroundFetchConfig.FetchPeriodMSec) * time.Millisecond
+	if bgFetchPeriod == 0 {
+		bgFetchPeriod = defaultBgFetchPeriod
+	}
+
+	bgSilencePeriod := time.Duration(cfg.BackgroundFetchConfig.SilencePeriodMSec) * time.Millisecond
+	if bgSilencePeriod == 0 {
+		bgSilencePeriod = defaultBgSilencePeriod
+	}
+
+	bgMaxQueueSize := cfg.BackgroundFetchConfig.MaxQueueSize
+	if bgMaxQueueSize == 0 {
+		bgMaxQueueSize = defaultBgMaxQueueSize
+	}
+
 	store, err := oci.New(config.SociContentStorePath)
 	if err != nil {
 		return nil, fmt.Errorf("cannot create local store: %w", err)
 	}
 
-	r, err := layer.NewResolver(root, cfg, fsOpts.resolveHandlers, metadataStore, store, fsOpts.overlayOpaqueType)
+	var bgFetcher *bf.BackgroundFetcher
+	if !cfg.BackgroundFetchConfig.Disable {
+		log.G(context.Background()).WithFields(logrus.Fields{
+			"fetchPeriod":   bgFetchPeriod,
+			"silencePeriod": bgSilencePeriod,
+			"maxQueueSize":  bgMaxQueueSize,
+		}).Info("constructing background fetcher")
+
+		bgFetcher, err = bf.NewBackgroundFetcher(bf.WithFetchPeriod(bgFetchPeriod),
+			bf.WithSilencePeriod(bgSilencePeriod),
+			bf.WithMaxQueueSize(bgMaxQueueSize))
+
+		if err != nil {
+			return nil, fmt.Errorf("cannot create background fetcher: %w", err)
+		}
+		go bgFetcher.Run(context.Background())
+	} else {
+		log.G(context.Background()).Info("background fetch is disabled")
+	}
+
+	r, err := layer.NewResolver(root, cfg, fsOpts.resolveHandlers, metadataStore, store, fsOpts.overlayOpaqueType, bgFetcher)
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to setup resolver")
 	}
@@ -181,10 +231,12 @@ func NewFilesystem(root string, cfg config.Config, opts ...Option) (_ snapshot.F
 		entryTimeout:        entryTimeout,
 		negativeTimeout:     negativeTimeout,
 		orasStore:           store,
+		bgFetcher:           bgFetcher,
 	}, nil
 }
 
 type sociContext struct {
+	bgFetchPauseOnce     sync.Once
 	fetchOnce            sync.Once
 	sociIndex            *soci.Index
 	imageLayerToSociDesc map[string]ocispec.Descriptor
@@ -261,6 +313,7 @@ type filesystem struct {
 	negativeTimeout     time.Duration
 	sociContexts        sync.Map
 	orasStore           orascontent.Storage
+	bgFetcher           *bf.BackgroundFetcher
 }
 
 func (fs *filesystem) MountLocal(ctx context.Context, mountpoint string, labels map[string]string, mounts []mount.Mount) error {
@@ -313,6 +366,7 @@ func (fs *filesystem) getSociContext(ctx context.Context, imageRef, indexDigest,
 func (fs *filesystem) Mount(ctx context.Context, mountpoint string, labels map[string]string) (retErr error) {
 	// Setting the start time to measure the Mount operation duration.
 	start := time.Now()
+
 	ctx = log.WithLogger(ctx, log.G(ctx).WithField("mountpoint", mountpoint))
 
 	sociIndexDigest, ok := labels[source.TargetSociIndexDigestLabel]
@@ -453,6 +507,15 @@ func (fs *filesystem) Mount(ctx context.Context, mountpoint string, labels map[s
 	}
 
 	go server.Serve()
+
+	// Send a signal to the background fetcher that a new image is being mounted
+	// and to pause all background fetches.
+	c.bgFetchPauseOnce.Do(func() {
+		if fs.bgFetcher != nil {
+			fs.bgFetcher.Pause()
+		}
+	})
+
 	return server.WaitMount()
 }
 

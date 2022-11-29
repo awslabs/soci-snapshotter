@@ -163,6 +163,54 @@ func (m *SpanManager) buildAllSpans() {
 	}
 }
 
+// FetchSingleSpan invokes the reader to fetch the span in the background and cache it.
+// It is invoked by the BackgroundFetcher.
+func (m *SpanManager) FetchSingleSpan(spanID compression.SpanID) error {
+	if spanID > m.ztoc.CompressionInfo.MaxSpanID {
+		return ErrExceedMaxSpan
+	}
+
+	s := m.spans[spanID]
+	s.mu.Lock()
+	state := s.state.Load().(spanState)
+
+	// Only fetch if the span hasn't been requested yet.
+	if state != unrequested {
+		s.mu.Unlock()
+		return nil
+	}
+
+	s.setState(requested)
+	s.mu.Unlock()
+
+	compressedSize := s.endCompOffset - s.startCompOffset
+	compressedBuf := make([]byte, compressedSize)
+
+	n, err := m.r.ReadAt(compressedBuf, int64(s.startCompOffset))
+	if err != nil {
+		return err
+	}
+
+	if n != len(compressedBuf) {
+		return fmt.Errorf("unexpected data size for reading compressed span. read = %d, expected = %d", n, len(compressedBuf))
+	}
+
+	if err := m.verifySpanContents(compressedBuf, spanID); err != nil {
+		return err
+	}
+
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	state = s.state.Load().(spanState)
+	if state != requested {
+		return nil
+	}
+
+	m.addSpanToCache(fmt.Sprintf("%d", spanID), compressedBuf)
+	return s.setState(fetched)
+}
+
 func (m *SpanManager) ResolveSpan(spanID compression.SpanID, r *io.SectionReader) error {
 	if spanID > m.ztoc.CompressionInfo.MaxSpanID {
 		return ErrExceedMaxSpan

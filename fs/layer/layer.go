@@ -50,9 +50,12 @@ import (
 
 	"github.com/awslabs/soci-snapshotter/cache"
 	"github.com/awslabs/soci-snapshotter/fs/config"
+
+	backgroundfetcher "github.com/awslabs/soci-snapshotter/fs/backgroundfetcher"
 	commonmetrics "github.com/awslabs/soci-snapshotter/fs/metrics/common"
 	"github.com/awslabs/soci-snapshotter/fs/reader"
 	"github.com/awslabs/soci-snapshotter/fs/remote"
+
 	"github.com/awslabs/soci-snapshotter/fs/source"
 	spanmanager "github.com/awslabs/soci-snapshotter/fs/span-manager"
 	"github.com/awslabs/soci-snapshotter/metadata"
@@ -127,11 +130,12 @@ type Resolver struct {
 	metadataStore     metadata.Store
 	artifactStore     content.Storage
 	overlayOpaqueType OverlayOpaqueType
+	bgFetcher         *backgroundfetcher.BackgroundFetcher
 }
 
 // NewResolver returns a new layer resolver.
 func NewResolver(root string, cfg config.Config, resolveHandlers map[string]remote.Handler,
-	metadataStore metadata.Store, artifactStore content.Storage, overlayOpaqueType OverlayOpaqueType) (*Resolver, error) {
+	metadataStore metadata.Store, artifactStore content.Storage, overlayOpaqueType OverlayOpaqueType, bgFetcher *backgroundfetcher.BackgroundFetcher) (*Resolver, error) {
 	resolveResultEntry := cfg.ResolveResultEntry
 	if resolveResultEntry == 0 {
 		resolveResultEntry = defaultResolveResultEntry
@@ -173,6 +177,7 @@ func NewResolver(root string, cfg config.Config, resolveHandlers map[string]remo
 		metadataStore:     metadataStore,
 		artifactStore:     artifactStore,
 		overlayOpaqueType: overlayOpaqueType,
+		bgFetcher:         bgFetcher,
 	}, nil
 }
 
@@ -325,13 +330,18 @@ func (r *Resolver) Resolve(ctx context.Context, hosts source.RegistryHosts, refs
 	log.G(ctx).Debugf("[Resolver.Resolve]Initialized metadata store for layer sha=%v", desc.Digest)
 
 	spanManager := spanmanager.New(ztoc, sr, spanCache, cache.Direct())
+	var bgLayerResolver backgroundfetcher.Resolver
+	if r.bgFetcher != nil {
+		bgLayerResolver = backgroundfetcher.NewSequentialResolver(desc.Digest, spanManager)
+		r.bgFetcher.Add(bgLayerResolver)
+	}
 	vr, err := reader.NewReader(meta, desc.Digest, spanManager)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to read layer")
 	}
 
 	// Combine layer information together and cache it.
-	l := newLayer(r, desc, blobR, vr)
+	l := newLayer(r, desc, blobR, vr, bgLayerResolver)
 	r.layerCacheMu.Lock()
 	cachedL, done2, added := r.layerCache.Add(name, l)
 	r.layerCacheMu.Unlock()
@@ -391,12 +401,14 @@ func newLayer(
 	desc ocispec.Descriptor,
 	blob *blobRef,
 	vr *reader.VerifiableReader,
+	bgResolver backgroundfetcher.Resolver,
 ) *layer {
 	return &layer{
 		resolver:         resolver,
 		desc:             desc,
 		blob:             blob,
 		verifiableReader: vr,
+		bgResolver:       bgResolver,
 	}
 }
 
@@ -405,6 +417,8 @@ type layer struct {
 	desc             ocispec.Descriptor
 	blob             *blobRef
 	verifiableReader *reader.VerifiableReader
+
+	bgResolver backgroundfetcher.Resolver
 
 	r reader.Reader
 
@@ -482,6 +496,9 @@ func (l *layer) close() error {
 		return nil
 	}
 	l.closed = true
+	if l.bgResolver != nil {
+		l.bgResolver.Close()
+	}
 	defer l.blob.done() // Close reader first, then close the blob
 	l.verifiableReader.Close()
 	if l.r != nil {
