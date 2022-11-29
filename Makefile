@@ -27,6 +27,7 @@ SOCI_SNAPSHOTTER_PROJECT_ROOT ?= $(shell pwd)
 LTAG_TEMPLATE_FLAG=-t ./.headers
 FBS_FILE_PATH=$(CURDIR)/soci/fbs/ztoc.fbs
 COMMIT=$(shell git rev-parse HEAD)
+STARGZ_BINARY?=/usr/local/bin/containerd-stargz-grpc
 
 CMD=soci-snapshotter-grpc soci
 
@@ -138,4 +139,4 @@ benchmarks-comp:
 
 benchmarks-stargz:
 	@echo "$@"
-	@cd benchmark/stargzTest ; GO111MODULE=$(GO111MODULE_VALUE) go build -o ../bin/StargzTests . && sudo ../bin/StargzTests $(COMMIT) ../singleImage.csv 10
+	@cd benchmark/stargzTest ; GO111MODULE=$(GO111MODULE_VALUE) go build -o ../bin/StargzTests . && sudo ../bin/StargzTests $(COMMIT) ../singleImage.csv 10 $(STARGZ_BINARY)

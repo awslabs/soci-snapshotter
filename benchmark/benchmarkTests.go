@@ -36,6 +36,9 @@ var (
 	sociRoot          = "/tmp/lib/soci-snapshotter-grpc"
 	sociConfig        = "../soci_config.toml"
 	awsSecretFile     = "../aws_secret"
+	stargzAddress     = "/tmp/containerd-stargz-grpc/containerd-stargz-grpc.sock"
+	stargzConfig      = "../stargz_config.toml"
+	stargzRoot        = "/tmp/lib/containerd-stargz-grpc"
 )
 
 func PullImageFromECR(ctx context.Context, b *testing.B, imageRef string) {
@@ -161,13 +164,14 @@ func StargzFullRun(
 	ctx context.Context,
 	b *testing.B,
 	imageRef string,
-	readyLine string) {
+	readyLine string,
+	stargzBinary string) {
 	containerdProcess, err := getContainerdProcess(ctx)
 	if err != nil {
 		b.Fatalf("Failed to create containerd proc: %v\n", err)
 	}
 	defer containerdProcess.StopProcess()
-	stargzProcess, err := getStargzProcess()
+	stargzProcess, err := getStargzProcess(stargzBinary)
 	if err != nil {
 		b.Fatalf("Failed to create stargz proc: %v\n", err)
 	}
@@ -195,7 +199,11 @@ func getSociProcess() (*SociProcess, error) {
 		outputDir)
 }
 
-func getStargzProcess() (*StargzProcess, error) {
-	//TODO
-	return nil, nil
+func getStargzProcess(stargzBinary string) (*StargzProcess, error) {
+	return StartStargz(
+		stargzBinary,
+		stargzAddress,
+		stargzRoot,
+		stargzConfig,
+		outputDir)
 }

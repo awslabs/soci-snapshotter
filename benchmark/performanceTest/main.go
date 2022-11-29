@@ -17,7 +17,6 @@
 package main
 
 import (
-	"encoding/csv"
 	"fmt"
 	"os"
 	"strconv"
@@ -31,13 +30,6 @@ var (
 	outputDir = "./output"
 )
 
-type ImageDescriptor struct {
-	shortName            string
-	imageRef             string
-	sociIndexManifestRef string
-	readyLine            string
-}
-
 func main() {
 	commit := os.Args[1]
 	configCsv := os.Args[2]
@@ -46,7 +38,7 @@ func main() {
 		errMsg := fmt.Sprintf("Failed to parse number of test %s with error:%v\n", os.Args[3], err)
 		panic(errMsg)
 	}
-	imageList, err := getImageListFromCsv(configCsv)
+	imageList, err := benchmark.GetImageListFromCsv(configCsv)
 	if err != nil {
 		errMsg := fmt.Sprintf("Failed to read csv file %s with error:%v\n", configCsv, err)
 		panic(errMsg)
@@ -67,10 +59,10 @@ func main() {
 
 	var drivers []framework.BenchmarkTestDriver
 	for _, image := range imageList {
-		shortName := image.shortName
-		imageRef := image.imageRef
-		sociIndexManifestRef := image.sociIndexManifestRef
-		readyLine := image.readyLine
+		shortName := image.ShortName
+		imageRef := image.ImageRef
+		sociIndexManifestRef := image.SociIndexManifestRef
+		readyLine := image.ReadyLine
 		testName := "SociFull" + shortName
 		drivers = append(drivers, framework.BenchmarkTestDriver{
 			TestName:      testName,
@@ -87,24 +79,4 @@ func main() {
 		Drivers:   drivers,
 	}
 	benchmarks.Run(ctx)
-}
-
-func getImageListFromCsv(csvLoc string) ([]ImageDescriptor, error) {
-	csvFile, err := os.Open(csvLoc)
-	if err != nil {
-		return nil, err
-	}
-	csv, err := csv.NewReader(csvFile).ReadAll()
-	if err != nil {
-		return nil, err
-	}
-	var images []ImageDescriptor
-	for _, image := range csv {
-		images = append(images, ImageDescriptor{
-			shortName:            image[0],
-			imageRef:             image[1],
-			sociIndexManifestRef: image[2],
-			readyLine:            image[3]})
-	}
-	return images, nil
 }
