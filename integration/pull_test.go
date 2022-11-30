@@ -208,7 +208,7 @@ level = "debug"
 	indexDigest := buildSparseIndex(sh, regConfig.mirror(imageName), minLayerSize)
 
 	fromNormalSnapshotter := func(image string) tarPipeExporter {
-		return func(tarExportArgs ...string) {
+		return func(t *testing.T, tarExportArgs ...string) {
 			rebootContainerd(t, sh, "", "")
 			sh.X("ctr", "i", "pull", "--user", regConfig.creds(), image)
 			sh.Pipe(nil, shell.C("ctr", "run", "--rm", image, "test", "tar", "-c", "/usr"), tarExportArgs)
@@ -259,7 +259,7 @@ level = "debug"
 		{
 			name: "Soci",
 			want: fromNormalSnapshotter(regConfig.mirror(imageName).ref),
-			test: func(tarExportArgs ...string) {
+			test: func(t *testing.T, tarExportArgs ...string) {
 				image := regConfig.mirror(imageName).ref
 				rebootContainerd(t, sh, "", "")
 				buildSparseIndex(sh, regConfig.mirror(imageName), minLayerSize)
@@ -338,7 +338,7 @@ level = "debug"
 
 	// Test if contents are pulled
 	fromNormalSnapshotter := func(image string) tarPipeExporter {
-		return func(tarExportArgs ...string) {
+		return func(t *testing.T, tarExportArgs ...string) {
 			rebootContainerd(t, sh, "", "")
 			sh.X("ctr", "i", "pull", "--user", regConfig.creds(), image)
 			sh.Pipe(nil, shell.C("ctr", "run", "--rm", image, "test", "tar", "-c", "/usr"), tarExportArgs)
@@ -358,7 +358,7 @@ level = "debug"
 		{
 			name: "normal",
 			want: fromNormalSnapshotter(regConfig.mirror(nonOptimizedImageName).ref),
-			test: func(tarExportArgs ...string) {
+			test: func(t *testing.T, tarExportArgs ...string) {
 				image := regConfig.mirror(nonOptimizedImageName).ref
 				rebootContainerd(t, sh, "", "")
 				export(sh, image, tarExportArgs)
@@ -367,7 +367,7 @@ level = "debug"
 		{
 			name: "Soci",
 			want: fromNormalSnapshotter(regConfig.mirror(optimizedImageName1).ref),
-			test: func(tarExportArgs ...string) {
+			test: func(t *testing.T, tarExportArgs ...string) {
 				image := regConfig.mirror(optimizedImageName1).ref
 				m := rebootContainerd(t, sh, "", "")
 				optimizeImage(sh, regConfig.mirror(optimizedImageName1))
@@ -379,7 +379,7 @@ level = "debug"
 		{
 			name: "multi-image",
 			want: fromNormalSnapshotter(regConfig.mirror(optimizedImageName1).ref),
-			test: func(tarExportArgs ...string) {
+			test: func(t *testing.T, tarExportArgs ...string) {
 				image := regConfig.mirror(optimizedImageName1).ref
 				m := rebootContainerd(t, sh, "", "")
 				optimizeImage(sh, regConfig.mirror(optimizedImageName2))
@@ -457,7 +457,7 @@ level = "debug"
 
 	// Test if contents are pulled
 	fromNormalSnapshotter := func(image string) tarPipeExporter {
-		return func(tarExportArgs ...string) {
+		return func(t *testing.T, tarExportArgs ...string) {
 			rebootContainerd(t, sh, "", "")
 			sh.X("ctr", "i", "pull", "--user", regConfig.creds(), image)
 			sh.Pipe(nil, shell.C("ctr", "run", "--rm", image, "test", "tar", "-c", "/usr"), tarExportArgs)
@@ -478,7 +478,7 @@ level = "debug"
 		{
 			name: "normal",
 			want: fromNormalSnapshotter(regConfig.mirror(nonOptimizedImageName).ref),
-			test: func(tarExportArgs ...string) {
+			test: func(t *testing.T, tarExportArgs ...string) {
 				image := regConfig.mirror(nonOptimizedImageName).ref
 				export(sh, image, tarExportArgs)
 			},
@@ -486,7 +486,7 @@ level = "debug"
 		{
 			name: "soci",
 			want: fromNormalSnapshotter(regConfig.mirror(optimizedImageName).ref),
-			test: func(tarExportArgs ...string) {
+			test: func(t *testing.T, tarExportArgs ...string) {
 				image := regConfig.mirror(optimizedImageName).ref
 				sh.X("ctr", "i", "rm", regConfig.mirror(optimizedImageName).ref)
 				export(sh, image, tarExportArgs)
@@ -677,13 +677,13 @@ insecure = true
 	export := func(image string) []string {
 		return shell.C("soci", "run", "--rm", "--snapshotter=soci", image, "test", "tar", "-c", "/usr")
 	}
-	sample := func(tarExportArgs ...string) {
+	sample := func(t *testing.T, tarExportArgs ...string) {
 		sh.Pipe(nil, shell.C("ctr", "run", "--rm", regConfig.mirror(imageName).ref, "test", "tar", "-c", "/usr"), tarExportArgs)
 	}
 
 	// test if mirroring is working (switching to registryAltHost)
 	testSameTarContents(t, sh, sample,
-		func(tarExportArgs ...string) {
+		func(t *testing.T, tarExportArgs ...string) {
 			sh.
 				X("iptables", "-A", "OUTPUT", "-d", registryHostIP, "-j", "DROP").
 				X("iptables", "-L").
@@ -694,7 +694,7 @@ insecure = true
 
 	// test if refreshing is working (swithching back to registryHost)
 	testSameTarContents(t, sh, sample,
-		func(tarExportArgs ...string) {
+		func(t *testing.T, tarExportArgs ...string) {
 			sh.
 				X("iptables", "-A", "OUTPUT", "-d", registryAltHostIP, "-j", "DROP").
 				X("iptables", "-L").
@@ -712,7 +712,7 @@ func getIP(t *testing.T, sh *shell.Shell, name string) string {
 	return resolved[0]
 }
 
-type tarPipeExporter func(tarExportArgs ...string)
+type tarPipeExporter func(t *testing.T, tarExportArgs ...string)
 
 func testSameTarContents(t *testing.T, sh *shell.Shell, aC, bC tarPipeExporter) {
 	aDir, err := testutil.TempDir(sh)
@@ -723,8 +723,8 @@ func testSameTarContents(t *testing.T, sh *shell.Shell, aC, bC tarPipeExporter) 
 	if err != nil {
 		t.Fatalf("failed to create temp dir B: %v", err)
 	}
-	aC("tar", "-xC", aDir)
-	bC("tar", "-xC", bDir)
+	aC(t, "tar", "-xC", aDir)
+	bC(t, "tar", "-xC", bDir)
 	sh.X("diff", "--no-dereference", "-qr", aDir+"/", bDir+"/")
 }
 
