@@ -75,9 +75,8 @@ import (
 )
 
 const (
-	defaultFuseTimeout    = time.Second
-	defaultMaxConcurrency = 2
-	fusermountBin         = "fusermount"
+	defaultFuseTimeout = time.Second
+	fusermountBin      = "fusermount"
 )
 
 var (
