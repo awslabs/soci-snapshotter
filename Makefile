@@ -136,3 +136,7 @@ benchmarks-comp:
 benchmarks-stargz:
 	@echo "$@"
 	@cd benchmark/stargzTest ; GO111MODULE=$(GO111MODULE_VALUE) go build -o ../bin/StargzTests . && sudo ../bin/StargzTests $(COMMIT) ../singleImage.csv 10 $(STARGZ_BINARY)
+
+benchmarks-parser:
+	@echo "$@"
+	@cd benchmark/parser ; GO111MODULE=$(GO111MODULE_VALUE) go build -o ../bin/Parser .
