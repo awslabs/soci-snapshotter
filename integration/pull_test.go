@@ -154,7 +154,6 @@ func TestOptimizeConsistentSociArtifact(t *testing.T) {
 }
 
 func TestLazyPullWithSparseIndex(t *testing.T) {
-	t.Parallel()
 	regConfig := newRegistryConfig()
 	// Prepare config for containerd and snapshotter
 	getContainerdConfigYaml := func(disableVerification bool) []byte {
@@ -216,7 +215,7 @@ level = "debug"
 	}
 	export := func(sh *shell.Shell, image string, tarExportArgs []string) {
 		sh.X("soci", "image", "rpull", "--user", regConfig.creds(), "--soci-index-digest", indexDigest, image)
-		sh.Pipe(nil, shell.C("soci", "run", "--rm", "--snapshotter=soci", image, "test", "tar", "-c", "/usr"), tarExportArgs)
+		sh.Pipe(nil, shell.C("soci", "run", "--rm", "--snapshotter=soci", image, "test", "tar", "-vc", "/usr"), tarExportArgs)
 	}
 
 	imageManifestJSON := fetchContentByDigest(sh, imageManifestDigest)
@@ -399,7 +398,6 @@ level = "debug"
 
 // TestLazyPull tests if lazy pulling works when no index digest is provided (makes a Referrers API call)
 func TestLazyPullNoIndexDigest(t *testing.T) {
-	t.Parallel()
 	// Prepare config for containerd and snapshotter
 	getContainerdConfigYaml := func(disableVerification bool) []byte {
 		additionalConfig := ""
@@ -464,7 +462,7 @@ level = "debug"
 	}
 	export := func(sh *shell.Shell, image string, tarExportArgs []string) {
 		sh.X("soci", "image", "rpull", "--user", regConfig.creds(), image)
-		sh.Pipe(nil, shell.C("soci", "run", "--rm", "--snapshotter=soci", image, "test", "tar", "-c", "/usr"), tarExportArgs)
+		sh.Pipe(nil, shell.C("soci", "run", "--rm", "--snapshotter=soci", image, "test", "tar", "-vc", "/usr"), tarExportArgs)
 	}
 
 	// NOTE: these tests must be executed sequentially.
