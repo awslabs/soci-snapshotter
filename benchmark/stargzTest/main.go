@@ -50,6 +50,20 @@ func main() {
 		errMsg := fmt.Sprintf("Failed to read csv file %s with error:%v\n", configCsv, err)
 		panic(errMsg)
 	}
+
+	err = os.Mkdir(outputDir, 0755)
+	if err != nil && !os.IsExist(err) {
+		panic(err)
+	}
+
+	logFile, err := os.OpenFile(outputDir+"/benchmark_log", os.O_RDWR|os.O_CREATE, 0664)
+	if err != nil {
+		panic(err)
+	}
+	defer logFile.Close()
+	ctx, cancelCtx := framework.GetTestContext(logFile)
+	defer cancelCtx()
+
 	var drivers []framework.BenchmarkTestDriver
 	for _, image := range imageList {
 		shortName := image.shortName
@@ -59,7 +73,7 @@ func main() {
 			TestName:      "StargzFullRun" + shortName,
 			NumberOfTests: numberOfTests,
 			TestFunction: func(b *testing.B) {
-				benchmark.StargzFullRun(b, imageRef, readyLine)
+				benchmark.StargzFullRun(ctx, b, imageRef, readyLine)
 			},
 		})
 	}
@@ -69,7 +83,7 @@ func main() {
 		CommitID:  commit,
 		Drivers:   drivers,
 	}
-	benchmarks.Run()
+	benchmarks.Run(ctx)
 }
 
 func getImageListFromCsv(csvLoc string) ([]ImageDescriptor, error) {

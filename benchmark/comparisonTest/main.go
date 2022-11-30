@@ -52,6 +52,11 @@ func main() {
 		panic(errMsg)
 	}
 
+	err = os.Mkdir(outputDir, 0755)
+	if err != nil && !os.IsExist(err) {
+		panic(err)
+	}
+
 	logFile, err := os.OpenFile(outputDir+"/benchmark_log", os.O_RDWR|os.O_CREATE, 0664)
 	if err != nil {
 		panic(err)

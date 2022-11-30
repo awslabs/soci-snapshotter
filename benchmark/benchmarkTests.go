@@ -158,15 +158,15 @@ func OverlayFSFullRun(
 }
 
 func StargzFullRun(
+	ctx context.Context,
 	b *testing.B,
 	imageRef string,
 	readyLine string) {
-	ctx, cancelCtx := framework.GetTestContext()
 	containerdProcess, err := getContainerdProcess(ctx)
 	if err != nil {
 		b.Fatalf("Failed to create containerd proc: %v\n", err)
 	}
-	defer containerdProcess.StopProcess(cancelCtx)
+	defer containerdProcess.StopProcess()
 	stargzProcess, err := getStargzProcess()
 	if err != nil {
 		b.Fatalf("Failed to create stargz proc: %v\n", err)
