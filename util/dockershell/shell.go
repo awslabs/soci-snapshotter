@@ -249,13 +249,17 @@ func (s *Shell) Pipe(out io.Writer, commands ...[]string) *Shell {
 			}
 		}
 		cmd.Stderr = s.r.Stderr()
+		cmds = append(cmds, cmd)
+	}
+
+	for _, cmd := range cmds {
 		err = cmd.Start()
 		if err != nil {
 			s.r.Errorf("failed to start %v: %v", cmd.Args, err)
 			break
 		}
-		cmds = append(cmds, cmd)
 	}
+
 	ok := true
 	// The lifecycle of `exec.Cmd.StdoutPipe` requires that we don't wait
 	// on a process until the reader end has completed reading or else we
