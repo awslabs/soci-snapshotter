@@ -154,7 +154,6 @@ func TestOptimizeConsistentSociArtifact(t *testing.T) {
 }
 
 func TestLazyPullWithSparseIndex(t *testing.T) {
-	t.Parallel()
 	regConfig := newRegistryConfig()
 	// Prepare config for containerd and snapshotter
 	getContainerdConfigYaml := func(disableVerification bool) []byte {
@@ -279,7 +278,6 @@ level = "debug"
 
 // TestLazyPull tests if lazy pulling works.
 func TestLazyPull(t *testing.T) {
-	t.Parallel()
 	regConfig := newRegistryConfig()
 	// Prepare config for containerd and snapshotter
 	getContainerdConfigYaml := func(disableVerification bool) []byte {
@@ -400,7 +398,6 @@ level = "debug"
 
 // TestLazyPull tests if lazy pulling works when no index digest is provided (makes a Referrers API call)
 func TestLazyPullNoIndexDigest(t *testing.T) {
-	t.Parallel()
 	// Prepare config for containerd and snapshotter
 	getContainerdConfigYaml := func(disableVerification bool) []byte {
 		additionalConfig := ""
@@ -506,7 +503,6 @@ level = "debug"
 
 // TestMirror tests if mirror & refreshing functionalities of snapshotter work
 func TestMirror(t *testing.T) {
-	t.Parallel()
 	var (
 		reporter    = testutil.NewTestingReporter(t)
 		pRoot       = testutil.GetProjectRoot(t)
