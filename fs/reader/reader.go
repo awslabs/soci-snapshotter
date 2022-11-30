@@ -209,6 +209,9 @@ type file struct {
 
 // ReadAt reads the file when the file is requested by the container
 func (sf *file) ReadAt(p []byte, offset int64) (int, error) {
+	if len(p) == 0 {
+		return 0, nil
+	}
 	uncompFileSize := sf.fr.GetUncompressedFileSize()
 	if soci.FileSize(offset) >= uncompFileSize {
 		return 0, io.EOF
@@ -227,12 +230,8 @@ func (sf *file) ReadAt(p []byte, offset int64) (int, error) {
 	commonmetrics.IncOperationCount(commonmetrics.OnDemandRemoteRegistryFetchCount, sf.gr.layerSha) // increment the number of on demand file fetches from remote registry
 	sf.gr.setLastReadTime(time.Now())
 
-	contents, err := io.ReadAll(r)
-	if err != nil && err != io.EOF {
-		return 0, err
-	}
-	n := copy(p, contents)
-	if soci.FileSize(n) != expectedSize {
+	n, err := io.ReadFull(r, p[0:expectedSize])
+	if err != nil {
 		return 0, fmt.Errorf("unexpected copied data size for on-demand fetch. read = %d, expected = %d", n, expectedSize)
 	}
 	commonmetrics.AddBytesCount(commonmetrics.OnDemandBytesServed, sf.gr.layerSha, int64(n)) // measure the number of on demand bytes served
