@@ -210,12 +210,12 @@ level = "debug"
 		return func(t *testing.T, tarExportArgs ...string) {
 			rebootContainerd(t, sh, "", "")
 			sh.X("ctr", "i", "pull", "--user", regConfig.creds(), image)
-			sh.Pipe(nil, shell.C("ctr", "run", "--rm", image, "test", "tar", "-c", "/usr"), tarExportArgs)
+			sh.Pipe(nil, shell.C("ctr", "run", "--rm", image, "test", "tar", "-zc", "/usr"), tarExportArgs)
 		}
 	}
 	export := func(sh *shell.Shell, image string, tarExportArgs []string) {
 		sh.X("soci", "image", "rpull", "--user", regConfig.creds(), "--soci-index-digest", indexDigest, image)
-		sh.Pipe(nil, shell.C("soci", "run", "--rm", "--snapshotter=soci", image, "test", "tar", "-c", "/usr"), tarExportArgs)
+		sh.Pipe(nil, shell.C("soci", "run", "--rm", "--snapshotter=soci", image, "test", "tar", "-zc", "/usr"), tarExportArgs)
 	}
 
 	imageManifestJSON := fetchContentByDigest(sh, imageManifestDigest)
@@ -339,12 +339,12 @@ level = "debug"
 		return func(t *testing.T, tarExportArgs ...string) {
 			rebootContainerd(t, sh, "", "")
 			sh.X("ctr", "i", "pull", "--user", regConfig.creds(), image)
-			sh.Pipe(nil, shell.C("ctr", "run", "--rm", image, "test", "tar", "-c", "/usr"), tarExportArgs)
+			sh.Pipe(nil, shell.C("ctr", "run", "--rm", image, "test", "tar", "-zc", "/usr"), tarExportArgs)
 		}
 	}
 	export := func(sh *shell.Shell, image string, tarExportArgs []string) {
 		sh.X("soci", "image", "rpull", "--user", regConfig.creds(), "--soci-index-digest", indexDigest1, image)
-		sh.Pipe(nil, shell.C("soci", "run", "--rm", "--snapshotter=soci", image, "test", "tar", "-c", "/usr"), tarExportArgs)
+		sh.Pipe(nil, shell.C("soci", "run", "--rm", "--snapshotter=soci", image, "test", "tar", "-zc", "/usr"), tarExportArgs)
 	}
 
 	// NOTE: these tests must be executed sequentially.
@@ -457,12 +457,12 @@ level = "debug"
 		return func(t *testing.T, tarExportArgs ...string) {
 			rebootContainerd(t, sh, "", "")
 			sh.X("ctr", "i", "pull", "--user", regConfig.creds(), image)
-			sh.Pipe(nil, shell.C("ctr", "run", "--rm", image, "test", "tar", "-c", "/usr"), tarExportArgs)
+			sh.Pipe(nil, shell.C("ctr", "run", "--rm", image, "test", "tar", "-zc", "/usr"), tarExportArgs)
 		}
 	}
 	export := func(sh *shell.Shell, image string, tarExportArgs []string) {
 		sh.X("soci", "image", "rpull", "--user", regConfig.creds(), image)
-		sh.Pipe(nil, shell.C("soci", "run", "--rm", "--snapshotter=soci", image, "test", "tar", "-c", "/usr"), tarExportArgs)
+		sh.Pipe(nil, shell.C("soci", "run", "--rm", "--snapshotter=soci", image, "test", "tar", "-zc", "/usr"), tarExportArgs)
 	}
 
 	// NOTE: these tests must be executed sequentially.
@@ -671,10 +671,10 @@ insecure = true
 	sh.X("soci", "image", "rpull", "--user", regConfig.creds(), "--soci-index-digest", indexDigest, regConfig.mirror(imageName).ref)
 	registryHostIP, registryAltHostIP := getIP(t, sh, regConfig.host), getIP(t, sh, regAltConfig.host)
 	export := func(image string) []string {
-		return shell.C("soci", "run", "--rm", "--snapshotter=soci", image, "test", "tar", "-c", "/usr")
+		return shell.C("soci", "run", "--rm", "--snapshotter=soci", image, "test", "tar", "-zc", "/usr")
 	}
 	sample := func(t *testing.T, tarExportArgs ...string) {
-		sh.Pipe(nil, shell.C("ctr", "run", "--rm", regConfig.mirror(imageName).ref, "test", "tar", "-c", "/usr"), tarExportArgs)
+		sh.Pipe(nil, shell.C("ctr", "run", "--rm", regConfig.mirror(imageName).ref, "test", "tar", "-zc", "/usr"), tarExportArgs)
 	}
 
 	// test if mirroring is working (switching to registryAltHost)
@@ -719,8 +719,8 @@ func testSameTarContents(t *testing.T, sh *shell.Shell, aC, bC tarPipeExporter) 
 	if err != nil {
 		t.Fatalf("failed to create temp dir B: %v", err)
 	}
-	aC(t, "tar", "-xC", aDir)
-	bC(t, "tar", "-xC", bDir)
+	aC(t, "tar", "-zxC", aDir)
+	bC(t, "tar", "-zxC", bDir)
 	sh.X("diff", "--no-dereference", "-qr", aDir+"/", bDir+"/")
 }
 
