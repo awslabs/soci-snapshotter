@@ -40,18 +40,15 @@ func GetImageListFromCsv(csvLoc string) ([]ImageDescriptor, error) {
 	}
 	var images []ImageDescriptor
 	for _, image := range csv {
-		if len(image) < 3 {
+		if len(image) < 4 {
 			return nil, errors.New("image input is not sufficient")
-		}
-		var sociIndexManifestRef string
-		if len(image) == 4 {
-			sociIndexManifestRef = image[3]
 		}
 		images = append(images, ImageDescriptor{
 			ShortName:            image[0],
 			ImageRef:             image[1],
-			ReadyLine:            image[2],
-			SociIndexManifestRef: sociIndexManifestRef})
+			SociIndexManifestRef: image[2],
+			ReadyLine:            image[3],
+		})
 	}
 	return images, nil
 }
