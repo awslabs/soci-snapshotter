@@ -46,7 +46,7 @@ type BenchmarkTestDriver struct {
 	NumberOfTests  int              `json:"numberOfTests"`
 	BeforeFunction func()           `json:"-"`
 	TestFunction   func(*testing.B) `json:"-"`
-	AfterFunction  func()           `json:"-"`
+	AfterFunction  func() error     `json:"-"`
 	TestsRun       int              `json:"-"`
 	TestTimes      []float64        `json:"testTimes"`
 	StdDev         float64          `json:"stdDev"`
@@ -77,7 +77,11 @@ func (frame *BenchmarkFramework) Run(ctx context.Context) {
 		}
 		testDriver.calculateStats()
 		if testDriver.AfterFunction != nil {
-			testDriver.AfterFunction()
+			err := testDriver.AfterFunction()
+			if err != nil {
+				fmt.Printf("After function error: %v\n", err)
+			}
+
 		}
 	}
 
