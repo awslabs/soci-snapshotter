@@ -17,6 +17,7 @@
 package main
 
 import (
+	"flag"
 	"fmt"
 	"os"
 	"strconv"
@@ -24,6 +25,7 @@ import (
 
 	"github.com/awslabs/soci-snapshotter/benchmark"
 	"github.com/awslabs/soci-snapshotter/benchmark/framework"
+	bparser "github.com/awslabs/soci-snapshotter/benchmark/framework/parser"
 )
 
 var (
@@ -31,13 +33,29 @@ var (
 )
 
 func main() {
-	commit := os.Args[1]
-	configCsv := os.Args[2]
-	numberOfTests, err := strconv.Atoi(os.Args[3])
+	parseFileAccessPatterns := flag.Bool("parseFileAccess", false, "Parse fuse file access patterns.")
+	flag.Parse()
+	args := flag.Args()
+	commit := args[0]
+	configCsv := args[1]
+	numberOfTests, err := strconv.Atoi(args[2])
 	if err != nil {
-		errMsg := fmt.Sprintf("Failed to parse number of test %s with error:%v\n", os.Args[3], err)
+		errMsg := fmt.Sprintf("Failed to parse number of test %s with error:%v\n", args[2], err)
 		panic(errMsg)
 	}
+
+	if *parseFileAccessPatterns {
+		fileAccessDir := outputDir + "/file_access_logs"
+		err := os.RemoveAll(fileAccessDir)
+		if err != nil {
+			panic(err)
+		}
+		err = os.MkdirAll(fileAccessDir, 0755)
+		if err != nil {
+			panic(err)
+		}
+	}
+
 	imageList, err := benchmark.GetImageListFromCsv(configCsv)
 	if err != nil {
 		errMsg := fmt.Sprintf("Failed to read csv file %s with error:%v\n", configCsv, err)
@@ -64,13 +82,20 @@ func main() {
 		sociIndexManifestRef := image.SociIndexManifestRef
 		readyLine := image.ReadyLine
 		testName := "SociFull" + shortName
-		drivers = append(drivers, framework.BenchmarkTestDriver{
+		driver := framework.BenchmarkTestDriver{
 			TestName:      testName,
 			NumberOfTests: numberOfTests,
 			TestFunction: func(b *testing.B) {
 				benchmark.SociFullRun(ctx, b, imageRef, sociIndexManifestRef, readyLine, testName)
 			},
-		})
+		}
+		if *parseFileAccessPatterns {
+			driver.AfterFunction = func() error {
+				err := bparser.ParseFileAccesses(shortName)
+				return err
+			}
+		}
+		drivers = append(drivers, driver)
 	}
 
 	benchmarks := framework.BenchmarkFramework{
