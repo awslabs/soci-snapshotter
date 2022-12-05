@@ -1,0 +1,7 @@
+version = 2
+[debug]
+  level = "DEBUG"
+[proxy_plugins]
+  [proxy_plugins.stargz]
+    type = "snapshot"
+    address = "/tmp/containerd-stargz-grpc/containerd-stargz-grpc.sock"

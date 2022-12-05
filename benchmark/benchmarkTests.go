@@ -21,28 +21,30 @@ import (
 	"testing"
 
 	"github.com/awslabs/soci-snapshotter/benchmark/framework"
+	"github.com/containerd/containerd"
 	"github.com/containerd/containerd/log"
 )
 
 var (
-	outputDir         = "./output"
-	containerdAddress = "/tmp/containerd-grpc/containerd.sock"
-	containerdRoot    = "/tmp/lib/containerd"
-	containerdState   = "/tmp/containerd"
-	containerdConfig  = "../containerd-config.toml"
-	platform          = "linux/amd64"
-	sociBinary        = "../../out/soci-snapshotter-grpc"
-	sociAddress       = "/tmp/soci-snapshotter-grpc/soci-snapshotter-grpc.sock"
-	sociRoot          = "/tmp/lib/soci-snapshotter-grpc"
-	sociConfig        = "../soci_config.toml"
-	awsSecretFile     = "../aws_secret"
-	stargzAddress     = "/tmp/containerd-stargz-grpc/containerd-stargz-grpc.sock"
-	stargzConfig      = "../stargz_config.toml"
-	stargzRoot        = "/tmp/lib/containerd-stargz-grpc"
+	outputDir              = "./output"
+	containerdAddress      = "/tmp/containerd-grpc/containerd.sock"
+	containerdRoot         = "/tmp/lib/containerd"
+	containerdState        = "/tmp/containerd"
+	containerdSociConfig   = "../containerd_soci_config.toml"
+	containerdStargzConfig = "../containerd_stargz_config.toml"
+	platform               = "linux/amd64"
+	sociBinary             = "../../out/soci-snapshotter-grpc"
+	sociAddress            = "/tmp/soci-snapshotter-grpc/soci-snapshotter-grpc.sock"
+	sociRoot               = "/tmp/lib/soci-snapshotter-grpc"
+	sociConfig             = "../soci_config.toml"
+	awsSecretFile          = "../aws_secret"
+	stargzAddress          = "/tmp/containerd-stargz-grpc/containerd-stargz-grpc.sock"
+	stargzConfig           = "../stargz_config.toml"
+	stargzRoot             = "/tmp/lib/containerd-stargz-grpc"
 )
 
 func PullImageFromECR(ctx context.Context, b *testing.B, imageRef string) {
-	containerdProcess, err := getContainerdProcess(ctx)
+	containerdProcess, err := getContainerdProcess(ctx, containerdSociConfig)
 	if err != nil {
 		b.Fatalf("Error Starting Containerd: %v\n", err)
 	}
@@ -64,7 +66,7 @@ func SociRPullPullImage(
 	b *testing.B,
 	imageRef string,
 	indexDigest string) {
-	containerdProcess, err := getContainerdProcess(ctx)
+	containerdProcess, err := getContainerdProcess(ctx, containerdSociConfig)
 	if err != nil {
 		b.Fatalf("Failed to create containerd proc: %v\n", err)
 	}
@@ -91,7 +93,7 @@ func SociFullRun(
 	readyLine string,
 	testName string) {
 	log.G(ctx).WithField("test_name", testName).WithField("benchmark", "Test").WithField("event", "Start").Infof("Start Test")
-	containerdProcess, err := getContainerdProcess(ctx)
+	containerdProcess, err := getContainerdProcess(ctx, containerdSociConfig)
 	if err != nil {
 		b.Fatalf("Failed to create containerd proc: %v\n", err)
 	}
@@ -132,7 +134,7 @@ func OverlayFSFullRun(
 	readyLine string,
 	testName string) {
 	log.G(ctx).WithField("test_name", testName).WithField("benchmark", "Test").WithField("event", "Start").Infof("Start Test")
-	containerdProcess, err := getContainerdProcess(ctx)
+	containerdProcess, err := getContainerdProcess(ctx, containerdSociConfig)
 	if err != nil {
 		b.Fatalf("Failed to create containerd proc: %v\n", err)
 	}
@@ -166,7 +168,7 @@ func StargzFullRun(
 	imageRef string,
 	readyLine string,
 	stargzBinary string) {
-	containerdProcess, err := getContainerdProcess(ctx)
+	containerdProcess, err := getContainerdProcess(ctx, containerdStargzConfig)
 	if err != nil {
 		b.Fatalf("Failed to create containerd proc: %v\n", err)
 	}
@@ -176,11 +178,21 @@ func StargzFullRun(
 		b.Fatalf("Failed to create stargz proc: %v\n", err)
 	}
 	defer stargzProcess.StopProcess()
+	stargzContainerdProc := StargzContainerdProcess{containerdProcess}
 	b.ResetTimer()
+	image, err := stargzContainerdProc.StargzRpullImageFromECR(ctx, imageRef, awsSecretFile)
+	if err != nil {
+		b.Fatalf("%s", err)
+	}
+	_, cleanupContainer, err := stargzContainerdProc.CreateContainer(ctx, image, containerd.WithSnapshotter("stargz"))
+	if err != nil {
+		b.Fatalf("%s", err)
+	}
+	defer cleanupContainer()
 	b.StopTimer()
 }
 
-func getContainerdProcess(ctx context.Context) (*framework.ContainerdProcess, error) {
+func getContainerdProcess(ctx context.Context, containerdConfig string) (*framework.ContainerdProcess, error) {
 	return framework.StartContainerd(
 		containerdAddress,
 		containerdRoot,
@@ -203,7 +215,7 @@ func getStargzProcess(stargzBinary string) (*StargzProcess, error) {
 	return StartStargz(
 		stargzBinary,
 		stargzAddress,
-		stargzRoot,
 		stargzConfig,
+		stargzRoot,
 		outputDir)
 }

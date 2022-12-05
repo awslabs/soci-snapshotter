@@ -17,12 +17,17 @@
 package benchmark
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"os"
 	"os/exec"
 	"syscall"
 	"time"
+
+	"github.com/awslabs/soci-snapshotter/benchmark/framework"
+	"github.com/awslabs/soci-snapshotter/fs/source"
+	"github.com/containerd/containerd"
 )
 
 type StargzProcess struct {
@@ -31,6 +36,10 @@ type StargzProcess struct {
 	root    string
 	stdout  *os.File
 	stderr  *os.File
+}
+
+type StargzContainerdProcess struct {
+	*framework.ContainerdProcess
 }
 
 func StartStargz(
@@ -115,4 +124,23 @@ func (proc *StargzProcess) StopProcess() {
 	if err != nil {
 		fmt.Printf("Error removing stargz process root: %v\n", err)
 	}
+}
+
+func (proc *StargzContainerdProcess) StargzRpullImageFromECR(
+	ctx context.Context,
+	imageRef string,
+	awsSecretFile string) (containerd.Image, error) {
+	image, err := proc.Client.Pull(ctx, imageRef, []containerd.RemoteOpt{
+		containerd.WithResolver(framework.GetECRResolver(ctx, awsSecretFile)),
+		containerd.WithSchema1Conversion,
+		containerd.WithPullUnpack,
+		containerd.WithPullSnapshotter("stargz"),
+		containerd.WithImageHandlerWrapper(source.AppendDefaultLabelsHandlerWrapper(
+			imageRef, "")),
+	}...)
+	if err != nil {
+		fmt.Printf("Stargz rpull failed: %v\n", err)
+		return nil, err
+	}
+	return image, nil
 }
