@@ -184,11 +184,21 @@ func StargzFullRun(
 	if err != nil {
 		b.Fatalf("%s", err)
 	}
-	_, cleanupContainer, err := stargzContainerdProc.CreateContainer(ctx, image, containerd.WithSnapshotter("stargz"))
+	container, cleanupContainer, err := stargzContainerdProc.CreateContainer(ctx, image, containerd.WithSnapshotter("stargz"))
 	if err != nil {
 		b.Fatalf("%s", err)
 	}
 	defer cleanupContainer()
+	taskDetails, cleanupTask, err := containerdProcess.CreateTask(ctx, container)
+	if err != nil {
+		b.Fatalf("%s", err)
+	}
+	defer cleanupTask()
+	cleanupRun, err := containerdProcess.RunContainerTaskForReadyLine(ctx, taskDetails, readyLine)
+	if err != nil {
+		b.Fatalf("%s", err)
+	}
+	defer cleanupRun()
 	b.StopTimer()
 }
 
