@@ -21,7 +21,7 @@ import (
 	"fmt"
 
 	"github.com/awslabs/soci-snapshotter/fs/config"
-	"github.com/awslabs/soci-snapshotter/soci"
+	"github.com/awslabs/soci-snapshotter/ztoc"
 	"github.com/opencontainers/go-digest"
 	v1 "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/urfave/cli"
@@ -48,8 +48,7 @@ var infoCommand = cli.Command{
 			return err
 		}
 		defer reader.Close()
-		zm := soci.ZtocMarshaler{}
-		ztoc, err := zm.Unmarshal(reader)
+		ztoc, err := ztoc.Unmarshal(reader)
 		if err != nil {
 			return err
 		}

@@ -14,7 +14,7 @@
    limitations under the License.
 */
 
-package soci
+package compression
 
 // #cgo CFLAGS: -I${SRCDIR}/
 // #cgo LDFLAGS: -L${SRCDIR}/../out -lz
@@ -87,7 +87,7 @@ func (i *GzipZinfo) MaxSpanID() SpanID {
 }
 
 // UncompressedOffsetToSpanID returns the ID of the span containing the data pointed by uncompressed offset.
-func (i *GzipZinfo) UncompressedOffsetToSpanID(offset FileSize) SpanID {
+func (i *GzipZinfo) UncompressedOffsetToSpanID(offset Offset) SpanID {
 	return SpanID(C.pt_index_from_ucmp_offset(i.cZinfo, C.long(offset)))
 }
 
@@ -97,18 +97,18 @@ func (i *GzipZinfo) HasBits(spanID SpanID) bool {
 }
 
 // SpanIDToCompressedOffset wraps `C.get_comp_off` and returns the offset for the span in the compressed stream.
-func (i *GzipZinfo) SpanIDToCompressedOffset(spanID SpanID) FileSize {
-	return FileSize(C.get_comp_off(i.cZinfo, C.int(spanID)))
+func (i *GzipZinfo) SpanIDToCompressedOffset(spanID SpanID) Offset {
+	return Offset(C.get_comp_off(i.cZinfo, C.int(spanID)))
 }
 
 // SpanIDToUncompressedOffset wraps `C.get_uncomp_off` and returns the offset for the span in the uncompressed stream.
-func (i *GzipZinfo) SpanIDToUncompressedOffset(spanID SpanID) FileSize {
-	return FileSize(C.get_ucomp_off(i.cZinfo, C.int(spanID)))
+func (i *GzipZinfo) SpanIDToUncompressedOffset(spanID SpanID) Offset {
+	return Offset(C.get_ucomp_off(i.cZinfo, C.int(spanID)))
 }
 
 // ExtractDataFromBuffer wraps the call to `C.extract_data_from_buffer`, which takes in the compressed bytes
 // and returns the decompressed bytes.
-func (i *GzipZinfo) ExtractDataFromBuffer(compressedBuf []byte, uncompressedSize, uncompressedOffset FileSize, spanID SpanID) ([]byte, error) {
+func (i *GzipZinfo) ExtractDataFromBuffer(compressedBuf []byte, uncompressedSize, uncompressedOffset Offset, spanID SpanID) ([]byte, error) {
 	bytes := make([]byte, uncompressedSize)
 	ret := C.extract_data_from_buffer(
 		unsafe.Pointer(&compressedBuf[0]),
@@ -128,7 +128,7 @@ func (i *GzipZinfo) ExtractDataFromBuffer(compressedBuf []byte, uncompressedSize
 
 // ExtractData wraps `C.extract_data` and returns the decompressed bytes given the name of the .tar.gz file,
 // offset and the size in uncompressed stream.
-func (i *GzipZinfo) ExtractData(fileName string, uncompressedSize, uncompressedOffset FileSize) ([]byte, error) {
+func (i *GzipZinfo) ExtractData(fileName string, uncompressedSize, uncompressedOffset Offset) ([]byte, error) {
 	cstr := C.CString(fileName)
 	defer C.free(unsafe.Pointer(cstr))
 	bytes := make([]byte, uncompressedSize)

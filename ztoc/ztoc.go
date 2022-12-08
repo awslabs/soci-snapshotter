@@ -14,7 +14,7 @@
    limitations under the License.
 */
 
-package soci
+package ztoc
 
 import (
 	"context"
@@ -24,19 +24,15 @@ import (
 
 	"github.com/opencontainers/go-digest"
 	"golang.org/x/sync/errgroup"
+
+	"github.com/awslabs/soci-snapshotter/compression"
 )
-
-// FileSize will hold any file size and offset values
-type FileSize int64
-
-// SpanID will hold any span related values (SpanID, MaxSpanID, etc)
-type SpanID int32
 
 type FileMetadata struct {
 	Name               string
 	Type               string
-	UncompressedOffset FileSize
-	UncompressedSize   FileSize
+	UncompressedOffset compression.Offset
+	UncompressedSize   compression.Offset
 	Linkname           string // Target name of link (valid for TypeLink or TypeSymlink)
 	Mode               int64  // Permission and mode bits
 	UID                int    // User ID of owner
@@ -54,14 +50,14 @@ type FileMetadata struct {
 type Ztoc struct {
 	Version                 string
 	BuildToolIdentifier     string
-	CompressedArchiveSize   FileSize
-	UncompressedArchiveSize FileSize
+	CompressedArchiveSize   compression.Offset
+	UncompressedArchiveSize compression.Offset
 	TOC                     TOC
 	CompressionInfo         CompressionInfo
 }
 
 type CompressionInfo struct {
-	MaxSpanID   SpanID //The total number of spans in Ztoc - 1
+	MaxSpanID   compression.SpanID //The total number of spans in Ztoc - 1
 	SpanDigests []digest.Digest
 	Checkpoints []byte
 }
@@ -71,16 +67,16 @@ type TOC struct {
 }
 
 type FileExtractConfig struct {
-	UncompressedSize      FileSize
-	UncompressedOffset    FileSize
+	UncompressedSize      compression.Offset
+	UncompressedOffset    compression.Offset
 	Checkpoints           []byte
-	CompressedArchiveSize FileSize
-	MaxSpanID             SpanID
+	CompressedArchiveSize compression.Offset
+	MaxSpanID             compression.SpanID
 }
 
 type MetadataEntry struct {
-	UncompressedSize   FileSize
-	UncompressedOffset FileSize
+	UncompressedSize   compression.Offset
+	UncompressedOffset compression.Offset
 }
 
 func ExtractFile(r *io.SectionReader, config *FileExtractConfig) ([]byte, error) {
@@ -88,7 +84,7 @@ func ExtractFile(r *io.SectionReader, config *FileExtractConfig) ([]byte, error)
 		return []byte{}, nil
 	}
 
-	gzipZinfo, err := NewGzipZinfo(config.Checkpoints)
+	gzipZinfo, err := compression.NewGzipZinfo(config.Checkpoints)
 	if err != nil {
 		return nil, nil
 	}
@@ -98,11 +94,11 @@ func ExtractFile(r *io.SectionReader, config *FileExtractConfig) ([]byte, error)
 	spanEnd := gzipZinfo.UncompressedOffsetToSpanID(config.UncompressedOffset + config.UncompressedSize)
 	numSpans := spanEnd - spanStart + 1
 
-	var bufSize FileSize
-	starts := make([]FileSize, numSpans)
-	ends := make([]FileSize, numSpans)
+	var bufSize compression.Offset
+	starts := make([]compression.Offset, numSpans)
+	ends := make([]compression.Offset, numSpans)
 
-	var i SpanID
+	var i compression.SpanID
 	for i = 0; i < numSpans; i++ {
 		starts[i] = gzipZinfo.SpanIDToCompressedOffset(i + spanStart)
 		if i+spanStart == config.MaxSpanID {
@@ -159,6 +155,10 @@ func ExtractFile(r *io.SectionReader, config *FileExtractConfig) ([]byte, error)
 	return bytes, nil
 }
 
+func NewGzipZinfo(b []byte) {
+	panic("unimplemented")
+}
+
 func GetMetadataEntry(ztoc *Ztoc, text string) (*MetadataEntry, error) {
 	for _, v := range ztoc.TOC.Metadata {
 		if v.Name == text {
@@ -185,7 +185,7 @@ func ExtractFromTarGz(gz string, ztoc *Ztoc, text string) (string, error) {
 		return "", nil
 	}
 
-	gzipZinfo, err := NewGzipZinfo(ztoc.CompressionInfo.Checkpoints)
+	gzipZinfo, err := compression.NewGzipZinfo(ztoc.CompressionInfo.Checkpoints)
 	if err != nil {
 		return "", err
 	}

@@ -56,8 +56,8 @@ import (
 	"github.com/awslabs/soci-snapshotter/service/keychain/dockerconfig"
 	"github.com/awslabs/soci-snapshotter/service/keychain/kubeconfig"
 	"github.com/awslabs/soci-snapshotter/service/resolver"
-	"github.com/awslabs/soci-snapshotter/soci"
 	"github.com/awslabs/soci-snapshotter/version"
+	"github.com/awslabs/soci-snapshotter/ztoc"
 	snapshotsapi "github.com/containerd/containerd/api/services/snapshots/v1"
 	"github.com/containerd/containerd/contrib/snapshotservice"
 	"github.com/containerd/containerd/defaults"
@@ -309,8 +309,8 @@ func getMetadataStore(rootDir string, config snapshotterConfig) (metadata.Store,
 		if err != nil {
 			return nil, err
 		}
-		return func(sr *io.SectionReader, ztoc *soci.Ztoc, opts ...metadata.Option) (metadata.Reader, error) {
-			return dbmetadata.NewReader(db, sr, ztoc, opts...)
+		return func(sr *io.SectionReader, toc *ztoc.Ztoc, opts ...metadata.Option) (metadata.Reader, error) {
+			return dbmetadata.NewReader(db, sr, toc, opts...)
 		}, nil
 	default:
 		return nil, fmt.Errorf("unknown metadata store type: %v; must be %v",

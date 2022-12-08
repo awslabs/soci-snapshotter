@@ -46,8 +46,9 @@ import (
 	"sync"
 	"time"
 
+	"github.com/awslabs/soci-snapshotter/compression"
 	"github.com/awslabs/soci-snapshotter/metadata"
-	"github.com/awslabs/soci-snapshotter/soci"
+	"github.com/awslabs/soci-snapshotter/ztoc"
 	"github.com/pkg/errors"
 	"github.com/rs/xid"
 	bolt "go.etcd.io/bbolt"
@@ -78,7 +79,7 @@ func (r *reader) nextID() (uint32, error) {
 }
 
 // NewReader parses ztoc and stores filesystem metadata to the provided DB.
-func NewReader(db *bolt.DB, sr *io.SectionReader, ztoc *soci.Ztoc, opts ...metadata.Option) (metadata.Reader, error) {
+func NewReader(db *bolt.DB, sr *io.SectionReader, ztoc *ztoc.Ztoc, opts ...metadata.Option) (metadata.Reader, error) {
 	var rOpts metadata.Options
 	for _, o := range opts {
 		if err := o(&rOpts); err != nil {
@@ -118,7 +119,7 @@ func (r *reader) Clone(sr *io.SectionReader) (metadata.Reader, error) {
 	}, nil
 }
 
-func (r *reader) init(ztoc *soci.Ztoc, rOpts metadata.Options) (retErr error) {
+func (r *reader) init(ztoc *ztoc.Ztoc, rOpts metadata.Options) (retErr error) {
 	// Initialize root node
 	var ok bool
 	for i := 0; i < 100; i++ {
@@ -179,7 +180,7 @@ func (r *reader) initRootNode(fsID string) error {
 	})
 }
 
-func (r *reader) initNodes(ztoc *soci.Ztoc) error {
+func (r *reader) initNodes(ztoc *ztoc.Ztoc) error {
 	md := make(map[uint32]*metadataEntry)
 	if err := r.db.Batch(func(tx *bolt.Tx) (err error) {
 		nodes, err := getNodes(tx, r.fsID)
@@ -503,7 +504,7 @@ func (r *reader) ForeachChild(id uint32, f func(name string, id uint32, mode os.
 // OpenFile returns a section reader of the specified node.
 func (r *reader) OpenFile(id uint32) (metadata.File, error) {
 	var size int64
-	var uncompressedOffset soci.FileSize
+	var uncompressedOffset compression.Offset
 
 	if err := r.view(func(tx *bolt.Tx) error {
 		nodes, err := getNodes(tx, r.fsID)
@@ -530,32 +531,32 @@ func (r *reader) OpenFile(id uint32) (metadata.File, error) {
 	}); err != nil {
 		return nil, err
 	}
-	return &file{uncompressedOffset, soci.FileSize(size)}, nil
+	return &file{uncompressedOffset, compression.Offset(size)}, nil
 }
 
-func getUncompressedOffset(md *bolt.Bucket) soci.FileSize {
+func getUncompressedOffset(md *bolt.Bucket) compression.Offset {
 	ucompOffset, _ := binary.Varint(md.Get(bucketKeyUncompressedOffset))
-	return soci.FileSize(ucompOffset)
+	return compression.Offset(ucompOffset)
 }
 
 type file struct {
-	uncompressedOffset soci.FileSize
-	uncompressedSize   soci.FileSize
+	uncompressedOffset compression.Offset
+	uncompressedSize   compression.Offset
 }
 
-func (fr *file) GetUncompressedFileSize() soci.FileSize {
+func (fr *file) GetUncompressedFileSize() compression.Offset {
 	return fr.uncompressedSize
 }
 
-func (fr *file) GetUncompressedOffset() soci.FileSize {
+func (fr *file) GetUncompressedOffset() compression.Offset {
 	return fr.uncompressedOffset
 }
 
-func attrFromZtocEntry(src *soci.FileMetadata, dst *metadata.Attr) *metadata.Attr {
+func attrFromZtocEntry(src *ztoc.FileMetadata, dst *metadata.Attr) *metadata.Attr {
 	dst.Size = int64(src.UncompressedSize)
 	dst.ModTime = src.ModTime
 	dst.LinkName = src.Linkname
-	dst.Mode = soci.GetFileMode(src)
+	dst.Mode = ztoc.GetFileMode(src)
 	dst.UID = src.UID
 	dst.GID = src.GID
 	dst.DevMajor = int(src.Devmajor)

@@ -14,7 +14,7 @@
    limitations under the License.
 */
 
-package soci
+package ztoc
 
 import (
 	"archive/tar"
@@ -27,8 +27,7 @@ func GetZtocFromFile(filename string) (*Ztoc, error) {
 		return nil, err
 	}
 	defer reader.Close()
-	zm := ZtocMarshaler{}
-	return zm.Unmarshal(reader)
+	return Unmarshal(reader)
 }
 
 // Get file mode for file metadata

@@ -14,7 +14,7 @@
    limitations under the License.
 */
 
-package soci
+package ztoc
 
 import (
 	"bytes"
@@ -23,21 +23,17 @@ import (
 	"sort"
 	"time"
 
-	ztoc_flatbuffers "github.com/awslabs/soci-snapshotter/soci/fbs/ztoc"
+	"github.com/awslabs/soci-snapshotter/compression"
+	ztoc_flatbuffers "github.com/awslabs/soci-snapshotter/ztoc/fbs/ztoc"
 	flatbuffers "github.com/google/flatbuffers/go"
 	"github.com/opencontainers/go-digest"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 )
 
-// ZtocMarshaler incapsulates the serialization logic for Ztoc.
-// Currently, it implements serialization/deserialization to/from flatbuffers.
-type ZtocMarshaler struct {
-}
-
 // Marshal serializes Ztoc to its flatbuffers schema and returns a reader along with the descriptor (digest and size only).
 // If not successful, it will return an error.
-func (zm ZtocMarshaler) Marshal(ztoc *Ztoc) (io.Reader, ocispec.Descriptor, error) {
-	flatbuf, err := zm.ztocToFlatbuffer(ztoc)
+func Marshal(ztoc *Ztoc) (io.Reader, ocispec.Descriptor, error) {
+	flatbuf, err := ztocToFlatbuffer(ztoc)
 	if err != nil {
 		return nil, ocispec.Descriptor{}, err
 	}
@@ -53,16 +49,16 @@ func (zm ZtocMarshaler) Marshal(ztoc *Ztoc) (io.Reader, ocispec.Descriptor, erro
 
 // Unmarshal takes the reader with flatbuffers byte stream and deserializes it ztoc.
 // In case if there's any error situation during deserialization from flatbuffers, there will be an error returned.
-func (zm ZtocMarshaler) Unmarshal(serializedZtoc io.Reader) (*Ztoc, error) {
+func Unmarshal(serializedZtoc io.Reader) (*Ztoc, error) {
 	flatbuf, err := io.ReadAll(serializedZtoc)
 	if err != nil {
 		return nil, err
 	}
 
-	return zm.flatbufToZtoc(flatbuf)
+	return flatbufToZtoc(flatbuf)
 }
 
-func (zm ZtocMarshaler) flatbufToZtoc(flatbuffer []byte) (z *Ztoc, err error) {
+func flatbufToZtoc(flatbuffer []byte) (z *Ztoc, err error) {
 	defer func() {
 		if r := recover(); r != nil {
 			z = nil
@@ -74,8 +70,8 @@ func (zm ZtocMarshaler) flatbufToZtoc(flatbuffer []byte) (z *Ztoc, err error) {
 	ztocFlatbuf := ztoc_flatbuffers.GetRootAsZtoc(flatbuffer, 0)
 	ztoc.Version = string(ztocFlatbuf.Version())
 	ztoc.BuildToolIdentifier = string(ztocFlatbuf.BuildToolIdentifier())
-	ztoc.CompressedArchiveSize = FileSize(ztocFlatbuf.CompressedArchiveSize())
-	ztoc.UncompressedArchiveSize = FileSize(ztocFlatbuf.UncompressedArchiveSize())
+	ztoc.CompressedArchiveSize = compression.Offset(ztocFlatbuf.CompressedArchiveSize())
+	ztoc.UncompressedArchiveSize = compression.Offset(ztocFlatbuf.UncompressedArchiveSize())
 
 	toc := new(ztoc_flatbuffers.TOC)
 	ztocFlatbuf.Toc(toc)
@@ -91,8 +87,8 @@ func (zm ZtocMarshaler) flatbufToZtoc(flatbuffer []byte) (z *Ztoc, err error) {
 		var me FileMetadata
 		me.Name = string(metadataEntry.Name())
 		me.Type = string(metadataEntry.Type())
-		me.UncompressedOffset = FileSize(metadataEntry.UncompressedOffset())
-		me.UncompressedSize = FileSize(metadataEntry.UncompressedSize())
+		me.UncompressedOffset = compression.Offset(metadataEntry.UncompressedOffset())
+		me.UncompressedSize = compression.Offset(metadataEntry.UncompressedSize())
 		me.Linkname = string(metadataEntry.Linkname())
 		me.Mode = metadataEntry.Mode()
 		me.UID = int(metadataEntry.Uid())
@@ -118,7 +114,7 @@ func (zm ZtocMarshaler) flatbufToZtoc(flatbuffer []byte) (z *Ztoc, err error) {
 
 	compressionInfo := new(ztoc_flatbuffers.CompressionInfo)
 	ztocFlatbuf.CompressionInfo(compressionInfo)
-	ztoc.CompressionInfo.MaxSpanID = SpanID(compressionInfo.MaxSpanId())
+	ztoc.CompressionInfo.MaxSpanID = compression.SpanID(compressionInfo.MaxSpanId())
 	ztoc.CompressionInfo.SpanDigests = make([]digest.Digest, compressionInfo.SpanDigestsLength())
 	for i := 0; i < compressionInfo.SpanDigestsLength(); i++ {
 		dgst, _ := digest.Parse(string(compressionInfo.SpanDigests(i)))
@@ -128,7 +124,7 @@ func (zm ZtocMarshaler) flatbufToZtoc(flatbuffer []byte) (z *Ztoc, err error) {
 	return ztoc, nil
 }
 
-func (zm ZtocMarshaler) ztocToFlatbuffer(ztoc *Ztoc) (fb []byte, err error) {
+func ztocToFlatbuffer(ztoc *Ztoc) (fb []byte, err error) {
 	defer func() {
 		if r := recover(); r != nil {
 			fb = nil
@@ -144,7 +140,7 @@ func (zm ZtocMarshaler) ztocToFlatbuffer(ztoc *Ztoc) (fb []byte, err error) {
 	for i := len(ztoc.TOC.Metadata) - 1; i >= 0; i-- {
 		me := ztoc.TOC.Metadata[i]
 		// preparing the individual file medatada element
-		metadataOffsetList[i] = zm.prepareMetadataOffset(builder, me)
+		metadataOffsetList[i] = prepareMetadataOffset(builder, me)
 	}
 	ztoc_flatbuffers.TOCStartMetadataVector(builder, len(ztoc.TOC.Metadata))
 	for i := len(metadataOffsetList) - 1; i >= 0; i-- {
@@ -186,7 +182,7 @@ func (zm ZtocMarshaler) ztocToFlatbuffer(ztoc *Ztoc) (fb []byte, err error) {
 	return builder.FinishedBytes(), nil
 }
 
-func (zm ZtocMarshaler) prepareMetadataOffset(builder *flatbuffers.Builder, me FileMetadata) flatbuffers.UOffsetT {
+func prepareMetadataOffset(builder *flatbuffers.Builder, me FileMetadata) flatbuffers.UOffsetT {
 	name := builder.CreateString(me.Name)
 	t := builder.CreateString(me.Type)
 	linkName := builder.CreateString(me.Linkname)
@@ -195,7 +191,7 @@ func (zm ZtocMarshaler) prepareMetadataOffset(builder *flatbuffers.Builder, me F
 	modTimeBinary, _ := me.ModTime.MarshalText()
 	modTime := builder.CreateString(string(modTimeBinary))
 
-	xattrs := zm.prepareXattrsOffset(me, builder)
+	xattrs := prepareXattrsOffset(me, builder)
 
 	ztoc_flatbuffers.FileMetadataStart(builder)
 	ztoc_flatbuffers.FileMetadataAddName(builder, name)
@@ -218,7 +214,7 @@ func (zm ZtocMarshaler) prepareMetadataOffset(builder *flatbuffers.Builder, me F
 	return off
 }
 
-func (zm ZtocMarshaler) prepareXattrsOffset(me FileMetadata, builder *flatbuffers.Builder) flatbuffers.UOffsetT {
+func prepareXattrsOffset(me FileMetadata, builder *flatbuffers.Builder) flatbuffers.UOffsetT {
 	keys := make([]string, 0, len(me.Xattrs))
 	for k := range me.Xattrs {
 		keys = append(keys, k)

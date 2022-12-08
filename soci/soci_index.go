@@ -24,6 +24,7 @@ import (
 	"io"
 	"os"
 
+	"github.com/awslabs/soci-snapshotter/ztoc"
 	"github.com/containerd/containerd/content"
 	"github.com/containerd/containerd/images"
 	"github.com/containerd/containerd/log"
@@ -314,13 +315,12 @@ func (b *IndexBuilder) buildSociLayer(ctx context.Context, desc ocispec.Descript
 		return nil, errors.New("the size of the temp file doesn't match that of the layer")
 	}
 
-	ztoc, err := BuildZtoc(tmpFile.Name(), b.config.spanSize, b.config.buildToolIdentifier)
+	toc, err := ztoc.BuildZtoc(tmpFile.Name(), b.config.spanSize, b.config.buildToolIdentifier)
 	if err != nil {
 		return nil, err
 	}
 
-	zm := ZtocMarshaler{}
-	ztocReader, ztocDesc, err := zm.Marshal(ztoc)
+	ztocReader, ztocDesc, err := ztoc.Marshal(toc)
 	if err != nil {
 		return nil, err
 	}

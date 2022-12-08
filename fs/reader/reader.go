@@ -46,10 +46,10 @@ import (
 	"time"
 
 	"github.com/awslabs/soci-snapshotter/cache"
+	"github.com/awslabs/soci-snapshotter/compression"
 	commonmetrics "github.com/awslabs/soci-snapshotter/fs/metrics/common"
 	spanmanager "github.com/awslabs/soci-snapshotter/fs/span-manager"
 	"github.com/awslabs/soci-snapshotter/metadata"
-	"github.com/awslabs/soci-snapshotter/soci"
 	"github.com/hashicorp/go-multierror"
 	digest "github.com/opencontainers/go-digest"
 	"github.com/pkg/errors"
@@ -213,14 +213,14 @@ func (sf *file) ReadAt(p []byte, offset int64) (int, error) {
 		return 0, nil
 	}
 	uncompFileSize := sf.fr.GetUncompressedFileSize()
-	if soci.FileSize(offset) >= uncompFileSize {
+	if compression.Offset(offset) >= uncompFileSize {
 		return 0, io.EOF
 	}
-	expectedSize := uncompFileSize - soci.FileSize(offset)
-	if expectedSize > soci.FileSize(len(p)) {
-		expectedSize = soci.FileSize(len(p))
+	expectedSize := uncompFileSize - compression.Offset(offset)
+	if expectedSize > compression.Offset(len(p)) {
+		expectedSize = compression.Offset(len(p))
 	}
-	fileOffsetStart := sf.fr.GetUncompressedOffset() + soci.FileSize(offset)
+	fileOffsetStart := sf.fr.GetUncompressedOffset() + compression.Offset(offset)
 	fileOffsetEnd := fileOffsetStart + expectedSize
 	r, err := sf.gr.spanManager.GetContents(fileOffsetStart, fileOffsetEnd)
 	if err != nil {

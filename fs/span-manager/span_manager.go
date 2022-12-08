@@ -28,7 +28,8 @@ import (
 	"sync/atomic"
 
 	"github.com/awslabs/soci-snapshotter/cache"
-	"github.com/awslabs/soci-snapshotter/soci"
+	"github.com/awslabs/soci-snapshotter/compression"
+	"github.com/awslabs/soci-snapshotter/ztoc"
 	"github.com/opencontainers/go-digest"
 	"golang.org/x/sync/errgroup"
 )
@@ -62,11 +63,11 @@ var (
 )
 
 type span struct {
-	id                soci.SpanID
-	startCompOffset   soci.FileSize
-	endCompOffset     soci.FileSize
-	startUncompOffset soci.FileSize
-	endUncompOffset   soci.FileSize
+	id                compression.SpanID
+	startCompOffset   compression.Offset
+	endCompOffset     compression.Offset
+	startUncompOffset compression.Offset
+	endUncompOffset   compression.Offset
 	state             atomic.Value
 	mu                sync.Mutex
 }
@@ -93,27 +94,27 @@ func (s *span) validateStateTransition(newState spanState) error {
 type SpanManager struct {
 	cache    cache.BlobCache
 	cacheOpt []cache.Option
-	index    *soci.GzipZinfo
+	index    *compression.GzipZinfo
 	r        *io.SectionReader // reader for contents of the spans managed by SpanManager
 	spans    []*span
-	ztoc     *soci.Ztoc
+	ztoc     *ztoc.Ztoc
 }
 
 type spanInfo struct {
 	// starting span id of the requested contents
-	spanStart soci.SpanID
+	spanStart compression.SpanID
 	// ending span id of the requested contents
-	spanEnd soci.SpanID
+	spanEnd compression.SpanID
 	// start offsets of the requested contents within the spans
-	startOffInSpan []soci.FileSize
+	startOffInSpan []compression.Offset
 	// end offsets the requested contents within the spans
-	endOffInSpan []soci.FileSize
+	endOffInSpan []compression.Offset
 	// indexes of the spans in the buffer
-	spanIndexInBuf []soci.FileSize
+	spanIndexInBuf []compression.Offset
 }
 
-func New(ztoc *soci.Ztoc, r *io.SectionReader, cache cache.BlobCache, cacheOpt ...cache.Option) *SpanManager {
-	index, err := soci.NewGzipZinfo(ztoc.CompressionInfo.Checkpoints)
+func New(ztoc *ztoc.Ztoc, r *io.SectionReader, cache cache.BlobCache, cacheOpt ...cache.Option) *SpanManager {
+	index, err := compression.NewGzipZinfo(ztoc.CompressionInfo.Checkpoints)
 	if err != nil {
 		return nil
 	}
@@ -137,13 +138,13 @@ func New(ztoc *soci.Ztoc, r *io.SectionReader, cache cache.BlobCache, cacheOpt .
 func (m *SpanManager) buildAllSpans() {
 	m.spans[0] = &span{
 		id:                0,
-		startCompOffset:   m.index.SpanIDToCompressedOffset(soci.SpanID(0)),
+		startCompOffset:   m.index.SpanIDToCompressedOffset(compression.SpanID(0)),
 		endCompOffset:     m.getEndCompressedOffset(0),
-		startUncompOffset: m.index.SpanIDToUncompressedOffset(soci.SpanID(0)),
+		startUncompOffset: m.index.SpanIDToUncompressedOffset(compression.SpanID(0)),
 		endUncompOffset:   m.getEndUncompressedOffset(0),
 	}
 	m.spans[0].state.Store(unrequested)
-	var i soci.SpanID
+	var i compression.SpanID
 	for i = 1; i <= m.ztoc.CompressionInfo.MaxSpanID; i++ {
 		startCompOffset := m.spans[i-1].endCompOffset
 		hasBits := m.index.HasBits(i)
@@ -162,7 +163,7 @@ func (m *SpanManager) buildAllSpans() {
 	}
 }
 
-func (m *SpanManager) ResolveSpan(spanID soci.SpanID, r *io.SectionReader) error {
+func (m *SpanManager) ResolveSpan(spanID compression.SpanID, r *io.SectionReader) error {
 	if spanID > m.ztoc.CompressionInfo.MaxSpanID {
 		return ErrExceedMaxSpan
 	}
@@ -192,13 +193,13 @@ func (m *SpanManager) ResolveSpan(spanID soci.SpanID, r *io.SectionReader) error
 
 // GetContents returns a reader for the requested contents.
 // offsetStart and offsetEnd are start and end uncompressed offsets of the file.
-func (m *SpanManager) GetContents(offsetStart, offsetEnd soci.FileSize) (io.Reader, error) {
+func (m *SpanManager) GetContents(offsetStart, offsetEnd compression.Offset) (io.Reader, error) {
 	si := m.getSpanInfo(offsetStart, offsetEnd)
 	numSpans := si.spanEnd - si.spanStart + 1
 	spanReaders := make([]io.Reader, numSpans)
 
 	eg, _ := errgroup.WithContext(context.Background())
-	var i soci.SpanID
+	var i compression.SpanID
 	for i = 0; i < numSpans; i++ {
 		j := i
 		eg.Go(func() error {
@@ -220,14 +221,14 @@ func (m *SpanManager) GetContents(offsetStart, offsetEnd soci.FileSize) (io.Read
 }
 
 // getSpanInfo returns spanInfo from the offsets of the requested file
-func (m *SpanManager) getSpanInfo(offsetStart, offsetEnd soci.FileSize) *spanInfo {
+func (m *SpanManager) getSpanInfo(offsetStart, offsetEnd compression.Offset) *spanInfo {
 	spanStart := m.index.UncompressedOffsetToSpanID(offsetStart)
 	spanEnd := m.index.UncompressedOffsetToSpanID(offsetEnd)
 	numSpans := spanEnd - spanStart + 1
-	start := make([]soci.FileSize, numSpans)
-	end := make([]soci.FileSize, numSpans)
-	index := make([]soci.FileSize, numSpans)
-	var bufSize soci.FileSize
+	start := make([]compression.Offset, numSpans)
+	end := make([]compression.Offset, numSpans)
+	index := make([]compression.Offset, numSpans)
+	var bufSize compression.Offset
 
 	for i := spanStart; i <= spanEnd; i++ {
 		j := i - spanStart
@@ -254,7 +255,7 @@ func (m *SpanManager) getSpanInfo(offsetStart, offsetEnd soci.FileSize) *spanInf
 	return &spanInfo
 }
 
-func (m *SpanManager) GetSpanContent(spanID soci.SpanID, offsetStart, offsetEnd, size soci.FileSize) (io.Reader, error) {
+func (m *SpanManager) GetSpanContent(spanID compression.SpanID, offsetStart, offsetEnd, size compression.Offset) (io.Reader, error) {
 	// Check if we can resolve the span from the cache
 	s := m.spans[spanID]
 	r, err := m.resolveSpanFromCache(s, offsetStart, size)
@@ -286,7 +287,7 @@ func (m *SpanManager) GetSpanContent(spanID soci.SpanID, offsetStart, offsetEnd,
 
 // getSpanFromCache returns the reader for the contents of the span stored in the cache.
 // offset is the offset of the requested contents within the span. size is the size of the requested contents.
-func (m *SpanManager) getSpanFromCache(spanID string, offset, size soci.FileSize) (io.Reader, error) {
+func (m *SpanManager) getSpanFromCache(spanID string, offset, size compression.Offset) (io.Reader, error) {
 	r, err := m.cache.Get(spanID)
 	if err != nil {
 		return nil, ErrSpanNotAvailable
@@ -298,7 +299,7 @@ func (m *SpanManager) getSpanFromCache(spanID string, offset, size soci.FileSize
 		nil
 }
 
-func (m *SpanManager) verifySpanContents(compressedData []byte, id soci.SpanID) error {
+func (m *SpanManager) verifySpanContents(compressedData []byte, id compression.SpanID) error {
 	actual := digest.FromBytes(compressedData)
 	expected := m.ztoc.CompressionInfo.SpanDigests[id]
 	if actual != expected {
@@ -324,7 +325,7 @@ func (m *SpanManager) addSpanToCache(spanID string, contents []byte, opts ...cac
 // For Uncompressed span, directly return the reader from the cache.
 // For Fetched span, get the compressed span from the cache, uncompress it, cache the uncompressed span and
 // returns the reader for the uncompressed span.
-func (m *SpanManager) resolveSpanFromCache(s *span, offsetStart, size soci.FileSize) (io.Reader, error) {
+func (m *SpanManager) resolveSpanFromCache(s *span, offsetStart, size compression.Offset) (io.Reader, error) {
 	id := fmt.Sprintf("%d", s.id)
 	state := s.state.Load().(spanState)
 	if state == uncompressed {
@@ -365,7 +366,7 @@ func (m *SpanManager) resolveSpanFromCache(s *span, offsetStart, size soci.FileS
 	return nil, ErrSpanNotAvailable
 }
 
-func (m *SpanManager) fetchSpan(buf []byte, spanID soci.SpanID, r *io.SectionReader) error {
+func (m *SpanManager) fetchSpan(buf []byte, spanID compression.SpanID, r *io.SectionReader) error {
 	s := m.spans[spanID]
 	err := s.setState(requested)
 	if err != nil {
@@ -396,7 +397,7 @@ func (m *SpanManager) uncompressSpan(s *span, compressedBuf []byte) ([]byte, err
 	return bytes, nil
 }
 
-func (m *SpanManager) fetchAndCacheSpan(spanID soci.SpanID, r *io.SectionReader, isPrefetch bool) ([]byte, error) {
+func (m *SpanManager) fetchAndCacheSpan(spanID compression.SpanID, r *io.SectionReader, isPrefetch bool) ([]byte, error) {
 	s := m.spans[spanID]
 	compressedSize := s.endCompOffset - s.startCompOffset
 	compressedBuf := make([]byte, compressedSize)
@@ -437,8 +438,8 @@ func (m *SpanManager) fetchAndCacheSpan(spanID soci.SpanID, r *io.SectionReader,
 	return uncompSpanBuf, nil
 }
 
-func (m *SpanManager) getEndCompressedOffset(spanID soci.SpanID) soci.FileSize {
-	var end soci.FileSize
+func (m *SpanManager) getEndCompressedOffset(spanID compression.SpanID) compression.Offset {
+	var end compression.Offset
 	if spanID == m.ztoc.CompressionInfo.MaxSpanID {
 		end = m.ztoc.CompressedArchiveSize
 	} else {
@@ -447,8 +448,8 @@ func (m *SpanManager) getEndCompressedOffset(spanID soci.SpanID) soci.FileSize {
 	return end
 }
 
-func (m *SpanManager) getEndUncompressedOffset(spanID soci.SpanID) soci.FileSize {
-	var end soci.FileSize
+func (m *SpanManager) getEndUncompressedOffset(spanID compression.SpanID) compression.Offset {
+	var end compression.Offset
 	if spanID == m.ztoc.CompressionInfo.MaxSpanID {
 		end = m.ztoc.UncompressedArchiveSize
 	} else {

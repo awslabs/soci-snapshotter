@@ -37,8 +37,8 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/awslabs/soci-snapshotter/compression"
 	"github.com/awslabs/soci-snapshotter/metadata"
-	"github.com/awslabs/soci-snapshotter/soci"
 	"github.com/awslabs/soci-snapshotter/util/dbutil"
 	"github.com/pkg/errors"
 	bolt "go.etcd.io/bbolt"
@@ -103,8 +103,8 @@ type childEntry struct {
 
 type metadataEntry struct {
 	children           map[string]childEntry
-	UncompressedOffset soci.FileSize
-	UncompressedSize   soci.FileSize
+	UncompressedOffset compression.Offset
+	UncompressedSize   compression.Offset
 }
 
 func getNodes(tx *bolt.Tx, fsID string) (*bolt.Bucket, error) {
@@ -356,7 +356,7 @@ func writeMetadataEntry(md *bolt.Bucket, m *metadataEntry) error {
 	return nil
 }
 
-func putFileSize(b *bolt.Bucket, k []byte, v soci.FileSize) error {
+func putFileSize(b *bolt.Bucket, k []byte, v compression.Offset) error {
 	return putInt(b, k, int64(v))
 }
 

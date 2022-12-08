@@ -56,9 +56,9 @@ import (
 	"github.com/awslabs/soci-snapshotter/fs/source"
 	spanmanager "github.com/awslabs/soci-snapshotter/fs/span-manager"
 	"github.com/awslabs/soci-snapshotter/metadata"
-	"github.com/awslabs/soci-snapshotter/soci"
 	"github.com/awslabs/soci-snapshotter/util/lrucache"
 	"github.com/awslabs/soci-snapshotter/util/namedmutex"
+	"github.com/awslabs/soci-snapshotter/ztoc"
 	"github.com/containerd/containerd/log"
 	"github.com/containerd/containerd/reference"
 	fusefs "github.com/hanwen/go-fuse/v2/fs"
@@ -283,8 +283,7 @@ func (r *Resolver) Resolve(ctx context.Context, hosts source.RegistryHosts, refs
 	// If it exists, we decide if we want to lazily load layer, or
 	// download/decompress the entire layer
 	// If we decide to download/decompress the entire layer, getZtoc will not return the ztoc
-	zm := soci.ZtocMarshaler{}
-	ztoc, err := zm.Unmarshal(ztocReader)
+	ztoc, err := ztoc.Unmarshal(ztocReader)
 
 	if err != nil {
 		// for now error out and let container runtime handle the layer download
