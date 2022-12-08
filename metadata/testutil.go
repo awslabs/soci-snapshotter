@@ -43,8 +43,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/awslabs/soci-snapshotter/soci"
 	"github.com/awslabs/soci-snapshotter/util/testutil"
+	"github.com/awslabs/soci-snapshotter/ztoc"
 	"github.com/hashicorp/go-multierror"
 )
 
@@ -58,7 +58,7 @@ var srcCompressions = map[string]int{
 	"gzip-huffmanonly":        gzip.HuffmanOnly,
 }
 
-type ReaderFactory func(sr *io.SectionReader, ztoc *soci.Ztoc, opts ...Option) (r TestableReader, err error)
+type ReaderFactory func(sr *io.SectionReader, ztoc *ztoc.Ztoc, opts ...Option) (r TestableReader, err error)
 
 type TestableReader interface {
 	Reader
@@ -182,7 +182,7 @@ func TestReader(t *testing.T, factory ReaderFactory) {
 						testutil.WithPrefix(prefix),
 					}
 
-					ztoc, sr, err := soci.BuildZtocReader(tt.in, srcCompression, 64, opts...)
+					ztoc, sr, err := ztoc.BuildZtocReader(tt.in, srcCompression, 64, opts...)
 					if err != nil {
 						t.Fatalf("failed to build ztoc: %v", err)
 					}

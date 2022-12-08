@@ -14,7 +14,7 @@
    limitations under the License.
 */
 
-package soci
+package ztoc
 
 import (
 	"archive/tar"
@@ -23,6 +23,7 @@ import (
 	"io"
 	"os"
 
+	"github.com/awslabs/soci-snapshotter/compression"
 	"github.com/opencontainers/go-digest"
 )
 
@@ -31,7 +32,7 @@ func BuildZtoc(gzipFile string, span int64, buildToolIdentifier string) (*Ztoc, 
 		return nil, fmt.Errorf("need to provide gzip file")
 	}
 
-	index, err := NewGzipZinfoFromFile(gzipFile, span)
+	index, err := compression.NewGzipZinfoFromFile(gzipFile, span)
 	if err != nil {
 		return nil, err
 	}
@@ -77,7 +78,7 @@ func BuildZtoc(gzipFile string, span int64, buildToolIdentifier string) (*Ztoc, 
 	}, nil
 }
 
-func getPerSpanDigests(gzipFile string, fileSize int64, index *GzipZinfo) ([]digest.Digest, error) {
+func getPerSpanDigests(gzipFile string, fileSize int64, index *compression.GzipZinfo) ([]digest.Digest, error) {
 	file, err := os.Open(gzipFile)
 	if err != nil {
 		return nil, fmt.Errorf("could not open file for reading: %w", err)
@@ -85,12 +86,12 @@ func getPerSpanDigests(gzipFile string, fileSize int64, index *GzipZinfo) ([]dig
 	defer file.Close()
 
 	var digests []digest.Digest
-	var i SpanID
+	var i compression.SpanID
 	maxSpanID := index.MaxSpanID()
 	for i = 0; i <= maxSpanID; i++ {
 		var (
 			startOffset = index.SpanIDToCompressedOffset(i)
-			endOffset   FileSize
+			endOffset   compression.Offset
 		)
 
 		if index.HasBits(i) {
@@ -98,7 +99,7 @@ func getPerSpanDigests(gzipFile string, fileSize int64, index *GzipZinfo) ([]dig
 		}
 
 		if i == maxSpanID {
-			endOffset = FileSize(fileSize)
+			endOffset = compression.Offset(fileSize)
 		} else {
 			endOffset = index.SpanIDToCompressedOffset(i + 1)
 		}
@@ -113,7 +114,7 @@ func getPerSpanDigests(gzipFile string, fileSize int64, index *GzipZinfo) ([]dig
 	return digests, nil
 }
 
-func getGzipFileMetadata(gzipFile string, index *GzipZinfo) ([]FileMetadata, FileSize, error) {
+func getGzipFileMetadata(gzipFile string, index *compression.GzipZinfo) ([]FileMetadata, compression.Offset, error) {
 	file, err := os.Open(gzipFile)
 	if err != nil {
 		return nil, 0, fmt.Errorf("could not open file for reading: %v", err)
@@ -155,7 +156,7 @@ func getGzipFileMetadata(gzipFile string, index *GzipZinfo) ([]FileMetadata, Fil
 			Name:               hdr.Name,
 			Type:               fileType,
 			UncompressedOffset: pt.CurrentPos(),
-			UncompressedSize:   FileSize(hdr.Size),
+			UncompressedSize:   compression.Offset(hdr.Size),
 			Linkname:           hdr.Linkname,
 			Mode:               hdr.Mode,
 			UID:                hdr.Uid,
@@ -172,7 +173,7 @@ func getGzipFileMetadata(gzipFile string, index *GzipZinfo) ([]FileMetadata, Fil
 	return md, uncompressedArchiveSize, nil
 }
 
-func getFileSize(file string) (FileSize, error) {
+func getFileSize(file string) (compression.Offset, error) {
 	f, err := os.Open(file)
 	if err != nil {
 		return 0, err
@@ -182,10 +183,10 @@ func getFileSize(file string) (FileSize, error) {
 	if err != nil {
 		return 0, err
 	}
-	return FileSize(st.Size()), nil
+	return compression.Offset(st.Size()), nil
 }
 
-func getTarReader(gzipReader io.Reader) (*os.File, *io.SectionReader, FileSize, error) {
+func getTarReader(gzipReader io.Reader) (*os.File, *io.SectionReader, compression.Offset, error) {
 	file, err := os.CreateTemp("/tmp", "tempfile-ztoc-builder")
 	if err != nil {
 		return nil, nil, 0, err
@@ -226,28 +227,28 @@ func getType(header *tar.Header) (fileType string, e error) {
 	return
 }
 
-func tarSectionReaderFromFile(f *os.File) (*io.SectionReader, FileSize, error) {
+func tarSectionReaderFromFile(f *os.File) (*io.SectionReader, compression.Offset, error) {
 	st, err := f.Stat()
 	if err != nil {
 		return nil, 0, err
 	}
 
-	return io.NewSectionReader(f, 0, st.Size()), FileSize(st.Size()), nil
+	return io.NewSectionReader(f, 0, st.Size()), compression.Offset(st.Size()), nil
 }
 
 type positionTrackerReader struct {
 	r   io.ReaderAt
-	pos FileSize
+	pos compression.Offset
 }
 
 func (p *positionTrackerReader) Read(b []byte) (int, error) {
 	n, err := p.r.ReadAt(b, int64(p.pos))
 	if err == nil {
-		p.pos += FileSize(n)
+		p.pos += compression.Offset(n)
 	}
 	return n, err
 }
 
-func (p *positionTrackerReader) CurrentPos() FileSize {
+func (p *positionTrackerReader) CurrentPos() compression.Offset {
 	return p.pos
 }

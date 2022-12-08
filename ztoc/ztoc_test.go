@@ -14,7 +14,7 @@
    limitations under the License.
 */
 
-package soci
+package ztoc
 
 import (
 	"bytes"
@@ -26,6 +26,7 @@ import (
 	"sort"
 	"testing"
 
+	"github.com/awslabs/soci-snapshotter/compression"
 	"github.com/opencontainers/go-digest"
 )
 
@@ -78,8 +79,7 @@ func TestDecompress(t *testing.T) {
 
 	for _, tc := range tests {
 		spansize := tc.spanSize
-		cfg := &buildConfig{}
-		ztoc, err := BuildZtoc(*tarGzip, spansize, cfg.buildToolIdentifier)
+		ztoc, err := BuildZtoc(*tarGzip, spansize, "test")
 		if err != nil {
 			t.Fatalf("%s: can't build ztoc: %v", tc.name, err)
 		}
@@ -188,8 +188,7 @@ func TestZtocGenerationConsistency(t *testing.T) {
 			}
 			defer os.Remove(*tarGzip)
 			spansize := tc.spanSize
-			cfg := &buildConfig{}
-			ztoc1, err := BuildZtoc(*tarGzip, spansize, cfg.buildToolIdentifier)
+			ztoc1, err := BuildZtoc(*tarGzip, spansize, "test")
 			if err != nil {
 				t.Fatalf("can't build ztoc1: %v", err)
 			}
@@ -200,7 +199,7 @@ func TestZtocGenerationConsistency(t *testing.T) {
 				t.Fatalf("ztoc1 metadata file count mismatch. expected: %d, actual: %d", len(fileNames), len(ztoc1.TOC.Metadata))
 			}
 
-			ztoc2, err := BuildZtoc(*tarGzip, spansize, cfg.buildToolIdentifier)
+			ztoc2, err := BuildZtoc(*tarGzip, spansize, "test")
 			if err != nil {
 				t.Fatalf("can't build ztoc2: %v", err)
 			}
@@ -308,10 +307,7 @@ func TestZtocGeneration(t *testing.T) {
 			}
 			defer os.Remove(*tarGzip)
 			spansize := tc.spanSize
-			cfg := &buildConfig{
-				buildToolIdentifier: tc.buildTool,
-			}
-			ztoc, err := BuildZtoc(*tarGzip, spansize, cfg.buildToolIdentifier)
+			ztoc, err := BuildZtoc(*tarGzip, spansize, tc.buildTool)
 			if err != nil {
 				t.Fatalf("can't build ztoc: error=%v", err)
 			}
@@ -396,10 +392,7 @@ func TestZtocSerialization(t *testing.T) {
 			}
 			defer os.Remove(*tarGzip)
 			spansize := tc.spanSize
-			cfg := &buildConfig{
-				buildToolIdentifier: tc.buildTool,
-			}
-			createdZtoc, err := BuildZtoc(*tarGzip, spansize, cfg.buildToolIdentifier)
+			createdZtoc, err := BuildZtoc(*tarGzip, spansize, tc.buildTool)
 			if err != nil {
 				t.Fatalf("can't build ztoc: error=%v", err)
 			}
@@ -446,14 +439,13 @@ func TestZtocSerialization(t *testing.T) {
 				}
 			}
 			// serialize
-			zm := ZtocMarshaler{}
-			r, _, err := zm.Marshal(createdZtoc)
+			r, _, err := Marshal(createdZtoc)
 			if err != nil {
 				t.Fatalf("error occurred when getting ztoc reader: %v", err)
 			}
 
 			// replacing the original ztoc with the read version of it
-			readZtoc, err := zm.Unmarshal(r)
+			readZtoc, err := Unmarshal(r)
 			if err != nil {
 				t.Fatalf("error occurred when getting ztoc: %v", err)
 			}
@@ -553,9 +545,9 @@ func TestWriteZtoc(t *testing.T) {
 		version                 string
 		checkpoints             []byte
 		metadata                []FileMetadata
-		compressedArchiveSize   FileSize
-		uncompressedArchiveSize FileSize
-		maxSpanID               SpanID
+		compressedArchiveSize   compression.Offset
+		uncompressedArchiveSize compression.Offset
+		maxSpanID               compression.SpanID
 		buildTool               string
 		expDigest               string
 		expSize                 int64
@@ -592,8 +584,7 @@ func TestWriteZtoc(t *testing.T) {
 				BuildToolIdentifier:     tc.buildTool,
 			}
 
-			zm := ZtocMarshaler{}
-			_, desc, err := zm.Marshal(ztoc)
+			_, desc, err := Marshal(ztoc)
 			if err != nil {
 				t.Fatalf("error occurred when getting ztoc reader: %v", err)
 			}
@@ -622,9 +613,8 @@ func TestReadZtocInWrongFormat(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			zm := ZtocMarshaler{}
 			r := bytes.NewReader(tc.serializedZtoc)
-			if _, err := zm.Unmarshal(r); err == nil {
+			if _, err := Unmarshal(r); err == nil {
 				t.Fatalf("expected error, but got nil")
 			}
 		})

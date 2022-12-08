@@ -38,7 +38,7 @@ import (
 	"testing"
 
 	"github.com/awslabs/soci-snapshotter/metadata"
-	"github.com/awslabs/soci-snapshotter/soci"
+	"github.com/awslabs/soci-snapshotter/ztoc"
 	bolt "go.etcd.io/bbolt"
 )
 
@@ -46,7 +46,7 @@ func TestReader(t *testing.T) {
 	metadata.TestReader(t, newTestableReader)
 }
 
-func newTestableReader(sr *io.SectionReader, ztoc *soci.Ztoc, opts ...metadata.Option) (metadata.TestableReader, error) {
+func newTestableReader(sr *io.SectionReader, ztoc *ztoc.Ztoc, opts ...metadata.Option) (metadata.TestableReader, error) {
 	f, err := os.CreateTemp("", "readertestdb")
 	if err != nil {
 		return nil, err

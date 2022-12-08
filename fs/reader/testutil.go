@@ -49,8 +49,8 @@ import (
 	"github.com/awslabs/soci-snapshotter/cache"
 	spanmanager "github.com/awslabs/soci-snapshotter/fs/span-manager"
 	"github.com/awslabs/soci-snapshotter/metadata"
-	"github.com/awslabs/soci-snapshotter/soci"
 	"github.com/awslabs/soci-snapshotter/util/testutil"
+	"github.com/awslabs/soci-snapshotter/ztoc"
 	digest "github.com/opencontainers/go-digest"
 )
 
@@ -146,7 +146,7 @@ func makeFile(t *testing.T, contents []byte, factory metadata.Store, spanSize in
 	tarEntry := []testutil.TarEntry{
 		testutil.File(testName, string(contents)),
 	}
-	ztoc, sr, err := soci.BuildZtocReader(tarEntry, gzip.DefaultCompression, spanSize)
+	ztoc, sr, err := ztoc.BuildZtocReader(tarEntry, gzip.DefaultCompression, spanSize)
 	if err != nil {
 		t.Fatalf("failed to build sample ztoc: %v", err)
 	}
@@ -187,7 +187,7 @@ func testFailReader(t *testing.T, factory metadata.Store) {
 	}
 	for _, spanSize := range spanSizeCond {
 		t.Run(fmt.Sprintf("reading_spansize_%d", spanSize), func(t *testing.T) {
-			ztoc, sr, err := soci.BuildZtocReader(tarEntry, gzip.DefaultCompression, spanSize)
+			ztoc, sr, err := ztoc.BuildZtocReader(tarEntry, gzip.DefaultCompression, spanSize)
 			if err != nil {
 				t.Fatalf("failed to build sample ztoc: %v", err)
 			}

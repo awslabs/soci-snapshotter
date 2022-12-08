@@ -37,7 +37,8 @@ import (
 	"os"
 	"time"
 
-	"github.com/awslabs/soci-snapshotter/soci"
+	"github.com/awslabs/soci-snapshotter/compression"
+	"github.com/awslabs/soci-snapshotter/ztoc"
 )
 
 // Attr reprensents the attributes of a node.
@@ -74,7 +75,7 @@ type Attr struct {
 }
 
 // Store reads the provided blob and creates a metadata reader.
-type Store func(sr *io.SectionReader, ztoc *soci.Ztoc, opts ...Option) (Reader, error)
+type Store func(sr *io.SectionReader, ztoc *ztoc.Ztoc, opts ...Option) (Reader, error)
 
 // Reader provides access to file metadata of a blob.
 type Reader interface {
@@ -90,8 +91,8 @@ type Reader interface {
 }
 
 type File interface {
-	GetUncompressedFileSize() soci.FileSize
-	GetUncompressedOffset() soci.FileSize
+	GetUncompressedFileSize() compression.Offset
+	GetUncompressedOffset() compression.Offset
 }
 
 type Options struct {

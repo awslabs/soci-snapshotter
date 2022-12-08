@@ -21,11 +21,11 @@ import (
 	"os"
 
 	"github.com/awslabs/soci-snapshotter/metadata"
-	"github.com/awslabs/soci-snapshotter/soci"
+	"github.com/awslabs/soci-snapshotter/ztoc"
 	bolt "go.etcd.io/bbolt"
 )
 
-func NewDbMetadataStore(sr *io.SectionReader, ztoc *soci.Ztoc, opts ...metadata.Option) (metadata.Reader, error) {
+func NewDbMetadataStore(sr *io.SectionReader, ztoc *ztoc.Ztoc, opts ...metadata.Option) (metadata.Reader, error) {
 	f, err := os.CreateTemp("", "readertestdb")
 	if err != nil {
 		return nil, err

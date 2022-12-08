@@ -25,6 +25,7 @@ import (
 
 	"github.com/awslabs/soci-snapshotter/fs/config"
 	"github.com/awslabs/soci-snapshotter/soci"
+	"github.com/awslabs/soci-snapshotter/ztoc"
 	"github.com/containerd/containerd/cmd/ctr/commands"
 	"github.com/containerd/containerd/content"
 	"github.com/opencontainers/go-digest"
@@ -60,7 +61,7 @@ var getFileCommand = cli.Command{
 		}
 		defer cancel()
 
-		ztoc, err := getZtoc(ctx, ztocDigest)
+		toc, err := getZtoc(ctx, ztocDigest)
 		if err != nil {
 			return err
 		}
@@ -71,19 +72,19 @@ var getFileCommand = cli.Command{
 		}
 		defer layerReader.Close()
 
-		fileMetadata, err := soci.GetMetadataEntry(ztoc, file)
+		fileMetadata, err := ztoc.GetMetadataEntry(toc, file)
 		if err != nil {
 			return err
 		}
-		extractConfig := soci.FileExtractConfig{
+		extractConfig := ztoc.FileExtractConfig{
 			UncompressedSize:      fileMetadata.UncompressedSize,
 			UncompressedOffset:    fileMetadata.UncompressedOffset,
-			Checkpoints:           ztoc.CompressionInfo.Checkpoints,
-			CompressedArchiveSize: ztoc.CompressedArchiveSize,
-			MaxSpanID:             ztoc.CompressionInfo.MaxSpanID,
+			Checkpoints:           toc.CompressionInfo.Checkpoints,
+			CompressedArchiveSize: toc.CompressedArchiveSize,
+			MaxSpanID:             toc.CompressionInfo.MaxSpanID,
 		}
 
-		data, err := soci.ExtractFile(io.NewSectionReader(layerReader, 0, int64(ztoc.CompressedArchiveSize)), &extractConfig)
+		data, err := ztoc.ExtractFile(io.NewSectionReader(layerReader, 0, int64(toc.CompressedArchiveSize)), &extractConfig)
 		if err != nil {
 			return err
 		}
@@ -98,7 +99,7 @@ var getFileCommand = cli.Command{
 	},
 }
 
-func getZtoc(ctx context.Context, d digest.Digest) (*soci.Ztoc, error) {
+func getZtoc(ctx context.Context, d digest.Digest) (*ztoc.Ztoc, error) {
 	blobStore, err := oci.New(config.SociContentStorePath)
 	if err != nil {
 		return nil, err
@@ -110,8 +111,7 @@ func getZtoc(ctx context.Context, d digest.Digest) (*soci.Ztoc, error) {
 	}
 	defer reader.Close()
 
-	zm := soci.ZtocMarshaler{}
-	return zm.Unmarshal(reader)
+	return ztoc.Unmarshal(reader)
 }
 
 func getLayer(ctx context.Context, ztocDigest digest.Digest, cs content.Store) (content.ReaderAt, error) {
