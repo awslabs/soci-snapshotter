@@ -349,9 +349,10 @@ func (fs *filesystem) Mount(ctx context.Context, mountpoint string, labels map[s
 	go func() {
 		rErr := fmt.Errorf("failed to resolve target")
 		for _, s := range src {
-			sociDesc := ocispec.Descriptor{}
-			if desc, ok := c.imageLayerToSociDesc[s.Target.Digest.String()]; ok {
-				sociDesc = desc
+			sociDesc, ok := c.imageLayerToSociDesc[s.Target.Digest.String()]
+			if !ok {
+				rErr = errors.Wrapf(rErr, "unable to resolve layer %q from %q, mounting entire layer using overlayfs: %s", s.Target.Digest, s.Name, "no ztoc for the layer")
+				continue
 			}
 
 			l, err := fs.resolver.Resolve(ctx, s.Hosts, s.Name, s.Target, sociDesc)
@@ -371,16 +372,17 @@ func (fs *filesystem) Mount(ctx context.Context, mountpoint string, labels map[s
 		go func() {
 			// Avoids to get canceled by client.
 			ctx := log.WithLogger(context.Background(), log.G(ctx).WithField("mountpoint", mountpoint))
-			sociDesc := ocispec.Descriptor{}
-			if descriptor, ok := c.imageLayerToSociDesc[desc.Digest.String()]; ok {
-				sociDesc = descriptor
+			sociDesc, ok := c.imageLayerToSociDesc[desc.Digest.String()]
+			if !ok {
+				log.G(ctx).Debugf("unable to resolve layer %q, mounting entire layer using overlayfs: %s", desc.Digest, "no ztoc for the layer")
+				return
 			}
+
 			l, err := fs.resolver.Resolve(ctx, preResolve.Hosts, preResolve.Name, desc, sociDesc)
 			if err != nil {
 				log.G(ctx).WithError(err).Debug("failed to pre-resolve")
 				return
 			}
-
 			// Release this layer because this isn't target and we don't use it anymore here.
 			// However, this will remain on the resolver cache until eviction.
 			l.Done()
