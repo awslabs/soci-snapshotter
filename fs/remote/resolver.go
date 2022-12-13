@@ -154,14 +154,14 @@ func (r *Resolver) resolveFetcher(ctx context.Context, hosts source.RegistryHost
 	}
 
 	log.G(ctx).WithError(handlersErr).WithField("ref", refspec.String()).WithField("digest", desc.Digest).Debugf("using default handler")
-	hf, size, err := newHTTPFetcher(ctx, fc)
+	hf, err := newHTTPFetcher(ctx, fc)
 	if err != nil {
 		return nil, 0, err
 	}
 	if blobConfig.ForceSingleRangeMode {
 		hf.singleRangeMode()
 	}
-	return hf, size, err
+	return hf, desc.Size, err
 }
 
 type fetcherConfig struct {
@@ -200,19 +200,19 @@ func retryStrategy(ctx context.Context, resp *http.Response, err error) (bool, e
 	return retry, err2
 }
 
-func newHTTPFetcher(ctx context.Context, fc *fetcherConfig) (*httpFetcher, int64, error) {
+func newHTTPFetcher(ctx context.Context, fc *fetcherConfig) (*httpFetcher, error) {
 	reghosts, err := fc.hosts(fc.refspec)
 	if err != nil {
-		return nil, 0, err
+		return nil, err
 	}
 	desc := fc.desc
 	if desc.Digest.String() == "" {
-		return nil, 0, fmt.Errorf("Digest is mandatory in layer descriptor")
+		return nil, fmt.Errorf("Digest is mandatory in layer descriptor")
 	}
 	digest := desc.Digest
 	pullScope, err := repositoryScope(fc.refspec, false)
 	if err != nil {
-		return nil, 0, err
+		return nil, err
 	}
 
 	// Try to create fetcher until succeeded
@@ -258,15 +258,6 @@ func newHTTPFetcher(ctx context.Context, fc *fetcherConfig) (*httpFetcher, int64
 			continue // Try another
 		}
 
-		// Get size information
-		// TODO: we should try to use the Size field in the descriptor here.
-		size, err := getSize(ctx, url, tr, timeout)
-		if err != nil {
-			rErr = errors.Wrapf(rErr, "failed to get size (host %q, ref:%q, digest:%q): %v",
-				host.Host, fc.refspec, digest, err)
-			continue // Try another
-		}
-
 		// Hit one destination
 		return &httpFetcher{
 			url:     url,
@@ -274,10 +265,10 @@ func newHTTPFetcher(ctx context.Context, fc *fetcherConfig) (*httpFetcher, int64
 			blobURL: blobURL,
 			digest:  digest,
 			timeout: timeout,
-		}, size, nil
+		}, nil
 	}
 
-	return nil, 0, errors.Wrapf(rErr, "cannot resolve layer")
+	return nil, errors.Wrapf(rErr, "cannot resolve layer")
 }
 
 type transport struct {
@@ -356,56 +347,6 @@ func redirect(ctx context.Context, blobURL string, tr http.RoundTripper, timeout
 	}
 
 	return
-}
-
-func getSize(ctx context.Context, url string, tr http.RoundTripper, timeout time.Duration) (int64, error) {
-	if timeout > 0 {
-		var cancel context.CancelFunc
-		ctx, cancel = context.WithTimeout(ctx, timeout)
-		defer cancel()
-	}
-	req, err := http.NewRequestWithContext(ctx, "HEAD", url, nil)
-	if err != nil {
-		return 0, err
-	}
-	req.Close = false
-	res, err := tr.RoundTrip(req)
-	if err != nil {
-		return 0, err
-	}
-	defer res.Body.Close()
-	if res.StatusCode == http.StatusOK {
-		return strconv.ParseInt(res.Header.Get("Content-Length"), 10, 64)
-	}
-	headStatusCode := res.StatusCode
-
-	// Failed to do HEAD request. Fall back to GET.
-	// ghcr.io (https://github-production-container-registry.s3.amazonaws.com) doesn't allow
-	// HEAD request (2020).
-	req, err = http.NewRequestWithContext(ctx, "GET", url, nil)
-	if err != nil {
-		return 0, errors.Wrapf(err, "failed to make request to the registry")
-	}
-	req.Close = false
-	req.Header.Set("Range", "bytes=0-1")
-	res, err = tr.RoundTrip(req)
-	if err != nil {
-		return 0, errors.Wrapf(err, "failed to request")
-	}
-	defer func() {
-		io.Copy(io.Discard, res.Body)
-		res.Body.Close()
-	}()
-
-	if res.StatusCode == http.StatusOK {
-		return strconv.ParseInt(res.Header.Get("Content-Length"), 10, 64)
-	} else if res.StatusCode == http.StatusPartialContent {
-		_, size, err := parseRange(res.Header.Get("Content-Range"))
-		return size, err
-	}
-
-	return 0, fmt.Errorf("failed to get size with code (HEAD=%v, GET=%v)",
-		headStatusCode, res.StatusCode)
 }
 
 type httpFetcher struct {
