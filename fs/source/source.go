@@ -72,7 +72,7 @@ type Source struct {
 	// Manifest is an image manifest which contains the blob. This will
 	// be used by the filesystem to pre-resolve some layers contained in
 	// the manifest.
-	// Currently, only layer digests (Manifest.Layers.Digest) will be used.
+	// Currently, layer digest (Manifest.Layers.Digest) and size will be used.
 	Manifest ocispec.Manifest
 }
 
@@ -86,9 +86,13 @@ const (
 	// targetSizeLabel is a label which contains layer size.
 	targetSizeLabel = "containerd.io/snapshot/remote/soci.size"
 
-	// targetImageLayersLabel is a label which contains layer digests contained in
+	// targetImageLayersDigestLabel is a label which contains layer digests contained in
 	// the target image.
-	targetImageLayersLabel = "containerd.io/snapshot/remote/soci.layers"
+	targetImageLayersDigestLabel = "containerd.io/snapshot/remote/image.layers.digest"
+
+	// targetImageLayersSizeLabel is a label which contains layer digests contained in
+	// the target image.
+	targetImageLayersSizeLabel = "containerd.io/snapshot/remote/image.layers.size"
 
 	// targetImageURLsLabelPrefix is a label prefix which constructs a map from the layer index to
 	// urls of the layer descriptor.
@@ -136,15 +140,25 @@ func FromDefaultLabels(hosts RegistryHosts) GetSources {
 		}
 
 		var neighboringLayers []ocispec.Descriptor
-		if l, ok := labels[targetImageLayersLabel]; ok {
-			layersStr := strings.Split(l, ",")
-			for i, l := range layersStr {
+		if l, ok := labels[targetImageLayersDigestLabel]; ok {
+			layerDigestsStr := strings.Split(l, ",")
+			layerSizes := strings.Split(labels[targetImageLayersSizeLabel], ",")
+			if len(layerDigestsStr) != len(layerSizes) {
+				return nil, fmt.Errorf("the lengths of layer digests and layer sizes don't match")
+			}
+
+			for i := 0; i < len(layerDigestsStr); i++ {
+				l := layerDigestsStr[i]
 				d, err := digest.Parse(l)
 				if err != nil {
 					return nil, err
 				}
 				if d.String() != target.String() {
-					desc := ocispec.Descriptor{Digest: d}
+					size, err := strconv.ParseInt(layerSizes[i], 10, 64)
+					if err != nil {
+						return nil, err
+					}
+					desc := ocispec.Descriptor{Digest: d, Size: size}
 					if urls, ok := labels[targetImageURLsLabelPrefix+fmt.Sprintf("%d", i)]; ok {
 						desc.URLs = strings.Split(urls, ",")
 					}
@@ -197,23 +211,30 @@ func AppendDefaultLabelsHandlerWrapper(ref, indexDigest string) func(f images.Ha
 						c.Annotations[targetDigestLabel] = c.Digest.String()
 						c.Annotations[targetSizeLabel] = fmt.Sprintf("%d", c.Size)
 						c.Annotations[TargetSociIndexDigestLabel] = indexDigest
-						var layers string
+						var layerDigests string
+						var layerSizes string
 						for i, l := range children[i:] {
 							if images.IsLayerType(l.MediaType) {
-								ls := fmt.Sprintf("%s,", l.Digest.String())
+								ld := fmt.Sprintf("%s,", l.Digest.String())
+								ls := fmt.Sprintf("%d,", l.Size)
 								// This avoids the label hits the size limitation.
 								// Skipping layers is allowed here and only affects performance.
-								if err := labels.Validate(targetImageLayersLabel, layers+ls); err != nil {
+								if err := labels.Validate(targetImageLayersDigestLabel, layerDigests+ld); err != nil {
 									break
 								}
-								layers += ls
+								if err := labels.Validate(targetImageLayersSizeLabel, layerSizes+ls); err != nil {
+									break
+								}
+								layerDigests += ld
+								layerSizes += ls
 
 								// Store URLs of the neighbouring layer as well.
 								urlsKey := targetImageURLsLabelPrefix + fmt.Sprintf("%d", i)
 								c.Annotations[urlsKey] = appendWithValidation(urlsKey, l.URLs)
 							}
 						}
-						c.Annotations[targetImageLayersLabel] = strings.TrimSuffix(layers, ",")
+						c.Annotations[targetImageLayersDigestLabel] = strings.TrimSuffix(layerDigests, ",")
+						c.Annotations[targetImageLayersSizeLabel] = strings.TrimSuffix(layerSizes, ",")
 
 						// store URL in annotation to let containerd to pass it to the snapshotter
 						c.Annotations[targetURLsLabel] = appendWithValidation(targetURLsLabel, c.URLs)

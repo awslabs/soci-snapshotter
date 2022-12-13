@@ -143,20 +143,6 @@ func TestMirror(t *testing.T) {
 			wantHost: "backendexample.com",
 		},
 		{
-			name: "invalid-redirected-mirror",
-			tr: &sampleRoundTripper{
-				withCode: map[string]int{
-					"backendexample.com": http.StatusInternalServerError,
-				},
-				redirectURL: map[string]string{
-					regexp.QuoteMeta(fmt.Sprintf("mirrorexample.com%s", blobPath)): "https://backendexample.com/blobs/" + blobDigest.String(),
-				},
-				okURLs: []string{`.*`},
-			},
-			mirrors:  []string{"mirrorexample.com"},
-			wantHost: refHost,
-		},
-		{
 			name:     "fail-all",
 			tr:       &sampleRoundTripper{},
 			mirrors:  []string{"mirrorexample.com"},
@@ -180,7 +166,7 @@ func TestMirror(t *testing.T) {
 				}
 				return
 			}
-			fetcher, _, err := newHTTPFetcher(context.Background(), &fetcherConfig{
+			fetcher, err := newHTTPFetcher(context.Background(), &fetcherConfig{
 				hosts:   hosts,
 				refspec: refspec,
 				desc:    ocispec.Descriptor{Digest: blobDigest},
