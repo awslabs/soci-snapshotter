@@ -17,8 +17,8 @@
 package bparser
 
 import (
+	"bufio"
 	"encoding/json"
-	"io"
 	"os"
 	"sort"
 	"strings"
@@ -76,35 +76,26 @@ func ParseFileAccesses(imageName string) error {
 
 	defer file.Close()
 
-	b, err := io.ReadAll(file)
-	if err != nil {
-		return err
-	}
-
-	logs := strings.Split(string(b), "\n")
-
+	sociLog := SociLog{}
 	m := make(map[string]Operation)
-	for _, log := range logs {
-		sociLog := SociLog{}
-		if log != "" {
-			err := json.Unmarshal([]byte(log), &sociLog)
-			if err != nil {
-				return err
-			}
+	scanner := bufio.NewScanner(file)
 
+	for scanner.Scan() {
+		log := scanner.Bytes()
+
+		if err := json.Unmarshal(log, &sociLog); err != nil {
+			return err
 		}
+
 		if sociLog.Msg == sociLogsFuseMessage {
 			var tempOperation BaseOperation
-			err := json.Unmarshal([]byte(log), &tempOperation)
-			if err != nil {
+			if err := json.Unmarshal(log, &tempOperation); err != nil {
 				return err
 			}
 			op := tempOperation.Operation + tempOperation.Path
 
-			val, ok := m[op]
-
-			if ok {
-				val.Count = val.Count + 1
+			if val, ok := m[op]; ok {
+				val.Count++
 				m[op] = val
 
 			} else {
@@ -115,14 +106,11 @@ func ParseFileAccesses(imageName string) error {
 					Count:                     1,
 				}
 			}
-			count, ok := fa.TotalOperationCount[tempOperation.Operation]
-			if ok {
-				fa.TotalOperationCount[tempOperation.Operation] = count + 1
-			} else {
-				fa.TotalOperationCount[tempOperation.Operation] = 1
-			}
+			fa.TotalOperationCount[tempOperation.Operation]++
+
 		}
 	}
+
 	keys := make([]string, 0, len(m))
 	for key := range m {
 		keys = append(keys, key)
@@ -157,13 +145,9 @@ func getTaskStartTime() (*time.Time, error) {
 	}
 	defer file.Close()
 
-	data, err := io.ReadAll(file)
-	if err != nil {
-		return nil, err
-	}
-	logs := strings.Split(string(data), "\n")
-	for i := len(logs) - 1; i >= 0; i-- {
-		log := logs[i]
+	scanner := bufio.NewScanner(file)
+	for scanner.Scan() {
+		log := scanner.Text()
 		if strings.Contains(log, "/tasks/start") {
 			l := strings.Split(log, " ")
 			temp := strings.ReplaceAll(l[0], "time=", "")
@@ -171,6 +155,7 @@ func getTaskStartTime() (*time.Time, error) {
 			if err != nil {
 				return nil, err
 			}
+			break
 		}
 	}
 	return &taskStartTime, nil
