@@ -41,9 +41,9 @@ import (
 	"github.com/awslabs/soci-snapshotter/fs/source"
 	"github.com/awslabs/soci-snapshotter/service/resolver"
 	snbase "github.com/awslabs/soci-snapshotter/snapshot"
-	"github.com/awslabs/soci-snapshotter/snapshot/overlayutils"
 	"github.com/containerd/containerd/log"
 	"github.com/containerd/containerd/snapshots"
+	"github.com/containerd/containerd/snapshots/overlay/overlayutils"
 	"github.com/hashicorp/go-multierror"
 )
 
