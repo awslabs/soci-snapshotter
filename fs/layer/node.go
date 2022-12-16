@@ -436,8 +436,8 @@ var _ = (fusefs.FileReader)((*file)(nil))
 
 func (f *file) Read(ctx context.Context, dest []byte, off int64) (fuse.ReadResult, syscall.Errno) {
 	f.n.logOperation(ctx, "Read")
-	defer commonmetrics.MeasureLatencyInMicroseconds(commonmetrics.ReadOnDemand, f.n.fs.layerDigest, time.Now()) // measure time for on-demand file reads (in microseconds)
-	defer commonmetrics.IncOperationCount(commonmetrics.OnDemandReadAccessCount, f.n.fs.layerDigest)             // increment the counter for on-demand file accesses
+	defer commonmetrics.MeasureLatencyInMicroseconds(commonmetrics.SynchronousRead, f.n.fs.layerDigest, time.Now()) // measure time for synchronous file reads (in microseconds)
+	defer commonmetrics.IncOperationCount(commonmetrics.SynchronousReadCount, f.n.fs.layerDigest)                   // increment the counter for synchronous file reads
 	n, err := f.ra.ReadAt(dest, off)
 	if err != nil && err != io.EOF {
 		f.n.fs.s.report(fmt.Errorf("file.Read: %v", err))

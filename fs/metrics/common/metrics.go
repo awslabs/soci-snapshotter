@@ -65,12 +65,14 @@ const (
 	RemoteRegistryGet = "remote_registry_get"
 	NodeReaddir       = "node_readdir"
 	InitMetadataStore = "init_metadata_store"
-	ReadOnDemand      = "read_on_demand"
+	SynchronousRead   = "synchronous_read"
 
-	OnDemandReadAccessCount          = "on_demand_read_access_count"
-	OnDemandRemoteRegistryFetchCount = "on_demand_remote_registry_fetch_count"
-	OnDemandBytesServed              = "on_demand_bytes_served"
-	OnDemandBytesFetched             = "on_demand_bytes_fetched"
+	SynchronousReadCount              = "synchronous_read_count"
+	SynchronousReadRegistryFetchCount = "synchronous_read_remote_registry_fetch_count" // TODO revisit (wrong place)
+	SynchronousBytesServed            = "synchronous_bytes_served"
+
+	// TODO this metric is not available now. This needs to go down to BlobReader where the actuall http call is issued
+	SynchronousBytesFetched = "synchronous_bytes_fetched"
 )
 
 var (
