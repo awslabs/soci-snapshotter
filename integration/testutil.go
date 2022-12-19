@@ -67,6 +67,13 @@ const (
 	dockerLibrary                = "public.ecr.aws/docker/library/"
 )
 
+const (
+	alpineImage = "alpine:latest"
+	nginxImage  = "nginx:latest"
+	ubuntuImage = "ubuntu:latest"
+	drupalImage = "drupal:latest"
+)
+
 const proxySnapshotterConfig = `
 [proxy_plugins]
   [proxy_plugins.soci]
