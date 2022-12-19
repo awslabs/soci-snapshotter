@@ -51,12 +51,6 @@ import (
 	"github.com/rs/xid"
 )
 
-const (
-	alpineImage = "alpine:latest"
-	nginxImage  = "nginx:latest"
-	ubuntuImage = "ubuntu:latest"
-)
-
 // TestSnapshotterStartup tests to run containerd + snapshotter and check plugin is
 // recognized by containerd
 func TestSnapshotterStartup(t *testing.T) {
@@ -110,7 +104,7 @@ func TestOptimizeConsistentSociArtifact(t *testing.T) {
 			containerImage: "nginx:latest",
 		},
 		{
-			name:           "soci artifact is consistently built for drupal",
+			name:           "soci artifact is consistently built for alpine",
 			containerImage: "alpine:latest",
 		},
 	}
