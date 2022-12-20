@@ -20,6 +20,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"sort"
 	"strings"
 
 	"github.com/awslabs/soci-snapshotter/cmd/soci/commands/internal"
@@ -56,9 +57,14 @@ if they are available in the snapshotter's local content store.
 			Usage: "Max concurrent uploads. Default is 10",
 			Value: 10,
 		},
+		cli.BoolFlag{
+			Name:  "quiet, q",
+			Usage: "quiet mode",
+		},
 	),
 	Action: func(cliContext *cli.Context) error {
 		ref := cliContext.Args().First()
+		quiet := cliContext.Bool("quiet")
 		if ref == "" {
 			return fmt.Errorf("please provide an image reference to push")
 		}
@@ -91,6 +97,10 @@ if they are available in the snapshotter's local content store.
 				return fmt.Errorf("could not find any soci indices to push")
 			}
 
+			sort.Slice(indexDescriptors, func(i, j int) bool {
+				return indexDescriptors[i].CreatedAt.Before(indexDescriptors[j].CreatedAt)
+			})
+
 			username := cliContext.String("user")
 			var secret string
 			if i := strings.IndexByte(username, ':'); i > 0 {
@@ -102,7 +112,6 @@ if they are available in the snapshotter's local content store.
 			if err != nil {
 				return fmt.Errorf("cannot create OCI local store: %w", err)
 			}
-
 			indexDesc := indexDescriptors[len(indexDescriptors)-1]
 
 			refspec, err := reference.Parse(ref)
@@ -134,19 +143,29 @@ if they are available in the snapshotter's local content store.
 
 			options := oraslib.DefaultCopyGraphOptions
 			options.PreCopy = func(_ context.Context, desc ocispec.Descriptor) error {
-				fmt.Printf("pushing artifact with digest: %v\n", desc.Digest)
+				if !quiet {
+					fmt.Printf("pushing artifact with digest: %v\n", desc.Digest)
+				}
 				return nil
 			}
 			options.PostCopy = func(_ context.Context, desc ocispec.Descriptor) error {
-				fmt.Printf("successfully pushed artifact with digest: %v\n", desc.Digest)
+				if !quiet {
+					fmt.Printf("successfully pushed artifact with digest: %v\n", desc.Digest)
+				}
 				return nil
 			}
 			options.OnCopySkipped = func(ctx context.Context, desc ocispec.Descriptor) error {
-				fmt.Printf("skipped artifact with digest: %v\n", desc.Digest)
+				if !quiet {
+					fmt.Printf("skipped artifact with digest: %v\n", desc.Digest)
+				}
 				return nil
 			}
 
-			fmt.Printf("pushing soci index with digest: %v\n", indexDesc.Digest)
+			if quiet {
+				fmt.Println(indexDesc.Digest.String())
+			} else {
+				fmt.Printf("pushing soci index with digest: %v\n", indexDesc.Digest)
+			}
 			err = oraslib.CopyGraph(context.Background(), src, dst, indexDesc.Descriptor, options)
 			if err != nil {
 				return fmt.Errorf("error pushing graph to remote: %w", err)
