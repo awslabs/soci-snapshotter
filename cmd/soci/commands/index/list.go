@@ -20,7 +20,9 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"sort"
 	"text/tabwriter"
+	"time"
 
 	"github.com/awslabs/soci-snapshotter/soci"
 	"github.com/containerd/containerd/cmd/ctr/commands"
@@ -141,6 +143,10 @@ var listCommand = cli.Command{
 			return nil
 		})
 
+		sort.Slice(artifacts, func(i, j int) bool {
+			return artifacts[i].CreatedAt.After(artifacts[j].CreatedAt)
+		})
+
 		if quiet {
 			for _, ae := range artifacts {
 				os.Stdout.Write([]byte(fmt.Sprintf("%s\n", ae.Digest)))
@@ -149,7 +155,7 @@ var listCommand = cli.Command{
 		}
 
 		writer := tabwriter.NewWriter(os.Stdout, 8, 8, 4, ' ', 0)
-		writer.Write([]byte("DIGEST\tSIZE\tIMAGE REF\tPLATFORM\n"))
+		writer.Write([]byte("DIGEST\tSIZE\tIMAGE REF\tPLATFORM\tCREATED\t\n"))
 
 		for _, ae := range artifacts {
 			imgs, _ := is.List(ctx, fmt.Sprintf("target.digest==%s", ae.ImageDigest))
@@ -168,10 +174,18 @@ var listCommand = cli.Command{
 
 func writeArtifactEntry(w io.Writer, ae *soci.ArtifactEntry, imageRef string) {
 	w.Write([]byte(fmt.Sprintf(
-		"%s\t%d\t%s\t%s\t\n",
+		"%s\t%d\t%s\t%s\t%s\t\n",
 		ae.Digest,
 		ae.Size,
 		imageRef,
 		ae.Platform,
+		getDuration(ae.CreatedAt),
 	)))
+}
+
+func getDuration(t time.Time) string {
+	if t.IsZero() {
+		return "n/a"
+	}
+	return fmt.Sprintf("%s ago", time.Since(t).Round(time.Second).String())
 }

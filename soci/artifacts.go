@@ -22,6 +22,7 @@ import (
 	"os"
 	"path"
 	"sync"
+	"time"
 
 	"github.com/awslabs/soci-snapshotter/fs/config"
 	"github.com/awslabs/soci-snapshotter/util/dbutil"
@@ -58,6 +59,7 @@ var (
 	bucketKeyLocation       = []byte("location")
 	bucketKeyType           = []byte("type")
 	bucketKeyMediaType      = []byte("media_type")
+	bucketKeyCreatedAt      = []byte("created_at")
 
 	artifactsDbName = "artifacts.db"
 	// ArtifactEntryTypeIndex indicates that an ArtifactEntry is a SOCI index artifact
@@ -87,8 +89,10 @@ type ArtifactEntry struct {
 	Location string
 	// Type is the type of SOCI artifact.
 	Type ArtifactEntryType
-	// Media Type of the stored artifact
+	// Media Type of the stored artifact.
 	MediaType string
+	// Creation time of SOCI artifact.
+	CreatedAt time.Time
 }
 
 func getIndexArtifactEntries(indexDigest string) ([]ArtifactEntry, error) {
@@ -278,7 +282,6 @@ func getArtifactsBucket(tx *bolt.Tx) (*bolt.Bucket, error) {
 }
 
 func getArtifactEntryByDigest(artifacts *bolt.Bucket, digest string) (*ArtifactEntry, error) {
-
 	artifactBkt := artifacts.Bucket([]byte(digest))
 	if artifactBkt == nil {
 		return nil, fmt.Errorf("couldn't retrieve artifact for %s, %w", digest, errdefs.ErrNotFound)
@@ -293,6 +296,14 @@ func loadArtifact(artifactBkt *bolt.Bucket, digest string) (*ArtifactEntry, erro
 	if err != nil {
 		return nil, err
 	}
+	createdAt := time.Time{}
+	createdAtBytes := artifactBkt.Get(bucketKeyCreatedAt)
+	if createdAtBytes != nil {
+		err := createdAt.UnmarshalBinary(createdAtBytes)
+		if err != nil {
+			return nil, fmt.Errorf("cannot unmarshal CreatedAt time: %w", err)
+		}
+	}
 	ae.Size = size
 	ae.Location = string(artifactBkt.Get(bucketKeyLocation))
 	ae.Type = ArtifactEntryType(artifactBkt.Get(bucketKeyType))
@@ -300,6 +311,7 @@ func loadArtifact(artifactBkt *bolt.Bucket, digest string) (*ArtifactEntry, erro
 	ae.ImageDigest = string(artifactBkt.Get(bucketKeyImageDigest))
 	ae.Platform = string(artifactBkt.Get(bucketKeyPlatform))
 	ae.MediaType = string(artifactBkt.Get(bucketKeyMediaType))
+	ae.CreatedAt = createdAt
 	return &ae, nil
 }
 
@@ -318,6 +330,11 @@ func putArtifactEntry(artifacts *bolt.Bucket, ae *ArtifactEntry) error {
 		return err
 	}
 
+	createdAt, err := ae.CreatedAt.MarshalBinary()
+	if err != nil {
+		return err
+	}
+
 	updates := []struct {
 		key []byte
 		val []byte
@@ -329,6 +346,7 @@ func putArtifactEntry(artifacts *bolt.Bucket, ae *ArtifactEntry) error {
 		{bucketKeyPlatform, []byte(ae.Platform)},
 		{bucketKeyType, []byte(ae.Type)},
 		{bucketKeyMediaType, []byte(ae.MediaType)},
+		{bucketKeyCreatedAt, createdAt},
 	}
 
 	for _, update := range updates {

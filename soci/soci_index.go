@@ -23,6 +23,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"time"
 
 	"github.com/awslabs/soci-snapshotter/ztoc"
 	"github.com/containerd/containerd/content"
@@ -85,10 +86,12 @@ type IndexWithMetadata struct {
 	Index       *Index
 	Platform    *ocispec.Platform
 	ImageDigest digest.Digest
+	CreatedAt   time.Time
 }
 
 type IndexDescriptorInfo struct {
 	ocispec.Descriptor
+	CreatedAt time.Time
 }
 
 func GetIndexDescriptorCollection(ctx context.Context, cs content.Store, img images.Image, ps []ocispec.Platform) ([]IndexDescriptorInfo, error) {
@@ -119,6 +122,7 @@ func GetIndexDescriptorCollection(ctx context.Context, cs content.Store, img ima
 		}
 		descriptors = append(descriptors, IndexDescriptorInfo{
 			Descriptor: desc,
+			CreatedAt:  entry.CreatedAt,
 		})
 	}
 
@@ -242,6 +246,7 @@ func (b *IndexBuilder) Build(ctx context.Context, img images.Image) (*IndexWithM
 		Index:       index,
 		Platform:    &b.config.platform,
 		ImageDigest: img.Target.Digest,
+		CreatedAt:   time.Now(),
 	}, nil
 }
 
@@ -339,6 +344,7 @@ func (b *IndexBuilder) buildSociLayer(ctx context.Context, desc ocispec.Descript
 		Type:           ArtifactEntryTypeLayer,
 		Location:       desc.Digest.String(),
 		MediaType:      SociLayerMediaType,
+		CreatedAt:      time.Now(),
 	}
 	err = writeArtifactEntry(entry)
 	if err != nil {
@@ -415,6 +421,7 @@ func WriteSociIndex(ctx context.Context, indexWithMetadata *IndexWithMetadata, s
 		Location:       refers.Digest.String(),
 		Size:           size,
 		MediaType:      indexWithMetadata.Index.MediaType,
+		CreatedAt:      indexWithMetadata.CreatedAt,
 	}
 	return writeArtifactEntry(entry)
 }
