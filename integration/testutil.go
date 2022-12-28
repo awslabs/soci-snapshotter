@@ -442,3 +442,9 @@ func getManifestDigest(sh *shell.Shell, ref string, platform spec.Platform) (str
 	}
 	return "", fmt.Errorf("could not find manifest for %s for platform %s", ref, platforms.Format(platform))
 }
+
+func genRandomByteData(size int64) []byte {
+	b := make([]byte, size)
+	rand.Read(b)
+	return b
+}

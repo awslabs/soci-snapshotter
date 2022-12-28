@@ -41,10 +41,12 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/awslabs/soci-snapshotter/soci"
 	shell "github.com/awslabs/soci-snapshotter/util/dockershell"
 	"github.com/awslabs/soci-snapshotter/util/dockershell/compose"
 	"github.com/awslabs/soci-snapshotter/util/testutil"
 	"github.com/containerd/containerd/platforms"
+	"github.com/opencontainers/go-digest"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/rs/xid"
 )
@@ -112,7 +114,6 @@ func TestOptimizeConsistentSociArtifact(t *testing.T) {
 			containerImage: "alpine:latest",
 		},
 	}
-	const blobStorePath = "/var/lib/soci-snapshotter-grpc/content/blobs/sha256"
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			rebootContainerd(t, sh, "", "")
@@ -231,24 +232,6 @@ level = "debug"
 		}
 	}
 	remoteSnapshotsExpectedCount := len(imageManifest.Layers) - len(layersToDownload)
-	checkFuseMounts := func(t *testing.T, sh *shell.Shell, remoteSnapshotsExpectedCount int) {
-		mounts := string(sh.O("mount"))
-		remoteSnapshotsActualCount := strings.Count(mounts, "fuse.rawBridge")
-		if remoteSnapshotsExpectedCount != remoteSnapshotsActualCount {
-			t.Fatalf("incorrect number of remote snapshots; expected=%d, actual=%d",
-				remoteSnapshotsExpectedCount, remoteSnapshotsActualCount)
-		}
-	}
-
-	checkLayersInSnapshottersContentStore := func(t *testing.T, sh *shell.Shell, layers []ocispec.Descriptor) {
-		for _, layer := range layers {
-			layerPath := filepath.Join(blobStorePath, trimSha256Prefix(layer.Digest.String()))
-			existenceResult := strings.TrimSuffix(string(sh.O("ls", layerPath)), "\n")
-			if layerPath != existenceResult {
-				t.Fatalf("layer file %s was not found in snapshotter's local content store, the result of ls=%s", layerPath, existenceResult)
-			}
-		}
-	}
 
 	tests := []struct {
 		name string
@@ -273,6 +256,25 @@ level = "debug"
 		t.Run(tt.name, func(t *testing.T) {
 			testSameTarContents(t, sh, tt.want, tt.test)
 		})
+	}
+}
+
+func checkFuseMounts(t *testing.T, sh *shell.Shell, remoteSnapshotsExpectedCount int) {
+	mounts := string(sh.O("mount"))
+	remoteSnapshotsActualCount := strings.Count(mounts, "fuse.rawBridge")
+	if remoteSnapshotsExpectedCount != remoteSnapshotsActualCount {
+		t.Fatalf("incorrect number of remote snapshots; expected=%d, actual=%d",
+			remoteSnapshotsExpectedCount, remoteSnapshotsActualCount)
+	}
+}
+
+func checkLayersInSnapshottersContentStore(t *testing.T, sh *shell.Shell, layers []ocispec.Descriptor) {
+	for _, layer := range layers {
+		layerPath := filepath.Join(blobStorePath, trimSha256Prefix(layer.Digest.String()))
+		existenceResult := strings.TrimSuffix(string(sh.O("ls", layerPath)), "\n")
+		if layerPath != existenceResult {
+			t.Fatalf("layer file %s was not found in snapshotter's local content store, the result of ls=%s", layerPath, existenceResult)
+		}
 	}
 }
 
@@ -499,6 +501,152 @@ level = "debug"
 			}
 		})
 	}
+}
+
+// TestPullWithAribtraryBlobInvalidZtocFormat tests the snapshotter behavior if an arbitrary blob is passed
+// as a Ztoc. In this case, the flatbuffer deserialization will fail, which will lead
+// to the snapshotter mounting the layer as a normal overlayfs mount.
+func TestPullWithAribtraryBlobInvalidZtocFormat(t *testing.T) {
+	regConfig := newRegistryConfig()
+	getContainerdConfigYaml := func(disableVerification bool) []byte {
+		additionalConfig := ""
+		if !isTestingBuiltinSnapshotter() {
+			additionalConfig = proxySnapshotterConfig
+		}
+		return []byte(testutil.ApplyTextTemplate(t, `
+version = 2
+
+[plugins."io.containerd.snapshotter.v1.soci"]
+root_path = "/var/lib/soci-snapshotter-grpc/"
+disable_verification = {{.DisableVerification}}
+
+[plugins."io.containerd.snapshotter.v1.soci".blob]
+check_always = true
+
+[debug]
+format = "json"
+level = "debug"
+
+{{.AdditionalConfig}}
+`, struct {
+			DisableVerification bool
+			AdditionalConfig    string
+		}{
+			DisableVerification: disableVerification,
+			AdditionalConfig:    additionalConfig,
+		}))
+	}
+	getSnapshotterConfigYaml := func(disableVerification bool) []byte {
+		return []byte(fmt.Sprintf("disable_verification = %v", disableVerification))
+	}
+
+	sh, done := newShellWithRegistry(t, regConfig)
+	defer done()
+
+	if err := testutil.WriteFileContents(sh, defaultContainerdConfigPath, getContainerdConfigYaml(false), 0600); err != nil {
+		t.Fatalf("failed to write %v: %v", defaultContainerdConfigPath, err)
+	}
+	if err := testutil.WriteFileContents(sh, defaultSnapshotterConfigPath, getSnapshotterConfigYaml(false), 0600); err != nil {
+		t.Fatalf("failed to write %v: %v", defaultSnapshotterConfigPath, err)
+	}
+
+	images := []struct {
+		name   string
+		digest string
+	}{
+		{
+			name:   "rabbitmq",
+			digest: "sha256:603be6b7fd5f1d8c6eab8e7a234ed30d664b9356ec1b87833f3a46bb6725458e",
+		},
+	}
+
+	fromNormalSnapshotter := func(image string) tarPipeExporter {
+		return func(t *testing.T, tarExportArgs ...string) {
+			rebootContainerd(t, sh, "", "")
+			sh.X("ctr", "i", "pull", "--user", regConfig.creds(), image)
+			sh.Pipe(nil, shell.C("ctr", "run", "--rm", image, "test", "tar", "-zc", "/usr"), tarExportArgs)
+		}
+	}
+
+	export := func(sh *shell.Shell, image, sociIndexDigest string, tarExportArgs []string) {
+		sh.X("soci", "image", "rpull", "--user", regConfig.creds(), "--soci-index-digest", sociIndexDigest, image)
+		sh.Pipe(nil, shell.C("soci", "run", "--rm", "--snapshotter=soci", image, "test", "tar", "-zc", "/usr"), tarExportArgs)
+	}
+
+	buildMaliciousIndex := func(sh *shell.Shell, imgDigest string) ([]byte, []ocispec.Descriptor, error) {
+		sh.X("mkdir", "-p", blobStorePath)
+		imgBytes := sh.O("ctr", "content", "get", imgDigest)
+		var manifest ocispec.Manifest
+		if err := json.Unmarshal(imgBytes, &manifest); err != nil {
+			return nil, nil, err
+		}
+
+		var ztocDescs []ocispec.Descriptor
+		for _, layer := range manifest.Layers {
+			ztocBytes := genRandomByteData(1000000)
+			ztocDgst := digest.FromBytes(ztocBytes)
+			ztocPath := fmt.Sprintf("%s/%s", blobStorePath, trimSha256Prefix(ztocDgst.String()))
+			if err := testutil.WriteFileContents(sh, ztocPath, ztocBytes, 0600); err != nil {
+				t.Fatalf("cannot write ztoc to path %s: %v", ztocPath, err)
+			}
+			ztocDescs = append(ztocDescs, ocispec.Descriptor{
+				MediaType: soci.SociLayerMediaType,
+				Digest:    digest.FromBytes(ztocBytes),
+				Size:      100000,
+				Annotations: map[string]string{
+					soci.IndexAnnotationImageLayerDigest:    layer.Digest.String(),
+					soci.IndexAnnotationImageLayerMediaType: layer.MediaType,
+				},
+			})
+		}
+
+		index := soci.Index{
+			MediaType:    soci.OCIArtifactManifestMediaType,
+			ArtifactType: soci.SociIndexArtifactType,
+			Blobs:        ztocDescs,
+			Subject: &ocispec.Descriptor{
+				MediaType: soci.OCIArtifactManifestMediaType,
+				Digest:    digest.Digest(imgDigest),
+				Size:      int64(len(imgBytes)),
+			},
+		}
+
+		b, err := json.Marshal(index)
+		if err != nil {
+			return nil, nil, err
+		}
+		return b, manifest.Layers, nil
+	}
+
+	for _, img := range images {
+		t.Run(img.name, func(t *testing.T) {
+			rebootContainerd(t, sh, "", "")
+			imgRef := fmt.Sprintf("%s@%s", img.name, img.digest)
+			sociImage := regConfig.mirror(imgRef)
+			copyImage(sh, dockerhub(imgRef), sociImage)
+
+			want := fromNormalSnapshotter(sociImage.ref)
+			test := func(t *testing.T, tarExportArgs ...string) {
+				image := sociImage.ref
+				indexBytes, imgLayers, err := buildMaliciousIndex(sh, img.digest)
+				if err != nil {
+					t.Fatal(err)
+				}
+				sh.X("ctr", "i", "rm", image)
+				indexDigest := digest.FromBytes(indexBytes)
+				path := fmt.Sprintf("%s/%s", blobStorePath, trimSha256Prefix(indexDigest.String()))
+				if err := testutil.WriteFileContents(sh, path, indexBytes, 0600); err != nil {
+					t.Fatalf("cannot write index to path %s: %v", path, err)
+				}
+				export(sh, image, indexDigest.String(), tarExportArgs)
+				checkFuseMounts(t, sh, 0)
+				checkLayersInSnapshottersContentStore(t, sh, imgLayers)
+			}
+
+			testSameTarContents(t, sh, want, test)
+		})
+	}
+
 }
 
 // TestLazyPull tests if lazy pulling works without background fetch.
@@ -737,7 +885,6 @@ check_always = true
 [[plugins."io.containerd.snapshotter.v1.soci".resolver.host."{{.RegistryHost}}".mirrors]]
 host = "{{.RegistryAltHost}}"
 insecure = true
-
 {{.AdditionalConfig}}
 `, struct {
 		RegistryHost     string
