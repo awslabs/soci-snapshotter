@@ -177,3 +177,46 @@ func TestSociIndexList(t *testing.T) {
 		})
 	}
 }
+
+func TestSociIndexRemove(t *testing.T) {
+	sh, done := newSnapshotterBaseShell(t)
+	defer done()
+	rebootContainerd(t, sh, "", "")
+
+	t.Run("soci index rm indexDigest removes an index", func(t *testing.T) {
+		testImages := prepareSociIndices(t, sh)
+		target := testImages[0]
+		indicesRaw := sh.
+			X("soci", "index", "rm", target.sociIndexDigest).
+			O("soci", "index", "list", "-q")
+		if strings.Contains(string(indicesRaw), target.sociIndexDigest) {
+			t.Fatalf("\"soci index rm indexDigest\" doesn't remove the given index: %s", target.sociIndexDigest)
+		}
+	})
+
+	t.Run("soci index rm --ref imgRef removes all indices for imgRef", func(t *testing.T) {
+		testImages := prepareSociIndices(t, sh)
+		target := testImages[0]
+		indicesRaw := sh.
+			X("soci", "index", "rm", "--ref", target.imgInfo.ref).
+			O("soci", "index", "list", "-q", "--ref", target.imgInfo.ref)
+		indices := strings.Trim(string(indicesRaw), "\n")
+		if indices != "" {
+			t.Fatalf("\"soci index rm --ref\" doesn't remove all soci indices for the given image %s, remaining indices: %s", target.imgInfo.ref, indices)
+		}
+	})
+
+	t.Run("soci index rm $(soci index ls -q) removes all existing indices", func(t *testing.T) {
+		_ = prepareSociIndices(t, sh)
+		// a walkaround due to that go exec doesn't support command substitution.
+		allIndices := strings.Trim(string(sh.O("soci", "index", "list", "-q")), "\n")
+		rmCommand := append([]string{"soci", "index", "rm"}, strings.Split(allIndices, "\n")...)
+		indicesRaw := sh.
+			X(rmCommand...).
+			O("soci", "index", "list", "-q")
+		indices := strings.Trim(string(indicesRaw), "\n")
+		if indices != "" {
+			t.Fatalf("\"soci index rm $(soci index ls -q)\" doesn't remove all soci indices, remaining indices: %s", indices)
+		}
+	})
+}
