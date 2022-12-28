@@ -83,6 +83,7 @@ const (
 	defaultLogLevel            = logrus.InfoLevel
 	defaultRootDir             = "/var/lib/soci-snapshotter-grpc"
 	defaultImageServiceAddress = "/run/containerd/containerd.sock"
+	defaultMetricsNetwork      = "tcp"
 )
 
 var (
@@ -98,6 +99,9 @@ type snapshotterConfig struct {
 
 	// MetricsAddress is address for the metrics API
 	MetricsAddress string `toml:"metrics_address"`
+
+	// MetricsNetwork is the type of network for the metrics API (e.g. tcp or unix)
+	MetricsNetwork string `toml:"metrics_network"`
 
 	// NoPrometheus is a flag to disable the emission of the metrics
 	NoPrometheus bool `toml:"no_prometheus"`
@@ -232,12 +236,23 @@ func serve(ctx context.Context, rpc *grpc.Server, addr string, rs snapshots.Snap
 
 	errCh := make(chan error, 1)
 
+	var cleanupFns []func() error
+	defer func() {
+		for _, cleanupFn := range cleanupFns {
+			cleanupFn()
+		}
+	}()
+
 	// We need to consider both the existence of MetricsAddress as well as NoPrometheus flag not set
 	if config.MetricsAddress != "" && !config.NoPrometheus {
-		l, err := net.Listen("tcp", config.MetricsAddress)
+		if config.MetricsNetwork == "" {
+			config.MetricsNetwork = defaultMetricsNetwork
+		}
+		l, err := net.Listen(config.MetricsNetwork, config.MetricsAddress)
 		if err != nil {
 			return false, errors.Wrapf(err, "failed to get listener for metrics endpoint")
 		}
+		cleanupFns = append(cleanupFns, l.Close)
 		m := http.NewServeMux()
 		m.Handle("/metrics", metrics.Handler())
 		go func() {
@@ -261,6 +276,7 @@ func serve(ctx context.Context, rpc *grpc.Server, addr string, rs snapshots.Snap
 	if err != nil {
 		return false, errors.Wrapf(err, "error on listen socket %q", addr)
 	}
+	cleanupFns = append(cleanupFns, l.Close)
 	go func() {
 		if err := rpc.Serve(l); err != nil {
 			errCh <- errors.Wrapf(err, "error on serving via socket %q", addr)
