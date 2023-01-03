@@ -63,6 +63,7 @@ type Config struct {
 	MaxConcurrency                   int64  `toml:"max_concurrency"`
 	NoPrometheus                     bool   `toml:"no_prometheus"`
 	PrioritizedTaskSilencePeriodMSec int    `toml:"prioritized_task_silence_period_msec"`
+	MountTimeoutSec                  int    `toml:"mount_timeout_sec"`
 
 	// BlobConfig is config for layer blob management.
 	BlobConfig `toml:"blob"`
