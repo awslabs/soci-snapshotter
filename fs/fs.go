@@ -92,6 +92,9 @@ const (
 	// of span managers that can be queued. In case of overflow, the `Add` call
 	// will block until a span manager is removed from the workqueue.
 	defaultBgMaxQueueSize = 100
+
+	// Amount of time Mount will time out if a layer can't be resolved.
+	defaultMountTimeout = 30 * time.Second
 )
 
 var (
@@ -218,6 +221,11 @@ func NewFilesystem(root string, cfg config.Config, opts ...Option) (_ snapshot.F
 	if ns != nil {
 		metrics.Register(ns) // Register layer metrics.
 	}
+	mountTimeout := time.Duration(cfg.MountTimeoutSec) * time.Second
+	if mountTimeout == 0 {
+		mountTimeout = defaultMountTimeout
+	}
+
 	return &filesystem{
 		resolver:            r,
 		getSources:          getSources,
@@ -232,6 +240,7 @@ func NewFilesystem(root string, cfg config.Config, opts ...Option) (_ snapshot.F
 		negativeTimeout:     negativeTimeout,
 		orasStore:           store,
 		bgFetcher:           bgFetcher,
+		mountTimeout:        mountTimeout,
 	}, nil
 }
 
@@ -314,6 +323,7 @@ type filesystem struct {
 	sociContexts        sync.Map
 	orasStore           orascontent.Storage
 	bgFetcher           *bf.BackgroundFetcher
+	mountTimeout        time.Duration
 }
 
 func (fs *filesystem) MountLocal(ctx context.Context, mountpoint string, labels map[string]string, mounts []mount.Mount) error {
@@ -450,7 +460,7 @@ func (fs *filesystem) Mount(ctx context.Context, mountpoint string, labels map[s
 	case err := <-errChan:
 		log.G(ctx).WithError(err).Debug("failed to resolve layer")
 		return errors.Wrapf(err, "failed to resolve layer")
-	case <-time.After(30 * time.Second):
+	case <-time.After(fs.mountTimeout):
 		log.G(ctx).Debug("failed to resolve layer (timeout)")
 		return fmt.Errorf("failed to resolve layer (timeout)")
 	}
