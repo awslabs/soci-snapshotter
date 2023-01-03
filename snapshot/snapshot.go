@@ -34,12 +34,14 @@ package snapshot
 
 import (
 	"context"
+	goerrors "errors"
 	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
 	"syscall"
 
+	commonmetrics "github.com/awslabs/soci-snapshotter/fs/metrics/common"
 	"github.com/containerd/containerd/errdefs"
 	"github.com/containerd/containerd/log"
 	"github.com/containerd/containerd/mount"
@@ -48,6 +50,7 @@ import (
 	"github.com/containerd/containerd/snapshots/storage"
 	"github.com/containerd/continuity/fs"
 	"github.com/moby/sys/mountinfo"
+	"github.com/opencontainers/go-digest"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	"golang.org/x/sync/errgroup"
@@ -69,6 +72,11 @@ const (
 	remoteSnapshotLogKey = "remote-snapshot-prepared"
 	prepareSucceeded     = "true"
 	prepareFailed        = "false"
+)
+
+var (
+	// Error returned by `fs.Mount` when there is no ztoc for a particular layer.
+	ErrNoZtoc = errors.New("no ztoc for layer")
 )
 
 // FileSystem is a backing filesystem abstraction.
@@ -124,7 +132,7 @@ type snapshotter struct {
 // the root as same as overlayfs snapshotter.
 func NewSnapshotter(ctx context.Context, root string, targetFs FileSystem, opts ...Opt) (snapshots.Snapshotter, error) {
 	if targetFs == nil {
-		return nil, fmt.Errorf("Specify filesystem to use")
+		return nil, fmt.Errorf("specify filesystem to use")
 	}
 
 	var config SnapshotterConfig
@@ -269,6 +277,9 @@ func (o *snapshotter) Prepare(ctx context.Context, key, parent string, opts ...s
 		if err := o.prepareRemoteSnapshot(lCtx, key, base.Labels); err != nil {
 			log.G(lCtx).WithField(remoteSnapshotLogKey, prepareFailed).
 				WithError(err).Warn("failed to prepare remote snapshot")
+			if !goerrors.Is(err, ErrNoZtoc) {
+				commonmetrics.IncOperationCount(commonmetrics.FuseMountFailureCount, digest.Digest(""))
+			}
 		} else {
 			base.Labels[remoteLabel] = remoteLabelVal // Mark this snapshot as remote
 			err := o.commit(ctx, true, target, key, append(opts, snapshots.WithLabels(base.Labels))...)

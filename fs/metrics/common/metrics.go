@@ -73,6 +73,10 @@ const (
 
 	// TODO this metric is not available now. This needs to go down to BlobReader where the actuall http call is issued
 	SynchronousBytesFetched = "synchronous_bytes_fetched"
+
+	// Number of times the snapshotter falls back to use a normal overlay mount instead of mounting the layer as a FUSE mount.
+	// Note that a layer not having a ztoc is NOT classified as an error, even though `fs.Mount` returns an error in that case.
+	FuseMountFailureCount = "fuse_mount_failure_count"
 )
 
 var (

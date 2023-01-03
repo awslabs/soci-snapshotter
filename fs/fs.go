@@ -245,6 +245,8 @@ func NewFilesystem(root string, cfg config.Config, opts ...Option) (_ snapshot.F
 }
 
 type sociContext struct {
+	cachedErr            error
+	cachedErrMu          sync.RWMutex
 	bgFetchPauseOnce     sync.Once
 	fetchOnce            sync.Once
 	sociIndex            *soci.Index
@@ -254,6 +256,14 @@ type sociContext struct {
 func (c *sociContext) Init(ctx context.Context, imageRef, indexDigest, imageManifestDigest string, store orascontent.Storage) error {
 	var retErr error
 	c.fetchOnce.Do(func() {
+		defer func() {
+			if retErr != nil {
+				c.cachedErrMu.Lock()
+				c.cachedErr = retErr
+				c.cachedErrMu.Unlock()
+			}
+		}()
+
 		refspec, err := reference.Parse(imageRef)
 		if err != nil {
 			retErr = err
@@ -296,6 +306,9 @@ func (c *sociContext) Init(ctx context.Context, imageRef, indexDigest, imageMani
 		c.sociIndex = index
 		c.populateImageLayerToSociMapping(index)
 	})
+	c.cachedErrMu.RLock()
+	retErr = c.cachedErr
+	c.cachedErrMu.RUnlock()
 	return retErr
 }
 
@@ -376,7 +389,6 @@ func (fs *filesystem) getSociContext(ctx context.Context, imageRef, indexDigest,
 func (fs *filesystem) Mount(ctx context.Context, mountpoint string, labels map[string]string) (retErr error) {
 	// Setting the start time to measure the Mount operation duration.
 	start := time.Now()
-
 	ctx = log.WithLogger(ctx, log.G(ctx).WithField("mountpoint", mountpoint))
 
 	sociIndexDigest, ok := labels[source.TargetSociIndexDigestLabel]
@@ -411,11 +423,11 @@ func (fs *filesystem) Mount(ctx context.Context, mountpoint string, labels map[s
 		errChan    = make(chan error)
 	)
 	go func() {
-		rErr := fmt.Errorf("failed to resolve target")
+		var rErr error
 		for _, s := range src {
 			sociDesc, ok := c.imageLayerToSociDesc[s.Target.Digest.String()]
 			if !ok {
-				rErr = errors.Wrapf(rErr, "unable to resolve layer %q from %q, mounting entire layer using overlayfs: %s", s.Target.Digest, s.Name, "no ztoc for the layer")
+				rErr = fmt.Errorf("unable to resolve layer %q from %q, mounting entire layer using overlayfs: %w", s.Target.Digest, s.Name, snapshot.ErrNoZtoc)
 				continue
 			}
 
@@ -424,7 +436,7 @@ func (fs *filesystem) Mount(ctx context.Context, mountpoint string, labels map[s
 				resultChan <- l
 				return
 			}
-			rErr = errors.Wrapf(rErr, "failed to resolve layer %q from %q: %v", s.Target.Digest, s.Name, err)
+			rErr = fmt.Errorf("failed to resolve layer %q from %q: %w", s.Target.Digest, s.Name, err)
 		}
 		errChan <- rErr
 	}()
@@ -438,7 +450,7 @@ func (fs *filesystem) Mount(ctx context.Context, mountpoint string, labels map[s
 			ctx := log.WithLogger(context.Background(), log.G(ctx).WithField("mountpoint", mountpoint))
 			sociDesc, ok := c.imageLayerToSociDesc[desc.Digest.String()]
 			if !ok {
-				log.G(ctx).Debugf("unable to resolve layer %q, mounting entire layer using overlayfs: %s", desc.Digest, "no ztoc for the layer")
+				log.G(ctx).Debugf("unable to resolve layer %q, mounting entire layer using overlayfs: %v", desc.Digest, snapshot.ErrNoZtoc)
 				return
 			}
 
@@ -459,10 +471,12 @@ func (fs *filesystem) Mount(ctx context.Context, mountpoint string, labels map[s
 	case l = <-resultChan:
 	case err := <-errChan:
 		log.G(ctx).WithError(err).Debug("failed to resolve layer")
-		return errors.Wrapf(err, "failed to resolve layer")
+		retErr = fmt.Errorf("failed to resolve layer: %w", err)
+		return
 	case <-time.After(fs.mountTimeout):
 		log.G(ctx).Debug("failed to resolve layer (timeout)")
-		return fmt.Errorf("failed to resolve layer (timeout)")
+		retErr = fmt.Errorf("failed to resolve layer (timeout)")
+		return
 	}
 	defer func() {
 		if retErr != nil {
@@ -480,7 +494,8 @@ func (fs *filesystem) Mount(ctx context.Context, mountpoint string, labels map[s
 	node, err := l.RootNode(0)
 	if err != nil {
 		log.G(ctx).WithError(err).Warnf("Failed to get root node")
-		return errors.Wrapf(err, "failed to get root node")
+		retErr = errors.Wrapf(err, "failed to get root node")
+		return
 	}
 
 	// Measuring duration of Mount operation for resolved layer.
@@ -515,7 +530,8 @@ func (fs *filesystem) Mount(ctx context.Context, mountpoint string, labels map[s
 	server, err := fuse.NewServer(rawFS, mountpoint, mountOpts)
 	if err != nil {
 		log.G(ctx).WithError(err).Debug("failed to make filesystem server")
-		return err
+		retErr = err
+		return
 	}
 
 	go server.Serve()
