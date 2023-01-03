@@ -29,6 +29,9 @@ https://github.com/awslabs/soci-snapshotter.git`
 Often fixed with `sudo yum install zlib-devel`
 - having the proper go version installed, as of this document please use 1.18+
 
+**fuse** - confirm FUSE is installed for mounting userspace filesystems with `fusermount -V`
+(optional, enables mounting without root access)
+
 ## Start a local ORAS registry
 Most OCI registries do not currently support the "referrers" feature.
 SOCI relies on this feature to link its indices and manifests.  The [ORAS
@@ -231,6 +234,12 @@ In the example command we arbitrarily are pushing the logs to a file named
 
 ```
 sudo ./soci-snapshotter-grpc&> ~/soci-snapshotter-logs &
+```
+
+Alternately, you can split up stdout (json logs) and stderr (plain text errors):
+
+```
+sudo ./soci-snapshotter-grpc 2> ~/soci-snapshotter-errors 1> ~/soci-snapshotter-logs &
 ```
 
 Once the snapshotter is running we can call the rpull command from the SOCI CLI.
