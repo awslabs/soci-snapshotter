@@ -18,6 +18,7 @@ package ztoc
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 
 	"github.com/awslabs/soci-snapshotter/fs/config"
@@ -27,6 +28,18 @@ import (
 	"github.com/urfave/cli"
 	"oras.land/oras-go/v2/content/oci"
 )
+
+type Info struct {
+	Version   string     `json:"version"`
+	BuildTool string     `json:"build_tool"`
+	Files     []FileInfo `json:"files"`
+}
+
+type FileInfo struct {
+	Filename string `json:"filename"`
+	Offset   int64  `json:"offset"`
+	Size     int64  `json:"size"`
+}
 
 var infoCommand = cli.Command{
 	Name:      "info",
@@ -52,12 +65,22 @@ var infoCommand = cli.Command{
 		if err != nil {
 			return err
 		}
-		fmt.Printf("version: %s\n", ztoc.Version)
-		fmt.Printf("build tool: %s\n\n\n", ztoc.BuildToolIdentifier)
-
-		for _, v := range ztoc.TOC.Metadata {
-			fmt.Printf("filename: %s, offset: %d, size: %d\n", v.Name, v.UncompressedOffset, v.UncompressedSize)
+		zinfo := Info{
+			Version:   ztoc.Version,
+			BuildTool: ztoc.BuildToolIdentifier,
 		}
+		for _, v := range ztoc.TOC.Metadata {
+			zinfo.Files = append(zinfo.Files, FileInfo{
+				Filename: v.Name,
+				Offset:   int64(v.UncompressedOffset),
+				Size:     int64(v.UncompressedSize),
+			})
+		}
+		j, err := json.MarshalIndent(zinfo, "", "  ")
+		if err != nil {
+			return err
+		}
+		fmt.Println(string(j))
 		return nil
 	},
 }
