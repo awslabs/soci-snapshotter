@@ -17,7 +17,6 @@
 package integration
 
 import (
-	"encoding/json"
 	"strconv"
 	"strings"
 	"testing"
@@ -49,14 +48,6 @@ func TestSociZtocList(t *testing.T) {
 			img.sociIndexDigest, img.imgInfo.ref, ztocDigest, size, layerDigest, listOutputLines)
 	}
 
-	getSociIndex := func(t *testing.T, indexDigest string) (index soci.Index) {
-		rawSociIndexJSON := sh.O("soci", "index", "info", indexDigest)
-		if err := json.Unmarshal(rawSociIndexJSON, &index); err != nil {
-			t.Fatalf("invalid soci index from digest %s: %v", indexDigest, rawSociIndexJSON)
-		}
-		return
-	}
-
 	t.Run("soci ztoc list should print all ztocs", func(t *testing.T) {
 		output := strings.Trim(string(sh.O("soci", "ztoc", "list")), "\n")
 		outputLines := strings.Split(output, "\n")
@@ -67,7 +58,10 @@ func TestSociZtocList(t *testing.T) {
 		outputLines = outputLines[1:]
 
 		for _, img := range testImages {
-			sociIndex := getSociIndex(t, img.sociIndexDigest)
+			sociIndex, err := sociIndexFromDigest(sh, img.sociIndexDigest)
+			if err != nil {
+				t.Fatal(err)
+			}
 
 			for _, blob := range sociIndex.Blobs {
 				if blob.MediaType != soci.SociLayerMediaType {
@@ -81,7 +75,10 @@ func TestSociZtocList(t *testing.T) {
 
 	t.Run("soci ztoc list --digest ztocDigest should print a single ztoc", func(t *testing.T) {
 		target := testImages[0]
-		sociIndex := getSociIndex(t, target.sociIndexDigest)
+		sociIndex, err := sociIndexFromDigest(sh, target.sociIndexDigest)
+		if err != nil {
+			t.Fatal(err)
+		}
 
 		for _, blob := range sociIndex.Blobs {
 			if blob.MediaType != soci.SociLayerMediaType {
