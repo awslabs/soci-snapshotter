@@ -88,6 +88,38 @@ var opaqueXattrs = map[OverlayOpaqueType][]string{
 	OverlayOpaqueUser:    {"user.overlay.opaque"},
 }
 
+const (
+	// fuse operations
+	fuseOpGetattr         = "node.Getattr"
+	fuseOpGetxattr        = "node.Getxattr"
+	fuseOpListxattr       = "node.Listxattr"
+	fuseOpLookup          = "node.Lookup"
+	fuseOpOpen            = "node.Open"
+	fuseOpReaddir         = "node.Readdir"
+	fuseOpFileRead        = "file.Read"
+	fuseOpFileGetattr     = "file.Getattr"
+	fuseOpWhiteoutGetattr = "whiteout.Getattr"
+)
+
+var fuseOpFailureMetrics = map[string]string{
+	fuseOpGetattr:         commonmetrics.FuseNodeGetattrFailureCount,
+	fuseOpListxattr:       commonmetrics.FuseNodeListxattrFailureCount,
+	fuseOpLookup:          commonmetrics.FuseNodeLookupFailureCount,
+	fuseOpOpen:            commonmetrics.FuseNodeOpenFailureCount,
+	fuseOpReaddir:         commonmetrics.FuseNodeReaddirFailureCount,
+	fuseOpFileRead:        commonmetrics.FuseFileReadFailureCount,
+	fuseOpFileGetattr:     commonmetrics.FuseFileGetattrFailureCount,
+	fuseOpWhiteoutGetattr: commonmetrics.FuseWhiteoutGetattrFailureCount,
+}
+
+func incFuseOpFailureMetric(operationName string, layer digest.Digest) {
+	metric, ok := fuseOpFailureMetrics[operationName]
+	if !ok {
+		metric = commonmetrics.FuseUnknownFailureCount
+	}
+	commonmetrics.IncOperationCount(metric, layer)
+}
+
 func newNode(layerDgst digest.Digest, r reader.Reader, blob remote.Blob, baseInode uint32, opaque OverlayOpaqueType, logFSOperations bool) (fusefs.InodeEmbedder, error) {
 	rootID := r.Metadata().RootID()
 	rootAttr, err := r.Metadata().GetAttr(rootID)
@@ -176,7 +208,7 @@ var _ = (fusefs.InodeEmbedder)((*node)(nil))
 var _ = (fusefs.NodeReaddirer)((*node)(nil))
 
 func (n *node) Readdir(ctx context.Context) (fusefs.DirStream, syscall.Errno) {
-	n.logOperation(ctx, "Readdir")
+	n.logOperation(ctx, fuseOpReaddir)
 	ents, errno := n.readdir()
 	if errno != 0 {
 		return nil, errno
@@ -223,7 +255,8 @@ func (n *node) readdir() ([]fuse.DirEntry, syscall.Errno) {
 		})
 		return true
 	}); err != nil || lastErr != nil {
-		n.fs.s.report(fmt.Errorf("node.Readdir: err = %v; lastErr = %v", err, lastErr))
+		incFuseOpFailureMetric(fuseOpReaddir, n.fs.layerDigest)
+		n.fs.s.report(fmt.Errorf("%s: err = %v; lastErr = %v", fuseOpReaddir, err, lastErr))
 		return nil, syscall.EIO
 	}
 
@@ -232,7 +265,8 @@ func (n *node) readdir() ([]fuse.DirEntry, syscall.Errno) {
 		if !normalEnts[w[len(whiteoutPrefix):]] {
 			ino, err := n.fs.inodeOfID(id)
 			if err != nil {
-				n.fs.s.report(fmt.Errorf("node.Readdir: err = %v; lastErr = %v", err, lastErr))
+				incFuseOpFailureMetric(fuseOpReaddir, n.fs.layerDigest)
+				n.fs.s.report(fmt.Errorf("%s: err = %v; lastErr = %v", fuseOpReaddir, err, lastErr))
 				return nil, syscall.EIO
 			}
 			ents = append(ents, fuse.DirEntry{
@@ -256,6 +290,7 @@ func (n *node) readdir() ([]fuse.DirEntry, syscall.Errno) {
 var _ = (fusefs.NodeLookuper)((*node)(nil))
 
 func (n *node) Lookup(ctx context.Context, name string, out *fuse.EntryOut) (*fusefs.Inode, syscall.Errno) {
+	n.logOperation(ctx, fuseOpLookup)
 
 	isRoot := n.isRootNode()
 
@@ -275,19 +310,22 @@ func (n *node) Lookup(ctx context.Context, name string, out *fuse.EntryOut) (*fu
 		case *node:
 			ino, err := n.fs.inodeOfID(tn.id)
 			if err != nil {
-				n.fs.s.report(fmt.Errorf("node.Lookup: %v", err))
+				incFuseOpFailureMetric(fuseOpLookup, n.fs.layerDigest)
+				n.fs.s.report(fmt.Errorf("%s: %v", fuseOpLookup, err))
 				return nil, syscall.EIO
 			}
 			entryToAttr(ino, tn.attr, &out.Attr)
 		case *whiteout:
 			ino, err := n.fs.inodeOfID(tn.id)
 			if err != nil {
-				n.fs.s.report(fmt.Errorf("node.Lookup: %v", err))
+				incFuseOpFailureMetric(fuseOpLookup, n.fs.layerDigest)
+				n.fs.s.report(fmt.Errorf("%s: %v", fuseOpLookup, err))
 				return nil, syscall.EIO
 			}
 			entryToAttr(ino, tn.attr, &out.Attr)
 		default:
-			n.fs.s.report(fmt.Errorf("node.Lookup: uknown node type detected"))
+			incFuseOpFailureMetric(fuseOpLookup, n.fs.layerDigest)
+			n.fs.s.report(fmt.Errorf("%s: uknown node type detected", fuseOpLookup))
 			return nil, syscall.EIO
 		}
 		return cn, 0
@@ -312,7 +350,8 @@ func (n *node) Lookup(ctx context.Context, name string, out *fuse.EntryOut) (*fu
 		if whID, wh, err := n.fs.r.Metadata().GetChild(n.id, fmt.Sprintf("%s%s", whiteoutPrefix, name)); err == nil {
 			ino, err := n.fs.inodeOfID(whID)
 			if err != nil {
-				n.fs.s.report(fmt.Errorf("node.Lookup: %v", err))
+				incFuseOpFailureMetric(fuseOpLookup, n.fs.layerDigest)
+				n.fs.s.report(fmt.Errorf("%s: %v", fuseOpLookup, err))
 				return nil, syscall.EIO
 			}
 			return n.NewInode(ctx, &whiteout{
@@ -327,7 +366,8 @@ func (n *node) Lookup(ctx context.Context, name string, out *fuse.EntryOut) (*fu
 
 	ino, err := n.fs.inodeOfID(id)
 	if err != nil {
-		n.fs.s.report(fmt.Errorf("node.Lookup: %v", err))
+		incFuseOpFailureMetric(fuseOpLookup, n.fs.layerDigest)
+		n.fs.s.report(fmt.Errorf("%s: %v", fuseOpLookup, err))
 		return nil, syscall.EIO
 	}
 	return n.NewInode(ctx, &node{
@@ -340,10 +380,11 @@ func (n *node) Lookup(ctx context.Context, name string, out *fuse.EntryOut) (*fu
 var _ = (fusefs.NodeOpener)((*node)(nil))
 
 func (n *node) Open(ctx context.Context, flags uint32) (fh fusefs.FileHandle, fuseFlags uint32, errno syscall.Errno) {
-	n.logOperation(ctx, "Open")
+	n.logOperation(ctx, fuseOpOpen)
 	ra, err := n.fs.r.OpenFile(n.id)
 	if err != nil {
-		n.fs.s.report(fmt.Errorf("node.Open: %v", err))
+		incFuseOpFailureMetric(fuseOpOpen, n.fs.layerDigest)
+		n.fs.s.report(fmt.Errorf("%s: %v", fuseOpOpen, err))
 		return nil, 0, syscall.EIO
 	}
 	return &file{
@@ -355,10 +396,11 @@ func (n *node) Open(ctx context.Context, flags uint32) (fh fusefs.FileHandle, fu
 var _ = (fusefs.NodeGetattrer)((*node)(nil))
 
 func (n *node) Getattr(ctx context.Context, f fusefs.FileHandle, out *fuse.AttrOut) syscall.Errno {
-	n.logOperation(ctx, "Getattr")
+	n.logOperation(ctx, fuseOpGetattr)
 	ino, err := n.fs.inodeOfID(n.id)
 	if err != nil {
-		n.fs.s.report(fmt.Errorf("node.Getattr: %v", err))
+		incFuseOpFailureMetric(fuseOpGetattr, n.fs.layerDigest)
+		n.fs.s.report(fmt.Errorf("%s: %v", fuseOpGetattr, err))
 		return syscall.EIO
 	}
 	entryToAttr(ino, n.attr, &out.Attr)
@@ -368,7 +410,7 @@ func (n *node) Getattr(ctx context.Context, f fusefs.FileHandle, out *fuse.AttrO
 var _ = (fusefs.NodeGetxattrer)((*node)(nil))
 
 func (n *node) Getxattr(ctx context.Context, attr string, dest []byte) (uint32, syscall.Errno) {
-	n.logOperation(ctx, "Getxattr")
+	n.logOperation(ctx, fuseOpGetxattr)
 	ent := n.attr
 	opq := n.isOpaque()
 	for _, opaqueXattr := range n.fs.opaqueXattrs {
@@ -392,7 +434,7 @@ func (n *node) Getxattr(ctx context.Context, attr string, dest []byte) (uint32, 
 var _ = (fusefs.NodeListxattrer)((*node)(nil))
 
 func (n *node) Listxattr(ctx context.Context, dest []byte) (uint32, syscall.Errno) {
-	n.logOperation(ctx, "Listxattr")
+	n.logOperation(ctx, fuseOpListxattr)
 	ent := n.attr
 	opq := n.isOpaque()
 	var attrs []byte
@@ -435,12 +477,13 @@ type file struct {
 var _ = (fusefs.FileReader)((*file)(nil))
 
 func (f *file) Read(ctx context.Context, dest []byte, off int64) (fuse.ReadResult, syscall.Errno) {
-	f.n.logOperation(ctx, "Read")
+	f.n.logOperation(ctx, fuseOpFileRead)
 	defer commonmetrics.MeasureLatencyInMicroseconds(commonmetrics.SynchronousRead, f.n.fs.layerDigest, time.Now()) // measure time for synchronous file reads (in microseconds)
 	defer commonmetrics.IncOperationCount(commonmetrics.SynchronousReadCount, f.n.fs.layerDigest)                   // increment the counter for synchronous file reads
 	n, err := f.ra.ReadAt(dest, off)
 	if err != nil && err != io.EOF {
-		f.n.fs.s.report(fmt.Errorf("file.Read: %v", err))
+		incFuseOpFailureMetric(fuseOpFileRead, f.n.fs.layerDigest)
+		f.n.fs.s.report(fmt.Errorf("%s: %v", fuseOpFileRead, err))
 		return nil, syscall.EIO
 	}
 	return fuse.ReadResultData(dest[:n]), 0
@@ -449,9 +492,11 @@ func (f *file) Read(ctx context.Context, dest []byte, off int64) (fuse.ReadResul
 var _ = (fusefs.FileGetattrer)((*file)(nil))
 
 func (f *file) Getattr(ctx context.Context, out *fuse.AttrOut) syscall.Errno {
+	f.n.logOperation(ctx, fuseOpFileGetattr)
 	ino, err := f.n.fs.inodeOfID(f.n.id)
 	if err != nil {
-		f.n.fs.s.report(fmt.Errorf("file.Getattr: %v", err))
+		incFuseOpFailureMetric(fuseOpFileGetattr, f.n.fs.layerDigest)
+		f.n.fs.s.report(fmt.Errorf("%s: %v", fuseOpFileGetattr, err))
 		return syscall.EIO
 	}
 	entryToAttr(ino, f.n.attr, &out.Attr)
@@ -471,7 +516,8 @@ var _ = (fusefs.NodeGetattrer)((*whiteout)(nil))
 func (w *whiteout) Getattr(ctx context.Context, f fusefs.FileHandle, out *fuse.AttrOut) syscall.Errno {
 	ino, err := w.fs.inodeOfID(w.id)
 	if err != nil {
-		w.fs.s.report(fmt.Errorf("whiteout.Getattr: %v", err))
+		incFuseOpFailureMetric(fuseOpWhiteoutGetattr, w.fs.layerDigest)
+		w.fs.s.report(fmt.Errorf("%s: %v", fuseOpWhiteoutGetattr, err))
 		return syscall.EIO
 	}
 	entryToWhAttr(ino, w.attr, &out.Attr)
