@@ -11,7 +11,7 @@ require (
 	github.com/opencontainers/image-spec v1.1.0-rc2
 	github.com/pelletier/go-toml v1.9.5
 	github.com/pkg/errors v0.9.1
-	github.com/sirupsen/logrus v1.8.1
+	github.com/sirupsen/logrus v1.9.0
 	github.com/urfave/cli v1.22.10
 	go.etcd.io/bbolt v1.3.6
 	golang.org/x/sys v0.0.0-20220722155257-8c9f86f7a55f
