@@ -33,6 +33,8 @@
 package integration
 
 import (
+	"bufio"
+	"bytes"
 	"fmt"
 	"regexp"
 	"testing"
@@ -120,17 +122,47 @@ check_always = true
 				sh.X("soci", "image", "rpull", "--user", regConfig.creds(), "--soci-index-digest", indexDigest, regConfig.mirror(container.containerImage).ref)
 			}
 
+			var getTestContainerName = func(index int, container containerImageAndTestFunc) string {
+				return "test_" + fmt.Sprint(index) + "_" + makeImageNameValid(container.containerImage)
+			}
 			// Run the containers
 			for index, container := range tt.containers {
 				image := regConfig.mirror(container.containerImage).ref
-				containerName := "test_" + fmt.Sprint(index) + "_" + makeImageNameValid(container.containerImage)
-				sh.X("soci", "run", "-d", "--rm", "--snapshotter=soci", image, containerName)
+				sh.X("soci", "run", "-d", "--rm", "--snapshotter=soci", image, getTestContainerName(index, container))
 			}
 
 			// Do something in each container
 			for index, container := range tt.containers {
-				containerName := "test_" + fmt.Sprint(index) + "_" + makeImageNameValid(container.containerImage)
-				container.testFunc(sh, containerName)
+				container.testFunc(sh, getTestContainerName(index, container))
+			}
+
+			// Check for independent writeable snapshots for each container
+			mountsScanner := bufio.NewScanner(bufio.NewReader(bytes.NewReader(sh.O("mount"))))
+			upperdirs := make(map[string]bool)
+			workdirs := make(map[string]bool)
+			mountRegex := regexp.MustCompile(`^overlay on \/run\/containerd\/io.containerd.runtime.v2.task\/default\/(?P<containerName>\w+)\/rootfs type overlay \(rw,.*,lowerdir=(?P<lowerdirs>.*),upperdir=(?P<upperdir>.*),workdir=(?P<workdir>.*)\)$`)
+			mountRegexGroupNames := mountRegex.SubexpNames()
+			for mountsScanner.Scan() {
+				findResult := mountRegex.FindAllStringSubmatch(mountsScanner.Text(), -1)
+				if findResult == nil {
+					continue
+				}
+				matches := findResult[0]
+				for i, match := range matches {
+					if mountRegexGroupNames[i] == "upperdir" {
+						if upperdirs[match] {
+							t.Fatalf("Duplicate overlay mount upperdir: %s", match)
+						} else {
+							upperdirs[match] = true
+						}
+					} else if mountRegexGroupNames[i] == "workdir" {
+						if workdirs[match] {
+							t.Fatalf("Duplicate overlay mount workdir: %s", match)
+						} else {
+							workdirs[match] = true
+						}
+					}
+				}
 			}
 		})
 	}
