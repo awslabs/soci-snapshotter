@@ -34,6 +34,9 @@ type GzipZinfo struct {
 
 // NewGzipZinfo creates a new instance of `GzipZinfo` from cZinfo byte blob on zTOC.
 func NewGzipZinfo(checkpoints []byte) (*GzipZinfo, error) {
+	if len(checkpoints) == 0 {
+		return nil, fmt.Errorf("empty checkpoints")
+	}
 	cZinfo := C.blob_to_zinfo(unsafe.Pointer(&checkpoints[0]))
 	if cZinfo == nil {
 		return nil, fmt.Errorf("cannot convert blob to gzip_zinfo")
@@ -70,7 +73,7 @@ func (i *GzipZinfo) Close() {
 func (i *GzipZinfo) Bytes() ([]byte, error) {
 	blobSize := C.get_blob_size(i.cZinfo)
 	bytes := make([]byte, uint64(blobSize))
-	if bytes == nil {
+	if len(bytes) == 0 {
 		return nil, fmt.Errorf("could not allocate byte array of size %d", blobSize)
 	}
 
@@ -109,6 +112,15 @@ func (i *GzipZinfo) SpanIDToUncompressedOffset(spanID SpanID) Offset {
 // ExtractDataFromBuffer wraps the call to `C.extract_data_from_buffer`, which takes in the compressed bytes
 // and returns the decompressed bytes.
 func (i *GzipZinfo) ExtractDataFromBuffer(compressedBuf []byte, uncompressedSize, uncompressedOffset Offset, spanID SpanID) ([]byte, error) {
+	if len(compressedBuf) == 0 {
+		return nil, fmt.Errorf("empty compressed buffer")
+	}
+	if uncompressedSize < 0 {
+		return nil, fmt.Errorf("invalid uncompressed size: %d", uncompressedSize)
+	}
+	if uncompressedSize == 0 {
+		return []byte{}, nil
+	}
 	bytes := make([]byte, uncompressedSize)
 	ret := C.extract_data_from_buffer(
 		unsafe.Pointer(&compressedBuf[0]),
@@ -131,6 +143,12 @@ func (i *GzipZinfo) ExtractDataFromBuffer(compressedBuf []byte, uncompressedSize
 func (i *GzipZinfo) ExtractData(fileName string, uncompressedSize, uncompressedOffset Offset) ([]byte, error) {
 	cstr := C.CString(fileName)
 	defer C.free(unsafe.Pointer(cstr))
+	if uncompressedSize < 0 {
+		return nil, fmt.Errorf("invalid uncompressed size: %d", uncompressedSize)
+	}
+	if uncompressedSize == 0 {
+		return []byte{}, nil
+	}
 	bytes := make([]byte, uncompressedSize)
 	ret := C.extract_data(cstr, i.cZinfo, C.off_t(uncompressedOffset), unsafe.Pointer(&bytes[0]), C.int(uncompressedSize))
 	if ret <= 0 {

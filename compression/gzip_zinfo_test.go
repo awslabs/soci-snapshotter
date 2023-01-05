@@ -1,0 +1,141 @@
+/*
+   Copyright The Soci Snapshotter Authors.
+
+   Licensed under the Apache License, Version 2.0 (the "License");
+   you may not use this file except in compliance with the License.
+   You may obtain a copy of the License at
+
+       http://www.apache.org/licenses/LICENSE-2.0
+
+   Unless required by applicable law or agreed to in writing, software
+   distributed under the License is distributed on an "AS IS" BASIS,
+   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+   See the License for the specific language governing permissions and
+   limitations under the License.
+*/
+
+package compression
+
+import (
+	"testing"
+)
+
+func TestNewGzipZinfo(t *testing.T) {
+	t.Parallel()
+	testCases := []struct {
+		name        string
+		checkpoints []byte
+		expectError bool
+	}{
+		{
+			name:        "nil checkpoints should return error",
+			checkpoints: nil,
+			expectError: true,
+		},
+		{
+			name:        "empty checkpoints should return error",
+			checkpoints: []byte{},
+			expectError: true,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			_, err := NewGzipZinfo(tc.checkpoints)
+			if tc.expectError != (err != nil) {
+				t.Fatalf("expect error: %t, actual error: %v", tc.expectError, err)
+			}
+		})
+	}
+}
+
+func TestExtractDataFromBuffer(t *testing.T) {
+	t.Parallel()
+	testCases := []struct {
+		name               string
+		gzipZinfo          GzipZinfo
+		compressedBuf      []byte
+		uncompressedSize   Offset
+		uncompressedOffset Offset
+		spanID             SpanID
+		expectError        bool
+	}{
+		{
+			name:          "nil buffer should return error",
+			gzipZinfo:     GzipZinfo{},
+			compressedBuf: nil,
+			expectError:   true,
+		},
+		{
+			name:          "empty buffer should return error",
+			gzipZinfo:     GzipZinfo{},
+			compressedBuf: []byte{},
+			expectError:   true,
+		},
+		{
+			name:             "negative uncompressedSize should return error",
+			gzipZinfo:        GzipZinfo{},
+			compressedBuf:    []byte("foobar"),
+			uncompressedSize: -1,
+			expectError:      true,
+		},
+		{
+			name:             "zero uncompressedSize should return empty byte slice",
+			gzipZinfo:        GzipZinfo{},
+			compressedBuf:    []byte("foobar"),
+			uncompressedSize: 0,
+			expectError:      false,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			data, err := tc.gzipZinfo.ExtractDataFromBuffer(tc.compressedBuf, tc.uncompressedSize, tc.uncompressedOffset, tc.spanID)
+			if tc.expectError != (err != nil) {
+				t.Fatalf("expect error: %t, actual error: %v", tc.expectError, err)
+			}
+			if err == nil && len(data) != int(tc.uncompressedSize) {
+				t.Fatalf("wrong uncompressed size. expect: %d, actual: %d ", len(data), tc.uncompressedSize)
+			}
+		})
+	}
+}
+
+func TestExtractData(t *testing.T) {
+	t.Parallel()
+	testCases := []struct {
+		name               string
+		gzipZinfo          GzipZinfo
+		filename           string
+		uncompressedSize   Offset
+		uncompressedOffset Offset
+		expectError        bool
+	}{
+		{
+			name:             "negative uncompressedSize should return error",
+			gzipZinfo:        GzipZinfo{},
+			filename:         "",
+			uncompressedSize: -1,
+			expectError:      true,
+		},
+		{
+			name:             "zero uncompressedSize should return empty byte slice",
+			gzipZinfo:        GzipZinfo{},
+			filename:         "",
+			uncompressedSize: 0,
+			expectError:      false,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			data, err := tc.gzipZinfo.ExtractData(tc.filename, tc.uncompressedSize, tc.uncompressedOffset)
+			if tc.expectError != (err != nil) {
+				t.Fatalf("expect error: %t, actual error: %v", tc.expectError, err)
+			}
+			if err == nil && len(data) != int(tc.uncompressedSize) {
+				t.Fatalf("wrong uncompressed size. expect: %d, actual: %d ", len(data), tc.uncompressedSize)
+			}
+		})
+	}
+}
