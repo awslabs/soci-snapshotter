@@ -1086,3 +1086,65 @@ func addConfig(t *testing.T, sh *shell.Shell, conf string, cmds ...string) []str
 	}
 	return append(cmds, "--config", configPath)
 }
+
+// TestRpullImageThenRemove pulls and rpulls an image then removes it to confirm fuse mounts are unmounted
+func TestRpullImageThenRemove(t *testing.T) {
+	regConfig := newRegistryConfig()
+	sh, done := newShellWithRegistry(t, regConfig)
+	defer done()
+
+	// Initialize config files for containerd and snapshotter
+	additionalConfig := ""
+	if !isTestingBuiltinSnapshotter() {
+		additionalConfig = proxySnapshotterConfig
+	}
+	containerdConfigYaml := testutil.ApplyTextTemplate(t, `
+version = 2
+
+[plugins."io.containerd.snapshotter.v1.soci"]
+root_path = "/var/lib/soci-snapshotter-grpc/"
+
+[plugins."io.containerd.snapshotter.v1.soci".blob]
+check_always = true
+
+{{.AdditionalConfig}}
+`, struct {
+		AdditionalConfig string
+	}{
+		AdditionalConfig: additionalConfig,
+	})
+
+	// Setup environment
+	if err := testutil.WriteFileContents(sh, defaultContainerdConfigPath, []byte(containerdConfigYaml), 0600); err != nil {
+		t.Fatalf("failed to write %v: %v", defaultContainerdConfigPath, err)
+	}
+	sh.
+		X("update-ca-certificates").
+		Retry(100, "nerdctl", "login", "-u", regConfig.user, "-p", regConfig.pass, regConfig.host)
+
+	rebootContainerd(t, sh, "", "")
+
+	containerImage := nginxImage
+
+	copyImage(sh, dockerhub(containerImage), regConfig.mirror(containerImage))
+	indexDigest := optimizeImage(sh, regConfig.mirror(containerImage))
+
+	rawJSON := sh.O("soci", "index", "info", indexDigest)
+	var sociIndex soci.Index
+	if err := json.Unmarshal(rawJSON, &sociIndex); err != nil {
+		t.Fatalf("invalid soci index from digest %s: %v", indexDigest, rawJSON)
+	}
+
+	if len(sociIndex.Blobs) == 0 {
+		t.Fatalf("soci index %s contains 0 blobs, invalidating this test", indexDigest)
+	}
+
+	sh.X("soci", "image", "rpull", "--user", regConfig.creds(), "--soci-index-digest", indexDigest, regConfig.mirror(containerImage).ref)
+
+	checkFuseMounts(t, sh, len(sociIndex.Blobs))
+
+	sh.X("ctr", "image", "rm", regConfig.mirror(containerImage).ref)
+	sh.X("ctr", "image", "rm", dockerhub(containerImage).ref)
+
+	checkFuseMounts(t, sh, 0)
+}
