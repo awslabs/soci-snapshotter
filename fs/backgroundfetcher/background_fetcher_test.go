@@ -131,6 +131,8 @@ func TestBackgroundFetcherRun(t *testing.T) {
 			time.Sleep(tc.waitTime)
 
 			for _, info := range infos {
+				info.cache.mu.Lock()
+				defer info.cache.mu.Unlock()
 				if info.cache.addCount != int(info.ztoc.CompressionInfo.MaxSpanID)+1 {
 					t.Fatalf("unexpected number of adds to cache; expected %d, got %d", info.ztoc.CompressionInfo.MaxSpanID+1, info.cache.addCount)
 				}
@@ -153,6 +155,7 @@ func TestBackgroundFetcherRun(t *testing.T) {
 type countingCache struct {
 	addCount int
 	addBytes int64
+	mu       sync.Mutex
 }
 
 var _ cache.BlobCache = &countingCache{}
@@ -176,6 +179,8 @@ type countingWriter struct {
 var _ cache.Writer = &countingWriter{}
 
 func (c *countingWriter) Write(p []byte) (int, error) {
+	c.cache.mu.Lock()
+	defer c.cache.mu.Unlock()
 	c.cache.addBytes += int64(len(p))
 	c.cache.addCount++
 	return len(p), nil
