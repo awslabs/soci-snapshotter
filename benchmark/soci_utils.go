@@ -138,8 +138,12 @@ func (proc *SociContainerdProcess) SociRPullImageFromECR(
 	imageRef string,
 	sociIndexDigest string,
 	awsSecretFile string) (containerd.Image, error) {
+	resolver, err := framework.GetECRResolver(ctx, awsSecretFile)
+	if err != nil {
+		return nil, err
+	}
 	image, err := proc.Client.Pull(ctx, imageRef, []containerd.RemoteOpt{
-		containerd.WithResolver(framework.GetECRResolver(ctx, awsSecretFile)),
+		containerd.WithResolver(resolver),
 		containerd.WithSchema1Conversion,
 		containerd.WithPullUnpack,
 		containerd.WithPullSnapshotter("soci"),

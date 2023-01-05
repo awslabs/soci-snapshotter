@@ -32,7 +32,12 @@ func (proc *ContainerdProcess) PullImageFromECR(
 	platform string,
 	awsSecretFile string) (containerd.Image, error) {
 	opts := GetRemoteOpts(ctx, platform)
-	opts = append(opts, containerd.WithResolver(GetECRResolver(ctx, awsSecretFile)))
+
+	resolver, err := GetECRResolver(ctx, awsSecretFile)
+	if err != nil {
+		return nil, err
+	}
+	opts = append(opts, containerd.WithResolver(resolver))
 	image, pullErr := proc.Client.Pull(ctx, imageRef, opts...)
 	if pullErr != nil {
 		return nil, pullErr
@@ -40,12 +45,12 @@ func (proc *ContainerdProcess) PullImageFromECR(
 	return image, nil
 }
 
-func GetECRResolver(ctx context.Context, awsSecretFile string) remotes.Resolver {
+func GetECRResolver(ctx context.Context, awsSecretFile string) (remotes.Resolver, error) {
 	username := "AWS"
 	secretByteArray, err := os.ReadFile(awsSecretFile)
 	secret := string(secretByteArray)
 	if err != nil {
-		panic("Cannot read aws ecr login password")
+		return nil, err
 	}
 	hostOptions := config.HostOptions{}
 	hostOptions.Credentials = func(host string) (string, string, error) {
@@ -57,5 +62,5 @@ func GetECRResolver(ctx context.Context, awsSecretFile string) remotes.Resolver 
 	}
 	options.Hosts = config.ConfigureHosts(ctx, hostOptions)
 
-	return docker.NewResolver(options)
+	return docker.NewResolver(options), nil
 }
