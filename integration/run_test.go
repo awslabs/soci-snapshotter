@@ -41,7 +41,7 @@ import (
 	"github.com/awslabs/soci-snapshotter/util/testutil"
 )
 
-// TestRunMultipleContainers multiple containers at the same time and performs a test in each
+// TestRunMultipleContainers runs multiple containers at the same time and performs a test in each
 func TestRunMultipleContainers(t *testing.T) {
 
 	tests := []struct {
