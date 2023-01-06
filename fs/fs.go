@@ -427,8 +427,12 @@ func (fs *filesystem) Mount(ctx context.Context, mountpoint string, labels map[s
 		for _, s := range src {
 			sociDesc, ok := c.imageLayerToSociDesc[s.Target.Digest.String()]
 			if !ok {
-				rErr = fmt.Errorf("unable to resolve layer %q from %q, mounting entire layer using overlayfs: %w", s.Target.Digest, s.Name, snapshot.ErrNoZtoc)
-				continue
+				log.G(ctx).WithFields(logrus.Fields{
+					"layerDigest": s.Target.Digest.String(),
+					"image":       s.Name.String(),
+				}).Infof("skipping mounting layer as FUSE mount: %v", snapshot.ErrNoZtoc)
+				rErr = fmt.Errorf("skipping mounting layer %s as FUSE mount: %w", s.Target.Digest.String(), snapshot.ErrNoZtoc)
+				break
 			}
 
 			l, err := fs.resolver.Resolve(ctx, s.Hosts, s.Name, s.Target, sociDesc)
@@ -450,7 +454,7 @@ func (fs *filesystem) Mount(ctx context.Context, mountpoint string, labels map[s
 			ctx := log.WithLogger(context.Background(), log.G(ctx).WithField("mountpoint", mountpoint))
 			sociDesc, ok := c.imageLayerToSociDesc[desc.Digest.String()]
 			if !ok {
-				log.G(ctx).Debugf("unable to resolve layer %q, mounting entire layer using overlayfs: %v", desc.Digest, snapshot.ErrNoZtoc)
+				log.G(ctx).WithError(snapshot.ErrNoZtoc).WithField("layerDigest", desc.Digest.String()).Debug("skipping layer pre-resolve")
 				return
 			}
 
@@ -470,12 +474,14 @@ func (fs *filesystem) Mount(ctx context.Context, mountpoint string, labels map[s
 	select {
 	case l = <-resultChan:
 	case err := <-errChan:
-		log.G(ctx).WithError(err).Debug("failed to resolve layer")
-		retErr = fmt.Errorf("failed to resolve layer: %w", err)
+		retErr = err
 		return
 	case <-time.After(fs.mountTimeout):
-		log.G(ctx).Debug("failed to resolve layer (timeout)")
-		retErr = fmt.Errorf("failed to resolve layer (timeout)")
+		log.G(ctx).WithFields(logrus.Fields{
+			"timeout":     fs.mountTimeout.String(),
+			"layerDigest": labels[source.TargetDigestLabel],
+		}).Info("timeout waiting for layer to resolve")
+		retErr = fmt.Errorf("timeout waiting for layer %s to resolve", labels[source.TargetDigestLabel])
 		return
 	}
 	defer func() {
@@ -494,7 +500,7 @@ func (fs *filesystem) Mount(ctx context.Context, mountpoint string, labels map[s
 	node, err := l.RootNode(0)
 	if err != nil {
 		log.G(ctx).WithError(err).Warnf("Failed to get root node")
-		retErr = errors.Wrapf(err, "failed to get root node")
+		retErr = fmt.Errorf("failed to get root node: %w", err)
 		return
 	}
 
