@@ -42,6 +42,7 @@ import (
 	"syscall"
 
 	commonmetrics "github.com/awslabs/soci-snapshotter/fs/metrics/common"
+	"github.com/awslabs/soci-snapshotter/fs/source"
 	"github.com/containerd/containerd/errdefs"
 	"github.com/containerd/containerd/log"
 	"github.com/containerd/containerd/mount"
@@ -299,6 +300,7 @@ func (o *snapshotter) Prepare(ctx context.Context, key, parent string, opts ...s
 			// don't fallback here, since there was an error getting mounts
 			return nil, err
 		}
+		log.G(ctx).WithField("layerDigest", base.Labels[source.TargetDigestLabel]).Info("preparing snapshot as local snapshot")
 		if err = o.prepareLocalSnapshot(lCtx, key, base.Labels, mounts); err != nil {
 			log.G(lCtx).WithField(remoteSnapshotLogKey, prepareFailed).
 				WithError(err).Warn("failed to prepare snapshot; deferring to container runtime")
