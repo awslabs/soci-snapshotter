@@ -17,6 +17,8 @@
 package integration
 
 import (
+	"bufio"
+	"bytes"
 	"encoding/json"
 	"strings"
 	"testing"
@@ -31,6 +33,7 @@ type testImageIndex struct {
 	platform        string
 	imgInfo         imageInfo
 	sociIndexDigest string
+	ztocDigests     []string
 }
 
 func prepareSociIndices(t *testing.T, sh *dockershell.Shell) []testImageIndex {
@@ -64,10 +67,31 @@ func prepareSociIndices(t *testing.T, sh *dockershell.Shell) []testImageIndex {
 		}
 		img.imgInfo = dockerhub(img.imgName, withPlatform(platform))
 		img.sociIndexDigest = optimizeImage(sh, img.imgInfo)
+		ztocDigests, err := getZtocDigests(sh, img.imgInfo)
+		if err != nil {
+			t.Fatalf("could not get ztoc digests: %v", err)
+		}
+		img.ztocDigests = ztocDigests
 		testImages[i] = img
 	}
 
 	return testImages
+}
+
+func getZtocDigests(sh *dockershell.Shell, img imageInfo) ([]string, error) {
+	ztocInfoBytes := sh.O("soci", "ztoc", "list")
+	scanner := bufio.NewScanner(bytes.NewReader(ztocInfoBytes))
+	scanner.Split(bufio.ScanLines)
+	var lines []string
+	for scanner.Scan() {
+		lines = append(lines, scanner.Text())
+	}
+	var ztocDigests []string
+	for i := 1; i < len(lines); i++ {
+		entries := strings.Fields(lines[i])
+		ztocDigests = append(ztocDigests, entries[0])
+	}
+	return ztocDigests, nil
 }
 
 func TestSociIndexInfo(t *testing.T) {
@@ -79,20 +103,42 @@ func TestSociIndexInfo(t *testing.T) {
 	testImages := prepareSociIndices(t, sh)
 
 	for _, img := range testImages {
-		t.Run(img.imgName, func(t *testing.T) {
-			var sociIndex soci.Index
-			rawJSON := sh.O("soci", "index", "info", img.sociIndexDigest)
-			if err := json.Unmarshal(rawJSON, &sociIndex); err != nil {
-				t.Fatalf("invalid soci index from digest %s: %v", img.sociIndexDigest, rawJSON)
-			}
+		tests := []struct {
+			name      string
+			digest    string
+			expectErr bool
+		}{
+			{
+				name:      img.imgName + " with index digest",
+				digest:    img.sociIndexDigest,
+				expectErr: false,
+			},
+			{
+				name:      img.imgName + " with ztoc digest",
+				digest:    img.ztocDigests[0],
+				expectErr: true,
+			},
+		}
+		for _, tt := range tests {
+			t.Run(tt.name, func(t *testing.T) {
+				var sociIndex soci.Index
+				rawJSON, err := sh.OLog("soci", "index", "info", tt.digest)
+				if !tt.expectErr {
+					if err := json.Unmarshal(rawJSON, &sociIndex); err != nil {
+						t.Fatalf("invalid soci index from digest %s: %v", img.sociIndexDigest, rawJSON)
+					}
 
-			m, err := getManifestDigest(sh, img.imgInfo.ref, img.imgInfo.platform)
-			if err != nil {
-				t.Fatalf("failed to get manifest digest: %v", err)
-			}
+					m, err := getManifestDigest(sh, img.imgInfo.ref, img.imgInfo.platform)
+					if err != nil {
+						t.Fatalf("failed to get manifest digest: %v", err)
+					}
 
-			validateSociIndex(t, sh, sociIndex, m, nil)
-		})
+					validateSociIndex(t, sh, sociIndex, m, nil)
+				} else if err == nil {
+					t.Fatalf("failed to return err")
+				}
+			})
+		}
 	}
 }
 

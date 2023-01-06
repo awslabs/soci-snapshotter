@@ -18,10 +18,13 @@ package index
 
 import (
 	"context"
+	"fmt"
 	"io"
 	"os"
 
 	"github.com/awslabs/soci-snapshotter/fs/config"
+	"github.com/awslabs/soci-snapshotter/soci"
+
 	"github.com/opencontainers/go-digest"
 	v1 "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/urfave/cli"
@@ -38,6 +41,17 @@ var infoCommand = cli.Command{
 		if err != nil {
 			return err
 		}
+		db, err := soci.NewDB()
+		if err != nil {
+			return err
+		}
+		artifactType, err := db.GetArtifactType(digest.String())
+		if err != nil {
+			return err
+		}
+		if artifactType == soci.ArtifactEntryTypeLayer {
+			return fmt.Errorf("the provided digest is of ztoc not SOCI index. Use \"soci ztoc info\" command to get detailed info of ztoc")
+		}
 		storage, err := oci.New(config.SociContentStorePath)
 		if err != nil {
 			return err
@@ -52,6 +66,5 @@ var infoCommand = cli.Command{
 
 		_, err = io.Copy(os.Stdout, reader)
 		return err
-
 	},
 }

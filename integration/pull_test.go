@@ -137,7 +137,7 @@ func TestOptimizeConsistentSociArtifact(t *testing.T) {
 					// skipping artifacts.db, since this is bbolt file and we have no control over its internals
 					continue
 				}
-				out := sh.OLog("cmp", filepath.Join("soci", fn), filepath.Join("copy", "soci", fn))
+				out, _ := sh.OLog("cmp", filepath.Join("soci", fn), filepath.Join("copy", "soci", fn))
 				if string(out) != "" {
 					t.Fatalf("the artifact is different: %v", string(out))
 				}
