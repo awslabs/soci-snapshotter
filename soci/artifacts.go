@@ -203,6 +203,15 @@ func (db *ArtifactsDb) GetArtifactEntry(digest string) (*ArtifactEntry, error) {
 	return &entry, nil
 }
 
+// GetArtifactType gets Type of an ArtifactEntry from the ArtifactsDB by digest
+func (db *ArtifactsDb) GetArtifactType(digest string) (ArtifactEntryType, error) {
+	ae, err := db.GetArtifactEntry(digest)
+	if err != nil {
+		return "", err
+	}
+	return ae.Type, nil
+}
+
 // RemoveArtifactEntryByIndexDigest removes an index's artifact entry using its digest
 func (db *ArtifactsDb) RemoveArtifactEntryByIndexDigest(digest string) error {
 	return db.db.Update(func(tx *bolt.Tx) error {

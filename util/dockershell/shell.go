@@ -323,13 +323,13 @@ func (s *Shell) O(args ...string) []byte {
 
 // OLog executes a command and return the stdout. Stdio is streamed to Reporter. When the command fails, different from O,
 // the error is reported via Reporter.Logf and this Shell still *accepts* further command execution.
-func (s *Shell) OLog(args ...string) []byte {
+func (s *Shell) OLog(args ...string) ([]byte, error) {
 	if s.IsInvalid() {
-		return nil
+		return nil, fmt.Errorf("invalid shell")
 	}
 	if len(args) < 1 {
 		s.fatal("no command to run")
-		return nil
+		return nil, fmt.Errorf("no command to run")
 	}
 	s.r.Logf(">>> Getting output of: %v\n", args)
 	cmd := s.Command(args[0], args[1:]...)
@@ -337,8 +337,9 @@ func (s *Shell) OLog(args ...string) []byte {
 	out, err := cmd.Output()
 	if err != nil {
 		s.r.Logf("failed to run for getting output from %v: %v", args, err)
+		return out, err
 	}
-	return out
+	return out, nil
 }
 
 // R executes a command. Stdio is returned as io.Reader. streamed to Reporter.
