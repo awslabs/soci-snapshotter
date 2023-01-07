@@ -75,48 +75,14 @@ func TestMetrics(t *testing.T) {
 
 func TestOverlayFallbackMetric(t *testing.T) {
 	regConfig := newRegistryConfig()
-	getContainerdConfigYaml := func(disableVerification bool) []byte {
-		additionalConfig := ""
-		if !isTestingBuiltinSnapshotter() {
-			additionalConfig = proxySnapshotterConfig
-		}
-		return []byte(testutil.ApplyTextTemplate(t, `
-version = 2
-
-[plugins."io.containerd.snapshotter.v1.soci"]
-root_path = "/var/lib/soci-snapshotter-grpc/"
-disable_verification = {{.DisableVerification}}
-
-[plugins."io.containerd.snapshotter.v1.soci".blob]
-check_always = true
-
-[debug]
-format = "json"
-level = "debug"
-
-{{.AdditionalConfig}}
-`, struct {
-			DisableVerification bool
-			AdditionalConfig    string
-		}{
-			DisableVerification: disableVerification,
-			AdditionalConfig:    additionalConfig,
-		}))
-	}
-	getSnapshotterConfigYaml := func(disableVerification bool) []byte {
-		return []byte(fmt.Sprintf(`
-metrics_address = "localhost:6060"
-disable_verification = %v
-`, disableVerification))
-	}
 
 	sh, done := newShellWithRegistry(t, regConfig)
 	defer done()
 
-	if err := testutil.WriteFileContents(sh, defaultContainerdConfigPath, getContainerdConfigYaml(false), 0600); err != nil {
+	if err := testutil.WriteFileContents(sh, defaultContainerdConfigPath, getContainerdConfigYaml(t, false), 0600); err != nil {
 		t.Fatalf("failed to write %v: %v", defaultContainerdConfigPath, err)
 	}
-	if err := testutil.WriteFileContents(sh, defaultSnapshotterConfigPath, getSnapshotterConfigYaml(false), 0600); err != nil {
+	if err := testutil.WriteFileContents(sh, defaultSnapshotterConfigPath, getSnapshotterConfigYaml(t, false, tcpMetricsConfig), 0600); err != nil {
 		t.Fatalf("failed to write %v: %v", defaultSnapshotterConfigPath, err)
 	}
 
@@ -184,7 +150,7 @@ disable_verification = %v
 			indexDigest := tc.indexDigestFn(sh, imgInfo)
 
 			sh.X("soci", "image", "rpull", "--soci-index-digest", indexDigest, imgInfo.ref)
-			curlOutput := string(sh.O("curl", "localhost:6060/metrics"))
+			curlOutput := string(sh.O("curl", tcpMetricsAddress+metricsPath))
 
 			if err := checkOverlayFallbackCount(curlOutput, tc.expectedFallbackCount); err != nil {
 				t.Fatal(err)

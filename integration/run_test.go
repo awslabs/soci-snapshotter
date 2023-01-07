@@ -83,29 +83,8 @@ func TestRunMultipleContainers(t *testing.T) {
 			sh, done := newShellWithRegistry(t, regConfig)
 			defer done()
 
-			// Initialize config files for containerd and snapshotter
-			additionalConfig := ""
-			if !isTestingBuiltinSnapshotter() {
-				additionalConfig = proxySnapshotterConfig
-			}
-			containerdConfigYaml := testutil.ApplyTextTemplate(t, `
-version = 2
-
-[plugins."io.containerd.snapshotter.v1.soci"]
-root_path = "/var/lib/soci-snapshotter-grpc/"
-
-[plugins."io.containerd.snapshotter.v1.soci".blob]
-check_always = true
-
-{{.AdditionalConfig}}
-`, struct {
-				AdditionalConfig string
-			}{
-				AdditionalConfig: additionalConfig,
-			})
-
 			// Setup environment
-			if err := testutil.WriteFileContents(sh, defaultContainerdConfigPath, []byte(containerdConfigYaml), 0600); err != nil {
+			if err := testutil.WriteFileContents(sh, defaultContainerdConfigPath, getContainerdConfigYaml(t, false), 0600); err != nil {
 				t.Fatalf("failed to write %v: %v", defaultContainerdConfigPath, err)
 			}
 			sh.

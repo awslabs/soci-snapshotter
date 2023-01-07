@@ -151,45 +151,13 @@ func TestOptimizeConsistentSociArtifact(t *testing.T) {
 func TestLazyPullWithSparseIndex(t *testing.T) {
 	regConfig := newRegistryConfig()
 	// Prepare config for containerd and snapshotter
-	getContainerdConfigYaml := func(disableVerification bool) []byte {
-		additionalConfig := ""
-		if !isTestingBuiltinSnapshotter() {
-			additionalConfig = proxySnapshotterConfig
-		}
-		return []byte(testutil.ApplyTextTemplate(t, `
-version = 2
 
-[plugins."io.containerd.snapshotter.v1.soci"]
-root_path = "/var/lib/soci-snapshotter-grpc/"
-disable_verification = {{.DisableVerification}}
-
-[plugins."io.containerd.snapshotter.v1.soci".blob]
-check_always = true
-
-[debug]
-format = "json"
-level = "debug"
-
-{{.AdditionalConfig}}
-`, struct {
-			DisableVerification bool
-			AdditionalConfig    string
-		}{
-			DisableVerification: disableVerification,
-			AdditionalConfig:    additionalConfig,
-		}))
-	}
-	getSnapshotterConfigYaml := func(disableVerification bool) []byte {
-		return []byte(fmt.Sprintf("disable_verification = %v", disableVerification))
-	}
-
-	// Setup environment
 	sh, done := newShellWithRegistry(t, regConfig)
 	defer done()
-	if err := testutil.WriteFileContents(sh, defaultContainerdConfigPath, getContainerdConfigYaml(false), 0600); err != nil {
+	if err := testutil.WriteFileContents(sh, defaultContainerdConfigPath, getContainerdConfigYaml(t, false), 0600); err != nil {
 		t.Fatalf("failed to write %v: %v", defaultContainerdConfigPath, err)
 	}
-	if err := testutil.WriteFileContents(sh, defaultSnapshotterConfigPath, getSnapshotterConfigYaml(false), 0600); err != nil {
+	if err := testutil.WriteFileContents(sh, defaultSnapshotterConfigPath, getSnapshotterConfigYaml(t, false), 0600); err != nil {
 		t.Fatalf("failed to write %v: %v", defaultSnapshotterConfigPath, err)
 	}
 
@@ -276,45 +244,13 @@ func checkLayersInSnapshottersContentStore(t *testing.T, sh *shell.Shell, layers
 func TestLazyPull(t *testing.T) {
 	regConfig := newRegistryConfig()
 	// Prepare config for containerd and snapshotter
-	getContainerdConfigYaml := func(disableVerification bool) []byte {
-		additionalConfig := ""
-		if !isTestingBuiltinSnapshotter() {
-			additionalConfig = proxySnapshotterConfig
-		}
-		return []byte(testutil.ApplyTextTemplate(t, `
-version = 2
 
-[plugins."io.containerd.snapshotter.v1.soci"]
-root_path = "/var/lib/soci-snapshotter-grpc/"
-disable_verification = {{.DisableVerification}}
-
-[plugins."io.containerd.snapshotter.v1.soci".blob]
-check_always = true
-
-[debug]
-format = "json"
-level = "debug"
-
-{{.AdditionalConfig}}
-`, struct {
-			DisableVerification bool
-			AdditionalConfig    string
-		}{
-			DisableVerification: disableVerification,
-			AdditionalConfig:    additionalConfig,
-		}))
-	}
-	getSnapshotterConfigYaml := func(disableVerification bool) []byte {
-		return []byte(fmt.Sprintf("disable_verification = %v", disableVerification))
-	}
-
-	// Setup environment
 	sh, done := newShellWithRegistry(t, regConfig)
 	defer done()
-	if err := testutil.WriteFileContents(sh, defaultContainerdConfigPath, getContainerdConfigYaml(false), 0600); err != nil {
+	if err := testutil.WriteFileContents(sh, defaultContainerdConfigPath, getContainerdConfigYaml(t, false), 0600); err != nil {
 		t.Fatalf("failed to write %v: %v", defaultContainerdConfigPath, err)
 	}
-	if err := testutil.WriteFileContents(sh, defaultSnapshotterConfigPath, getSnapshotterConfigYaml(false), 0600); err != nil {
+	if err := testutil.WriteFileContents(sh, defaultSnapshotterConfigPath, getSnapshotterConfigYaml(t, false), 0600); err != nil {
 		t.Fatalf("failed to write %v: %v", defaultSnapshotterConfigPath, err)
 	}
 
@@ -395,46 +331,16 @@ level = "debug"
 // TestLazyPull tests if lazy pulling works when no index digest is provided (makes a Referrers API call)
 func TestLazyPullNoIndexDigest(t *testing.T) {
 	// Prepare config for containerd and snapshotter
-	getContainerdConfigYaml := func(disableVerification bool) []byte {
-		additionalConfig := ""
-		if !isTestingBuiltinSnapshotter() {
-			additionalConfig = proxySnapshotterConfig
-		}
-		return []byte(testutil.ApplyTextTemplate(t, `
-version = 2
 
-[plugins."io.containerd.snapshotter.v1.soci"]
-root_path = "/var/lib/soci-snapshotter-grpc/"
-disable_verification = {{.DisableVerification}}
-
-[plugins."io.containerd.snapshotter.v1.soci".blob]
-check_always = true
-
-[debug]
-format = "json"
-level = "debug"
-
-{{.AdditionalConfig}}
-`, struct {
-			DisableVerification bool
-			AdditionalConfig    string
-		}{
-			DisableVerification: disableVerification,
-			AdditionalConfig:    additionalConfig,
-		}))
-	}
-	getSnapshotterConfigYaml := func(disableVerification bool) []byte {
-		return []byte(fmt.Sprintf("disable_verification = %v", disableVerification))
-	}
 	regConfig := newRegistryConfig()
 
 	// Setup environment
 	sh, done := newShellWithRegistry(t, regConfig)
 	defer done()
-	if err := testutil.WriteFileContents(sh, defaultContainerdConfigPath, getContainerdConfigYaml(false), 0600); err != nil {
+	if err := testutil.WriteFileContents(sh, defaultContainerdConfigPath, getContainerdConfigYaml(t, false), 0600); err != nil {
 		t.Fatalf("failed to write %v: %v", defaultContainerdConfigPath, err)
 	}
-	if err := testutil.WriteFileContents(sh, defaultSnapshotterConfigPath, getSnapshotterConfigYaml(false), 0600); err != nil {
+	if err := testutil.WriteFileContents(sh, defaultSnapshotterConfigPath, getSnapshotterConfigYaml(t, false), 0600); err != nil {
 		t.Fatalf("failed to write %v: %v", defaultSnapshotterConfigPath, err)
 	}
 
@@ -502,45 +408,14 @@ level = "debug"
 // to the snapshotter mounting the layer as a normal overlayfs mount.
 func TestPullWithAribtraryBlobInvalidZtocFormat(t *testing.T) {
 	regConfig := newRegistryConfig()
-	getContainerdConfigYaml := func(disableVerification bool) []byte {
-		additionalConfig := ""
-		if !isTestingBuiltinSnapshotter() {
-			additionalConfig = proxySnapshotterConfig
-		}
-		return []byte(testutil.ApplyTextTemplate(t, `
-version = 2
-
-[plugins."io.containerd.snapshotter.v1.soci"]
-root_path = "/var/lib/soci-snapshotter-grpc/"
-disable_verification = {{.DisableVerification}}
-
-[plugins."io.containerd.snapshotter.v1.soci".blob]
-check_always = true
-
-[debug]
-format = "json"
-level = "debug"
-
-{{.AdditionalConfig}}
-`, struct {
-			DisableVerification bool
-			AdditionalConfig    string
-		}{
-			DisableVerification: disableVerification,
-			AdditionalConfig:    additionalConfig,
-		}))
-	}
-	getSnapshotterConfigYaml := func(disableVerification bool) []byte {
-		return []byte(fmt.Sprintf("disable_verification = %v", disableVerification))
-	}
 
 	sh, done := newShellWithRegistry(t, regConfig)
 	defer done()
 
-	if err := testutil.WriteFileContents(sh, defaultContainerdConfigPath, getContainerdConfigYaml(false), 0600); err != nil {
+	if err := testutil.WriteFileContents(sh, defaultContainerdConfigPath, getContainerdConfigYaml(t, false), 0600); err != nil {
 		t.Fatalf("failed to write %v: %v", defaultContainerdConfigPath, err)
 	}
-	if err := testutil.WriteFileContents(sh, defaultSnapshotterConfigPath, getSnapshotterConfigYaml(false), 0600); err != nil {
+	if err := testutil.WriteFileContents(sh, defaultSnapshotterConfigPath, getSnapshotterConfigYaml(t, false), 0600); err != nil {
 		t.Fatalf("failed to write %v: %v", defaultSnapshotterConfigPath, err)
 	}
 
@@ -647,49 +522,19 @@ level = "debug"
 func TestLazyPullNoBackgroundFetch(t *testing.T) {
 	regConfig := newRegistryConfig()
 	// Prepare config for containerd and snapshotter
-	getContainerdConfigYaml := func(disableVerification bool) []byte {
-		additionalConfig := ""
-		if !isTestingBuiltinSnapshotter() {
-			additionalConfig = proxySnapshotterConfig
-		}
-		return []byte(testutil.ApplyTextTemplate(t, `
-version = 2
 
-[plugins."io.containerd.snapshotter.v1.soci"]
-root_path = "/var/lib/soci-snapshotter-grpc/"
-disable_verification = {{.DisableVerification}}
-
-[plugins."io.containerd.snapshotter.v1.soci".blob]
-check_always = true
-
-[debug]
-format = "json"
-level = "debug"
-
-{{.AdditionalConfig}}
-`, struct {
-			DisableVerification bool
-			AdditionalConfig    string
-		}{
-			DisableVerification: disableVerification,
-			AdditionalConfig:    additionalConfig,
-		}))
-	}
-	getSnapshotterConfigYaml := func() []byte {
-		// return []byte(fmt.Sprintf("disable_verification = %v", disableVerification))
-		return []byte(`
+	backgroundFetcherConfig := `
 [background_fetch]
 disable = true
-`)
-	}
+`
 
 	// Setup environment
 	sh, done := newShellWithRegistry(t, regConfig)
 	defer done()
-	if err := testutil.WriteFileContents(sh, defaultContainerdConfigPath, getContainerdConfigYaml(false), 0600); err != nil {
+	if err := testutil.WriteFileContents(sh, defaultContainerdConfigPath, getContainerdConfigYaml(t, false), 0600); err != nil {
 		t.Fatalf("failed to write %v: %v", defaultContainerdConfigPath, err)
 	}
-	if err := testutil.WriteFileContents(sh, defaultSnapshotterConfigPath, getSnapshotterConfigYaml(), 0600); err != nil {
+	if err := testutil.WriteFileContents(sh, defaultSnapshotterConfigPath, getSnapshotterConfigYaml(t, false, backgroundFetcherConfig), 0600); err != nil {
 		t.Fatalf("failed to write %v: %v", defaultSnapshotterConfigPath, err)
 	}
 
@@ -862,53 +707,26 @@ services:
 	}
 	sh := shell.New(de, reporter)
 
-	// Initialize config files for containerd and snapshotter
-	additionalConfig := ""
-	if !isTestingBuiltinSnapshotter() {
-		additionalConfig = proxySnapshotterConfig
-	}
-	containerdConfigYaml := testutil.ApplyTextTemplate(t, `
-version = 2
-
-[plugins."io.containerd.snapshotter.v1.soci"]
-root_path = "/var/lib/soci-snapshotter-grpc/"
-
-[plugins."io.containerd.snapshotter.v1.soci".blob]
-check_always = true
-
-[[plugins."io.containerd.snapshotter.v1.soci".resolver.host."{{.RegistryHost}}".mirrors]]
-host = "{{.RegistryAltHost}}"
+	containerdMirrorConfig := fmt.Sprintf(`
+[[plugins."io.containerd.snapshotter.v1.soci".resolver.host."%s".mirrors]]
+host = "%s"
 insecure = true
-{{.AdditionalConfig}}
-`, struct {
-		RegistryHost     string
-		RegistryAltHost  string
-		AdditionalConfig string
-	}{
-		RegistryHost:     regConfig.host,
-		RegistryAltHost:  regAltConfig.hostWithPort(),
-		AdditionalConfig: additionalConfig,
-	})
-	snapshotterConfigYaml := testutil.ApplyTextTemplate(t, `
+`, regConfig.host, regAltConfig.hostWithPort())
+
+	snapshotterMirrorConfig := fmt.Sprintf(`
 [blob]
 check_always = true
 
-[[resolver.host."{{.RegistryHost}}".mirrors]]
-host = "{{.RegistryAltHost}}"
+[[resolver.host."%s".mirrors]]
+host = "%s"
 insecure = true
-`, struct {
-		RegistryHost    string
-		RegistryAltHost string
-	}{
-		RegistryHost:    regConfig.host,
-		RegistryAltHost: regAltConfig.hostWithPort(),
-	})
+`, regConfig.host, regAltConfig.hostWithPort())
 
 	// Setup environment
-	if err := testutil.WriteFileContents(sh, defaultContainerdConfigPath, []byte(containerdConfigYaml), 0600); err != nil {
+	if err := testutil.WriteFileContents(sh, defaultContainerdConfigPath, getContainerdConfigYaml(t, false, containerdMirrorConfig), 0600); err != nil {
 		t.Fatalf("failed to write %v: %v", defaultContainerdConfigPath, err)
 	}
-	if err := testutil.WriteFileContents(sh, defaultSnapshotterConfigPath, []byte(snapshotterConfigYaml), 0600); err != nil {
+	if err := testutil.WriteFileContents(sh, defaultSnapshotterConfigPath, getSnapshotterConfigYaml(t, false, snapshotterMirrorConfig), 0600); err != nil {
 		t.Fatalf("failed to write %v: %v", defaultSnapshotterConfigPath, err)
 	}
 	if err := testutil.WriteFileContents(sh, filepath.Join(caCertDir, "domain.crt"), crt, 0600); err != nil {
@@ -1093,29 +911,8 @@ func TestRpullImageThenRemove(t *testing.T) {
 	sh, done := newShellWithRegistry(t, regConfig)
 	defer done()
 
-	// Initialize config files for containerd and snapshotter
-	additionalConfig := ""
-	if !isTestingBuiltinSnapshotter() {
-		additionalConfig = proxySnapshotterConfig
-	}
-	containerdConfigYaml := testutil.ApplyTextTemplate(t, `
-version = 2
-
-[plugins."io.containerd.snapshotter.v1.soci"]
-root_path = "/var/lib/soci-snapshotter-grpc/"
-
-[plugins."io.containerd.snapshotter.v1.soci".blob]
-check_always = true
-
-{{.AdditionalConfig}}
-`, struct {
-		AdditionalConfig string
-	}{
-		AdditionalConfig: additionalConfig,
-	})
-
 	// Setup environment
-	if err := testutil.WriteFileContents(sh, defaultContainerdConfigPath, []byte(containerdConfigYaml), 0600); err != nil {
+	if err := testutil.WriteFileContents(sh, defaultContainerdConfigPath, getContainerdConfigYaml(t, false), 0600); err != nil {
 		t.Fatalf("failed to write %v: %v", defaultContainerdConfigPath, err)
 	}
 	sh.
