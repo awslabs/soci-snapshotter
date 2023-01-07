@@ -39,19 +39,19 @@ type testImageIndex struct {
 func prepareSociIndices(t *testing.T, sh *dockershell.Shell) []testImageIndex {
 	testImages := []testImageIndex{
 		{
-			imgName:  "ubuntu:latest",
+			imgName:  ubuntuImage,
 			platform: "linux/arm64",
 		},
 		{
-			imgName:  "alpine:latest",
+			imgName:  alpineImage,
 			platform: "linux/amd64",
 		},
 		{
-			imgName:  "nginx:latest",
+			imgName:  nginxImage,
 			platform: "linux/arm64",
 		},
 		{
-			imgName:  "drupal:latest",
+			imgName:  drupalImage,
 			platform: "linux/amd64",
 		},
 	}

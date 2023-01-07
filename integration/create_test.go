@@ -103,32 +103,32 @@ func TestSociCreate(t *testing.T) {
 		platform       string
 	}{
 		{
-			name:           "test create for ubuntu:latest",
-			containerImage: "ubuntu:latest",
+			name:           "test create for ubuntu",
+			containerImage: ubuntuImage,
 		},
 		{
-			name:           "test create for nginx:latest",
-			containerImage: "nginx:latest",
+			name:           "test create for nginx",
+			containerImage: nginxImage,
 		},
 		{
-			name:           "test create for alpine:latest",
-			containerImage: "alpine:latest",
+			name:           "test create for alpine",
+			containerImage: alpineImage,
 		},
 		{
-			name:           "test create for drupal:latest",
-			containerImage: "drupal:latest",
+			name:           "test create for drupal",
+			containerImage: drupalImage,
 		},
 		// The following two tests guarantee that we have tested at least
 		// 2 different platforms. Depending on what host they run on, one
 		// might be a duplicate of the earlier test using the default platform
 		{
-			name:           "test create for ubuntu:latest amd64",
-			containerImage: "ubuntu:latest",
+			name:           "test create for ubuntu amd64",
+			containerImage: ubuntuImage,
 			platform:       "linux/amd64",
 		},
 		{
-			name:           "test create for ubuntu:latest arm64",
-			containerImage: "ubuntu:latest",
+			name:           "test create for ubuntu arm64",
+			containerImage: ubuntuImage,
 			platform:       "linux/arm64",
 		},
 	}
