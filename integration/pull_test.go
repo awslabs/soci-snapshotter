@@ -97,15 +97,15 @@ func TestOptimizeConsistentSociArtifact(t *testing.T) {
 	}{
 		{
 			name:           "soci artifact is consistently built for ubuntu",
-			containerImage: "ubuntu:latest",
+			containerImage: ubuntuImage,
 		},
 		{
 			name:           "soci artifact is consistently built for nginx",
-			containerImage: "nginx:latest",
+			containerImage: nginxImage,
 		},
 		{
 			name:           "soci artifact is consistently built for alpine",
-			containerImage: "alpine:latest",
+			containerImage: alpineImage,
 		},
 	}
 	for _, tt := range tests {

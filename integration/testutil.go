@@ -68,10 +68,11 @@ const (
 )
 
 const (
-	alpineImage = "alpine:latest"
-	nginxImage  = "nginx:latest"
-	ubuntuImage = "ubuntu:latest"
-	drupalImage = "drupal:latest"
+	alpineImage   = "alpine:latest"
+	nginxImage    = "nginx:latest"
+	ubuntuImage   = "ubuntu:latest"
+	drupalImage   = "drupal:latest"
+	rabbitmqImage = "rabbitmq:latest"
 )
 
 const proxySnapshotterConfig = `

@@ -128,7 +128,7 @@ disable_verification = %v
 	}{
 		{
 			name:  "image with all layers having ztocs and no fs.Mount error results in 0 overlay fallback",
-			image: "rabbitmq:latest",
+			image: rabbitmqImage,
 			indexDigestFn: func(sh *shell.Shell, image imageInfo) string {
 				return optimizeImageWithOpts(sh, image, 1<<22, 0)
 			},
@@ -136,7 +136,7 @@ disable_verification = %v
 		},
 		{
 			name:  "image with some layers not having ztoc and no fs.Mount results in 0 overlay fallback",
-			image: "rabbitmq:latest",
+			image: rabbitmqImage,
 			indexDigestFn: func(sh *shell.Shell, image imageInfo) string {
 				return optimizeImageWithOpts(sh, image, 1<<22, 10<<20)
 			},
@@ -144,7 +144,7 @@ disable_verification = %v
 		},
 		{
 			name:  "image with fs.Mount errors results in non-zero overlay fallback",
-			image: "rabbitmq:latest",
+			image: rabbitmqImage,
 			indexDigestFn: func(_ *shell.Shell, _ imageInfo) string {
 				return "dwadwadawdad"
 			},
