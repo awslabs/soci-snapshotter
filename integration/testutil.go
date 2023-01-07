@@ -506,3 +506,67 @@ func genRandomByteData(size int64) []byte {
 	rand.Read(b)
 	return b
 }
+
+func rebootContainerd(t *testing.T, sh *shell.Shell, customContainerdConfig, customSnapshotterConfig string) *testutil.RemoteSnapshotMonitor {
+	var (
+		containerdRoot    = "/var/lib/containerd/"
+		containerdStatus  = "/run/containerd/"
+		snapshotterSocket = "/run/soci-snapshotter-grpc/soci-snapshotter-grpc.sock"
+		snapshotterRoot   = "/var/lib/soci-snapshotter-grpc/"
+	)
+
+	// cleanup directories
+	testutil.KillMatchingProcess(sh, "containerd")
+	testutil.KillMatchingProcess(sh, "soci-snapshotter-grpc")
+	removeDirContents(sh, containerdRoot)
+	if isDirExists(sh, containerdStatus) {
+		removeDirContents(sh, containerdStatus)
+	}
+	if isFileExists(sh, snapshotterSocket) {
+		sh.X("rm", snapshotterSocket)
+	}
+	if snDir := filepath.Join(snapshotterRoot, "/snapshotter/snapshots"); isDirExists(sh, snDir) {
+		sh.X("find", snDir, "-maxdepth", "1", "-mindepth", "1", "-type", "d",
+			"-exec", "umount", "{}/fs", ";")
+	}
+	removeDirContents(sh, snapshotterRoot)
+
+	// run containerd and snapshotter
+	var m *testutil.RemoteSnapshotMonitor
+	containerdCmds := shell.C("containerd", "--log-level", "debug")
+	if customContainerdConfig != "" {
+		containerdCmds = addConfig(t, sh, customContainerdConfig, containerdCmds...)
+	}
+	sh.Gox(containerdCmds...)
+	snapshotterCmds := shell.C("/usr/local/bin/soci-snapshotter-grpc", "--log-level", "debug",
+		"--address", snapshotterSocket)
+	if customSnapshotterConfig != "" {
+		snapshotterCmds = addConfig(t, sh, customSnapshotterConfig, snapshotterCmds...)
+	}
+	outR, errR, err := sh.R(snapshotterCmds...)
+	if err != nil {
+		t.Fatalf("failed to create pipe: %v", err)
+	}
+	m = testutil.NewRemoteSnapshotMonitor(testutil.NewTestingReporter(t), outR, errR)
+
+	// make sure containerd and soci-snapshotter-grpc are up-and-running
+	sh.Retry(100, "ctr", "snapshots", "--snapshotter", "soci",
+		"prepare", "connectiontest-dummy-"+xid.New().String(), "")
+
+	return m
+}
+
+func removeDirContents(sh *shell.Shell, dir string) {
+	// `rm -rf Dir` directly sometimes causes failure, e.g.,
+	// rm: cannot remove '/var/lib/containerd/': Device or resource busy.
+	// this might be a mount issue.
+	sh.X("find", dir+"/.", "!", "-name", ".", "-prune", "-exec", "rm", "-rf", "{}", "+")
+}
+
+func addConfig(t *testing.T, sh *shell.Shell, conf string, cmds ...string) []string {
+	configPath := strings.TrimSpace(string(sh.O("mktemp")))
+	if err := testutil.WriteFileContents(sh, configPath, []byte(conf), 0600); err != nil {
+		t.Fatalf("failed to add config to %v: %v", configPath, err)
+	}
+	return append(cmds, "--config", configPath)
+}
