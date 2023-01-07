@@ -29,8 +29,6 @@ import (
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 )
 
-const blobStorePath = "/var/lib/soci-snapshotter-grpc/content/blobs/sha256"
-
 func TestSociCreateSparseIndex(t *testing.T) {
 	sh, done := newSnapshotterBaseShell(t)
 	defer done()

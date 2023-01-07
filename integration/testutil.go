@@ -65,6 +65,7 @@ const (
 	builtinSnapshotterFlagEnv    = "BUILTIN_SNAPSHOTTER"
 	buildArgsEnv                 = "DOCKER_BUILD_ARGS"
 	dockerLibrary                = "public.ecr.aws/docker/library/"
+	blobStorePath                = "/var/lib/soci-snapshotter-grpc/content/blobs/sha256"
 )
 
 const (
@@ -81,6 +82,55 @@ const proxySnapshotterConfig = `
     type = "snapshot"
     address = "/run/soci-snapshotter-grpc/soci-snapshotter-grpc.sock"
 `
+
+const containerdConfigTemplate = `
+version = 2
+
+[plugins."io.containerd.snapshotter.v1.soci"]
+root_path = "/var/lib/soci-snapshotter-grpc/"
+disable_verification = {{.DisableVerification}}
+
+[plugins."io.containerd.snapshotter.v1.soci".blob]
+check_always = true
+
+[debug]
+format = "json"
+level = "debug"
+
+{{.AdditionalConfig}}
+`
+
+// getContainerdConfigYaml creates a containerd config yaml, by appending all
+// `additionalConfigs` to the default `containerdConfigTemplate`.
+func getContainerdConfigYaml(t *testing.T, disableVerification bool, additionalConfigs ...string) []byte {
+	if !isTestingBuiltinSnapshotter() {
+		additionalConfigs = append(additionalConfigs, proxySnapshotterConfig)
+	}
+
+	return []byte(testutil.ApplyTextTemplate(t, containerdConfigTemplate, struct {
+		DisableVerification bool
+		AdditionalConfig    string
+	}{
+		DisableVerification: disableVerification,
+		AdditionalConfig:    strings.Join(additionalConfigs, "\n"),
+	}))
+}
+
+const snapshotterConfigTemplate = `
+disable_verification = {{.DisableVerification}}
+
+{{.AdditionalConfig}}
+`
+
+func getSnapshotterConfigYaml(t *testing.T, disableVerification bool, additionalConfigs ...string) []byte {
+	return []byte(testutil.ApplyTextTemplate(t, snapshotterConfigTemplate, struct {
+		DisableVerification bool
+		AdditionalConfig    string
+	}{
+		DisableVerification: disableVerification,
+		AdditionalConfig:    strings.Join(additionalConfigs, "\n"),
+	}))
+}
 
 func trimSha256Prefix(s string) string {
 	return strings.TrimPrefix(s, "sha256:")
