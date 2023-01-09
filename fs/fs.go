@@ -229,7 +229,6 @@ func NewFilesystem(root string, cfg config.Config, opts ...Option) (_ snapshot.F
 	return &filesystem{
 		resolver:            r,
 		getSources:          getSources,
-		noBackgroundFetch:   cfg.NoBackgroundFetch,
 		debug:               cfg.Debug,
 		layer:               make(map[string]layer.Layer),
 		allowNoVerification: cfg.AllowNoVerification,
@@ -322,7 +321,6 @@ func (c *sociContext) populateImageLayerToSociMapping(sociIndex *soci.Index) {
 
 type filesystem struct {
 	resolver            *layer.Resolver
-	noBackgroundFetch   bool
 	debug               bool
 	layer               map[string]layer.Layer
 	layerMu             sync.Mutex
