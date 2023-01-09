@@ -286,7 +286,7 @@ func (o *snapshotter) Prepare(ctx context.Context, key, parent string, opts ...s
 			err := o.commit(ctx, true, target, key, append(opts, snapshots.WithLabels(base.Labels))...)
 			if err == nil || errdefs.IsAlreadyExists(err) {
 				// count also AlreadyExists as "success"
-				log.G(lCtx).WithField(remoteSnapshotLogKey, prepareSucceeded).Debug("prepared remote snapshot")
+				log.G(lCtx).WithField(remoteSnapshotLogKey, prepareSucceeded).Info("Remote snapshot successfully prepared.")
 				return nil, errors.Wrapf(errdefs.ErrAlreadyExists, "target snapshot %q", target)
 			}
 			log.G(lCtx).WithField(remoteSnapshotLogKey, prepareFailed).
@@ -310,7 +310,7 @@ func (o *snapshotter) Prepare(ctx context.Context, key, parent string, opts ...s
 				// count also AlreadyExists as "success"
 				// there's no need to provide any details on []mount.Mount because mounting is already taken care of
 				// by snapshotter
-				log.G(lCtx).WithField(remoteSnapshotLogKey, prepareSucceeded).Debug("prepared local snapshot")
+				log.G(lCtx).WithField(remoteSnapshotLogKey, prepareSucceeded).Info("Local snapshot successfully prepared")
 				return nil, errors.Wrapf(errdefs.ErrAlreadyExists, "target snapshot %q", target)
 			}
 			log.G(lCtx).WithField(remoteSnapshotLogKey, prepareFailed).
