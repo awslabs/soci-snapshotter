@@ -222,7 +222,7 @@ func (db *ArtifactsDb) RemoveArtifactEntryByIndexDigest(digest string) error {
 
 		dgstBucket := bucket.Bucket([]byte(digest))
 		if dgstBucket == nil {
-			return nil
+			return fmt.Errorf("the index of the digest %v doesn't exist", digest)
 		}
 
 		if indexBucket(dgstBucket) {

@@ -265,4 +265,12 @@ func TestSociIndexRemove(t *testing.T) {
 			t.Fatalf("\"soci index rm $(soci index ls -q)\" doesn't remove all soci indices, remaining indices: %s", indices)
 		}
 	})
+
+	t.Run("soci index rm with an invalid index digest", func(t *testing.T) {
+		invalidDgst := "digest"
+		_, err := sh.OLog("soci", "index", "rm", invalidDgst)
+		if err == nil {
+			t.Fatalf("failed to return err")
+		}
+	})
 }
