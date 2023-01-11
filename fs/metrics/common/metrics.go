@@ -71,6 +71,17 @@ const (
 	SynchronousReadRegistryFetchCount = "synchronous_read_remote_registry_fetch_count" // TODO revisit (wrong place)
 	SynchronousBytesServed            = "synchronous_bytes_served"
 
+	// fuse operation failure metrics
+	FuseNodeGetattrFailureCount     = "fuse_node_getattr_failure_count"
+	FuseNodeListxattrFailureCount   = "fuse_node_listxattr_failure_count"
+	FuseNodeLookupFailureCount      = "fuse_node_lookup_failure_count"
+	FuseNodeOpenFailureCount        = "fuse_node_open_failure_count"
+	FuseNodeReaddirFailureCount     = "fuse_node_readdir_failure_count"
+	FuseFileReadFailureCount        = "fuse_file_read_failure_count"
+	FuseFileGetattrFailureCount     = "fuse_file_getattr_failure_count"
+	FuseWhiteoutGetattrFailureCount = "fuse_whiteout_getattr_failure_count"
+	FuseUnknownFailureCount         = "fuse_unknown_operation_failure_count"
+
 	// TODO this metric is not available now. This needs to go down to BlobReader where the actuall http call is issued
 	SynchronousBytesFetched = "synchronous_bytes_fetched"
 
@@ -122,7 +133,7 @@ var (
 		[]string{"operation_type", "layer"},
 	)
 
-	// bytesCount reflects the number of bytes served as the part of specitic operation type per layer sha.
+	// bytesCount reflects the number of bytes served as the part of specific operation type per layer sha.
 	bytesCount = prometheus.NewGaugeVec(
 		prometheus.GaugeOpts{
 			Namespace: namespace,

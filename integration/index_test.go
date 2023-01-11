@@ -20,11 +20,13 @@ import (
 	"bufio"
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"strings"
 	"testing"
 
 	"github.com/awslabs/soci-snapshotter/soci"
 	"github.com/awslabs/soci-snapshotter/util/dockershell"
+	shell "github.com/awslabs/soci-snapshotter/util/dockershell"
 	"github.com/containerd/containerd/platforms"
 )
 
@@ -121,11 +123,10 @@ func TestSociIndexInfo(t *testing.T) {
 		}
 		for _, tt := range tests {
 			t.Run(tt.name, func(t *testing.T) {
-				var sociIndex soci.Index
-				rawJSON, err := sh.OLog("soci", "index", "info", tt.digest)
+				sociIndex, err := sociIndexFromDigest(sh, tt.digest)
 				if !tt.expectErr {
-					if err := json.Unmarshal(rawJSON, &sociIndex); err != nil {
-						t.Fatalf("invalid soci index from digest %s: %v", img.sociIndexDigest, rawJSON)
+					if err != nil {
+						t.Fatal(err)
 					}
 
 					m, err := getManifestDigest(sh, img.imgInfo.ref, img.imgInfo.platform)
@@ -273,4 +274,15 @@ func TestSociIndexRemove(t *testing.T) {
 			t.Fatalf("failed to return err")
 		}
 	})
+}
+
+func sociIndexFromDigest(sh *shell.Shell, indexDigest string) (index soci.Index, err error) {
+	rawSociIndexJSON, err := sh.OLog("soci", "index", "info", indexDigest)
+	if err != nil {
+		return
+	}
+	if err = json.Unmarshal(rawSociIndexJSON, &index); err != nil {
+		err = fmt.Errorf("invalid soci index from digest %s: %s", indexDigest, err)
+	}
+	return
 }
