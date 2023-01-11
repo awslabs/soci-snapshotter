@@ -87,8 +87,13 @@ if they are available in the snapshotter's local content store.
 			return err
 		}
 
+		artifactsDb, err := soci.NewDB(soci.ArtifactsDbPath())
+		if err != nil {
+			return err
+		}
+
 		for _, platform := range ps {
-			indexDescriptors, err := soci.GetIndexDescriptorCollection(ctx, cs, img, []ocispec.Platform{platform})
+			indexDescriptors, err := soci.GetIndexDescriptorCollection(ctx, cs, artifactsDb, img, []ocispec.Platform{platform})
 			if err != nil {
 				return err
 			}

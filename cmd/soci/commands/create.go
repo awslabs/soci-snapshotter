@@ -97,6 +97,11 @@ var CreateCommand = cli.Command{
 			return err
 		}
 
+		artifactsDb, err := soci.NewDB(soci.ArtifactsDbPath())
+		if err != nil {
+			return err
+		}
+
 		builderOpts := []soci.BuildOption{
 			soci.WithMinLayerSize(minLayerSize),
 			soci.WithSpanSize(spanSize),
@@ -106,7 +111,7 @@ var CreateCommand = cli.Command{
 			builderOpts = append(builderOpts, soci.WithLegacyRegistrySupport)
 		}
 		for _, plat := range ps {
-			builder, err := soci.NewIndexBuilder(cs, blobStore, append(builderOpts, soci.WithPlatform(plat))...)
+			builder, err := soci.NewIndexBuilder(cs, blobStore, artifactsDb, append(builderOpts, soci.WithPlatform(plat))...)
 
 			if err != nil {
 				return err
@@ -117,7 +122,7 @@ var CreateCommand = cli.Command{
 				return err
 			}
 
-			err = soci.WriteSociIndex(ctx, sociIndexWithMetadata, blobStore)
+			err = soci.WriteSociIndex(ctx, sociIndexWithMetadata, blobStore, builder.ArtifactsDb)
 			if err != nil {
 				return err
 			}

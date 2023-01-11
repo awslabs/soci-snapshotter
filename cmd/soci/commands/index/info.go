@@ -41,7 +41,7 @@ var infoCommand = cli.Command{
 		if err != nil {
 			return err
 		}
-		db, err := soci.NewDB()
+		db, err := soci.NewDB(soci.ArtifactsDbPath())
 		if err != nil {
 			return err
 		}

@@ -48,7 +48,7 @@ var listCommand = cli.Command{
 		},
 	},
 	Action: func(cliContext *cli.Context) error {
-		db, err := soci.NewDB()
+		db, err := soci.NewDB(soci.ArtifactsDbPath())
 		if err != nil {
 			return err
 		}

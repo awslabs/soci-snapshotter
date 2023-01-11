@@ -51,6 +51,10 @@ type ArtifactsDb struct {
 // ArtifactEntryType is the type of SOCI artifact represented by the ArtifactEntry
 type ArtifactEntryType string
 
+const (
+	artifactsDbName = "artifacts.db"
+)
+
 var (
 	bucketKeySociArtifacts  = []byte("soci_artifacts")
 	bucketKeySize           = []byte("size")
@@ -62,7 +66,6 @@ var (
 	bucketKeyMediaType      = []byte("media_type")
 	bucketKeyCreatedAt      = []byte("created_at")
 
-	artifactsDbName = "artifacts.db"
 	// ArtifactEntryTypeIndex indicates that an ArtifactEntry is a SOCI index artifact
 	ArtifactEntryTypeIndex ArtifactEntryType = "soci_index"
 	// ArtifactEntryTypeLayer indicates that an ArtifactEntry is a SOCI layer artifact
@@ -71,6 +74,11 @@ var (
 	db   *ArtifactsDb
 	once sync.Once
 )
+
+// Get the default artifacts db path
+func ArtifactsDbPath() string {
+	return path.Join(config.SociSnapshotterRootPath, artifactsDbName)
+}
 
 // ArtifactEntry is a metadata object for a SOCI artifact.
 type ArtifactEntry struct {
@@ -96,34 +104,9 @@ type ArtifactEntry struct {
 	CreatedAt time.Time
 }
 
-func getIndexArtifactEntries(indexDigest string) ([]ArtifactEntry, error) {
-	artifacts, err := NewDB()
-	if err != nil {
-		return nil, err
-	}
-	return artifacts.getIndexArtifactEntries(indexDigest)
-}
-
-func getArtifactEntry(sociDigest string) (*ArtifactEntry, error) {
-	artifacts, err := NewDB()
-	if err != nil {
-		return nil, err
-	}
-	return artifacts.GetArtifactEntry(sociDigest)
-}
-
-func writeArtifactEntry(entry *ArtifactEntry) error {
-	artifacts, err := NewDB()
-	if err != nil {
-		return err
-	}
-	return artifacts.WriteArtifactEntry(entry)
-}
-
 // NewDB returns an instance of an ArtifactsDB
-func NewDB() (*ArtifactsDb, error) {
+func NewDB(path string) (*ArtifactsDb, error) {
 	once.Do(func() {
-		path := path.Join(config.SociSnapshotterRootPath, artifactsDbName)
 		f, err := os.OpenFile(path, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0600)
 		if err != nil {
 			log.G(context.Background()).Errorf("can't create or open the file %s", path)

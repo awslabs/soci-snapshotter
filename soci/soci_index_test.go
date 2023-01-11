@@ -138,7 +138,8 @@ func TestBuildSociIndexNotLayer(t *testing.T) {
 	ctx := context.Background()
 	cs := newFakeContentStore()
 	blobStore := memory.New()
-	builder, err := NewIndexBuilder(cs, blobStore, WithSpanSize(spanSize), WithMinLayerSize(0))
+	artifactsDb, _ := NewDB(ArtifactsDbPath())
+	builder, err := NewIndexBuilder(cs, blobStore, artifactsDb, WithSpanSize(spanSize), WithMinLayerSize(0))
 
 	if err != nil {
 		t.Fatalf("cannot create index builer: %v", err)
@@ -206,7 +207,8 @@ func TestBuildSociIndexWithLimits(t *testing.T) {
 			}
 			spanSize := int64(65535)
 			blobStore := memory.New()
-			builder, _ := NewIndexBuilder(cs, blobStore, WithSpanSize(spanSize), WithMinLayerSize(tc.minLayerSize))
+			artifactsDb, _ := NewDB(ArtifactsDbPath())
+			builder, _ := NewIndexBuilder(cs, blobStore, artifactsDb, WithSpanSize(spanSize), WithMinLayerSize(tc.minLayerSize))
 			ztoc, err := builder.buildSociLayer(ctx, desc)
 			if tc.ztocGenerated {
 				// we check only for build skip, which is indicated as nil value for ztoc and nil value for error
