@@ -57,7 +57,7 @@ func TestSpanManager(t *testing.T) {
 			maxSpans: 100,
 			sectionReader: io.NewSectionReader(readerFn(func(b []byte, _ int64) (int, error) {
 				var sz compression.Offset = compression.Offset(len(b))
-				copy(b, genRandomByteData(sz))
+				copy(b, testutil.RandomByteData(int64(sz)))
 				return len(b), nil
 			}), 0, 10000000),
 			expectedError: ErrIncorrectSpanDigest,
@@ -75,7 +75,7 @@ func TestSpanManager(t *testing.T) {
 
 			fileContent := []byte{}
 			for i := 0; i < int(tc.maxSpans); i++ {
-				fileContent = append(fileContent, genRandomByteData(spanSize)...)
+				fileContent = append(fileContent, testutil.RandomByteData(int64(spanSize))...)
 			}
 			tarEntries := []testutil.TarEntry{
 				testutil.File(fileName, string(fileContent)),
@@ -125,7 +125,7 @@ func TestSpanManager(t *testing.T) {
 
 func TestSpanManagerCache(t *testing.T) {
 	var spanSize compression.Offset = 65536 // 64 KiB
-	content := genRandomByteData(spanSize)
+	content := testutil.RandomByteData(int64(spanSize))
 	tarEntries := []testutil.TarEntry{
 		testutil.File("span-manager-cache-test", string(content)),
 	}
@@ -180,7 +180,7 @@ func TestSpanManagerCache(t *testing.T) {
 
 func TestStateTransition(t *testing.T) {
 	var spanSize compression.Offset = 65536 // 64 KiB
-	content := genRandomByteData(spanSize)
+	content := testutil.RandomByteData(int64(spanSize))
 	tarEntries := []testutil.TarEntry{
 		testutil.File("set-span-test", string(content)),
 	}
@@ -417,12 +417,6 @@ func getFileContentFromSpans(m *SpanManager, toc *ztoc.Ztoc, fileName string) ([
 		return nil, err
 	}
 	return content, nil
-}
-
-func genRandomByteData(size compression.Offset) []byte {
-	b := make([]byte, size)
-	rand.Read(b)
-	return b
 }
 
 type readerFn func([]byte, int64) (int, error)

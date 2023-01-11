@@ -19,7 +19,6 @@ package backgroundfetcher
 import (
 	"compress/gzip"
 	"context"
-	"crypto/rand"
 	"testing"
 
 	"github.com/awslabs/soci-snapshotter/cache"
@@ -37,7 +36,7 @@ func TestSequentialResolver(t *testing.T) {
 		{
 			name: "resolver fetches spans sequentially",
 			entries: []testutil.TarEntry{
-				testutil.File("test", string(genRandomByteData(10000000))),
+				testutil.File("test", string(testutil.RandomByteData(10000000))),
 			},
 		},
 	}
@@ -77,10 +76,4 @@ func TestSequentialResolver(t *testing.T) {
 			}
 		})
 	}
-}
-
-func genRandomByteData(size int64) []byte {
-	data := make([]byte, size)
-	rand.Read(data)
-	return data
 }

@@ -27,6 +27,7 @@ import (
 	"testing"
 
 	"github.com/awslabs/soci-snapshotter/compression"
+	"github.com/awslabs/soci-snapshotter/util/testutil"
 	"github.com/opencontainers/go-digest"
 )
 
@@ -161,8 +162,8 @@ func TestZtocGenerationConsistency(t *testing.T) {
 		{
 			name: "success generate consistent ztocs, two small files, span_size=64",
 			fileContents: []fileContent{
-				{fileName: "file1", content: genRandomByteData(10)},
-				{fileName: "file2", content: genRandomByteData(15)},
+				{fileName: "file1", content: testutil.RandomByteData(10)},
+				{fileName: "file2", content: testutil.RandomByteData(15)},
 			},
 			spanSize:  64,
 			targzName: "testcase0.tar.gz",
@@ -170,10 +171,10 @@ func TestZtocGenerationConsistency(t *testing.T) {
 		{
 			name: "success generate consistent ztocs, mixed files, span_size=64",
 			fileContents: []fileContent{
-				{fileName: "file1", content: genRandomByteData(1000000)},
-				{fileName: "file2", content: genRandomByteData(2500000)},
-				{fileName: "file3", content: genRandomByteData(25)},
-				{fileName: "file4", content: genRandomByteData(88888)},
+				{fileName: "file1", content: testutil.RandomByteData(1000000)},
+				{fileName: "file2", content: testutil.RandomByteData(2500000)},
+				{fileName: "file3", content: testutil.RandomByteData(25)},
+				{fileName: "file4", content: testutil.RandomByteData(88888)},
 			},
 			spanSize:  64,
 			targzName: "testcase1.tar.gz",
@@ -250,20 +251,20 @@ func TestZtocGeneration(t *testing.T) {
 		{
 			name: "success generate ztoc with multiple files, span_size=64KiB",
 			fileContents: []fileContent{
-				{fileName: "file1", content: genRandomByteData(1080033)},
-				{fileName: "file2", content: genRandomByteData(6030502)},
-				{fileName: "file3", content: genRandomByteData(93000)},
-				{fileName: "file4", content: genRandomByteData(1070021)},
-				{fileName: "file5", content: genRandomByteData(55333)},
-				{fileName: "file6", content: genRandomByteData(1070)},
-				{fileName: "file7", content: genRandomByteData(999993)},
-				{fileName: "file8", content: genRandomByteData(1080033)},
-				{fileName: "file9", content: genRandomByteData(305)},
-				{fileName: "filea", content: genRandomByteData(3000)},
-				{fileName: "fileb", content: genRandomByteData(107)},
-				{fileName: "filec", content: genRandomByteData(559333)},
-				{fileName: "filed", content: genRandomByteData(100)},
-				{fileName: "filee", content: genRandomByteData(989993)},
+				{fileName: "file1", content: testutil.RandomByteData(1080033)},
+				{fileName: "file2", content: testutil.RandomByteData(6030502)},
+				{fileName: "file3", content: testutil.RandomByteData(93000)},
+				{fileName: "file4", content: testutil.RandomByteData(1070021)},
+				{fileName: "file5", content: testutil.RandomByteData(55333)},
+				{fileName: "file6", content: testutil.RandomByteData(1070)},
+				{fileName: "file7", content: testutil.RandomByteData(999993)},
+				{fileName: "file8", content: testutil.RandomByteData(1080033)},
+				{fileName: "file9", content: testutil.RandomByteData(305)},
+				{fileName: "filea", content: testutil.RandomByteData(3000)},
+				{fileName: "fileb", content: testutil.RandomByteData(107)},
+				{fileName: "filec", content: testutil.RandomByteData(559333)},
+				{fileName: "filed", content: testutil.RandomByteData(100)},
+				{fileName: "filee", content: testutil.RandomByteData(989993)},
 			},
 			spanSize:  65535,
 			targzName: "testcase0.tar.gz",
@@ -272,8 +273,8 @@ func TestZtocGeneration(t *testing.T) {
 		{
 			name: "success generate ztoc with two files, span_size=10kB",
 			fileContents: []fileContent{
-				{fileName: "file1", content: genRandomByteData(10800)},
-				{fileName: "file2", content: genRandomByteData(10)},
+				{fileName: "file1", content: testutil.RandomByteData(10800)},
+				{fileName: "file2", content: testutil.RandomByteData(10)},
 			},
 			spanSize:  10000,
 			targzName: "testcase1.tar.gz",
@@ -282,8 +283,8 @@ func TestZtocGeneration(t *testing.T) {
 		{
 			name: "success generate ztoc with two files, span_size=1MiB",
 			fileContents: []fileContent{
-				{fileName: "file1", content: genRandomByteData(9911873)},
-				{fileName: "file2", content: genRandomByteData(800333)},
+				{fileName: "file1", content: testutil.RandomByteData(9911873)},
+				{fileName: "file2", content: testutil.RandomByteData(800333)},
 			},
 			spanSize:  1 << 20,
 			targzName: "testcase2.tar.gz",
@@ -292,7 +293,7 @@ func TestZtocGeneration(t *testing.T) {
 		{
 			name: "success generate ztoc with one file, span_size=256kB",
 			fileContents: []fileContent{
-				{fileName: "file1", content: genRandomByteData(5108033)},
+				{fileName: "file1", content: testutil.RandomByteData(5108033)},
 			},
 			spanSize:  256000,
 			targzName: "testcase3.tar.gz",
@@ -362,20 +363,20 @@ func TestZtocSerialization(t *testing.T) {
 		{
 			name: "success serialize ztoc with multiple files, span_size=64KiB",
 			fileContents: []fileContent{
-				{fileName: "file1", content: genRandomByteData(1080033)},
-				{fileName: "file2", content: genRandomByteData(6030502)},
-				{fileName: "file3", content: genRandomByteData(93000)},
-				{fileName: "file4", content: genRandomByteData(1070021)},
-				{fileName: "file5", content: genRandomByteData(55333)},
-				{fileName: "file6", content: genRandomByteData(1070)},
-				{fileName: "file7", content: genRandomByteData(999993)},
-				{fileName: "file8", content: genRandomByteData(1080033)},
-				{fileName: "file9", content: genRandomByteData(305)},
-				{fileName: "filea", content: genRandomByteData(3000)},
-				{fileName: "fileb", content: genRandomByteData(107)},
-				{fileName: "filec", content: genRandomByteData(55933)},
-				{fileName: "filed", content: genRandomByteData(100)},
-				{fileName: "filee", content: genRandomByteData(989993)},
+				{fileName: "file1", content: testutil.RandomByteData(1080033)},
+				{fileName: "file2", content: testutil.RandomByteData(6030502)},
+				{fileName: "file3", content: testutil.RandomByteData(93000)},
+				{fileName: "file4", content: testutil.RandomByteData(1070021)},
+				{fileName: "file5", content: testutil.RandomByteData(55333)},
+				{fileName: "file6", content: testutil.RandomByteData(1070)},
+				{fileName: "file7", content: testutil.RandomByteData(999993)},
+				{fileName: "file8", content: testutil.RandomByteData(1080033)},
+				{fileName: "file9", content: testutil.RandomByteData(305)},
+				{fileName: "filea", content: testutil.RandomByteData(3000)},
+				{fileName: "fileb", content: testutil.RandomByteData(107)},
+				{fileName: "filec", content: testutil.RandomByteData(55933)},
+				{fileName: "filed", content: testutil.RandomByteData(100)},
+				{fileName: "filee", content: testutil.RandomByteData(989993)},
 			},
 			spanSize:  65535,
 			targzName: "testcase0.tar.gz",
@@ -607,7 +608,7 @@ func TestReadZtocInWrongFormat(t *testing.T) {
 	}{
 		{
 			name:           "ztoc unmarshal returns error and does not panic",
-			serializedZtoc: genRandomByteData(50000),
+			serializedZtoc: testutil.RandomByteData(50000),
 		},
 	}
 
@@ -619,12 +620,6 @@ func TestReadZtocInWrongFormat(t *testing.T) {
 			}
 		})
 	}
-}
-
-func genRandomByteData(size int) []byte {
-	b := make([]byte, size)
-	rand.Read(b)
-	return b
 }
 
 func getPositionOfFirstDiffInByteSlice(a, b []byte) int {
