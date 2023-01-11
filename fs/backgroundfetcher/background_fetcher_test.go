@@ -112,7 +112,7 @@ func TestBackgroundFetcherRun(t *testing.T) {
 					t.Fatalf("error building span manager and section reader: %v", err)
 				}
 				cache := &countingCache{}
-				sm := spanmanager.New(ztoc, sr, cache)
+				sm := spanmanager.New(ztoc, sr, cache, 0)
 				infos = append(infos, testInfo{sm, cache, ztoc})
 			}
 
