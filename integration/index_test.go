@@ -66,7 +66,7 @@ func prepareSociIndices(t *testing.T, sh *dockershell.Shell) []testImageIndex {
 			}
 		}
 		img.imgInfo = dockerhub(img.imgName, withPlatform(platform))
-		img.sociIndexDigest = optimizeImage(sh, img.imgInfo)
+		img.sociIndexDigest = buildIndex(sh, img.imgInfo)
 		ztocDigests, err := getZtocDigests(sh, img.imgInfo)
 		if err != nil {
 			t.Fatalf("could not get ztoc digests: %v", err)

@@ -17,14 +17,11 @@
 package integration
 
 import (
-	"fmt"
 	"strings"
 	"testing"
 
-	shell "github.com/awslabs/soci-snapshotter/util/dockershell"
 	"github.com/awslabs/soci-snapshotter/util/testutil"
 	"github.com/containerd/containerd/platforms"
-	"github.com/opencontainers/go-digest"
 )
 
 func TestSociArtifactsPushAndPull(t *testing.T) {
@@ -64,7 +61,7 @@ func TestSociArtifactsPushAndPull(t *testing.T) {
 
 			imageName := ubuntuImage
 			copyImage(sh, dockerhub(imageName, withPlatform(platform)), regConfig.mirror(imageName, withPlatform(platform)))
-			indexDigest := optimizeImage(sh, regConfig.mirror(imageName, withPlatform(platform)))
+			indexDigest := buildIndex(sh, regConfig.mirror(imageName, withPlatform(platform)))
 			artifactsStoreContentDigest := getSociLocalStoreContentDigest(sh)
 			sh.X("soci", "push", "--user", regConfig.creds(), "--platform", tt.Platform, regConfig.mirror(imageName).ref)
 			sh.X("rm", "-rf", "/var/lib/soci-snapshotter-grpc/content/blobs/sha256")
@@ -92,8 +89,8 @@ func TestPushAlwaysMostRecentlyCreatedIndex(t *testing.T) {
 	}
 
 	type buildOpts struct {
-		spanSize     int
-		minLayerSize int
+		spanSize     int64
+		minLayerSize int64
 	}
 
 	testCases := []struct {
@@ -125,7 +122,7 @@ func TestPushAlwaysMostRecentlyCreatedIndex(t *testing.T) {
 			copyImage(sh, dockerhub(tc.image), regConfig.mirror(tc.image))
 
 			for _, opt := range tc.opts {
-				index := optimizeImageWithOpts(sh, regConfig.mirror(tc.image), opt.spanSize, opt.minLayerSize)
+				index := buildSparseIndex(sh, regConfig.mirror(tc.image), opt.minLayerSize, opt.spanSize)
 				index = strings.Split(index, "\n")[0]
 				out := sh.O("soci", "push", "--user", regConfig.creds(), regConfig.mirror(tc.image).ref, "-q")
 				pushedIndex := strings.Trim(string(out), "\n")
@@ -136,21 +133,4 @@ func TestPushAlwaysMostRecentlyCreatedIndex(t *testing.T) {
 			}
 		})
 	}
-}
-
-// TODO: There is a bit of duplication going on here.
-// The `optimizeImage` function does not allow passing a specific span size.
-// Should refactor that function to do so and remove this function.
-func optimizeImageWithOpts(sh *shell.Shell, src imageInfo, spanSize, minLayerSize int) string {
-	pullOpts := encodeImageInfo(src)
-	indexDigest := sh.
-		X(append([]string{"ctr", "i", "pull", "--platform", platforms.Format(src.platform)}, pullOpts[0]...)...).
-		X("soci", "create", src.ref, "--min-layer-size", fmt.Sprintf("%d", minLayerSize), "--span-size", fmt.Sprintf("%d", spanSize), "--platform", platforms.Format(src.platform)).
-		O("soci", "index", "list", "-q", "--ref", src.ref, "--platform", platforms.Format(src.platform)) // this will make SOCI artifact available locally
-	return strings.Trim(string(indexDigest), "\n")
-}
-
-func getSociLocalStoreContentDigest(sh *shell.Shell) digest.Digest {
-	content := sh.O("ls", "/var/lib/soci-snapshotter-grpc/content/blobs/sha256")
-	return digest.FromBytes(content)
 }
