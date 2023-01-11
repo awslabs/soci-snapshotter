@@ -66,12 +66,21 @@ type Config struct {
 	// BlobConfig is config for layer blob management.
 	BlobConfig `toml:"blob"`
 
+	SpanManagerConfig `toml:"span_manager"`
+
 	// DirectoryCacheConfig is config for directory-based cache.
 	DirectoryCacheConfig `toml:"directory_cache"`
 
 	FuseConfig `toml:"fuse"`
 
 	BackgroundFetchConfig `toml:"background_fetch"`
+}
+
+type SpanManagerConfig struct {
+	// Number of times the span manager will retry in case of span verification failures.
+	// Note that this is different from BlobConfig.MaxRetries, which specifies how many times the
+	// internal HTTP client will retry in case of a network error.
+	MaxRetries int `toml:"max_retries"`
 }
 
 type BlobConfig struct {
