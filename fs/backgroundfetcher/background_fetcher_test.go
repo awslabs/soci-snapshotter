@@ -78,7 +78,7 @@ func TestBackgroundFetcherRun(t *testing.T) {
 			waitTime: 1 * time.Second,
 			entries: [][]testutil.TarEntry{
 				{
-					testutil.File("test", string(genRandomByteData(10000000))),
+					testutil.File("test", string(testutil.RandomByteData(10000000))),
 				},
 			},
 		},
@@ -87,10 +87,10 @@ func TestBackgroundFetcherRun(t *testing.T) {
 			waitTime: 1 * time.Second,
 			entries: [][]testutil.TarEntry{
 				{
-					testutil.File("test1", string(genRandomByteData(10000000))),
+					testutil.File("test1", string(testutil.RandomByteData(10000000))),
 				},
 				{
-					testutil.File("test2", string(genRandomByteData(20000000))),
+					testutil.File("test2", string(testutil.RandomByteData(20000000))),
 				},
 			},
 		},

@@ -33,6 +33,7 @@
 package testutil
 
 import (
+	"crypto/rand"
 	"encoding/binary"
 	"fmt"
 	"io"
@@ -108,4 +109,11 @@ func RandomUInt64() (uint64, error) {
 		return 0, fmt.Errorf("failed to read /dev/urandom")
 	}
 	return binary.LittleEndian.Uint64(b), nil
+}
+
+// RandomByteData returns a byte slice with `size` random generated data
+func RandomByteData(size int64) []byte {
+	b := make([]byte, size)
+	rand.Read(b)
+	return b
 }

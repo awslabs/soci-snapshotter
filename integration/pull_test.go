@@ -451,7 +451,7 @@ func TestPullWithAribtraryBlobInvalidZtocFormat(t *testing.T) {
 
 		var ztocDescs []ocispec.Descriptor
 		for _, layer := range manifest.Layers {
-			ztocBytes := genRandomByteData(1000000)
+			ztocBytes := testutil.RandomByteData(1000000)
 			ztocDgst := digest.FromBytes(ztocBytes)
 			ztocPath := fmt.Sprintf("%s/%s", blobStorePath, trimSha256Prefix(ztocDgst.String()))
 			if err := testutil.WriteFileContents(sh, ztocPath, ztocBytes, 0600); err != nil {
