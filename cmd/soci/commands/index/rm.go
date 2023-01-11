@@ -43,7 +43,7 @@ var rmCommand = cli.Command{
 			return fmt.Errorf("please provide either index digests or image ref, but not both")
 		}
 
-		db, err := soci.NewDB()
+		db, err := soci.NewDB(soci.ArtifactsDbPath())
 		if err != nil {
 			return err
 		}

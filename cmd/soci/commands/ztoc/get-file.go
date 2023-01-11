@@ -115,7 +115,7 @@ func getZtoc(ctx context.Context, d digest.Digest) (*ztoc.Ztoc, error) {
 }
 
 func getLayer(ctx context.Context, ztocDigest digest.Digest, cs content.Store) (content.ReaderAt, error) {
-	metadata, err := soci.NewDB()
+	metadata, err := soci.NewDB(soci.ArtifactsDbPath())
 	if err != nil {
 		return nil, err
 	}

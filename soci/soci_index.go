@@ -177,7 +177,7 @@ func marshalIndexAs10Manifest(i *Index) ([]byte, error) {
 }
 
 // GetIndexDescriptorCollection returns all `IndexDescriptorInfo` of the given image and platforms.
-func GetIndexDescriptorCollection(ctx context.Context, cs content.Store, img images.Image, ps []ocispec.Platform) ([]IndexDescriptorInfo, error) {
+func GetIndexDescriptorCollection(ctx context.Context, cs content.Store, artifactsDb *ArtifactsDb, img images.Image, ps []ocispec.Platform) ([]IndexDescriptorInfo, error) {
 	descriptors := []IndexDescriptorInfo{}
 	var entries []ArtifactEntry
 	for _, platform := range ps {
@@ -186,7 +186,7 @@ func GetIndexDescriptorCollection(ctx context.Context, cs content.Store, img ima
 			return descriptors, err
 		}
 
-		e, err := getIndexArtifactEntries(indexDesc.Digest.String())
+		e, err := artifactsDb.getIndexArtifactEntries(indexDesc.Digest.String())
 		if err != nil {
 			return descriptors, err
 		}
@@ -216,6 +216,7 @@ type buildConfig struct {
 	spanSize            int64
 	minLayerSize        int64
 	buildToolIdentifier string
+	artifactsDb         *ArtifactsDb
 	platform            ocispec.Platform
 	legacyRegistry      bool
 }
@@ -265,16 +266,25 @@ func WithLegacyRegistrySupport(c *buildConfig) error {
 	return nil
 }
 
+// Speicifies the artifacts database
+func WithArtifactsDb(db *ArtifactsDb) BuildOption {
+	return func(c *buildConfig) error {
+		c.artifactsDb = db
+		return nil
+	}
+}
+
 // IndexBuilder creates soci indices.
 type IndexBuilder struct {
 	contentStore content.Store
 	blobStore    orascontent.Storage
+	ArtifactsDb  *ArtifactsDb
 	config       *buildConfig
 	ztocBuilder  *ztoc.Builder
 }
 
 // NewIndexBuilder returns an `IndexBuilder` that is used to create soci indices.
-func NewIndexBuilder(contentStore content.Store, blobStore orascontent.Storage, opts ...BuildOption) (*IndexBuilder, error) {
+func NewIndexBuilder(contentStore content.Store, blobStore orascontent.Storage, artifactsDb *ArtifactsDb, opts ...BuildOption) (*IndexBuilder, error) {
 	defaultPlatform := platforms.DefaultSpec()
 	config := &buildConfig{
 		spanSize:            defaultSpanSize,
@@ -292,6 +302,7 @@ func NewIndexBuilder(contentStore content.Store, blobStore orascontent.Storage, 
 	return &IndexBuilder{
 		contentStore: contentStore,
 		blobStore:    blobStore,
+		ArtifactsDb:  artifactsDb,
 		config:       config,
 		ztocBuilder:  ztoc.NewBuilder(config.buildToolIdentifier),
 	}, nil
@@ -421,7 +432,7 @@ func (b *IndexBuilder) buildSociLayer(ctx context.Context, desc ocispec.Descript
 		MediaType:      SociLayerMediaType,
 		CreatedAt:      time.Now(),
 	}
-	err = writeArtifactEntry(entry)
+	err = b.ArtifactsDb.WriteArtifactEntry(entry)
 	if err != nil {
 		return nil, err
 	}
@@ -492,7 +503,7 @@ func GetImageManifestDescriptor(ctx context.Context, cs content.Store, imageTarg
 }
 
 // WriteSociIndex writes the SociIndex manifest to oras `store`.
-func WriteSociIndex(ctx context.Context, indexWithMetadata *IndexWithMetadata, store orascontent.Storage) error {
+func WriteSociIndex(ctx context.Context, indexWithMetadata *IndexWithMetadata, store orascontent.Storage, artifactsDb *ArtifactsDb) error {
 	manifest, err := MarshalIndex(indexWithMetadata.Index)
 	if err != nil {
 		return err
@@ -540,5 +551,5 @@ func WriteSociIndex(ctx context.Context, indexWithMetadata *IndexWithMetadata, s
 		MediaType:      indexWithMetadata.Index.MediaType,
 		CreatedAt:      indexWithMetadata.CreatedAt,
 	}
-	return writeArtifactEntry(entry)
+	return artifactsDb.WriteArtifactEntry(entry)
 }

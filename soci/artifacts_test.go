@@ -97,32 +97,10 @@ func TestGetIndexArtifactEntries(t *testing.T) {
 	}
 }
 
-func TestGetArtifactEntry_ArtifactDB_DoesNotExist(t *testing.T) {
-	dgst := "sha256:80d6aec48c0a74635a5f3dc555528c1673afaa21ed6e1270a9a44de66e8ffa55"
-	_, err := getArtifactEntry(dgst)
+func TestArtifactDB_DoesNotExist(t *testing.T) {
+	_, err := NewDB(ArtifactsDbPath())
 	if err == nil {
 		t.Fatalf("getArtifactEntry should fail since artifacts.db doesn't exist")
-	}
-}
-
-func TestWriteArtifactEntry_ArtifactDB_DoesNotExist(t *testing.T) {
-	var (
-		dgst         = "sha256:80d6aec48c0a74635a5f3dc555528c1673afaa21ed6e1270a9a44de66e8ffa55"
-		originalDgst = "sha256:1236aec48c0a74635a5f3dc666628c1673afaa21ed6e1270a9a44de66e811111"
-		imageDigest  = "sha256:0000000000000000000000000000000000000000000000000000000000000000"
-		platform     = "linux/amd64"
-	)
-	ae := &ArtifactEntry{
-		Size:           10,
-		Digest:         dgst,
-		OriginalDigest: originalDgst,
-		Location:       "/var/soci-snapshotter/test",
-		ImageDigest:    imageDigest,
-		Platform:       platform,
-	}
-	err := writeArtifactEntry(ae)
-	if err == nil {
-		t.Fatalf("writeArtifactEntry should fail since artifacts.db doesn't exist")
 	}
 }
 
