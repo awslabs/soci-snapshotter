@@ -59,7 +59,7 @@ func TestSpanManager(t *testing.T) {
 				var sz compression.Offset = compression.Offset(len(b))
 				copy(b, genRandomByteData(sz))
 				return len(b), nil
-			}), 0, 1000000),
+			}), 0, 10000000),
 			expectedError: ErrIncorrectSpanDigest,
 		},
 	}
@@ -93,7 +93,7 @@ func TestSpanManager(t *testing.T) {
 
 			cache := cache.NewMemoryCache()
 			defer cache.Close()
-			m := New(toc, r, cache)
+			m := New(toc, r, cache, 0)
 
 			// Test GetContent
 			fileContentFromSpans, err := getFileContentFromSpans(m, toc, fileName)
@@ -108,14 +108,14 @@ func TestSpanManager(t *testing.T) {
 			// Test resolving all spans
 			var i compression.SpanID
 			for i = 0; i <= toc.CompressionInfo.MaxSpanID; i++ {
-				err := m.ResolveSpan(i, r)
+				err := m.ResolveSpan(i)
 				if err != nil {
 					t.Fatalf("error resolving span %d. error: %v", i, err)
 				}
 			}
 
 			// Test ResolveSpan returning ErrExceedMaxSpan for span id larger than max span id
-			resolveSpanErr := m.ResolveSpan(toc.CompressionInfo.MaxSpanID+1, r)
+			resolveSpanErr := m.ResolveSpan(toc.CompressionInfo.MaxSpanID + 1)
 			if !errors.Is(resolveSpanErr, ErrExceedMaxSpan) {
 				t.Fatalf("failed returning ErrExceedMaxSpan for span id larger than max span id")
 			}
@@ -135,9 +135,9 @@ func TestSpanManagerCache(t *testing.T) {
 	}
 	cache := cache.NewMemoryCache()
 	defer cache.Close()
-	m := New(toc, r, cache)
+	m := New(toc, r, cache, 0)
 	spanID := 0
-	err = m.ResolveSpan(compression.SpanID(spanID), r)
+	err = m.ResolveSpan(compression.SpanID(spanID))
 	if err != nil {
 		t.Fatalf("failed to resolve span 0: %v", err)
 	}
@@ -190,7 +190,7 @@ func TestStateTransition(t *testing.T) {
 	}
 	cache := cache.NewMemoryCache()
 	defer cache.Close()
-	m := New(toc, r, cache)
+	m := New(toc, r, cache, 0)
 
 	// check initial span states
 	for i := uint32(0); i <= uint32(toc.CompressionInfo.MaxSpanID); i++ {
@@ -201,37 +201,35 @@ func TestStateTransition(t *testing.T) {
 	}
 
 	testCases := []struct {
-		name       string
-		spanID     compression.SpanID
-		isPrefetch bool
+		name      string
+		spanID    compression.SpanID
+		isBgFetch bool
 	}{
 		{
-			name:       "span 0 - prefetch",
-			spanID:     0,
-			isPrefetch: true,
+			name:      "span 0 - bgfetch",
+			spanID:    0,
+			isBgFetch: true,
 		},
 		{
-			name:       "span 0 - on demand fetch",
-			spanID:     0,
-			isPrefetch: false,
+			name:   "span 0 - on demand fetch",
+			spanID: 0,
 		},
 		{
-			name:       "max span - prefetch",
-			spanID:     m.ztoc.CompressionInfo.MaxSpanID,
-			isPrefetch: true,
+			name:      "max span - bgfetch",
+			spanID:    m.ztoc.CompressionInfo.MaxSpanID,
+			isBgFetch: true,
 		},
 		{
-			name:       "max span - on demand fetch",
-			spanID:     m.ztoc.CompressionInfo.MaxSpanID,
-			isPrefetch: false,
+			name:   "max span - on demand fetch",
+			spanID: m.ztoc.CompressionInfo.MaxSpanID,
 		},
 	}
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			s := m.spans[tc.spanID]
-			if tc.isPrefetch {
-				err := m.ResolveSpan(tc.spanID, r)
+			if tc.isBgFetch {
+				err := m.FetchSingleSpan(tc.spanID)
 				if err != nil {
 					t.Fatalf("failed resolving the span for prefetch: %v", err)
 				}
@@ -321,6 +319,86 @@ func TestValidateState(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestSpanManagerRetries(t *testing.T) {
+	testCases := []struct {
+		name               string
+		spanManagerRetries int
+		readerErrors       int
+		expectedErr        error
+	}{
+		{
+			name:               "reader returns correct data first time",
+			spanManagerRetries: 3,
+			readerErrors:       0,
+		},
+		{
+			name:               "reader returns correct data the last time",
+			spanManagerRetries: 3,
+			readerErrors:       2,
+		},
+		{
+			name:               "reader returns ErrIncorrectSpanDigest",
+			spanManagerRetries: 3,
+			readerErrors:       5,
+			expectedErr:        ErrIncorrectSpanDigest,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			entries := []testutil.TarEntry{
+				testutil.File("test", string(genRandomByteData(10000000))),
+			}
+			ztoc, sr, err := ztoc.BuildZtocReader(entries, gzip.DefaultCompression, 100000)
+			if err != nil {
+				t.Fatal(err)
+			}
+			rdr := &retryableReaderAt{inner: sr, maxErrors: tc.readerErrors}
+			sr = io.NewSectionReader(rdr, 0, 10000000)
+			sm := New(ztoc, sr, cache.NewMemoryCache(), tc.spanManagerRetries)
+
+			for i := 0; i < int(ztoc.CompressionInfo.MaxSpanID); i++ {
+				rdr.errCount = 0
+
+				_, err := sm.fetchAndCacheSpan(compression.SpanID(i))
+				if !errors.Is(err, tc.expectedErr) {
+					t.Fatalf("unexpected err; expected %v, got %v", tc.expectedErr, err)
+				}
+
+				min := func(x, y int) int {
+					if x < y {
+						return x
+					}
+					return y
+				}
+
+				if rdr.errCount != min(tc.spanManagerRetries+1, tc.readerErrors) {
+					t.Fatalf("retry count is unexpected; expected %d, got %d", min(tc.spanManagerRetries+1, tc.readerErrors), rdr.errCount)
+				}
+			}
+		})
+	}
+}
+
+// A retryableReaderAt returns incorrect data to the caller maxErrors - 1 times.
+type retryableReaderAt struct {
+	inner     *io.SectionReader
+	errCount  int
+	maxErrors int
+}
+
+func (r *retryableReaderAt) ReadAt(buf []byte, off int64) (int, error) {
+	n, err := r.inner.ReadAt(buf, off)
+	if err != nil || n != len(buf) {
+		return n, err
+	}
+	if r.errCount < r.maxErrors {
+		r.errCount++
+		buf[0] = buf[0] ^ 0xff
+	}
+	return n, err
 }
 
 func getFileContentFromSpans(m *SpanManager, toc *ztoc.Ztoc, fileName string) ([]byte, error) {

@@ -82,6 +82,10 @@ type BlobConfig struct {
 	MaxRetries           int   `toml:"max_retries"`
 	MinWaitMSec          int   `toml:"min_wait_msec"`
 	MaxWaitMSec          int   `toml:"max_wait_msec"`
+
+	// MaxSpanVerificationRetries defines the number of times fetch will be invoked in case of
+	// span verification failure.
+	MaxSpanVerificationRetries int `toml:"max_span_verification_retries"`
 }
 
 type DirectoryCacheConfig struct {

@@ -329,7 +329,7 @@ func (r *Resolver) Resolve(ctx context.Context, hosts source.RegistryHosts, refs
 	}
 	log.G(ctx).Debugf("[Resolver.Resolve]Initialized metadata store for layer sha=%v", desc.Digest)
 
-	spanManager := spanmanager.New(ztoc, sr, spanCache, cache.Direct())
+	spanManager := spanmanager.New(ztoc, sr, spanCache, r.config.BlobConfig.MaxSpanVerificationRetries, cache.Direct())
 	var bgLayerResolver backgroundfetcher.Resolver
 	if r.bgFetcher != nil {
 		bgLayerResolver = backgroundfetcher.NewSequentialResolver(desc.Digest, spanManager)
