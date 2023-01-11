@@ -185,6 +185,30 @@ func dockerhub(name string, opts ...imageOpt) imageInfo {
 	return i
 }
 
+func encodeImageInfo(ii ...imageInfo) [][]string {
+	var opts [][]string
+	for _, i := range ii {
+		var o []string
+		if i.creds != "" {
+			o = append(o, "-u", i.creds)
+		}
+		if i.plainHTTP {
+			o = append(o, "--plain-http")
+		}
+		o = append(o, i.ref)
+		opts = append(opts, o)
+	}
+	return opts
+}
+
+func copyImage(sh *shell.Shell, src, dst imageInfo) {
+	opts := encodeImageInfo(src, dst)
+	sh.
+		X(append([]string{"ctr", "i", "pull", "--platform", platforms.Format(src.platform)}, opts[0]...)...).
+		X("ctr", "i", "tag", src.ref, dst.ref).
+		X(append([]string{"ctr", "i", "push", "--platform", platforms.Format(src.platform)}, opts[1]...)...)
+}
+
 type registryConfig struct {
 	host      string
 	user      string

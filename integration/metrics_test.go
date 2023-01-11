@@ -106,7 +106,7 @@ func TestOverlayFallbackMetric(t *testing.T) {
 			name:  "image with all layers having ztocs and no fs.Mount error results in 0 overlay fallback",
 			image: rabbitmqImage,
 			indexDigestFn: func(sh *shell.Shell, image imageInfo) string {
-				return optimizeImageWithOpts(sh, image, 1<<22, 0)
+				return buildSparseIndex(sh, image, 0, defaultSpanSize)
 			},
 			expectedFallbackCount: 0,
 		},
@@ -114,7 +114,7 @@ func TestOverlayFallbackMetric(t *testing.T) {
 			name:  "image with some layers not having ztoc and no fs.Mount results in 0 overlay fallback",
 			image: rabbitmqImage,
 			indexDigestFn: func(sh *shell.Shell, image imageInfo) string {
-				return optimizeImageWithOpts(sh, image, 1<<22, 10<<20)
+				return buildSparseIndex(sh, image, defaultMinLayerSize, defaultSpanSize)
 			},
 			expectedFallbackCount: 0,
 		},

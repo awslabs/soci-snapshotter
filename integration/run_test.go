@@ -101,7 +101,7 @@ func TestRunMultipleContainers(t *testing.T) {
 				// Mirror image
 				copyImage(sh, dockerhub(container.containerImage), regConfig.mirror(container.containerImage))
 				// Pull image, create SOCI index
-				indexDigest := optimizeImage(sh, regConfig.mirror(container.containerImage))
+				indexDigest := buildIndex(sh, regConfig.mirror(container.containerImage))
 
 				sh.X("soci", "image", "rpull", "--user", regConfig.creds(), "--soci-index-digest", indexDigest, regConfig.mirror(container.containerImage).ref)
 			}

@@ -63,7 +63,7 @@ func TestSociCreateSparseIndex(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			rebootContainerd(t, sh, "", "")
 			imgInfo := dockerhub(containerImage)
-			indexDigest := buildSparseIndex(sh, imgInfo, tt.minLayerSize)
+			indexDigest := buildSparseIndex(sh, imgInfo, tt.minLayerSize, defaultSpanSize)
 			checkpoints := fetchContentFromPath(sh, blobStorePath+"/"+trimSha256Prefix(indexDigest))
 
 			index, err := soci.NewIndexFromReader(bytes.NewReader(checkpoints))
@@ -143,7 +143,7 @@ func TestSociCreate(t *testing.T) {
 				}
 			}
 			imgInfo := dockerhub(tt.containerImage, withPlatform(platform))
-			indexDigest := optimizeImage(sh, imgInfo)
+			indexDigest := buildIndex(sh, imgInfo)
 			checkpoints := fetchContentFromPath(sh, blobStorePath+"/"+trimSha256Prefix(indexDigest))
 			sociIndex, err := soci.NewIndexFromReader(bytes.NewReader(checkpoints))
 			if err != nil {
