@@ -47,6 +47,11 @@ const (
 	uncompressed
 )
 
+const (
+	// Default number of tries fetching data from remote and verifying the digest.
+	defaultSpanVerificationFailureRetries = 3
+)
+
 // map of valid span transtions. Key is the current state and value is valid new states.
 var stateTransitionMap = map[spanState][]spanState{
 	unrequested:  {unrequested, requested},
@@ -92,12 +97,13 @@ func (s *span) validateStateTransition(newState spanState) error {
 }
 
 type SpanManager struct {
-	cache    cache.BlobCache
-	cacheOpt []cache.Option
-	index    *compression.GzipZinfo
-	r        *io.SectionReader // reader for contents of the spans managed by SpanManager
-	spans    []*span
-	ztoc     *ztoc.Ztoc
+	cache                             cache.BlobCache
+	cacheOpt                          []cache.Option
+	index                             *compression.GzipZinfo
+	r                                 *io.SectionReader // reader for contents of the spans managed by SpanManager
+	spans                             []*span
+	ztoc                              *ztoc.Ztoc
+	maxSpanVerificationFailureRetries int
 }
 
 type spanInfo struct {
@@ -113,19 +119,23 @@ type spanInfo struct {
 	spanIndexInBuf []compression.Offset
 }
 
-func New(ztoc *ztoc.Ztoc, r *io.SectionReader, cache cache.BlobCache, cacheOpt ...cache.Option) *SpanManager {
+func New(ztoc *ztoc.Ztoc, r *io.SectionReader, cache cache.BlobCache, retries int, cacheOpt ...cache.Option) *SpanManager {
 	index, err := compression.NewGzipZinfo(ztoc.CompressionInfo.Checkpoints)
 	if err != nil {
 		return nil
 	}
 	spans := make([]*span, ztoc.CompressionInfo.MaxSpanID+1)
 	m := &SpanManager{
-		cache:    cache,
-		cacheOpt: cacheOpt,
-		index:    index,
-		r:        r,
-		spans:    spans,
-		ztoc:     ztoc,
+		cache:                             cache,
+		cacheOpt:                          cacheOpt,
+		index:                             index,
+		r:                                 r,
+		spans:                             spans,
+		ztoc:                              ztoc,
+		maxSpanVerificationFailureRetries: retries,
+	}
+	if m.maxSpanVerificationFailureRetries < 0 {
+		m.maxSpanVerificationFailureRetries = defaultSpanVerificationFailureRetries
 	}
 	m.buildAllSpans()
 	runtime.SetFinalizer(m, func(m *SpanManager) {
@@ -163,6 +173,32 @@ func (m *SpanManager) buildAllSpans() {
 	}
 }
 
+// fetchWithRetries fetches the requested data and verifies that the span digest matches the one in the ztoc m.retries times.
+// It does not retry when there is an error fetching the data, because retries already happen lower in the stack in httpFetcher.
+// If there is an error fetching data from remote, it is not an transient error.
+func (m *SpanManager) fetchWithRetries(spanID compression.SpanID, buf []byte, offset compression.Offset) error {
+	var (
+		err error
+		n   int
+	)
+	for i := 0; i < m.maxSpanVerificationFailureRetries+1; i++ {
+		n, err = m.r.ReadAt(buf, int64(offset))
+		if err != nil {
+			return err
+		}
+
+		if n != len(buf) {
+			return fmt.Errorf("unexpected data size for reading compressed span. read = %d, expected = %d", n, len(buf))
+		}
+
+		if err = m.verifySpanContents(buf, spanID); err != nil {
+			continue
+		}
+		return nil
+	}
+	return err
+}
+
 // FetchSingleSpan invokes the reader to fetch the span in the background and cache it.
 // It is invoked by the BackgroundFetcher.
 func (m *SpanManager) FetchSingleSpan(spanID compression.SpanID) error {
@@ -186,16 +222,7 @@ func (m *SpanManager) FetchSingleSpan(spanID compression.SpanID) error {
 	compressedSize := s.endCompOffset - s.startCompOffset
 	compressedBuf := make([]byte, compressedSize)
 
-	n, err := m.r.ReadAt(compressedBuf, int64(s.startCompOffset))
-	if err != nil {
-		return err
-	}
-
-	if n != len(compressedBuf) {
-		return fmt.Errorf("unexpected data size for reading compressed span. read = %d, expected = %d", n, len(compressedBuf))
-	}
-
-	if err := m.verifySpanContents(compressedBuf, spanID); err != nil {
+	if err := m.fetchWithRetries(spanID, compressedBuf, s.startCompOffset); err != nil {
 		return err
 	}
 
@@ -211,7 +238,7 @@ func (m *SpanManager) FetchSingleSpan(spanID compression.SpanID) error {
 	return s.setState(fetched)
 }
 
-func (m *SpanManager) ResolveSpan(spanID compression.SpanID, r *io.SectionReader) error {
+func (m *SpanManager) ResolveSpan(spanID compression.SpanID) error {
 	if spanID > m.ztoc.CompressionInfo.MaxSpanID {
 		return ErrExceedMaxSpan
 	}
@@ -231,7 +258,7 @@ func (m *SpanManager) ResolveSpan(spanID compression.SpanID, r *io.SectionReader
 	}
 
 	// The span is not available in cache. Fetch the span and add it to cache
-	_, err := m.fetchAndCacheSpan(spanID, r, true)
+	_, err := m.fetchAndCacheSpan(spanID)
 	if err != nil {
 		return err
 	}
@@ -324,7 +351,7 @@ func (m *SpanManager) GetSpanContent(spanID compression.SpanID, offsetStart, off
 		// if the span exists in the cache but resolveSpanFromCache fails, return the error to caller
 		return nil, err
 	}
-	uncompBuf, err := m.fetchAndCacheSpan(spanID, m.r, false)
+	uncompBuf, err := m.fetchAndCacheSpan(spanID)
 	if err != nil {
 		return nil, err
 	}
@@ -414,20 +441,14 @@ func (m *SpanManager) resolveSpanFromCache(s *span, offsetStart, size compressio
 	return nil, ErrSpanNotAvailable
 }
 
-func (m *SpanManager) fetchSpan(buf []byte, spanID compression.SpanID, r *io.SectionReader) error {
+func (m *SpanManager) fetchSpan(buf []byte, spanID compression.SpanID) error {
 	s := m.spans[spanID]
 	err := s.setState(requested)
 	if err != nil {
 		return err
 	}
-	n, err := r.ReadAt(buf, int64(s.startCompOffset))
-	if err != nil {
-		return err
-	}
-	if n != len(buf) {
-		return fmt.Errorf("unexpected data size for reading compressed span. read = %d, expected = %d", n, len(buf))
-	}
-	return nil
+	err = m.fetchWithRetries(spanID, buf, s.startCompOffset)
+	return err
 }
 
 func (m *SpanManager) uncompressSpan(s *span, compressedBuf []byte) ([]byte, error) {
@@ -445,31 +466,18 @@ func (m *SpanManager) uncompressSpan(s *span, compressedBuf []byte) ([]byte, err
 	return bytes, nil
 }
 
-func (m *SpanManager) fetchAndCacheSpan(spanID compression.SpanID, r *io.SectionReader, isPrefetch bool) ([]byte, error) {
+func (m *SpanManager) fetchAndCacheSpan(spanID compression.SpanID) ([]byte, error) {
 	s := m.spans[spanID]
 	compressedSize := s.endCompOffset - s.startCompOffset
 	compressedBuf := make([]byte, compressedSize)
-	err := m.fetchSpan(compressedBuf, spanID, r)
+	err := m.fetchSpan(compressedBuf, spanID)
 	if err != nil && err != io.EOF {
 		return nil, err
 	}
 
-	if err := m.verifySpanContents(compressedBuf, spanID); err != nil {
-		return nil, err
-	}
 	err = s.setState(fetched)
 	if err != nil {
 		return nil, err
-	}
-
-	id := strconv.Itoa(int(spanID))
-	if isPrefetch {
-		m.addSpanToCache(id, compressedBuf, m.cacheOpt...)
-		if err != nil {
-			return nil, err
-		}
-		return nil, nil
-
 	}
 
 	uncompSpanBuf, err := m.uncompressSpan(s, compressedBuf)
@@ -478,7 +486,7 @@ func (m *SpanManager) fetchAndCacheSpan(spanID compression.SpanID, r *io.Section
 	}
 
 	// Cache the content of the whole span
-	m.addSpanToCache(id, uncompSpanBuf, m.cacheOpt...)
+	m.addSpanToCache(fmt.Sprintf("%d", spanID), uncompSpanBuf, m.cacheOpt...)
 	err = s.setState(uncompressed)
 	if err != nil {
 		return nil, err
