@@ -43,6 +43,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/opencontainers/go-digest"
 )
 
 const (
@@ -114,4 +116,9 @@ func RandomByteData(size int64) []byte {
 	b := make([]byte, size)
 	rand.Read(b)
 	return b
+}
+
+func RandomDigest() string {
+	d := digest.FromBytes(RandomByteData(10))
+	return d.String()
 }
