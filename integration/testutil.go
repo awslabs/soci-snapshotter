@@ -67,6 +67,7 @@ const (
 	buildArgsEnv                 = "DOCKER_BUILD_ARGS"
 	dockerLibrary                = "public.ecr.aws/docker/library/"
 	blobStorePath                = "/var/lib/soci-snapshotter-grpc/content/blobs/sha256"
+	containerdBlobStorePath      = "/var/lib/containerd/io.containerd.content.v1.content/blobs/sha256"
 )
 
 const (

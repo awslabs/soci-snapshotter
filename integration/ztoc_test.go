@@ -17,13 +17,47 @@
 package integration
 
 import (
+	"archive/tar"
+	"bytes"
+	"compress/gzip"
+	"encoding/json"
+	"fmt"
+	"io"
+	"math/rand"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"testing"
+	"time"
 
+	"github.com/awslabs/soci-snapshotter/compression"
 	"github.com/awslabs/soci-snapshotter/soci"
+	"github.com/awslabs/soci-snapshotter/util/dockershell"
+	"github.com/awslabs/soci-snapshotter/util/testutil"
+	"github.com/awslabs/soci-snapshotter/ztoc"
+	"github.com/google/go-cmp/cmp"
 	v1 "github.com/opencontainers/image-spec/specs-go/v1"
 )
+
+type Info struct {
+	Version           string             `json:"version"`
+	BuildTool         string             `json:"build_tool"`
+	Size              int64              `json:"size"`
+	SpanSize          compression.Offset `json:"span_size"`
+	NumSpans          compression.SpanID `json:"num_spans"`
+	NumFiles          int                `json:"num_files"`
+	NumMultiSpanFiles int                `json:"num_multi_span_files"`
+	Files             []FileInfo         `json:"files"`
+}
+
+type FileInfo struct {
+	Filename  string             `json:"filename"`
+	Offset    int64              `json:"offset"`
+	Size      int64              `json:"size"`
+	Type      string             `json:"type"`
+	StartSpan compression.SpanID `json:"start_span"`
+	EndSpan   compression.SpanID `json:"end_span"`
+}
 
 func TestSociZtocList(t *testing.T) {
 	t.Parallel()
@@ -130,6 +164,221 @@ func TestSociZtocList(t *testing.T) {
 		}
 	})
 }
+func TestSociZtocInfo(t *testing.T) {
+	t.Parallel()
+	sh, done := newSnapshotterBaseShell(t)
+	defer done()
+	rebootContainerd(t, sh, "", "")
+
+	testImages := prepareSociIndices(t, sh)
+
+	getFullZtoc := func(sh *dockershell.Shell, ztocPath string) (*ztoc.Ztoc, error) {
+		output := sh.O("cat", ztocPath)
+		reader := bytes.NewReader(output)
+		z, err := ztoc.Unmarshal(reader)
+		return z, err
+	}
+
+	for _, img := range testImages {
+		img := img
+		tests := []struct {
+			name       string
+			ztocDigest string
+			expectErr  bool
+		}{
+			{
+				name:       "Empty ztoc digest",
+				ztocDigest: "",
+				expectErr:  true,
+			},
+			{
+				name:       "Invalid ztoc digest format",
+				ztocDigest: "hello",
+				expectErr:  true,
+			},
+			{
+				name:       "Invalid ztoc digest length",
+				ztocDigest: "sha256:hello",
+				expectErr:  true,
+			},
+			{
+				name:       "Ztoc digest does not exist",
+				ztocDigest: testutil.RandomDigest(),
+				expectErr:  true,
+			},
+			{
+				name:       "Correct ztoc digest",
+				ztocDigest: img.ztocDigests[0],
+				expectErr:  false,
+			},
+		}
+		for _, tt := range tests {
+			t.Run(tt.name, func(t *testing.T) {
+				var zinfo Info
+				output, err := sh.OLog("soci", "ztoc", "info", tt.ztocDigest)
+				if !tt.expectErr {
+					err := json.Unmarshal(output, &zinfo)
+					if err != nil {
+						t.Fatalf("expected Info type got %s: %v", output, err)
+					}
+					ztocPath := filepath.Join(blobStorePath, trimSha256Prefix(tt.ztocDigest))
+					ztoc, err := getFullZtoc(sh, ztocPath)
+					if err != nil {
+						t.Fatalf("failed getting original ztoc: %v", err)
+					}
+					err = verifyInfoOutput(zinfo, ztoc)
+					if err != nil {
+						t.Fatal(err)
+					}
+				} else if err == nil {
+					t.Fatal("failed to return error")
+				}
+			})
+		}
+	}
+
+}
+
+func TestSociZtocGetFile(t *testing.T) {
+	t.Parallel()
+	sh, done := newSnapshotterBaseShell(t)
+	defer done()
+	rebootContainerd(t, sh, "", "")
+
+	testImages := prepareSociIndices(t, sh)
+
+	var (
+		tempOutputStream = "test.txt"
+		randomFile       = string(testutil.RandomByteData(10))
+		randomZtocDigest = testutil.RandomDigest()
+	)
+
+	getRandomFilePathsWithinZtoc := func(ztocDigest string, numFiles int) []string {
+		rand.Seed(time.Now().UnixNano())
+		var (
+			zinfo               Info
+			regPaths, randPaths []string
+		)
+		output := sh.O("soci", "ztoc", "info", ztocDigest)
+		json.Unmarshal(output, &zinfo)
+		for _, file := range zinfo.Files {
+			if file.Type == "reg" {
+				regPaths = append(regPaths, file.Filename)
+			}
+		}
+		for i := 0; i < numFiles; i++ {
+			randPaths = append(randPaths, regPaths[rand.Intn(len(regPaths))])
+		}
+		return randPaths
+	}
+
+	verifyOutputStream := func(contents, output []byte) error {
+		d := cmp.Diff(contents, output)
+		if d == "" {
+			return nil
+		}
+		return fmt.Errorf("unexpected output; diff = %v", d)
+	}
+
+	for _, img := range testImages {
+		img := img
+		ztocDigest := img.ztocDigests[0]
+		var layerDigest string
+		sociIndex, err := sociIndexFromDigest(sh, img.sociIndexDigest)
+		if err != nil {
+			t.Fatalf("Failed getting soci index: %v", err)
+		}
+		for _, blob := range sociIndex.Blobs {
+			if blob.Digest.String() == ztocDigest {
+				layerDigest = blob.Annotations[soci.IndexAnnotationImageLayerDigest]
+				break
+			}
+		}
+		layerContents := sh.O("cat", filepath.Join(containerdBlobStorePath, trimSha256Prefix(layerDigest)))
+		files := getRandomFilePathsWithinZtoc(ztocDigest, 10)
+
+		testCases := []struct {
+			name        string
+			cmd         []string
+			toStdout    bool
+			expectedErr bool
+		}{
+			{
+				name:        "Ztoc that does not exist",
+				cmd:         []string{"soci", "ztoc", "get-file", randomZtocDigest, randomFile},
+				toStdout:    true,
+				expectedErr: true,
+			},
+			{
+				name:        "Ztoc exists but file does not exist",
+				cmd:         []string{"soci", "ztoc", "get-file", ztocDigest, randomFile},
+				toStdout:    true,
+				expectedErr: true,
+			},
+			{
+				name:        "Ztoc and each file exists, file contents redirected to stdout",
+				cmd:         []string{"soci", "ztoc", "get-file", ztocDigest},
+				toStdout:    true,
+				expectedErr: false,
+			},
+			{
+				name:        "Ztoc and each file exists, file contents redirected to output file",
+				cmd:         []string{"soci", "ztoc", "get-file", "-o", tempOutputStream, ztocDigest},
+				toStdout:    false,
+				expectedErr: false,
+			},
+		}
+		for _, tt := range testCases {
+			t.Run(tt.name, func(t *testing.T) {
+				if !tt.expectedErr {
+					for _, f := range files {
+						cmd := append(tt.cmd, f)
+						output, err := sh.OLog(cmd...)
+						if err != nil {
+							t.Fatalf("failed to return file contents: %v", err)
+						}
+						gzipReader, err := gzip.NewReader(bytes.NewReader(layerContents))
+
+						if err != nil {
+							t.Fatalf("error returning gzip reader: %v", err)
+						}
+
+						tarReader := tar.NewReader(gzipReader)
+
+						var contents []byte
+						for {
+							h, err := tarReader.Next()
+							if err == io.EOF {
+								break
+							}
+							if h.Name == f {
+								contents, err = io.ReadAll(tarReader)
+								if err != nil {
+									t.Fatalf("failed getting original file content: %v", err)
+								}
+								break
+							}
+						}
+						if tt.toStdout {
+							output = output[:len(output)-1]
+						} else {
+							output = sh.O("cat", tempOutputStream)
+
+						}
+						err = verifyOutputStream(contents, output)
+						if err != nil {
+							t.Fatal(err)
+						}
+					}
+
+				} else if _, err := sh.OLog(tt.cmd...); err == nil {
+					t.Fatal("failed to return error")
+				}
+			})
+
+		}
+	}
+}
 
 // ztocExistChecker checks if a ztoc exists in `soci ztoc list` output
 func ztocExistChecker(t *testing.T, listOutputLines []string, img testImageIndex, ztocBlob v1.Descriptor) {
@@ -144,4 +393,41 @@ func ztocExistChecker(t *testing.T, listOutputLines []string, img testImageIndex
 
 	t.Fatalf("invalid ztoc from index %s for image %s:\n expected ztoc: digest: %s, size: %s, layer digest: %s\n actual output lines: %s",
 		img.sociIndexDigest, img.imgInfo.ref, ztocDigest, size, layerDigest, listOutputLines)
+}
+
+func verifyInfoOutput(zinfo Info, ztoc *ztoc.Ztoc) error {
+	if zinfo.Version != ztoc.Version {
+		return fmt.Errorf("different versions: expected %s got %s", ztoc.Version, zinfo.Version)
+	}
+	if zinfo.BuildTool != ztoc.BuildToolIdentifier {
+		return fmt.Errorf("different buildtool: expected %s got %s", ztoc.BuildToolIdentifier, zinfo.BuildTool)
+	}
+	if zinfo.NumFiles != len(ztoc.TOC.Metadata) {
+		return fmt.Errorf("different file counts: expected %v got %v", len(ztoc.TOC.Metadata), zinfo.NumFiles)
+	}
+	if zinfo.NumSpans != ztoc.CompressionInfo.MaxSpanID+1 {
+		return fmt.Errorf("different number of spans: expected %v got %v", ztoc.CompressionInfo.MaxSpanID+1, zinfo.NumSpans)
+	}
+	for i := 0; i < len(zinfo.Files); i++ {
+		zinfoFile := zinfo.Files[i]
+		ztocFile := ztoc.TOC.Metadata[i]
+
+		if zinfoFile.Filename != ztocFile.Name {
+			return fmt.Errorf("different filename: expected %s got %s", ztocFile.Name, zinfoFile.Filename)
+
+		}
+		if zinfoFile.Offset != int64(ztocFile.UncompressedOffset) {
+			return fmt.Errorf("different file offset: expected %v got %v", int64(ztocFile.UncompressedOffset), zinfoFile.Offset)
+
+		}
+		if zinfoFile.Size != int64(ztocFile.UncompressedSize) {
+			return fmt.Errorf("different file size: expected %v got %v", int64(ztocFile.UncompressedSize), zinfoFile.Size)
+
+		}
+		if zinfoFile.Type != ztocFile.Type {
+			return fmt.Errorf("different file type: expected %s got %s", ztocFile.Type, zinfoFile.Type)
+
+		}
+	}
+	return nil
 }
