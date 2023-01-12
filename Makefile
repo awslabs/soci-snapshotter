@@ -73,7 +73,7 @@ test:
 	@GO111MODULE=$(GO111MODULE_VALUE) go test -race ./...
 	@cd ./cmd/soci ; GO111MODULE=$(GO111MODULE_VALUE) go test -timeout 20m -race ./...
 
-integration: 
+integration: build
 	@echo "$@"
 	@echo "SOCI_SNAPSHOTTER_PROJECT_ROOT=$(SOCI_SNAPSHOTTER_PROJECT_ROOT)"
 	@GO111MODULE=$(GO111MODULE_VALUE) SOCI_SNAPSHOTTER_PROJECT_ROOT=$(SOCI_SNAPSHOTTER_PROJECT_ROOT) ENABLE_INTEGRATION_TEST=true go test $(GO_TEST_FLAGS) -v -timeout=0 ./integration
