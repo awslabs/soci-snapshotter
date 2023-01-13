@@ -87,6 +87,11 @@ func TestRunMultipleContainers(t *testing.T) {
 			if err := testutil.WriteFileContents(sh, defaultContainerdConfigPath, getContainerdConfigYaml(t, false), 0600); err != nil {
 				t.Fatalf("failed to write %v: %v", defaultContainerdConfigPath, err)
 			}
+
+			if err := testutil.WriteFileContents(sh, defaultSnapshotterConfigPath, getSnapshotterConfigYaml(t, false, tcpMetricsConfig), 0600); err != nil {
+				t.Fatalf("failed to write %v: %v", defaultSnapshotterConfigPath, err)
+			}
+
 			sh.
 				X("update-ca-certificates").
 				Retry(100, "nerdctl", "login", "-u", regConfig.user, "-p", regConfig.pass, regConfig.host)
@@ -108,6 +113,12 @@ func TestRunMultipleContainers(t *testing.T) {
 			for index, container := range tt.containers {
 				image := regConfig.mirror(container.containerImage).ref
 				sh.X("soci", "run", "-d", "--rm", "--snapshotter=soci", image, getTestContainerName(index, container))
+			}
+
+			// Verify that no mounts fallback to overlayfs
+			curlOutput := string(sh.O("curl", tcpMetricsAddress+metricsPath))
+			if err := checkOverlayFallbackCount(curlOutput, 0); err != nil {
+				t.Fatal(err)
 			}
 
 			// Do something in each container
