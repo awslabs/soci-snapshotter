@@ -49,6 +49,7 @@ import (
 	"testing"
 	"time"
 
+	commonmetrics "github.com/awslabs/soci-snapshotter/fs/metrics/common"
 	shell "github.com/awslabs/soci-snapshotter/util/dockershell"
 	"github.com/awslabs/soci-snapshotter/util/dockershell/compose"
 	dexec "github.com/awslabs/soci-snapshotter/util/dockershell/exec"
@@ -569,4 +570,26 @@ func addConfig(t *testing.T, sh *shell.Shell, conf string, cmds ...string) []str
 		t.Fatalf("failed to add config to %v: %v", configPath, err)
 	}
 	return append(cmds, "--config", configPath)
+}
+
+func checkOverlayFallbackCount(output string, expected int) error {
+	lines := strings.Split(output, "\n")
+	for _, line := range lines {
+		if !strings.Contains(line, commonmetrics.FuseMountFailureCount) {
+			continue
+		}
+		var got int
+		_, err := fmt.Sscanf(line, fmt.Sprintf(`soci_fs_operation_count{layer="",operation_type="%s"} %%d`, commonmetrics.FuseMountFailureCount), &got)
+		if err != nil {
+			return err
+		}
+		if got != expected {
+			return fmt.Errorf("unexpected overlay fallbacks: got %d, expected %d", got, expected)
+		}
+		return nil
+	}
+	if expected != 0 {
+		return fmt.Errorf("expected %d overlay fallbacks but got 0", expected)
+	}
+	return nil
 }

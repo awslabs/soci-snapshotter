@@ -28,6 +28,7 @@ import (
 
 	commonmetrics "github.com/awslabs/soci-snapshotter/fs/metrics/common"
 	"github.com/awslabs/soci-snapshotter/soci"
+
 	shell "github.com/awslabs/soci-snapshotter/util/dockershell"
 	"github.com/awslabs/soci-snapshotter/util/testutil"
 	"github.com/awslabs/soci-snapshotter/ztoc"
@@ -125,28 +126,6 @@ func TestOverlayFallbackMetric(t *testing.T) {
 			},
 			expectedFallbackCount: 10,
 		},
-	}
-
-	checkOverlayFallbackCount := func(output string, expected int) error {
-		lines := strings.Split(output, "\n")
-		for _, line := range lines {
-			if !strings.Contains(line, commonmetrics.FuseMountFailureCount) {
-				continue
-			}
-			var got int
-			_, err := fmt.Sscanf(line, `soci_fs_operation_count{layer="",operation_type="fuse_mount_failure_count"} %d`, &got)
-			if err != nil {
-				return err
-			}
-			if got != expected {
-				return fmt.Errorf("unexpected overlay fallbacks: got %d, expected %d", got, expected)
-			}
-			return nil
-		}
-		if expected != 0 {
-			return fmt.Errorf("expected %d overlay fallbacks but got 0", expected)
-		}
-		return nil
 	}
 
 	for _, tc := range testCases {
