@@ -8,7 +8,7 @@ require (
 	github.com/docker/cli v20.10.22+incompatible
 	github.com/docker/go-metrics v0.0.1
 	github.com/golang/groupcache v0.0.0-20210331224755-41bb18bfe9da
-	github.com/google/flatbuffers v2.0.8+incompatible
+	github.com/google/flatbuffers v22.12.6+incompatible
 	github.com/google/go-cmp v0.5.9
 	github.com/google/uuid v1.3.0
 	github.com/hanwen/go-fuse/v2 v2.1.1-0.20210825171523-3ab5d95a30ae
