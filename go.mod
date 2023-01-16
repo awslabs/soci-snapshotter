@@ -32,7 +32,7 @@ require (
 	k8s.io/apimachinery v0.23.0
 	k8s.io/client-go v0.23.0
 	k8s.io/cri-api v0.25.5
-	oras.land/oras-go/v2 v2.0.0-rc.4
+	oras.land/oras-go/v2 v2.0.0-rc.6
 )
 
 require (
