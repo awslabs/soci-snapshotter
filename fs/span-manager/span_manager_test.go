@@ -349,7 +349,7 @@ func TestSpanManagerRetries(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			entries := []testutil.TarEntry{
-				testutil.File("test", string(genRandomByteData(10000000))),
+				testutil.File("test", string(testutil.RandomByteData(10000000))),
 			}
 			ztoc, sr, err := ztoc.BuildZtocReader(entries, gzip.DefaultCompression, 100000)
 			if err != nil {

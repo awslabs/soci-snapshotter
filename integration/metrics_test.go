@@ -184,7 +184,7 @@ log_fuse_operations = true
 			name:  "image with valid ztocs and index doesn't cause fuse file.read failures",
 			image: rabbitmqImage,
 			indexDigestFn: func(t *testing.T, sh *shell.Shell, image imageInfo) string {
-				return optimizeImageWithOpts(sh, image, 1<<22, 0)
+				return buildSparseIndex(sh, image, 0, defaultSpanSize)
 			},
 			// even a valid index/ztoc produces some fuse operation failures such as
 			// node.lookup and node.getxattr failures, so we only check a specific fuse failure metric.
@@ -195,7 +195,7 @@ log_fuse_operations = true
 			name:  "image with valid-formatted but invalid-data ztocs causes fuse file.read failures",
 			image: rabbitmqImage,
 			indexDigestFn: func(t *testing.T, sh *shell.Shell, image imageInfo) string {
-				indexDigest, err := buildIndexByManipulatingZtocData(sh, optimizeImageWithOpts(sh, image, 1<<22, 0), manipulateZtocMetadata)
+				indexDigest, err := buildIndexByManipulatingZtocData(sh, buildSparseIndex(sh, image, 0, defaultSpanSize), manipulateZtocMetadata)
 				if err != nil {
 					t.Fatal(err)
 				}
