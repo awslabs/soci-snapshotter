@@ -17,13 +17,13 @@
 package commands
 
 import (
+	"errors"
 	"os"
 
 	"github.com/awslabs/soci-snapshotter/cmd/soci/commands/internal"
 	"github.com/awslabs/soci-snapshotter/fs/config"
 	"github.com/awslabs/soci-snapshotter/soci"
 	"github.com/containerd/containerd/cmd/ctr/commands"
-	"github.com/pkg/errors"
 	"github.com/urfave/cli"
 	"oras.land/oras-go/v2/content/oci"
 )

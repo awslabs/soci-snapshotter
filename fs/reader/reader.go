@@ -52,7 +52,6 @@ import (
 	"github.com/awslabs/soci-snapshotter/metadata"
 	"github.com/hashicorp/go-multierror"
 	digest "github.com/opencontainers/go-digest"
-	"github.com/pkg/errors"
 )
 
 type Reader interface {
@@ -89,7 +88,7 @@ func (vr *VerifiableReader) VerifyTOC(tocDigest digest.Digest) (Reader, error) {
 	lastVerifyErr := vr.lastVerifyErr.Load()
 	vr.prohibitVerifyFailureMu.Unlock()
 	if err := lastVerifyErr; err != nil {
-		return nil, errors.Wrapf(err.(error), "content error occures during caching contents")
+		return nil, fmt.Errorf("content error occures during caching contents: %w", err.(error))
 	}
 	vr.r.verify = true
 	return vr.r, nil
@@ -172,7 +171,7 @@ func (gr *reader) OpenFile(id uint32) (io.ReaderAt, error) {
 	var fr metadata.File
 	fr, err := gr.r.OpenFile(id)
 	if err != nil {
-		return nil, errors.Wrapf(err, "failed to open file %d", id)
+		return nil, fmt.Errorf("failed to open file %d: %w", id, err)
 	}
 	return &file{
 		id: id,
@@ -224,7 +223,7 @@ func (sf *file) ReadAt(p []byte, offset int64) (int, error) {
 	fileOffsetEnd := fileOffsetStart + expectedSize
 	r, err := sf.gr.spanManager.GetContents(fileOffsetStart, fileOffsetEnd)
 	if err != nil {
-		return 0, errors.Wrap(err, "failed to read the file")
+		return 0, fmt.Errorf("failed to read the file: %w", err)
 	}
 
 	// TODO this is not the right place for this metric to be. It needs to go down the BlobReader, when the HTTP request is issued
@@ -269,7 +268,7 @@ func WithReader(sr *io.SectionReader) CacheOption {
 func digestVerifier(id uint32, digestStr string) (digest.Verifier, error) {
 	digest, err := digest.Parse(digestStr)
 	if err != nil {
-		return nil, errors.Wrap(err, "no digset is recorded")
+		return nil, fmt.Errorf("no digset is recorded: %w", err)
 	}
 	return digest.Verifier(), nil
 }

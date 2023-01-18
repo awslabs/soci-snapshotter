@@ -66,7 +66,6 @@ import (
 	rhttp "github.com/hashicorp/go-retryablehttp"
 	digest "github.com/opencontainers/go-digest"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
-	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 )
 
@@ -219,8 +218,8 @@ func newHTTPFetcher(ctx context.Context, fc *fetcherConfig) (*httpFetcher, error
 	rErr := fmt.Errorf("failed to resolve")
 	for _, host := range reghosts {
 		if host.Host == "" || strings.Contains(host.Host, "/") {
-			rErr = errors.Wrapf(rErr, "invalid destination (host %q, ref:%q, digest:%q)",
-				host.Host, fc.refspec, digest)
+			rErr = fmt.Errorf("invalid destination (host %q, ref:%q, digest:%q): %w",
+				host.Host, fc.refspec, digest, rErr)
 			continue // Try another
 
 		}
@@ -253,8 +252,8 @@ func newHTTPFetcher(ctx context.Context, fc *fetcherConfig) (*httpFetcher, error
 			digest)
 		url, err := redirect(ctx, blobURL, tr, timeout)
 		if err != nil {
-			rErr = errors.Wrapf(rErr, "failed to redirect (host %q, ref:%q, digest:%q): %v",
-				host.Host, fc.refspec, digest, err)
+			rErr = fmt.Errorf("failed to redirect (host %q, ref:%q, digest:%q): %v: %w",
+				host.Host, fc.refspec, digest, err, rErr)
 			continue // Try another
 		}
 
@@ -268,7 +267,7 @@ func newHTTPFetcher(ctx context.Context, fc *fetcherConfig) (*httpFetcher, error
 		}, nil
 	}
 
-	return nil, errors.Wrapf(rErr, "cannot resolve layer")
+	return nil, fmt.Errorf("cannot resolve layer: %w", rErr)
 }
 
 type transport struct {
@@ -324,13 +323,13 @@ func redirect(ctx context.Context, blobURL string, tr http.RoundTripper, timeout
 	// ghcr.io returns 200 on HEAD without Location header (2020).
 	req, err := http.NewRequestWithContext(ctx, "GET", blobURL, nil)
 	if err != nil {
-		return "", errors.Wrapf(err, "failed to make request to the registry")
+		return "", fmt.Errorf("failed to make request to the registry: %w", err)
 	}
 	req.Close = false
 	req.Header.Set("Range", "bytes=0-1")
 	res, err := tr.RoundTrip(req)
 	if err != nil {
-		return "", errors.Wrapf(err, "failed to request")
+		return "", fmt.Errorf("failed to request: %w", err)
 	}
 	defer func() {
 		io.Copy(io.Discard, res.Body)
@@ -416,13 +415,13 @@ func (f *httpFetcher) fetch(ctx context.Context, rs []region, retry bool) (multi
 		// We are getting the whole blob in one part (= status 200)
 		size, err := strconv.ParseInt(res.Header.Get("Content-Length"), 10, 64)
 		if err != nil {
-			return nil, errors.Wrapf(err, "failed to parse Content-Length")
+			return nil, fmt.Errorf("failed to parse Content-Length: %w", err)
 		}
 		return newSinglePartReader(region{0, size - 1}, res.Body), nil
 	} else if res.StatusCode == http.StatusPartialContent {
 		mediaType, params, err := mime.ParseMediaType(res.Header.Get("Content-Type"))
 		if err != nil {
-			return nil, errors.Wrapf(err, "invalid media type %q", mediaType)
+			return nil, fmt.Errorf("invalid media type %q: %w", mediaType, err)
 		}
 		if strings.HasPrefix(mediaType, "multipart/") {
 			// We are getting a set of regions as a multipart body.
@@ -432,7 +431,7 @@ func (f *httpFetcher) fetch(ctx context.Context, rs []region, retry bool) (multi
 		// We are getting single range
 		reg, _, err := parseRange(res.Header.Get("Content-Range"))
 		if err != nil {
-			return nil, errors.Wrapf(err, "failed to parse Content-Range")
+			return nil, fmt.Errorf("failed to parse Content-Range: %w", err)
 		}
 		return newSinglePartReader(reg, res.Body), nil
 	} else if retry && res.StatusCode == http.StatusForbidden {
@@ -440,7 +439,7 @@ func (f *httpFetcher) fetch(ctx context.Context, rs []region, retry bool) (multi
 
 		// re-redirect and retry this once.
 		if err := f.refreshURL(ctx); err != nil {
-			return nil, errors.Wrapf(err, "failed to refresh URL on %v", res.Status)
+			return nil, fmt.Errorf("failed to refresh URL on %v: %w", res.Status, err)
 		}
 		return f.fetch(ctx, rs, false)
 	} else if retry && res.StatusCode == http.StatusBadRequest && !singleRangeMode {
@@ -466,13 +465,13 @@ func (f *httpFetcher) check() error {
 	f.urlMu.Unlock()
 	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
 	if err != nil {
-		return errors.Wrapf(err, "check failed: failed to make request")
+		return fmt.Errorf("check failed: failed to make request: %w", err)
 	}
 	req.Close = false
 	req.Header.Set("Range", "bytes=0-1")
 	res, err := f.tr.RoundTrip(req)
 	if err != nil {
-		return errors.Wrapf(err, "check failed: failed to request to registry")
+		return fmt.Errorf("check failed: failed to request to registry: %w", err)
 	}
 	defer func() {
 		io.Copy(io.Discard, res.Body)
@@ -568,7 +567,7 @@ func (sr *multipartReader) Next() (region, io.Reader, error) {
 	}
 	reg, _, err := parseRange(p.Header.Get("Content-Range"))
 	if err != nil {
-		return region{}, nil, errors.Wrapf(err, "failed to parse Content-Range")
+		return region{}, nil, fmt.Errorf("failed to parse Content-Range: %w", err)
 	}
 	return reg, p, nil
 }
@@ -580,15 +579,15 @@ func parseRange(header string) (region, int64, error) {
 	}
 	begin, err := strconv.ParseInt(submatches[1], 10, 64)
 	if err != nil {
-		return region{}, 0, errors.Wrapf(err, "failed to parse beginning offset %q", submatches[1])
+		return region{}, 0, fmt.Errorf("failed to parse beginning offset %q: %w", submatches[1], err)
 	}
 	end, err := strconv.ParseInt(submatches[2], 10, 64)
 	if err != nil {
-		return region{}, 0, errors.Wrapf(err, "failed to parse end offset %q", submatches[2])
+		return region{}, 0, fmt.Errorf("failed to parse end offset %q: %w", submatches[2], err)
 	}
 	blobSize, err := strconv.ParseInt(submatches[3], 10, 64)
 	if err != nil {
-		return region{}, 0, errors.Wrapf(err, "failed to parse blob size %q", submatches[3])
+		return region{}, 0, fmt.Errorf("failed to parse blob size %q: %w", submatches[3], err)
 	}
 
 	return region{begin, end}, blobSize, nil

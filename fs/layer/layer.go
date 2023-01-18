@@ -67,7 +67,6 @@ import (
 	fusefs "github.com/hanwen/go-fuse/v2/fs"
 	digest "github.com/opencontainers/go-digest"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
-	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	"oras.land/oras-go/v2/content"
 )
@@ -215,7 +214,7 @@ func newCache(root string, cacheType string, cfg config.Config) (cache.BlobCache
 	}
 	cachePath, err := os.MkdirTemp(root, "")
 	if err != nil {
-		return nil, errors.Wrapf(err, "failed to initialize directory cache")
+		return nil, fmt.Errorf("failed to initialize directory cache: %w", err)
 	}
 	return cache.NewDirectoryCache(
 		cachePath,
@@ -261,7 +260,7 @@ func (r *Resolver) Resolve(ctx context.Context, hosts source.RegistryHosts, refs
 	// Resolve the blob.
 	blobR, err := r.resolveBlob(ctx, hosts, refspec, desc)
 	if err != nil {
-		return nil, errors.Wrapf(err, "failed to resolve the blob")
+		return nil, fmt.Errorf("failed to resolve the blob: %w", err)
 	}
 	defer func() {
 		if retErr != nil {
@@ -271,7 +270,7 @@ func (r *Resolver) Resolve(ctx context.Context, hosts source.RegistryHosts, refs
 
 	spanCache, err := newCache(filepath.Join(r.rootDir, "spancache"), r.config.FSCacheType, r.config)
 	if err != nil {
-		return nil, errors.Wrapf(err, "failed to create span manager cache")
+		return nil, fmt.Errorf("failed to create span manager cache: %w", err)
 	}
 	defer func() {
 		if retErr != nil {
@@ -292,14 +291,14 @@ func (r *Resolver) Resolve(ctx context.Context, hosts source.RegistryHosts, refs
 
 	if err != nil {
 		// for now error out and let container runtime handle the layer download
-		return nil, errors.Wrapf(err, "cannot get ztoc; download and unpack this layer in container runtime for now")
+		return nil, fmt.Errorf("cannot get ztoc; download and unpack this layer in container runtime for now: %w", err)
 	}
 
 	if ztoc == nil {
 		// 1. download and unpack the layer
 		// 2. return the reference to the layer
 		// for now just error out, so container runtime takes care of this
-		return nil, errors.Errorf("download and unpack this layer in container runtime for now")
+		return nil, fmt.Errorf("download and unpack this layer in container runtime for now")
 	}
 
 	// log ztoc info
@@ -337,7 +336,7 @@ func (r *Resolver) Resolve(ctx context.Context, hosts source.RegistryHosts, refs
 	}
 	vr, err := reader.NewReader(meta, desc.Digest, spanManager)
 	if err != nil {
-		return nil, errors.Wrap(err, "failed to read layer")
+		return nil, fmt.Errorf("failed to read layer: %w", err)
 	}
 
 	// Combine layer information together and cache it.
@@ -374,7 +373,7 @@ func (r *Resolver) resolveBlob(ctx context.Context, hosts source.RegistryHosts, 
 
 	httpCache, err := newCache(filepath.Join(r.rootDir, "httpcache"), r.config.HTTPCacheType, r.config)
 	if err != nil {
-		return nil, errors.Wrapf(err, "failed to create http cache")
+		return nil, fmt.Errorf("failed to create http cache: %w", err)
 	}
 	defer func() {
 		if retErr != nil {
@@ -385,7 +384,7 @@ func (r *Resolver) resolveBlob(ctx context.Context, hosts source.RegistryHosts, 
 	// Resolve the blob and cache the result.
 	b, err := r.resolver.Resolve(ctx, hosts, refspec, desc, httpCache)
 	if err != nil {
-		return nil, errors.Wrap(err, "failed to resolve the source")
+		return nil, fmt.Errorf("failed to resolve the source: %w", err)
 	}
 	r.blobCacheMu.Lock()
 	cachedB, done, added := r.blobCache.Add(name, b)

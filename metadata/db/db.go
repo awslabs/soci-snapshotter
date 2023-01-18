@@ -40,7 +40,6 @@ import (
 	"github.com/awslabs/soci-snapshotter/compression"
 	"github.com/awslabs/soci-snapshotter/metadata"
 	"github.com/awslabs/soci-snapshotter/util/dbutil"
-	"github.com/pkg/errors"
 	bolt "go.etcd.io/bbolt"
 )
 
@@ -232,7 +231,7 @@ func writeAttr(b *bolt.Bucket, attr *metadata.Attr) error {
 				}
 			}
 			if err := xbkt.Put([]byte(k), v); err != nil {
-				return errors.Wrapf(err, "failed to set xattr %q=%q", k, string(v))
+				return fmt.Errorf("failed to set xattr %q=%q: %w", k, string(v), err)
 			}
 		}
 	}
@@ -319,10 +318,10 @@ func writeMetadataEntry(md *bolt.Bucket, m *metadataEntry) error {
 			break
 		}
 		if err := md.Put(bucketKeyChildID, encodeID(firstChild.id)); err != nil {
-			return errors.Wrapf(err, "failed to put id of first child %q", firstChildName)
+			return fmt.Errorf("failed to put id of first child %q: %w", firstChildName, err)
 		}
 		if err := md.Put(bucketKeyChildName, []byte(firstChildName)); err != nil {
-			return errors.Wrapf(err, "failed to put name first child %q", firstChildName)
+			return fmt.Errorf("failed to put name first child %q: %w", firstChildName, err)
 		}
 		if len(m.children) > 1 {
 			var cbkt *bolt.Bucket
@@ -344,13 +343,13 @@ func writeMetadataEntry(md *bolt.Bucket, m *metadataEntry) error {
 					}
 				}
 				if err := cbkt.Put([]byte(c.base), encodeID(c.id)); err != nil {
-					return errors.Wrapf(err, "failed to add child ID %q", c.id)
+					return fmt.Errorf("failed to add child ID %q: %w", c.id, err)
 				}
 			}
 		}
 	}
 	if err := putFileSize(md, bucketKeyUncompressedOffset, m.UncompressedOffset); err != nil {
-		return errors.Wrapf(err, "failed to set UncompressedOffset value %d", m.UncompressedOffset)
+		return fmt.Errorf("failed to set UncompressedOffset value %d: %w", m.UncompressedOffset, err)
 	}
 
 	return nil

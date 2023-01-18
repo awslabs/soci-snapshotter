@@ -44,6 +44,7 @@ package fs
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os/exec"
 	"sync"
@@ -69,7 +70,6 @@ import (
 	"github.com/hanwen/go-fuse/v2/fuse"
 	"github.com/opencontainers/go-digest"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
-	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	orascontent "oras.land/oras-go/v2/content"
 	"oras.land/oras-go/v2/content/oci"
@@ -209,7 +209,7 @@ func NewFilesystem(root string, cfg config.Config, opts ...Option) (_ snapshot.F
 
 	r, err := layer.NewResolver(root, cfg, fsOpts.resolveHandlers, metadataStore, store, fsOpts.overlayOpaqueType, bgFetcher)
 	if err != nil {
-		return nil, errors.Wrapf(err, "failed to setup resolver")
+		return nil, fmt.Errorf("failed to setup resolver: %w", err)
 	}
 
 	var ns *metrics.Namespace
@@ -598,8 +598,8 @@ func (fs *filesystem) check(ctx context.Context, l layer.Layer, labels map[strin
 			}
 			log.G(ctx).WithError(err).Warnf("failed to refresh the layer %q from %q",
 				s.Target.Digest, s.Name)
-			rErr = errors.Wrapf(rErr, "failed(layer:%q, ref:%q): %v",
-				s.Target.Digest, s.Name, err)
+			rErr = fmt.Errorf("failed(layer:%q, ref:%q): %v: %w",
+				s.Target.Digest, s.Name, err, rErr)
 		}
 	}
 

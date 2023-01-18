@@ -50,7 +50,6 @@ import (
 
 	shell "github.com/awslabs/soci-snapshotter/util/dockershell"
 	"github.com/hashicorp/go-multierror"
-	"github.com/pkg/errors"
 	"github.com/rs/xid"
 	"golang.org/x/sync/errgroup"
 )
@@ -187,16 +186,16 @@ func CopyInDir(sh *shell.Shell, from, to string) error {
 
 	tmpTar := "/tmptar" + xid.New().String()
 	if err := writeFileFromReader(sh, tmpTar, pr, 0755); err != nil {
-		return errors.Wrapf(err, "writeFileFromReader")
+		return fmt.Errorf("writeFileFromReader: %w", err)
 	}
 	if err := eg.Wait(); err != nil {
-		return errors.Wrapf(err, "taring")
+		return fmt.Errorf("taring: %w", err)
 	}
 	if err := sh.Command("mkdir", "-p", to).Run(); err != nil {
-		return errors.Wrapf(err, "mkdir -p %v", to)
+		return fmt.Errorf("mkdir -p %v: %w", to, err)
 	}
 	if err := sh.Command("tar", "zxf", tmpTar, "-C", to).Run(); err != nil {
-		return errors.Wrapf(err, "tar zxf %v -C %v", tmpTar, to)
+		return fmt.Errorf("tar zxf %v -C %v: %w", tmpTar, to, err)
 	}
 	return sh.Command("rm", tmpTar).Run()
 }
@@ -232,7 +231,7 @@ func KillMatchingProcess(sh *shell.Shell, psLinePattern string) error {
 	var allErr error
 	for _, pid := range targets {
 		if err := sh.Command("kill", "-9", fmt.Sprintf("%d", pid)).Run(); err != nil {
-			multierror.Append(allErr, errors.Wrapf(err, "failed to kill %v", pid))
+			multierror.Append(allErr, fmt.Errorf("failed to kill %v: %w", pid, err))
 		}
 	}
 	return allErr
