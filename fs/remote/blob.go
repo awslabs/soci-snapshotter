@@ -50,7 +50,6 @@ import (
 	"github.com/awslabs/soci-snapshotter/fs/source"
 	"github.com/containerd/containerd/reference"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
-	"github.com/pkg/errors"
 )
 
 var contentRangeRegexp = regexp.MustCompile(`bytes ([0-9]+)-([0-9]+)/([0-9]+|\\*)`)
@@ -246,7 +245,7 @@ func (b *blob) fetchRegion(reg region, w io.Writer, fetched bool, opts *options)
 		if err == io.EOF {
 			break
 		} else if err != nil {
-			return errors.Wrapf(err, "failed to read multipart resp")
+			return fmt.Errorf("failed to read multipart resp: %w", err)
 		}
 
 		if _, err := io.CopyN(w, p, reg.size()); err != nil {

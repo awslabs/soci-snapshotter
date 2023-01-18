@@ -35,6 +35,7 @@ package db
 import (
 	"bytes"
 	"encoding/binary"
+	"errors"
 	"fmt"
 	"io"
 	"math"
@@ -49,7 +50,6 @@ import (
 	"github.com/awslabs/soci-snapshotter/compression"
 	"github.com/awslabs/soci-snapshotter/metadata"
 	"github.com/awslabs/soci-snapshotter/ztoc"
-	"github.com/pkg/errors"
 	"github.com/rs/xid"
 	bolt "go.etcd.io/bbolt"
 	"golang.org/x/sync/errgroup"
@@ -83,7 +83,7 @@ func NewReader(db *bolt.DB, sr *io.SectionReader, ztoc *ztoc.Ztoc, opts ...metad
 	var rOpts metadata.Options
 	for _, o := range opts {
 		if err := o(&rOpts); err != nil {
-			return nil, errors.Wrapf(err, "failed to apply option")
+			return nil, fmt.Errorf("failed to apply option: %w", err)
 		}
 	}
 
@@ -94,7 +94,7 @@ func NewReader(db *bolt.DB, sr *io.SectionReader, ztoc *ztoc.Ztoc, opts ...metad
 	}
 
 	if err := r.init(ztoc, rOpts); err != nil {
-		return nil, errors.Wrapf(err, "failed to initialize metadata")
+		return nil, fmt.Errorf("failed to initialize metadata: %w", err)
 	}
 	return r, nil
 }
@@ -128,7 +128,7 @@ func (r *reader) init(ztoc *ztoc.Ztoc, rOpts metadata.Options) (retErr error) {
 			if errors.Is(err, bolt.ErrBucketExists) {
 				continue // try with another id
 			}
-			return errors.Wrapf(err, "failed to initialize root node %q", fsID)
+			return fmt.Errorf("failed to initialize root node %q: %w", fsID, err)
 		}
 		ok = true
 		break
@@ -197,15 +197,15 @@ func (r *reader) initNodes(ztoc *ztoc.Ztoc) error {
 			if isLink {
 				id, err = getIDByName(md, ent.Linkname, r.rootID)
 				if err != nil {
-					return errors.Wrapf(err, "%q is a hardlink but cannot get link destination %q", ent.Name, ent.Linkname)
+					return fmt.Errorf("%q is a hardlink but cannot get link destination %q: %w", ent.Name, ent.Linkname, err)
 				}
 				b, err = getNodeBucketByID(nodes, id)
 				if err != nil {
-					return errors.Wrapf(err, "cannot get hardlink destination %q ==> %q (%d)", ent.Name, ent.Linkname, id)
+					return fmt.Errorf("cannot get hardlink destination %q ==> %q (%d): %w", ent.Name, ent.Linkname, id, err)
 				}
 				numLink, _ := binary.Varint(b.Get(bucketKeyNumLink))
 				if err := putInt(b, bucketKeyNumLink, numLink+1); err != nil {
-					return errors.Wrapf(err, "cannot put NumLink of %q ==> %q", ent.Name, ent.Linkname)
+					return fmt.Errorf("cannot put NumLink of %q ==> %q: %w", ent.Name, ent.Linkname, err)
 				}
 			} else {
 				// Write node bucket
@@ -216,7 +216,7 @@ func (r *reader) initNodes(ztoc *ztoc.Ztoc) error {
 					if err == nil {
 						b, err = getNodeBucketByID(nodes, id)
 						if err != nil {
-							return errors.Wrapf(err, "failed to get directory bucket %d", id)
+							return fmt.Errorf("failed to get directory bucket %d: %w", id, err)
 						}
 						found = true
 						attr.NumLink = readNumLink(b)
@@ -238,14 +238,14 @@ func (r *reader) initNodes(ztoc *ztoc.Ztoc) error {
 					}
 				}
 				if err := writeAttr(b, attrFromZtocEntry(&ent, &attr)); err != nil {
-					return errors.Wrapf(err, "failed to set attr to %d(%q)", id, ent.Name)
+					return fmt.Errorf("failed to set attr to %d(%q): %w", id, ent.Name, err)
 				}
 			}
 
 			pdirName := parentDir(ent.Name)
 			pid, pb, err := r.getOrCreateDir(nodes, md, pdirName, r.rootID)
 			if err != nil {
-				return errors.Wrapf(err, "failed to create parent directory %q of %q", pdirName, ent.Name)
+				return fmt.Errorf("failed to create parent directory %q of %q: %w", pdirName, ent.Name, err)
 			}
 			if err := setChild(md, pb, pid, path.Base(ent.Name), id, ent.Type == "dir"); err != nil {
 				return err
@@ -330,7 +330,7 @@ func (r *reader) getOrCreateDir(nodes *bolt.Bucket, md map[uint32]*metadataEntry
 	} else {
 		b, err = getNodeBucketByID(nodes, id)
 		if err != nil {
-			return 0, nil, errors.Wrapf(err, "failed to get dir bucket %d", id)
+			return 0, nil, fmt.Errorf("failed to get dir bucket %d: %w", id, err)
 		}
 	}
 	return id, b, nil
@@ -338,7 +338,11 @@ func (r *reader) getOrCreateDir(nodes *bolt.Bucket, md map[uint32]*metadataEntry
 
 func (r *reader) waitInit() error {
 	// TODO: add timeout
-	return errors.Wrapf(r.initG.Wait(), "initialization failed")
+	err := r.initG.Wait()
+	if err != nil {
+		return fmt.Errorf("initialization failed: %w", err)
+	}
+	return nil
 }
 
 func (r *reader) view(fn func(tx *bolt.Tx) error) error {
@@ -376,11 +380,11 @@ func (r *reader) GetAttr(id uint32) (attr metadata.Attr, _ error) {
 		if err := r.db.View(func(tx *bolt.Tx) error {
 			nodes, err := getNodes(tx, r.fsID)
 			if err != nil {
-				return errors.Wrapf(err, "nodes bucket of %q not found for sarching attr %d", r.fsID, id)
+				return fmt.Errorf("nodes bucket of %q not found for sarching attr %d: %w", r.fsID, id, err)
 			}
 			b, err := getNodeBucketByID(nodes, id)
 			if err != nil {
-				return errors.Wrapf(err, "failed to get attr bucket %d", id)
+				return fmt.Errorf("failed to get attr bucket %d: %w", id, err)
 			}
 			return readAttr(b, &attr)
 		}); err != nil {
@@ -391,11 +395,11 @@ func (r *reader) GetAttr(id uint32) (attr metadata.Attr, _ error) {
 	if err := r.view(func(tx *bolt.Tx) error {
 		nodes, err := getNodes(tx, r.fsID)
 		if err != nil {
-			return errors.Wrapf(err, "nodes bucket of %q not found for sarching attr %d", r.fsID, id)
+			return fmt.Errorf("nodes bucket of %q not found for sarching attr %d: %w", r.fsID, id, err)
 		}
 		b, err := getNodeBucketByID(nodes, id)
 		if err != nil {
-			return errors.Wrapf(err, "failed to get attr bucket %d", id)
+			return fmt.Errorf("failed to get attr bucket %d: %w", id, err)
 		}
 		return readAttr(b, &attr)
 	}); err != nil {
@@ -409,23 +413,23 @@ func (r *reader) GetChild(pid uint32, base string) (id uint32, attr metadata.Att
 	if err := r.view(func(tx *bolt.Tx) error {
 		metadataEntries, err := getMetadata(tx, r.fsID)
 		if err != nil {
-			return errors.Wrapf(err, "metadata bucket of %q not found for getting child of %d", r.fsID, pid)
+			return fmt.Errorf("metadata bucket of %q not found for getting child of %d: %w", r.fsID, pid, err)
 		}
 		md, err := getMetadataBucketByID(metadataEntries, pid)
 		if err != nil {
-			return errors.Wrapf(err, "failed to get parent metadata %d", pid)
+			return fmt.Errorf("failed to get parent metadata %d: %w", pid, err)
 		}
 		id, err = readChild(md, base)
 		if err != nil {
-			return errors.Wrapf(err, "failed to read child %q of %d", base, pid)
+			return fmt.Errorf("failed to read child %q of %d: %w", base, pid, err)
 		}
 		nodes, err := getNodes(tx, r.fsID)
 		if err != nil {
-			return errors.Wrapf(err, "nodes bucket of %q not found for getting child of %d", r.fsID, pid)
+			return fmt.Errorf("nodes bucket of %q not found for getting child of %d: %w", r.fsID, pid, err)
 		}
 		child, err := getNodeBucketByID(nodes, id)
 		if err != nil {
-			return errors.Wrapf(err, "failed to get child bucket %d", id)
+			return fmt.Errorf("failed to get child bucket %d: %w", id, err)
 		}
 		return readAttr(child, &attr)
 	}); err != nil {
@@ -445,7 +449,7 @@ func (r *reader) ForeachChild(id uint32, f func(name string, id uint32, mode os.
 	if err := r.view(func(tx *bolt.Tx) error {
 		metadataEntries, err := getMetadata(tx, r.fsID)
 		if err != nil {
-			return errors.Wrapf(err, "nodes bucket of %q not found for getting child of %d", r.fsID, id)
+			return fmt.Errorf("nodes bucket of %q not found for getting child of %d: %w", r.fsID, id, err)
 		}
 		md, err := getMetadataBucketByID(metadataEntries, id)
 		if err != nil {
@@ -459,12 +463,12 @@ func (r *reader) ForeachChild(id uint32, f func(name string, id uint32, mode os.
 			if nodes == nil {
 				nodes, err = getNodes(tx, r.fsID)
 				if err != nil {
-					return errors.Wrapf(err, "nodes bucket of %q not found for getting children of %d", r.fsID, id)
+					return fmt.Errorf("nodes bucket of %q not found for getting children of %d: %w", r.fsID, id, err)
 				}
 			}
 			firstChild, err := getNodeBucketByID(nodes, firstID)
 			if err != nil {
-				return errors.Wrapf(err, "failed to get first child bucket %d", firstID)
+				return fmt.Errorf("failed to get first child bucket %d: %w", firstID, err)
 			}
 			mode, _ := binary.Uvarint(firstChild.Get(bucketKeyMode))
 			children[string(firstName)] = childInfo{firstID, os.FileMode(uint32(mode))}
@@ -477,14 +481,14 @@ func (r *reader) ForeachChild(id uint32, f func(name string, id uint32, mode os.
 		if nodes == nil {
 			nodes, err = getNodes(tx, r.fsID)
 			if err != nil {
-				return errors.Wrapf(err, "nodes bucket of %q not found for getting children of %d", r.fsID, id)
+				return fmt.Errorf("nodes bucket of %q not found for getting children of %d: %w", r.fsID, id, err)
 			}
 		}
 		return cbkt.ForEach(func(k, v []byte) error {
 			id := decodeID(v)
 			child, err := getNodeBucketByID(nodes, id)
 			if err != nil {
-				return errors.Wrapf(err, "failed to get child bucket %d", id)
+				return fmt.Errorf("failed to get child bucket %d: %w", id, err)
 			}
 			mode, _ := binary.Uvarint(child.Get(bucketKeyMode))
 			children[string(k)] = childInfo{id, os.FileMode(uint32(mode))}
@@ -509,11 +513,11 @@ func (r *reader) OpenFile(id uint32) (metadata.File, error) {
 	if err := r.view(func(tx *bolt.Tx) error {
 		nodes, err := getNodes(tx, r.fsID)
 		if err != nil {
-			return errors.Wrapf(err, "nodes bucket of %q not found for opening %d", r.fsID, id)
+			return fmt.Errorf("nodes bucket of %q not found for opening %d: %w", r.fsID, id, err)
 		}
 		b, err := getNodeBucketByID(nodes, id)
 		if err != nil {
-			return errors.Wrapf(err, "failed to get file bucket %d", id)
+			return fmt.Errorf("failed to get file bucket %d: %w", id, err)
 		}
 		size, _ = binary.Varint(b.Get(bucketKeySize))
 		m, _ := binary.Uvarint(b.Get(bucketKeyMode))
@@ -522,7 +526,7 @@ func (r *reader) OpenFile(id uint32) (metadata.File, error) {
 		}
 		metadataEntries, err := getMetadata(tx, r.fsID)
 		if err != nil {
-			return errors.Wrapf(err, "metadata bucket of %q not found for opening %d", r.fsID, id)
+			return fmt.Errorf("metadata bucket of %q not found for opening %d: %w", r.fsID, id, err)
 		}
 		if md, err := getMetadataBucketByID(metadataEntries, id); err == nil {
 			uncompressedOffset = getUncompressedOffset(md)
@@ -603,7 +607,7 @@ func setChild(md map[uint32]*metadataEntry, pb *bolt.Bucket, pid uint32, base st
 	if isDir {
 		numLink, _ := binary.Varint(pb.Get(bucketKeyNumLink))
 		if err := putInt(pb, bucketKeyNumLink, numLink+1); err != nil {
-			return errors.Wrapf(err, "cannot add numlink for children")
+			return fmt.Errorf("cannot add numlink for children: %w", err)
 		}
 	}
 	return nil

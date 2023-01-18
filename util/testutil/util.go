@@ -43,8 +43,6 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
-
-	"github.com/pkg/errors"
 )
 
 const (
@@ -56,7 +54,7 @@ const (
 // TestingL is a Logger instance used during testing. This allows tests to prints logs in realtime.
 var TestingL = log.New(os.Stdout, "testing: ", log.Ldate|log.Ltime)
 
-// TestingLlogDest returns Writes of Testing.T.
+// TestingLogDest returns Writes of Testing.T.
 func TestingLogDest() (io.Writer, io.Writer) {
 	return TestingL.Writer(), TestingL.Writer()
 }
@@ -68,7 +66,7 @@ func StreamTestingLogToFile(destPath string) (func() error, error) {
 	}
 	f, err := os.Create(destPath)
 	if err != nil {
-		return nil, errors.Wrapf(err, "failed to create %v", destPath)
+		return nil, fmt.Errorf("failed to create %v: %w", destPath, err)
 	}
 	TestingL.SetOutput(io.MultiWriter(f, os.Stdout))
 	return f.Close, nil

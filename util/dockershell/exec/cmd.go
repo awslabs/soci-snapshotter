@@ -33,10 +33,9 @@
 package exec
 
 import (
+	"fmt"
 	"io"
 	"os/exec"
-
-	"github.com/pkg/errors"
 )
 
 // Supported checks if this pkg can run on the current system.
@@ -55,7 +54,7 @@ type Exec struct {
 // New creates a new Exec for the specified container.
 func New(containerName string) (*Exec, error) {
 	if err := exec.Command("docker", "inspect", containerName).Run(); err != nil {
-		return nil, errors.Wrapf(err, "container %v is unavailable", containerName)
+		return nil, fmt.Errorf("container %v is unavailable: %w", containerName, err)
 	}
 	return &Exec{containerName}, nil
 }
@@ -69,7 +68,7 @@ func (e Exec) Command(name string, arg ...string) *Cmd {
 		containerName: e.ContainerName,
 	}
 	if lp, err := exec.LookPath("docker"); err != nil {
-		cmd.lookPathErr = errors.Wrap(err, "docker command not found")
+		cmd.lookPathErr = fmt.Errorf("docker command not found: %w", err)
 	} else {
 		cmd.dockerExec.Path = lp
 	}

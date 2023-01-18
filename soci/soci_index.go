@@ -20,6 +20,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -33,7 +34,6 @@ import (
 	"github.com/opencontainers/go-digest"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 
-	"github.com/pkg/errors"
 	"golang.org/x/sync/errgroup"
 	orascontent "oras.land/oras-go/v2/content"
 	"oras.land/oras-go/v2/errdef"

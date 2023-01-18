@@ -67,7 +67,6 @@ import (
 	sddaemon "github.com/coreos/go-systemd/v22/daemon"
 	metrics "github.com/docker/go-metrics"
 	"github.com/pelletier/go-toml"
-	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	bolt "go.etcd.io/bbolt"
 	"golang.org/x/sys/unix"
@@ -226,12 +225,12 @@ func serve(ctx context.Context, rpc *grpc.Server, addr string, rs snapshots.Snap
 
 	// Prepare the directory for the socket
 	if err := os.MkdirAll(filepath.Dir(addr), 0700); err != nil {
-		return false, errors.Wrapf(err, "failed to create directory %q", filepath.Dir(addr))
+		return false, fmt.Errorf("failed to create directory %q: %w", filepath.Dir(addr), err)
 	}
 
 	// Try to remove the socket file to avoid EADDRINUSE
 	if err := os.RemoveAll(addr); err != nil {
-		return false, errors.Wrapf(err, "failed to remove %q", addr)
+		return false, fmt.Errorf("failed to remove %q: %w", addr, err)
 	}
 
 	errCh := make(chan error, 1)
@@ -250,14 +249,14 @@ func serve(ctx context.Context, rpc *grpc.Server, addr string, rs snapshots.Snap
 		}
 		l, err := net.Listen(config.MetricsNetwork, config.MetricsAddress)
 		if err != nil {
-			return false, errors.Wrapf(err, "failed to get listener for metrics endpoint")
+			return false, fmt.Errorf("failed to get listener for metrics endpoint: %w", err)
 		}
 		cleanupFns = append(cleanupFns, l.Close)
 		m := http.NewServeMux()
 		m.Handle("/metrics", metrics.Handler())
 		go func() {
 			if err := http.Serve(l, m); err != nil {
-				errCh <- errors.Wrapf(err, "error on serving metrics via socket %q", addr)
+				errCh <- fmt.Errorf("error on serving metrics via socket %q: %w", addr, err)
 			}
 		}()
 	}
@@ -266,7 +265,7 @@ func serve(ctx context.Context, rpc *grpc.Server, addr string, rs snapshots.Snap
 		log.G(ctx).Infof("listen %q for debugging", config.DebugAddress)
 		go func() {
 			if err := http.ListenAndServe(config.DebugAddress, nil); err != nil {
-				errCh <- errors.Wrapf(err, "error on serving a debug endpoint via socket %q", addr)
+				errCh <- fmt.Errorf("error on serving a debug endpoint via socket %q: %w", addr, err)
 			}
 		}()
 	}
@@ -274,12 +273,12 @@ func serve(ctx context.Context, rpc *grpc.Server, addr string, rs snapshots.Snap
 	// Listen and serve
 	l, err := net.Listen("unix", addr)
 	if err != nil {
-		return false, errors.Wrapf(err, "error on listen socket %q", addr)
+		return false, fmt.Errorf("error on listen socket %q: %w", addr, err)
 	}
 	cleanupFns = append(cleanupFns, l.Close)
 	go func() {
 		if err := rpc.Serve(l); err != nil {
-			errCh <- errors.Wrapf(err, "error on serving via socket %q", addr)
+			errCh <- fmt.Errorf("error on serving via socket %q: %w", addr, err)
 		}
 	}()
 
