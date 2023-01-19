@@ -69,7 +69,7 @@ func prepareSociIndices(t *testing.T, sh *dockershell.Shell) []testImageIndex {
 		}
 		img.imgInfo = dockerhub(img.imgName, withPlatform(platform))
 		img.sociIndexDigest = buildIndex(sh, img.imgInfo)
-		ztocDigests, err := getZtocDigests(sh, img.imgInfo)
+		ztocDigests, err := getZtocDigestsForImage(sh, img.imgInfo)
 		if err != nil {
 			t.Fatalf("could not get ztoc digests: %v", err)
 		}
@@ -80,8 +80,8 @@ func prepareSociIndices(t *testing.T, sh *dockershell.Shell) []testImageIndex {
 	return testImages
 }
 
-func getZtocDigests(sh *dockershell.Shell, img imageInfo) ([]string, error) {
-	ztocInfoBytes := sh.O("soci", "ztoc", "list")
+func getZtocDigestsForImage(sh *dockershell.Shell, img imageInfo) ([]string, error) {
+	ztocInfoBytes := sh.O("soci", "ztoc", "list", "--image-ref", img.ref)
 	scanner := bufio.NewScanner(bytes.NewReader(ztocInfoBytes))
 	scanner.Split(bufio.ScanLines)
 	var lines []string
