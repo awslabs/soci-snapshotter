@@ -33,11 +33,11 @@ CMD=soci-snapshotter-grpc soci
 
 CMD_BINARIES=$(addprefix $(OUTDIR)/,$(CMD))
 
-.PHONY: all build pre-build check check-ltag check-dco check-lint check-flatc install-check-tools add-ltag install install-cmake install-flatc install-zlib uninstall clean test integration
+.PHONY: all build check check-ltag check-dco check-lint check-flatc install-check-tools add-ltag install install-cmake install-flatc install-zlib uninstall clean test integration
 
 all: build
 
-build: pre-build $(CMD)
+build: $(CMD)
 
 FORCE:
 
@@ -47,9 +47,6 @@ soci-snapshotter-grpc: FORCE
 soci: FORCE
 	cd cmd/ ; GO111MODULE=$(GO111MODULE_VALUE) go build -o $(OUTDIR)/$@ $(GO_BUILD_FLAGS) $(GO_LD_FLAGS) -v ./soci
 
-pre-build:
-	rm -rf ${OUTDIR}
-	@mkdir -p ${OUTDIR}
 
 install-cmake:
 	@wget https://github.com/Kitware/CMake/releases/download/v3.24.1/cmake-3.24.1-Linux-x86_64.sh -O cmake.sh
@@ -83,8 +80,7 @@ check-flatc:
 	diff -qr $(TMPDIR)/ztoc $(CURDIR)/ztoc/fbs/ztoc || (printf "\n\nThe Ztoc schema seems to be modified. Please run 'make flatc' to re-generate Go files\n\n"; exit 1)
 	rm -rf $(TMPDIR)
 
-# "check-lint" depends "pre-build". out/libzinfo.a seems needed to process cgo directives
-check-lint: pre-build
+check-lint: 
 	GO111MODULE=$(GO111MODULE_VALUE) $(shell go env GOPATH)/bin/golangci-lint run
 	cd ./cmd ; GO111MODULE=$(GO111MODULE_VALUE) $(shell go env GOPATH)/bin/golangci-lint run
 
@@ -124,7 +120,7 @@ test:
 	@GO111MODULE=$(GO111MODULE_VALUE) go test -race ./...
 	@cd ./cmd/soci ; GO111MODULE=$(GO111MODULE_VALUE) go test -timeout 20m -race ./...
 
-integration: pre-build
+integration: 
 	@echo "$@"
 	@echo "SOCI_SNAPSHOTTER_PROJECT_ROOT=$(SOCI_SNAPSHOTTER_PROJECT_ROOT)"
 	@GO111MODULE=$(GO111MODULE_VALUE) SOCI_SNAPSHOTTER_PROJECT_ROOT=$(SOCI_SNAPSHOTTER_PROJECT_ROOT) ENABLE_INTEGRATION_TEST=true go test $(GO_TEST_FLAGS) -v -timeout=0 ./integration
