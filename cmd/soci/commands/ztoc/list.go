@@ -32,6 +32,7 @@ import (
 var listCommand = cli.Command{
 	Name:        "list",
 	Description: "list ztocs",
+	Aliases:     []string{"ls"},
 	Flags: []cli.Flag{
 		cli.StringFlag{
 			Name:  "ztoc-digest",

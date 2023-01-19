@@ -89,6 +89,11 @@ func (i *GzipZinfo) MaxSpanID() SpanID {
 	return SpanID(C.get_max_span_id(i.cZinfo))
 }
 
+// SpanSize returns the span size of the constructed ztoc.
+func (i *GzipZinfo) SpanSize() Offset {
+	return Offset(i.cZinfo.span_size)
+}
+
 // UncompressedOffsetToSpanID returns the ID of the span containing the data pointed by uncompressed offset.
 func (i *GzipZinfo) UncompressedOffsetToSpanID(offset Offset) SpanID {
 	return SpanID(C.pt_index_from_ucmp_offset(i.cZinfo, C.long(offset)))

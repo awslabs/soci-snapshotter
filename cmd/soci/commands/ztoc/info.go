@@ -21,7 +21,9 @@ import (
 	"encoding/json"
 	"fmt"
 
+	"github.com/awslabs/soci-snapshotter/compression"
 	"github.com/awslabs/soci-snapshotter/fs/config"
+	"github.com/awslabs/soci-snapshotter/soci"
 	"github.com/awslabs/soci-snapshotter/ztoc"
 	"github.com/opencontainers/go-digest"
 	v1 "github.com/opencontainers/image-spec/specs-go/v1"
@@ -30,15 +32,23 @@ import (
 )
 
 type Info struct {
-	Version   string     `json:"version"`
-	BuildTool string     `json:"build_tool"`
-	Files     []FileInfo `json:"files"`
+	Version           string             `json:"version"`
+	BuildTool         string             `json:"build_tool"`
+	Size              int64              `json:"size"`
+	SpanSize          compression.Offset `json:"span_size"`
+	NumSpans          compression.SpanID `json:"num_spans"`
+	NumFiles          int                `json:"num_files"`
+	NumMultiSpanFiles int                `json:"num_multi_span_files"`
+	Files             []FileInfo         `json:"files"`
 }
 
 type FileInfo struct {
-	Filename string `json:"filename"`
-	Offset   int64  `json:"offset"`
-	Size     int64  `json:"size"`
+	Filename  string             `json:"filename"`
+	Offset    int64              `json:"offset"`
+	Size      int64              `json:"size"`
+	Type      string             `json:"type"`
+	StartSpan compression.SpanID `json:"start_span"`
+	EndSpan   compression.SpanID `json:"end_span"`
 }
 
 var infoCommand = cli.Command{
@@ -49,6 +59,17 @@ var infoCommand = cli.Command{
 		digest, err := digest.Parse(cliContext.Args().First())
 		if err != nil {
 			return err
+		}
+		db, err := soci.NewDB()
+		if err != nil {
+			return err
+		}
+		entry, err := db.GetArtifactEntry(digest.String())
+		if err != nil {
+			return err
+		}
+		if entry.MediaType == soci.SociIndexArtifactType {
+			return fmt.Errorf("the provided digest belongs to a SOCI index. Use `soci index info` to get the detailed information about it")
 		}
 		storage, err := oci.New(config.SociContentStorePath)
 		if err != nil {
@@ -65,17 +86,36 @@ var infoCommand = cli.Command{
 		if err != nil {
 			return err
 		}
+		gzInfo, err := compression.NewGzipZinfo(ztoc.CompressionInfo.Checkpoints)
+		if err != nil {
+			return err
+		}
+
+		multiSpanFiles := 0
 		zinfo := Info{
 			Version:   ztoc.Version,
 			BuildTool: ztoc.BuildToolIdentifier,
+			Size:      entry.Size,
+			SpanSize:  gzInfo.SpanSize(),
+			NumSpans:  ztoc.CompressionInfo.MaxSpanID + 1,
+			NumFiles:  len(ztoc.TOC.Metadata),
 		}
 		for _, v := range ztoc.TOC.Metadata {
+			startSpan := gzInfo.UncompressedOffsetToSpanID(v.UncompressedOffset)
+			endSpan := gzInfo.UncompressedOffsetToSpanID(v.UncompressedOffset + v.UncompressedSize)
+			if startSpan != endSpan {
+				multiSpanFiles++
+			}
 			zinfo.Files = append(zinfo.Files, FileInfo{
-				Filename: v.Name,
-				Offset:   int64(v.UncompressedOffset),
-				Size:     int64(v.UncompressedSize),
+				Filename:  v.Name,
+				Offset:    int64(v.UncompressedOffset),
+				Size:      int64(v.UncompressedSize),
+				Type:      v.Type,
+				StartSpan: startSpan,
+				EndSpan:   endSpan,
 			})
 		}
+		zinfo.NumMultiSpanFiles = multiSpanFiles
 		j, err := json.MarshalIndent(zinfo, "", "  ")
 		if err != nil {
 			return err
