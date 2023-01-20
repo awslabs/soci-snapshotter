@@ -529,54 +529,6 @@ type layerRef struct {
 	done func()
 }
 
-func newWaiter() *waiter {
-	return &waiter{
-		completionCond: sync.NewCond(&sync.Mutex{}),
-	}
-}
-
-type waiter struct {
-	isDone         bool
-	isDoneMu       sync.Mutex
-	completionCond *sync.Cond
-}
-
-func (w *waiter) done() {
-	w.isDoneMu.Lock()
-	w.isDone = true
-	w.isDoneMu.Unlock()
-	w.completionCond.Broadcast()
-}
-
-func (w *waiter) wait(timeout time.Duration) error {
-	wait := func() <-chan struct{} {
-		ch := make(chan struct{})
-		go func() {
-			w.isDoneMu.Lock()
-			isDone := w.isDone
-			w.isDoneMu.Unlock()
-
-			w.completionCond.L.Lock()
-			if !isDone {
-				w.completionCond.Wait()
-			}
-			w.completionCond.L.Unlock()
-			ch <- struct{}{}
-		}()
-		return ch
-	}
-	select {
-	case <-time.After(timeout):
-		w.isDoneMu.Lock()
-		w.isDone = true
-		w.isDoneMu.Unlock()
-		w.completionCond.Broadcast()
-		return fmt.Errorf("timeout(%v)", timeout)
-	case <-wait():
-		return nil
-	}
-}
-
 type readerAtFunc func([]byte, int64) (int, error)
 
 func (f readerAtFunc) ReadAt(p []byte, offset int64) (int, error) { return f(p, offset) }

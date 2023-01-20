@@ -103,14 +103,6 @@ func getIndexArtifactEntries(indexDigest string) ([]ArtifactEntry, error) {
 	return artifacts.getIndexArtifactEntries(indexDigest)
 }
 
-func getArtifactEntry(sociDigest string) (*ArtifactEntry, error) {
-	artifacts, err := NewDB()
-	if err != nil {
-		return nil, err
-	}
-	return artifacts.GetArtifactEntry(sociDigest)
-}
-
 func writeArtifactEntry(entry *ArtifactEntry) error {
 	artifacts, err := NewDB()
 	if err != nil {

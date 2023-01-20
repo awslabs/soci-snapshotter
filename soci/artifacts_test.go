@@ -1,3 +1,5 @@
+//go:build testing
+
 /*
    Copyright The Soci Snapshotter Authors.
 
@@ -96,15 +98,6 @@ func TestGetIndexArtifactEntries(t *testing.T) {
 		t.Fatalf("the retrieved content should match to the original content")
 	}
 }
-
-func TestGetArtifactEntry_ArtifactDB_DoesNotExist(t *testing.T) {
-	dgst := "sha256:80d6aec48c0a74635a5f3dc555528c1673afaa21ed6e1270a9a44de66e8ffa55"
-	_, err := getArtifactEntry(dgst)
-	if err == nil {
-		t.Fatalf("getArtifactEntry should fail since artifacts.db doesn't exist")
-	}
-}
-
 func TestWriteArtifactEntry_ArtifactDB_DoesNotExist(t *testing.T) {
 	var (
 		dgst         = "sha256:80d6aec48c0a74635a5f3dc555528c1673afaa21ed6e1270a9a44de66e8ffa55"

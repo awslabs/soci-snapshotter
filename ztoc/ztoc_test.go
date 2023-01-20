@@ -1,3 +1,5 @@
+//go:build testing
+
 /*
    Copyright The Soci Snapshotter Authors.
 
