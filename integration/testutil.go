@@ -106,6 +106,117 @@ level = "debug"
 
 {{.AdditionalConfig}}
 `
+const snapshotterConfigTemplate = `
+disable_verification = {{.DisableVerification}}
+
+{{.AdditionalConfig}}
+`
+const composeDefaultTemplate = `
+version: "3.7"
+services:
+  testing:
+   image: soci_integ_test 
+   privileged: true
+   init: true
+   entrypoint: [ "sleep", "infinity" ]
+   environment:
+    - NO_PROXY=127.0.0.1,localhost
+   tmpfs:
+    - /tmp:exec,mode=777
+    - /var/lib/containerd
+    - /var/lib/soci-snapshotter-grpc
+   volumes:
+    - /dev/fuse:/dev/fuse
+`
+const composeRegistryTemplate = `
+version: "3.7"
+services:
+ {{.ServiceName}}:
+  image: soci_integ_test
+  privileged: true
+  init: true
+  entrypoint: [ "sleep", "infinity" ]
+  environment:
+   - NO_PROXY=127.0.0.1,localhost,{{.RegistryHost}}:443
+  tmpfs:
+   - /tmp:exec,mode=777
+   - /var/lib/containerd
+   - /var/lib/soci-snapshotter-grpc
+  volumes:
+   - /dev/fuse:/dev/fuse
+ registry:
+  image: {{.RegistryImageRef}}
+  container_name: {{.RegistryHost}}
+  environment:
+   - REGISTRY_AUTH=htpasswd
+   - REGISTRY_AUTH_HTPASSWD_REALM="Registry Realm"
+   - REGISTRY_AUTH_HTPASSWD_PATH=/auth/htpasswd
+   - REGISTRY_HTTP_TLS_CERTIFICATE=/auth/domain.crt
+   - REGISTRY_HTTP_TLS_KEY=/auth/domain.key
+   - REGISTRY_HTTP_ADDR={{.RegistryHost}}:443
+  volumes:
+   - {{.AuthDir}}:/auth:ro
+{{.NetworkConfig}}
+`
+const composeRegistryAltTemplate = `
+version: "3.7"
+services:
+  {{.ServiceName}}:
+    image: soci_integ_test
+    privileged: true
+    init: true
+    entrypoint: [ "sleep", "infinity" ]
+    environment:
+    - NO_PROXY=127.0.0.1,localhost,{{.RegistryHost}}:443
+    tmpfs:
+    - /tmp:exec,mode=777
+    - /var/lib/containerd
+    - /var/lib/soci-snapshotter-grpc
+    volumes:
+    - /dev/fuse:/dev/fuse
+  registry:
+    image: ghcr.io/oci-playground/registry:v3.0.0-alpha.1
+    container_name: {{.RegistryHost}}
+    environment:
+    - REGISTRY_AUTH=htpasswd
+    - REGISTRY_AUTH_HTPASSWD_REALM="Registry Realm"
+    - REGISTRY_AUTH_HTPASSWD_PATH=/auth/htpasswd
+    - REGISTRY_HTTP_TLS_CERTIFICATE=/auth/domain.crt
+    - REGISTRY_HTTP_TLS_KEY=/auth/domain.key
+    - REGISTRY_HTTP_ADDR={{.RegistryHost}}:443
+    volumes:
+    - {{.AuthDir}}:/auth:ro
+  registry-alt:
+    image: registry:2
+    container_name: {{.RegistryAltHost}}
+`
+
+const composeBuildTemplate = `
+version: "3.7"
+services:
+ {{.ServiceName}}:
+  image: soci_integ_test
+  build:
+   context: {{.ImageContextDir}}
+   target: {{.TargetStage}}
+   args:
+    - SNAPSHOTTER_BUILD_FLAGS="-race"
+ registry:
+  image: ghcr.io/oci-playground/registry:v3.0.0-alpha.1
+ registry-alt:
+  image: registry:2
+`
+
+type dockerComposeYaml struct {
+	ServiceName      string
+	ImageContextDir  string
+	TargetStage      string
+	RegistryHost     string
+	RegistryImageRef string
+	RegistryAltHost  string
+	AuthDir          string
+	NetworkConfig    string
+}
 
 // getContainerdConfigToml creates a containerd config yaml, by appending all
 // `additionalConfigs` to the default `containerdConfigTemplate`.
@@ -113,30 +224,31 @@ func getContainerdConfigToml(t *testing.T, disableVerification bool, additionalC
 	if !isTestingBuiltinSnapshotter() {
 		additionalConfigs = append(additionalConfigs, proxySnapshotterConfig)
 	}
-
-	return testutil.ApplyTextTemplate(t, containerdConfigTemplate, struct {
+	s, err := testutil.ApplyTextTemplate(containerdConfigTemplate, struct {
 		DisableVerification bool
 		AdditionalConfig    string
 	}{
 		DisableVerification: disableVerification,
 		AdditionalConfig:    strings.Join(additionalConfigs, "\n"),
 	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	return s
 }
 
-const snapshotterConfigTemplate = `
-disable_verification = {{.DisableVerification}}
-
-{{.AdditionalConfig}}
-`
-
 func getSnapshotterConfigToml(t *testing.T, disableVerification bool, additionalConfigs ...string) string {
-	return testutil.ApplyTextTemplate(t, snapshotterConfigTemplate, struct {
+	s, err := testutil.ApplyTextTemplate(snapshotterConfigTemplate, struct {
 		DisableVerification bool
 		AdditionalConfig    string
 	}{
 		DisableVerification: disableVerification,
 		AdditionalConfig:    strings.Join(additionalConfigs, "\n"),
 	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	return s
 }
 
 func trimSha256Prefix(s string) string {
@@ -147,17 +259,17 @@ func isTestingBuiltinSnapshotter() bool {
 	return os.Getenv(builtinSnapshotterFlagEnv) == "true"
 }
 
-func getBuildArgsFromEnv(t *testing.T) []string {
+func getBuildArgsFromEnv() ([]string, error) {
 	buildArgsStr := os.Getenv(buildArgsEnv)
 	if buildArgsStr == "" {
-		return nil
+		return nil, nil
 	}
 	r := csv.NewReader(strings.NewReader(buildArgsStr))
 	buildArgs, err := r.Read()
 	if err != nil {
-		t.Fatalf("failed to get build args from env %v", buildArgsEnv)
+		return nil, fmt.Errorf("failed to get build args from env %v", buildArgsEnv)
 	}
-	return buildArgs
+	return buildArgs, nil
 }
 
 func isFileExists(sh *shell.Shell, file string) bool {
@@ -302,7 +414,6 @@ func newShellWithRegistry(t *testing.T, r registryConfig, opts ...registryOpt) (
 		o(&rOpts)
 	}
 	var (
-		pRoot       = testutil.GetProjectRoot(t)
 		caCertDir   = "/usr/local/share/ca-certificates"
 		serviceName = "testing"
 	)
@@ -330,13 +441,13 @@ func newShellWithRegistry(t *testing.T, r registryConfig, opts ...registryOpt) (
 		t.Fatalf("failed to prepare htpasswd file")
 	}
 
-	targetStage := "containerd-snapshotter-base"
-	if isTestingBuiltinSnapshotter() {
-		targetStage = "containerd-snapshotter-base"
+	buildArgs, err := getBuildArgsFromEnv()
+	if err != nil {
+		t.Fatal(err)
 	}
 	// Run testing environment on docker compose
 	cOpts := []compose.Option{
-		compose.WithBuildArgs(getBuildArgsFromEnv(t)...),
+		compose.WithBuildArgs(buildArgs...),
 		compose.WithStdio(testutil.TestingLogDest()),
 	}
 	networkConfig := ""
@@ -354,56 +465,18 @@ networks:
       name: %s
 `, nw)
 	}
-	c, err := compose.New(testutil.ApplyTextTemplate(t, `
-version: "3.7"
-services:
-  {{.ServiceName}}:
-    build:
-      context: {{.ImageContextDir}}
-      target: {{.TargetStage}}
-      args:
-      - SNAPSHOTTER_BUILD_FLAGS="-race"
-    privileged: true
-    init: true
-    entrypoint: [ "sleep", "infinity" ]
-    environment:
-    - NO_PROXY=127.0.0.1,localhost,{{.RegistryHost}}:443
-    tmpfs:
-    - /tmp:exec,mode=777
-    - /var/lib/containerd
-    - /var/lib/soci-snapshotter-grpc
-    volumes:
-    - /dev/fuse:/dev/fuse
-  registry:
-    image: {{.RegistryImageRef}}
-    container_name: {{.RegistryHost}}
-    environment:
-    - REGISTRY_AUTH=htpasswd
-    - REGISTRY_AUTH_HTPASSWD_REALM="Registry Realm"
-    - REGISTRY_AUTH_HTPASSWD_PATH=/auth/htpasswd
-    - REGISTRY_HTTP_TLS_CERTIFICATE=/auth/domain.crt
-    - REGISTRY_HTTP_TLS_KEY=/auth/domain.key
-    - REGISTRY_HTTP_ADDR={{.RegistryHost}}:443
-    volumes:
-    - {{.AuthDir}}:/auth:ro
-{{.NetworkConfig}}
-`, struct {
-		ServiceName      string
-		ImageContextDir  string
-		TargetStage      string
-		RegistryImageRef string
-		RegistryHost     string
-		AuthDir          string
-		NetworkConfig    string
-	}{
+
+	s, err := testutil.ApplyTextTemplate(composeRegistryTemplate, dockerComposeYaml{
 		ServiceName:      serviceName,
-		ImageContextDir:  pRoot,
-		TargetStage:      targetStage,
-		RegistryImageRef: rOpts.registryImageRef,
 		RegistryHost:     r.host,
+		RegistryImageRef: rOpts.registryImageRef,
 		AuthDir:          authDir,
 		NetworkConfig:    networkConfig,
-	}), cOpts...)
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	c, err := compose.Up(s, cOpts...)
 	if err != nil {
 		t.Fatalf("failed to prepare compose: %v", err)
 	}
@@ -434,43 +507,12 @@ services:
 }
 
 func newSnapshotterBaseShell(t *testing.T) (*shell.Shell, func() error) {
-	var (
-		pRoot       = testutil.GetProjectRoot(t)
-		serviceName = "testing"
-	)
-	targetStage := "containerd-snapshotter-base"
-	c, err := compose.New(testutil.ApplyTextTemplate(t, `
-version: "3.7"
-services:
-  {{.ServiceName}}:
-    build:
-      context: {{.ImageContextDir}}
-      target: {{.TargetStage}}
-      args:
-      - SNAPSHOTTER_BUILD_FLAGS="-race"
-    privileged: true
-    init: true
-    entrypoint: [ "sleep", "infinity" ]
-    environment:
-    - NO_PROXY=127.0.0.1,localhost
-    tmpfs:
-    - /tmp:exec,mode=777
-    - /var/lib/containerd
-    - /var/lib/soci-snapshotter-grpc
-    volumes:
-    - /dev/fuse:/dev/fuse
-`, struct {
-		ServiceName     string
-		ImageContextDir string
-		TargetStage     string
-	}{
-		ServiceName:     serviceName,
-		ImageContextDir: pRoot,
-		TargetStage:     targetStage,
-	}),
-		compose.WithBuildArgs(getBuildArgsFromEnv(t)...),
-		compose.WithStdio(testutil.TestingLogDest()),
-	)
+	serviceName := "testing"
+	buildArgs, err := getBuildArgsFromEnv()
+	if err != nil {
+		t.Fatal(err)
+	}
+	c, err := compose.Up(composeDefaultTemplate, compose.WithBuildArgs(buildArgs...), compose.WithStdio(testutil.TestingLogDest()))
 	if err != nil {
 		t.Fatalf("failed to prepare compose: %v", err)
 	}
@@ -481,7 +523,7 @@ services:
 	sh := shell.New(de, testutil.NewTestingReporter(t))
 	if !isTestingBuiltinSnapshotter() {
 		if err := testutil.WriteFileContents(sh, defaultContainerdConfigPath, []byte(proxySnapshotterConfig), 0600); err != nil {
-			t.Fatalf("failed to wrtie containerd config %v: %v", defaultContainerdConfigPath, err)
+			t.Fatalf("failed to write containerd config %v: %v", defaultContainerdConfigPath, err)
 		}
 	}
 	return sh, c.Cleanup
@@ -630,6 +672,49 @@ func checkOverlayFallbackCount(output string, expected int) error {
 	}
 	if expected != 0 {
 		return fmt.Errorf("expected %d overlay fallbacks but got 0", expected)
+	}
+	return nil
+}
+
+// setup can be used to initialize things before integration tests start (as of now it only builds the services used by the integration tests so they can be referenced)
+func setup() ([]func() error, error) {
+	var (
+		serviceName = "testing"
+		targetStage = "containerd-snapshotter-base"
+	)
+	pRoot, err := testutil.GetProjectRoot()
+	if err != nil {
+		return nil, err
+	}
+	buildArgs, err := getBuildArgsFromEnv()
+	if err != nil {
+		return nil, err
+	}
+
+	composeYaml, err := testutil.ApplyTextTemplate(composeBuildTemplate, dockerComposeYaml{
+		ServiceName:     serviceName,
+		ImageContextDir: pRoot,
+		TargetStage:     targetStage,
+	})
+	if err != nil {
+		return nil, err
+	}
+	cOpts := []compose.Option{
+		compose.WithBuildArgs(buildArgs...),
+		compose.WithStdio(testutil.TestingLogDest()),
+	}
+
+	return compose.Build(composeYaml, cOpts...)
+
+}
+
+// teardown takes a list of cleanup functions and executes them after integration tests have ended
+func teardown(cleanups []func() error) error {
+	for i := 0; i < len(cleanups); i++ {
+		err := cleanups[i]()
+		if err != nil {
+			return err
+		}
 	}
 	return nil
 }

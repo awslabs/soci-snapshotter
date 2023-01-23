@@ -42,7 +42,6 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
-	"testing"
 
 	"github.com/opencontainers/go-digest"
 )
@@ -75,26 +74,26 @@ func StreamTestingLogToFile(destPath string) (func() error, error) {
 }
 
 // GetProjectRoot returns the path to the directory where the source code of this project reside.
-func GetProjectRoot(t *testing.T) string {
+func GetProjectRoot() (string, error) {
 	pRoot := os.Getenv(projectRootEnv)
 	if pRoot == "" {
 		gopath := os.Getenv("GOPATH")
 		if gopath == "" {
 			gopathB, err := exec.Command("go", "env", "GOPATH").Output()
 			if len(gopathB) == 0 || err != nil {
-				t.Fatalf("project unknown; specify %v or GOPATH: %v", projectRootEnv, err)
+				return "", fmt.Errorf("project unknown; specify %v or GOPATH: %v", projectRootEnv, err)
 			}
 			gopath = strings.TrimSpace(string(gopathB))
 		}
 		pRoot = filepath.Join(gopath, rootRelGOPATH)
 		if _, err := os.Stat(pRoot); err != nil {
-			t.Fatalf("project (%v) unknown; specify %v", pRoot, projectRootEnv)
+			return "", fmt.Errorf("project (%v) unknown; specify %v", pRoot, projectRootEnv)
 		}
 	}
 	if _, err := os.Stat(filepath.Join(pRoot, "Dockerfile")); err != nil {
-		t.Fatalf("Dockerfile not found under project root")
+		return "", fmt.Errorf("Dockerfile not found under project root")
 	}
-	return pRoot
+	return pRoot, nil
 }
 
 // RandomUInt64 returns a random uint64 value generated from /dev/uramdom.

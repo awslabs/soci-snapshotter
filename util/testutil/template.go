@@ -34,20 +34,19 @@ package testutil
 
 import (
 	"bytes"
-	"testing"
+	"fmt"
 	"text/template"
 
 	"github.com/opencontainers/go-digest"
 )
 
-// ApplyTextTemplate applies the config to the specified template. testing.T.Fatalf will
-// be called on error.
-func ApplyTextTemplate(t *testing.T, temp string, config interface{}) string {
+// ApplyTextTemplate applies the config to the specified template.
+func ApplyTextTemplate(temp string, config interface{}) (string, error) {
 	data, err := ApplyTextTemplateErr(temp, config)
 	if err != nil {
-		t.Fatalf("failed to apply config %v to template", config)
+		return "", fmt.Errorf("failed to apply config %v to template", config)
 	}
-	return string(data)
+	return string(data), nil
 }
 
 // ApplyTextTemplateErr applies the config to the specified template.
