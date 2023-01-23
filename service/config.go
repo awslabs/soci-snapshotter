@@ -48,6 +48,9 @@ type Config struct {
 
 	// ResolverConfig is config for resolving registries.
 	ResolverConfig `toml:"resolver"`
+
+	// MinLayerSize skips remote mounting of smaller layers
+	MinLayerSize int `toml:"min_layer_size"`
 }
 
 // KubeconfigKeychainConfig is config for kubeconfig-based keychain.

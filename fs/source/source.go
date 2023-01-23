@@ -83,8 +83,8 @@ const (
 	// TargetDigestLabel is a label which contains layer digest.
 	TargetDigestLabel = "containerd.io/snapshot/remote/soci.digest"
 
-	// targetSizeLabel is a label which contains layer size.
-	targetSizeLabel = "containerd.io/snapshot/remote/soci.size"
+	// TargetSizeLabel is a label which contains layer size.
+	TargetSizeLabel = "containerd.io/snapshot/remote/soci.size"
 
 	// targetImageLayersDigestLabel is a label which contains layer digests contained in
 	// the target image.
@@ -130,7 +130,7 @@ func FromDefaultLabels(hosts RegistryHosts) GetSources {
 			return nil, err
 		}
 
-		targetSizeStr, ok := labels[targetSizeLabel]
+		targetSizeStr, ok := labels[TargetSizeLabel]
 		if !ok {
 			return nil, fmt.Errorf("layer size hasn't been passed")
 		}
@@ -209,7 +209,7 @@ func AppendDefaultLabelsHandlerWrapper(ref, indexDigest string) func(f images.Ha
 						c.Annotations[TargetImgManifestDigestLabel] = desc.Digest.String()
 						c.Annotations[TargetRefLabel] = ref
 						c.Annotations[TargetDigestLabel] = c.Digest.String()
-						c.Annotations[targetSizeLabel] = fmt.Sprintf("%d", c.Size)
+						c.Annotations[TargetSizeLabel] = fmt.Sprintf("%d", c.Size)
 						c.Annotations[TargetSociIndexDigestLabel] = indexDigest
 						var layerDigests string
 						var layerSizes string

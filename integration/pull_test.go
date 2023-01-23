@@ -792,3 +792,40 @@ func TestRpullImageThenRemove(t *testing.T) {
 
 	checkFuseMounts(t, sh, 0)
 }
+
+// TestRpullImageWithMinLayerSize pulls and rpulls an image with a runtime min_layer_size to confirm small layers are mounted locally
+func TestRpullImageWithMinLayerSize(t *testing.T) {
+	const minLayerSize = "25000000"
+	const minLayerSizeConfig = `
+min_layer_size=` + minLayerSize + `
+`
+
+	regConfig := newRegistryConfig()
+	sh, done := newShellWithRegistry(t, regConfig)
+	defer done()
+
+	rebootContainerd(t, sh, getContainerdConfigToml(t, false), getSnapshotterConfigToml(t, false, minLayerSizeConfig))
+
+	containerImage := rabbitmqImage
+
+	copyImage(sh, dockerhub(containerImage), regConfig.mirror(containerImage))
+	// withMinLayerSize(0) creates ztoc for all 10 layers instead of the 3 that are >= 10MB
+	indexDigest := buildIndex(sh, regConfig.mirror(containerImage), withMinLayerSize(0))
+
+	rawJSON := sh.O("soci", "index", "info", indexDigest)
+	var sociIndex soci.Index
+	if err := json.Unmarshal(rawJSON, &sociIndex); err != nil {
+		t.Fatalf("invalid soci index from digest %s: %v", indexDigest, rawJSON)
+	}
+
+	if len(sociIndex.Blobs) == 0 {
+		t.Fatalf("soci index %s contains 0 blobs, invalidating this test", indexDigest)
+	}
+
+	sh.X("soci", "image", "rpull", "--user", regConfig.creds(), "--soci-index-digest", indexDigest, regConfig.mirror(containerImage).ref)
+
+	// default index creation min layer size of 10MB would produce 3 fuse mounts
+	// specified index creation min layer size of 0 would produce 10 fuse mounts
+	// specified runtime min layer size of 25MB will produce 2 fuse mounts
+	checkFuseMounts(t, sh, 2)
+}
