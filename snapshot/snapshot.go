@@ -38,6 +38,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"syscall"
 
@@ -102,18 +103,29 @@ type FileSystem interface {
 // SnapshotterConfig is used to configure the remote snapshotter instance
 type SnapshotterConfig struct {
 	asyncRemove bool
+
+	// minLayerSize skips remote mounting of smaller layers
+	minLayerSize int
 }
 
 // Opt is an option to configure the remote snapshotter
 type Opt func(config *SnapshotterConfig) error
 
-// AsynchronousRemove defers removal of filesystem content until
+// WithAsynchronousRemove defers removal of filesystem content until
 // the Cleanup method is called. Removals will make the snapshot
 // referred to by the key unavailable and make the key immediately
 // available for re-use.
-func AsynchronousRemove(config *SnapshotterConfig) error {
+func WithAsynchronousRemove(config *SnapshotterConfig) error {
 	config.asyncRemove = true
 	return nil
+}
+
+// WithMinLayerSize sets the smallest layer that will be mounted remotely.
+func WithMinLayerSize(minLayerSize int) Opt {
+	return func(config *SnapshotterConfig) error {
+		config.minLayerSize = minLayerSize
+		return nil
+	}
 }
 
 type snapshotter struct {
@@ -124,6 +136,8 @@ type snapshotter struct {
 	// fs is a filesystem that this snapshotter recognizes.
 	fs        FileSystem
 	userxattr bool // whether to enable "userxattr" mount option
+
+	minLayerSize int // minimum layer size for remote mounting
 }
 
 // NewSnapshotter returns a Snapshotter which can use unpacked remote layers
@@ -167,11 +181,12 @@ func NewSnapshotter(ctx context.Context, root string, targetFs FileSystem, opts 
 	}
 
 	o := &snapshotter{
-		root:        root,
-		ms:          ms,
-		asyncRemove: config.asyncRemove,
-		fs:          targetFs,
-		userxattr:   userxattr,
+		root:         root,
+		ms:           ms,
+		asyncRemove:  config.asyncRemove,
+		fs:           targetFs,
+		userxattr:    userxattr,
+		minLayerSize: config.minLayerSize,
 	}
 
 	if err := o.restoreRemoteSnapshot(ctx); err != nil {
@@ -268,37 +283,58 @@ func (o *snapshotter) Prepare(ctx context.Context, key, parent string, opts ...s
 			return nil, err
 		}
 	}
+
 	if target, ok := base.Labels[targetSnapshotLabel]; ok {
+
 		// NOTE: If passed labels include a target of the remote snapshot, `Prepare`
 		//       must log whether this method succeeded to prepare that remote snapshot
 		//       or not, using the key `remoteSnapshotLogKey` defined in the above. This
 		//       log is used by tests in this project.
 		lCtx := log.WithLogger(ctx, log.G(ctx).WithField("key", key).WithField("parent", parent))
-		if err := o.prepareRemoteSnapshot(lCtx, key, base.Labels); err != nil {
-			log.G(lCtx).WithField(remoteSnapshotLogKey, prepareFailed).
-				WithError(err).Warn("failed to prepare remote snapshot")
-			if !errors.Is(err, ErrNoZtoc) {
-				commonmetrics.IncOperationCount(commonmetrics.FuseMountFailureCount, digest.Digest(""))
+
+		localOverride := false
+		if o.minLayerSize > 0 {
+			if strVal, ok := base.Labels[source.TargetSizeLabel]; ok {
+				if intVal, err := strconv.Atoi(strVal); err == nil {
+					if intVal < o.minLayerSize {
+						localOverride = true
+						log.G(lCtx).Info("Layer size less than runtime min_layer_size, skipping remote snapshot preparation")
+					}
+				} else {
+					log.G(lCtx).WithError(err).Error("Config min_layer_size cannot be converted to int")
+				}
 			}
-		} else {
-			base.Labels[remoteLabel] = remoteLabelVal // Mark this snapshot as remote
-			err := o.commit(ctx, true, target, key, append(opts, snapshots.WithLabels(base.Labels))...)
-			if err == nil || errdefs.IsAlreadyExists(err) {
-				// count also AlreadyExists as "success"
-				log.G(lCtx).WithField(remoteSnapshotLogKey, prepareSucceeded).Info("Remote snapshot successfully prepared.")
-				return nil, fmt.Errorf("target snapshot %q: %w", target, errdefs.ErrAlreadyExists)
-			}
-			log.G(lCtx).WithField(remoteSnapshotLogKey, prepareFailed).
-				WithError(err).Warn("failed to internally commit remote snapshot")
-			// Don't fallback here (= prohibit to use this key again) because the FileSystem
-			// possible has done some work on this "upper" directory.
-			return nil, err
 		}
+
+		if !localOverride {
+			if err := o.prepareRemoteSnapshot(lCtx, key, base.Labels); err != nil {
+				log.G(lCtx).WithField(remoteSnapshotLogKey, prepareFailed).
+					WithError(err).Warn("failed to prepare remote snapshot")
+				if !errors.Is(err, ErrNoZtoc) {
+					commonmetrics.IncOperationCount(commonmetrics.FuseMountFailureCount, digest.Digest(""))
+				}
+			} else {
+				base.Labels[remoteLabel] = remoteLabelVal // Mark this snapshot as remote
+				err := o.commit(ctx, true, target, key, append(opts, snapshots.WithLabels(base.Labels))...)
+				if err == nil || errdefs.IsAlreadyExists(err) {
+					// count also AlreadyExists as "success"
+					log.G(lCtx).WithField(remoteSnapshotLogKey, prepareSucceeded).Info("Remote snapshot successfully prepared.")
+					return nil, fmt.Errorf("target snapshot %q: %w", target, errdefs.ErrAlreadyExists)
+				}
+				log.G(lCtx).WithField(remoteSnapshotLogKey, prepareFailed).
+					WithError(err).Warn("failed to internally commit remote snapshot")
+				// Don't fallback here (= prohibit to use this key again) because the FileSystem
+				// possible has done some work on this "upper" directory.
+				return nil, err
+			}
+		}
+
 		mounts, err := o.mounts(ctx, s, parent)
 		if err != nil {
 			// don't fallback here, since there was an error getting mounts
 			return nil, err
 		}
+
 		log.G(ctx).WithField("layerDigest", base.Labels[source.TargetDigestLabel]).Info("preparing snapshot as local snapshot")
 		if err = o.prepareLocalSnapshot(lCtx, key, base.Labels, mounts); err != nil {
 			log.G(lCtx).WithField(remoteSnapshotLogKey, prepareFailed).
@@ -682,10 +718,12 @@ func (o *snapshotter) mounts(ctx context.Context, s storage.Snapshot, checkKey s
 
 }
 
+// upperPath produces a file path like "{snapshotter.root}/snapshots/{id}/fs"
 func (o *snapshotter) upperPath(id string) string {
 	return filepath.Join(o.root, "snapshots", id, "fs")
 }
 
+// workPath produces a file path like "{snapshotter.root}/snapshots/{id}/work"
 func (o *snapshotter) workPath(id string) string {
 	return filepath.Join(o.root, "snapshots", id, "work")
 }

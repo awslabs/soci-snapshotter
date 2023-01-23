@@ -108,7 +108,12 @@ func NewSociSnapshotterService(ctx context.Context, root string, config *Config,
 
 	var snapshotter snapshots.Snapshotter
 
-	snapshotter, err = snbase.NewSnapshotter(ctx, snapshotterRoot(root), fs, snbase.AsynchronousRemove)
+	snOpts := []snbase.Opt{snbase.WithAsynchronousRemove}
+	if config.MinLayerSize > -1 {
+		snOpts = append(snOpts, snbase.WithMinLayerSize(config.MinLayerSize))
+	}
+
+	snapshotter, err = snbase.NewSnapshotter(ctx, snapshotterRoot(root), fs, snOpts...)
 	if err != nil {
 		log.G(ctx).WithError(err).Fatalf("failed to create new snapshotter")
 	}
