@@ -91,6 +91,114 @@ func WithStdio(stdout, stderr io.Writer) Option {
 	}
 }
 
+// Build builds all services defined in a docker-compose yaml.
+func Build(dockerComposeYaml string, opts ...Option) ([]func() error, error) {
+	var cOpts options
+	for _, o := range opts {
+		o(&cOpts)
+	}
+	tmpContext, err := os.MkdirTemp("", "compose"+xid.New().String())
+	if err != nil {
+		return nil, err
+	}
+	confFile := filepath.Join(tmpContext, "docker-compose.yml")
+	if err := os.WriteFile(confFile, []byte(dockerComposeYaml), 0600); err != nil {
+		return nil, err
+	}
+
+	var cleanups []func() error
+	for i := 0; i < 3; i++ {
+		rm := func() error {
+			return exec.Command("docker-compose", "-f", confFile, "down", "--rmi", "all").Run()
+		}
+		cleanups = append(cleanups, rm)
+	}
+
+	cleanups = append(cleanups, func() error { return os.RemoveAll(tmpContext) })
+
+	var buildArgs []string
+	for _, arg := range cOpts.buildArgs {
+		buildArgs = append(buildArgs, "--build-arg", arg)
+	}
+	cmd := exec.Command("docker-compose", append([]string{"-f", confFile, "build"}, buildArgs...)...)
+	if cOpts.addStdio != nil {
+		cOpts.addStdio(cmd)
+	}
+	if err := cmd.Run(); err != nil {
+		return nil, err
+	}
+	return cleanups, nil
+}
+
+// Up starts all services defined in a docker-compose yaml and returns the execution environment for each service.
+func Up(dockerComposeYaml string, opts ...Option) (*Compose, error) {
+	var cOpts options
+	for _, o := range opts {
+		o(&cOpts)
+	}
+	tmpContext, err := os.MkdirTemp("", "compose"+xid.New().String())
+	if err != nil {
+		return nil, err
+	}
+	confFile := filepath.Join(tmpContext, "docker-compose.yml")
+	if err := os.WriteFile(confFile, []byte(dockerComposeYaml), 0600); err != nil {
+		return nil, err
+	}
+
+	var cleanups []func() error
+	cleanups = append(cleanups, func() error {
+		return exec.Command("docker-compose", "-f", confFile, "down", "-v").Run()
+	})
+	cleanups = append(cleanups, func() error { return os.RemoveAll(tmpContext) })
+
+	cmd := exec.Command("docker-compose", "-f", confFile, "up", "-d")
+	if cOpts.addStdio != nil {
+		cOpts.addStdio(cmd)
+	}
+	if err := cmd.Run(); err != nil {
+		return nil, err
+	}
+
+	cmd = exec.Command("docker-compose", "-f", confFile, "ps", "--services")
+	if cOpts.addStderr != nil {
+		cOpts.addStderr(cmd)
+	}
+	stdout, err := cmd.StdoutPipe()
+	if err != nil {
+		return nil, err
+	}
+	if err := cmd.Start(); err != nil {
+		return nil, err
+	}
+	var services []string
+	scanner := bufio.NewScanner(stdout)
+	for scanner.Scan() {
+		services = append(services, strings.TrimSpace(scanner.Text()))
+	}
+	if err := cmd.Wait(); err != nil {
+		return nil, err
+	}
+
+	execs := map[string]*dexec.Exec{}
+	for _, s := range services {
+		cmd = exec.Command("docker-compose", "-f", confFile, "ps", "-q", s)
+		if cOpts.addStderr != nil {
+			cOpts.addStderr(cmd)
+		}
+		cNameB, err := cmd.Output()
+		if err != nil {
+			return nil, err
+		}
+		de, err := dexec.New(strings.TrimSpace(string(cNameB)))
+		if err != nil {
+			return nil, err
+		}
+		execs[s] = de
+	}
+
+	return &Compose{execs, cleanups}, nil
+}
+
 // New creates a new Compose of the specified docker-compose yaml data.
 func New(dockerComposeYaml string, opts ...Option) (*Compose, error) {
 	var cOpts options

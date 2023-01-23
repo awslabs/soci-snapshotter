@@ -575,10 +575,13 @@ disable = true
 func TestMirror(t *testing.T) {
 	var (
 		reporter    = testutil.NewTestingReporter(t)
-		pRoot       = testutil.GetProjectRoot(t)
 		caCertDir   = "/usr/local/share/ca-certificates"
 		serviceName = "testing_mirror"
 	)
+	pRoot, err := testutil.GetProjectRoot()
+	if err != nil {
+		t.Fatal(err)
+	}
 	regConfig := newRegistryConfig()
 	regAltConfig := newRegistryConfig(withPort(5000), withCreds(""), withPlainHTTP())
 
@@ -606,55 +609,23 @@ func TestMirror(t *testing.T) {
 	targetStage := "containerd-snapshotter-base"
 
 	// Run testing environment on docker compose
-	c, err := compose.New(testutil.ApplyTextTemplate(t, `
-version: "3.7"
-services:
-  {{.ServiceName}}:
-    build:
-      context: {{.ImageContextDir}}
-      target: {{.TargetStage}}
-    privileged: true
-    init: true
-    entrypoint: [ "sleep", "infinity" ]
-    environment:
-    - NO_PROXY=127.0.0.1,localhost,{{.RegistryHost}}:443
-    tmpfs:
-    - /tmp:exec,mode=777
-    - /var/lib/containerd
-    - /var/lib/soci-snapshotter-grpc
-    volumes:
-    - /dev/fuse:/dev/fuse
-  registry:
-    image: ghcr.io/oci-playground/registry:v3.0.0-alpha.1
-    container_name: {{.RegistryHost}}
-    environment:
-    - REGISTRY_AUTH=htpasswd
-    - REGISTRY_AUTH_HTPASSWD_REALM="Registry Realm"
-    - REGISTRY_AUTH_HTPASSWD_PATH=/auth/htpasswd
-    - REGISTRY_HTTP_TLS_CERTIFICATE=/auth/domain.crt
-    - REGISTRY_HTTP_TLS_KEY=/auth/domain.key
-    - REGISTRY_HTTP_ADDR={{.RegistryHost}}:443
-    volumes:
-    - {{.AuthDir}}:/auth:ro
-  registry-alt:
-    image: registry:2
-    container_name: {{.RegistryAltHost}}
-`, struct {
-		TargetStage     string
-		ServiceName     string
-		ImageContextDir string
-		RegistryHost    string
-		RegistryAltHost string
-		AuthDir         string
-	}{
+	s, err := testutil.ApplyTextTemplate(composeRegistryAltTemplate, dockerComposeYaml{
 		TargetStage:     targetStage,
 		ServiceName:     serviceName,
 		ImageContextDir: pRoot,
 		RegistryHost:    regConfig.host,
 		RegistryAltHost: regAltConfig.host,
 		AuthDir:         authDir,
-	}),
-		compose.WithBuildArgs(getBuildArgsFromEnv(t)...),
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	buildArgs, err := getBuildArgsFromEnv()
+	if err != nil {
+		t.Fatal(err)
+	}
+	c, err := compose.Up(s,
+		compose.WithBuildArgs(buildArgs...),
 		compose.WithStdio(testutil.TestingLogDest()))
 	if err != nil {
 		t.Fatalf("failed to prepare compose: %v", err)

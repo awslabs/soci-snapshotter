@@ -60,5 +60,18 @@ func TestMain(m *testing.M) {
 	if err := dexec.Supported(); err != nil {
 		testutil.TestingL.Fatalf("dockershell/exec pkg is not supported: %v", err)
 	}
-	os.Exit(m.Run())
+
+	cleanups, err := setup()
+	if err != nil {
+		testutil.TestingL.Fatalf("failed integration test set up: %v", err)
+	}
+
+	c := m.Run()
+
+	err = teardown(cleanups)
+	if err != nil {
+		testutil.TestingL.Fatalf("failed integration test tear down: %v", err)
+	}
+
+	os.Exit(c)
 }
