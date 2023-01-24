@@ -28,6 +28,14 @@ import (
 	"github.com/awslabs/soci-snapshotter/compression"
 )
 
+// Compression algorithms used by an image layer. They should be kept consistent
+// with the return of `DiffCompression` from containerd.
+// https://github.com/containerd/containerd/blob/v1.7.0-beta.3/images/mediatypes.go#L66
+const (
+	CompressionGzip = "gzip"
+	CompressionZstd = "zstd"
+)
+
 // Ztoc is a table of contents for compressed data which consists 2 parts:
 //
 // (1). toc (`TOC`): a table of contents containing file metadata and its

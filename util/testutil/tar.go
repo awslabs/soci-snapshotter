@@ -43,6 +43,8 @@ import (
 	"os"
 	"strings"
 	"time"
+
+	"github.com/klauspost/compress/zstd"
 )
 
 // TarEntry is an entry of tar.
@@ -118,6 +120,39 @@ func BuildTarGz(ents []TarEntry, compressionLevel int, opts ...BuildTarOption) i
 			return
 		}
 		if err := gw.Close(); err != nil {
+			pw.CloseWithError(err)
+			return
+		}
+		pw.Close()
+	}()
+	return pr
+}
+
+// BuildTarZstd builds a tar blob with zstd compression.
+func BuildTarZstd(ents []TarEntry, compressionLevel int, opts ...BuildTarOption) io.Reader {
+	var bo BuildTarOptions
+	for _, o := range opts {
+		o(&bo)
+	}
+	pr, pw := io.Pipe()
+	go func() {
+		zw, err := zstd.NewWriter(pw, zstd.WithEncoderLevel(zstd.EncoderLevelFromZstd(compressionLevel)))
+		if err != nil {
+			pw.CloseWithError(err)
+			return
+		}
+		tw := tar.NewWriter(zw)
+		for _, ent := range ents {
+			if err := ent.AppendTar(tw, bo); err != nil {
+				pw.CloseWithError(err)
+				return
+			}
+		}
+		if err := tw.Close(); err != nil {
+			pw.CloseWithError(err)
+			return
+		}
+		if err := zw.Close(); err != nil {
 			pw.CloseWithError(err)
 			return
 		}
