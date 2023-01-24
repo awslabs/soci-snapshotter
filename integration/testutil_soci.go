@@ -51,8 +51,9 @@ const (
 // indexBuildConfig represents the values of the CLI flags that should be used
 // when creating an index with `buildIndex`
 type indexBuildConfig struct {
-	spanSize     int64
-	minLayerSize int64
+	spanSize              int64
+	minLayerSize          int64
+	supportLegacyRegistry bool
 }
 
 // indexBuildOption is a functional argument to update `indexBuildConfig`
@@ -73,6 +74,10 @@ func withMinLayerSize(minLayerSize int64) indexBuildOption {
 	}
 }
 
+func withLegacyRegistrySupport(ibc *indexBuildConfig) {
+	ibc.supportLegacyRegistry = true
+}
+
 // defaultIndexBuildConfig is the default parameters when creating and index with `buildIndex`
 func defaultIndexBuildConfig() indexBuildConfig {
 	return indexBuildConfig{
@@ -89,12 +94,20 @@ func buildIndex(sh *shell.Shell, src imageInfo, opt ...indexBuildOption) string 
 		o(&indexBuildConfig)
 	}
 	opts := encodeImageInfo(src)
+
+	createCommand := []string{"soci", "create", src.ref}
+	createArgs := []string{
+		"--min-layer-size", fmt.Sprintf("%d", indexBuildConfig.minLayerSize),
+		"--span-size", fmt.Sprintf("%d", indexBuildConfig.spanSize),
+		"--platform", platforms.Format(src.platform),
+	}
+	if indexBuildConfig.supportLegacyRegistry {
+		createArgs = append(createArgs, "--legacy-registry")
+	}
+
 	indexDigest := sh.
 		X(append([]string{"ctr", "i", "pull", "--platform", platforms.Format(src.platform)}, opts[0]...)...).
-		X("soci", "create", src.ref,
-			"--min-layer-size", fmt.Sprintf("%d", indexBuildConfig.minLayerSize),
-			"--span-size", fmt.Sprintf("%d", indexBuildConfig.spanSize),
-			"--platform", platforms.Format(src.platform)).
+		X(append(createCommand, createArgs...)...).
 		O("soci", "index", "list",
 			"-q", "--ref", src.ref,
 			"--platform", platforms.Format(src.platform)) // this will make SOCI artifact available locally

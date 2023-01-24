@@ -19,7 +19,6 @@ package integration
 import (
 	"bufio"
 	"bytes"
-	"encoding/json"
 	"fmt"
 	"strings"
 	"testing"
@@ -280,7 +279,7 @@ func sociIndexFromDigest(sh *shell.Shell, indexDigest string) (index soci.Index,
 	if err != nil {
 		return
 	}
-	if err = json.Unmarshal(rawSociIndexJSON, &index); err != nil {
+	if err = soci.UnmarshalIndex(rawSociIndexJSON, &index); err != nil {
 		err = fmt.Errorf("invalid soci index from digest %s: %s", indexDigest, err)
 	}
 	return

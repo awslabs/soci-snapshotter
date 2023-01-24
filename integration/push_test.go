@@ -20,6 +20,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/awslabs/soci-snapshotter/soci"
 	"github.com/awslabs/soci-snapshotter/util/testutil"
 	"github.com/containerd/containerd/platforms"
 )
@@ -131,6 +132,86 @@ func TestPushAlwaysMostRecentlyCreatedIndex(t *testing.T) {
 					t.Fatalf("incorrect index pushed to remote registry; expected %s, got %s", index, pushedIndex)
 				}
 			}
+		})
+	}
+}
+
+func TestLegacyOCI(t *testing.T) {
+	tests := []struct {
+		name                  string
+		registryImage         string
+		supportLegacyRegistry bool
+		expectError           bool
+	}{
+		{
+			name:                  "OCI 1.1 Artifacts succeed with OCI 1.1 registry",
+			registryImage:         oci11RegistryImage,
+			supportLegacyRegistry: false,
+			expectError:           false,
+		},
+		{
+			name:                  "OCI 1.0 Artifacts succeed with OCI 1.1 registry",
+			registryImage:         oci11RegistryImage,
+			supportLegacyRegistry: true,
+			expectError:           false,
+		},
+		{
+			name:                  "OCI 1.1 Artifacts fail with OCI 1.0 registry",
+			registryImage:         oci10RegistryImage,
+			supportLegacyRegistry: false,
+			expectError:           true,
+		},
+		{
+			name:                  "OCI 1.0 Artifacts succeed with OCI 1.0 registry",
+			registryImage:         oci10RegistryImage,
+			supportLegacyRegistry: true,
+			expectError:           false,
+		},
+	}
+
+	for _, tc := range tests {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			regConfig := newRegistryConfig()
+			sh, done := newShellWithRegistry(t, regConfig, withRegistryImageRef(tc.registryImage))
+			defer done()
+
+			if err := testutil.WriteFileContents(sh, defaultContainerdConfigPath, getContainerdConfigYaml(t, false), 0600); err != nil {
+				t.Fatalf("failed to write %v: %v", defaultContainerdConfigPath, err)
+			}
+			if err := testutil.WriteFileContents(sh, defaultSnapshotterConfigPath, getSnapshotterConfigYaml(t, false), 0600); err != nil {
+				t.Fatalf("failed to write %v: %v", defaultSnapshotterConfigPath, err)
+			}
+			rebootContainerd(t, sh, "", "")
+
+			imageName := ubuntuImage
+			copyImage(sh, dockerhub(imageName), regConfig.mirror(imageName))
+			var buildOpts []indexBuildOption
+			if tc.supportLegacyRegistry {
+				buildOpts = append(buildOpts, withLegacyRegistrySupport)
+			}
+
+			indexDigest := buildIndex(sh, regConfig.mirror(imageName), buildOpts...)
+			rawJSON := sh.O("soci", "index", "info", indexDigest)
+			var sociIndex soci.Index
+			if err := soci.UnmarshalIndex(rawJSON, &sociIndex); err != nil {
+				t.Fatalf("invalid soci index from digest %s: %v", indexDigest, rawJSON)
+			}
+			_, err := sh.OLog("soci", "push", "--user", regConfig.creds(), regConfig.mirror(imageName).ref)
+			hasError := err != nil
+			if hasError != tc.expectError {
+				t.Fatalf("unexpected error state: expected error? %v, got %v", tc.expectError, err)
+			} else if hasError {
+				// if we have an error and we expected an error, the test is done
+				return
+			}
+			sh.X("rm", "-rf", "/var/lib/soci-snapshotter-grpc/content/blobs/sha256")
+
+			sh.X("soci", "image", "rpull", "--user", regConfig.creds(), "--soci-index-digest", indexDigest, regConfig.mirror(imageName).ref)
+			if err := sh.Err(); err != nil {
+				t.Fatalf("failed to rpull: %v", err)
+			}
+			checkFuseMounts(t, sh, len(sociIndex.Blobs))
 		})
 	}
 }
