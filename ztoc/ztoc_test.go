@@ -83,9 +83,11 @@ func TestDecompress(t *testing.T) {
 		},
 	}
 
+	ztocBuilder := NewBuilder("test")
+
 	for _, tc := range tests {
 		spansize := tc.spanSize
-		ztoc, err := BuildZtoc(tarGzFilePath, spansize, "test")
+		ztoc, err := ztocBuilder.BuildZtoc(tarGzFilePath, spansize)
 		if err != nil {
 			t.Fatalf("%s: can't build ztoc: %v", tc.name, err)
 		}
@@ -233,6 +235,8 @@ func TestZtocGenerationConsistency(t *testing.T) {
 		},
 	}
 
+	ztocBuilder := NewBuilder("test")
+
 	for _, tc := range testcases {
 		t.Run(tc.name, func(t *testing.T) {
 			tarReader := testutil.BuildTarGz(tc.tarEntries, gzip.DefaultCompression)
@@ -246,7 +250,7 @@ func TestZtocGenerationConsistency(t *testing.T) {
 				t.Fatalf("failed to get targz files and their contents: %v", err)
 			}
 			spansize := tc.spanSize
-			ztoc1, err := BuildZtoc(tarGzFilePath, spansize, "test")
+			ztoc1, err := ztocBuilder.BuildZtoc(tarGzFilePath, spansize)
 			if err != nil {
 				t.Fatalf("can't build ztoc1: %v", err)
 			}
@@ -257,7 +261,7 @@ func TestZtocGenerationConsistency(t *testing.T) {
 				t.Fatalf("ztoc1 metadata file count mismatch. expected: %d, actual: %d", len(fileNames), len(ztoc1.TOC.Metadata))
 			}
 
-			ztoc2, err := BuildZtoc(tarGzFilePath, spansize, "test")
+			ztoc2, err := ztocBuilder.BuildZtoc(tarGzFilePath, spansize)
 			if err != nil {
 				t.Fatalf("can't build ztoc2: %v", err)
 			}
@@ -370,8 +374,7 @@ func TestZtocGeneration(t *testing.T) {
 				t.Fatalf("failed to get targz files and their contents: %v", err)
 			}
 			spansize := tc.spanSize
-
-			ztoc, err := BuildZtoc(tarGzFilePath, spansize, tc.buildTool)
+			ztoc, err := NewBuilder(tc.buildTool).BuildZtoc(tarGzFilePath, spansize)
 			if err != nil {
 				t.Fatalf("can't build ztoc: error=%v", err)
 			}
@@ -462,7 +465,7 @@ func TestZtocSerialization(t *testing.T) {
 				t.Fatalf("failed to get targz files and their contents: %v", err)
 			}
 			spansize := tc.spanSize
-			createdZtoc, err := BuildZtoc(tarGzFilePath, spansize, tc.buildTool)
+			createdZtoc, err := NewBuilder(tc.buildTool).BuildZtoc(tarGzFilePath, spansize)
 			if err != nil {
 				t.Fatalf("can't build ztoc: error=%v", err)
 			}

@@ -36,7 +36,7 @@ func BuildZtocReader(ents []testutil.TarEntry, compressionLevel int, spanSize in
 	defer os.Remove(tarFileName)
 
 	sr := io.NewSectionReader(bytes.NewReader(tarData), 0, int64(len(tarData)))
-	ztoc, err := BuildZtoc(tarFileName, spanSize, "test")
+	ztoc, err := NewBuilder("test").BuildZtoc(tarFileName, spanSize)
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to build sample ztoc: %v", err)
 	}

@@ -270,6 +270,7 @@ type IndexBuilder struct {
 	contentStore content.Store
 	blobStore    orascontent.Storage
 	config       *buildConfig
+	ztocBuilder  *ztoc.Builder
 }
 
 // NewIndexBuilder returns an `IndexBuilder` that is used to create soci indices.
@@ -292,6 +293,7 @@ func NewIndexBuilder(contentStore content.Store, blobStore orascontent.Storage, 
 		contentStore: contentStore,
 		blobStore:    blobStore,
 		config:       config,
+		ztocBuilder:  ztoc.NewBuilder(config.buildToolIdentifier),
 	}, nil
 }
 
@@ -316,7 +318,7 @@ func (b *IndexBuilder) Build(ctx context.Context, img images.Image) (*IndexWithM
 		eg.Go(func() error {
 			desc, err := b.buildSociLayer(ctx, l)
 			if err != nil {
-				return fmt.Errorf("could not build zTOC for %s: %w", l.Digest.String(), err)
+				return fmt.Errorf("could not build zTOC for layer %s: %w", l.Digest.String(), err)
 			}
 			sociLayersDesc[i] = desc
 			return nil
@@ -352,7 +354,8 @@ func (b *IndexBuilder) Build(ctx context.Context, img images.Image) (*IndexWithM
 	}, nil
 }
 
-// buildSociLayer builds the ztoc for an image layer and returns a Descriptor for the new ztoc.
+// buildSociLayer builds a ztoc for an image layer (`desc`) and returns ztoc descriptor.
+// It may skip building ztoc (e.g., if layer size < `minLayerSize`) and return nil.
 func (b *IndexBuilder) buildSociLayer(ctx context.Context, desc ocispec.Descriptor) (*ocispec.Descriptor, error) {
 	if !images.IsLayerType(desc.MediaType) {
 		return nil, errNotLayerType
@@ -362,11 +365,12 @@ func (b *IndexBuilder) buildSociLayer(ctx context.Context, desc ocispec.Descript
 		fmt.Printf("layer %s -> ztoc skipped\n", desc.Digest)
 		return nil, nil
 	}
+
 	compression, err := images.DiffCompression(ctx, desc.MediaType)
 	if err != nil {
 		return nil, fmt.Errorf("could not determine layer compression: %w", err)
 	}
-	if compression != "gzip" {
+	if compression != ztoc.CompressionGzip {
 		return nil, fmt.Errorf("layer %s (%s) must be compressed by gzip, but got %q: %w",
 			desc.Digest, desc.MediaType, compression, errUnsupportedLayerFormat)
 	}
@@ -391,7 +395,7 @@ func (b *IndexBuilder) buildSociLayer(ctx context.Context, desc ocispec.Descript
 		return nil, errors.New("the size of the temp file doesn't match that of the layer")
 	}
 
-	toc, err := ztoc.BuildZtoc(tmpFile.Name(), b.config.spanSize, b.config.buildToolIdentifier)
+	toc, err := b.ztocBuilder.BuildZtoc(tmpFile.Name(), b.config.spanSize, ztoc.WithCompression(compression))
 	if err != nil {
 		return nil, err
 	}
@@ -426,7 +430,7 @@ func (b *IndexBuilder) buildSociLayer(ctx context.Context, desc ocispec.Descript
 
 	ztocDesc.MediaType = SociLayerMediaType
 	ztocDesc.Annotations = map[string]string{
-		IndexAnnotationImageLayerMediaType: ocispec.MediaTypeImageLayerGzip,
+		IndexAnnotationImageLayerMediaType: desc.MediaType,
 		IndexAnnotationImageLayerDigest:    desc.Digest.String(),
 	}
 	return &ztocDesc, err
@@ -461,10 +465,7 @@ func skipBuildingZtoc(desc ocispec.Descriptor, cfg *buildConfig) bool {
 		return false
 	}
 	// avoid the file access if the layer size is below threshold
-	if desc.Size < cfg.minLayerSize {
-		return true
-	}
-	return false
+	return desc.Size < cfg.minLayerSize
 }
 
 // GetImageManifestDescriptor gets the descriptor of image manifest

@@ -1,0 +1,203 @@
+/*
+   Copyright The Soci Snapshotter Authors.
+
+   Licensed under the Apache License, Version 2.0 (the "License");
+   you may not use this file except in compliance with the License.
+   You may obtain a copy of the License at
+
+       http://www.apache.org/licenses/LICENSE-2.0
+
+   Unless required by applicable law or agreed to in writing, software
+   distributed under the License is distributed on an "AS IS" BASIS,
+   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+   See the License for the specific language governing permissions and
+   limitations under the License.
+*/
+
+package ztoc
+
+import (
+	"archive/tar"
+	"compress/gzip"
+	"fmt"
+	"io"
+	"os"
+
+	"github.com/awslabs/soci-snapshotter/compression"
+	"github.com/klauspost/compress/zstd"
+)
+
+// TarProvider creates a tar reader from a compressed file reader (e.g., a gzip file reader),
+// which can be used by `TocBuilder` to create `TOC` from it.
+type TarProvider func(file *os.File) (io.Reader, error)
+
+// TarProviderGzip creates a tar reader from gzip reader.
+func TarProviderGzip(compressedReader *os.File) (io.Reader, error) {
+	return gzip.NewReader(compressedReader)
+}
+
+// TarProviderZstd creates a tar reader from zstd reader.
+func TarProviderZstd(compressedReader *os.File) (io.Reader, error) {
+	return zstd.NewReader(compressedReader)
+}
+
+// TocBuilder builds the `TOC` part of a ztoc and works with different
+// compression algorithms (e.g., gzip, zstd) with a registered `TarProvider`.
+type TocBuilder struct {
+	tarProviders map[string]TarProvider
+}
+
+// NewTocBuilder return a `TocBuilder` struct. Users need to call `RegisterTarProvider`
+// to support a specific compression algorithm.
+func NewTocBuilder() TocBuilder {
+	return TocBuilder{
+		tarProviders: make(map[string]TarProvider),
+	}
+}
+
+// RegisterTarProvider adds a TarProvider for a compression algorithm.
+func (tb TocBuilder) RegisterTarProvider(algorithm string, provider TarProvider) {
+	if tb.tarProviders == nil {
+		tb.tarProviders = make(map[string]TarProvider)
+	}
+	tb.tarProviders[algorithm] = provider
+}
+
+// CheckCompressionAlgorithm checks if a compression algorithm is supported.
+func (tb TocBuilder) CheckCompressionAlgorithm(algorithm string) bool {
+	_, ok := tb.tarProviders[algorithm]
+	return ok
+}
+
+// TocFromFile creates a `TOC` given a layer blob filename and the compression
+// algorithm used by the layer.
+func (tb TocBuilder) TocFromFile(algorithm, filename string) (TOC, compression.Offset, error) {
+	if !tb.CheckCompressionAlgorithm(algorithm) {
+		return TOC{}, 0, fmt.Errorf("unsupported compression algorithm: %s", algorithm)
+	}
+
+	fm, uncompressedArchiveSize, err := tb.getFileMetadata(algorithm, filename)
+	if err != nil {
+		return TOC{}, 0, err
+	}
+
+	return TOC{Metadata: fm}, uncompressedArchiveSize, nil
+}
+
+// getFileMetadata creates `FileMetadata` for each file within the compressed file
+// and calculate the uncompressed size of the passed file.
+func (tb TocBuilder) getFileMetadata(algorithm, filename string) ([]FileMetadata, compression.Offset, error) {
+	// read compress file and create compress tar reader.
+	compressFile, err := os.Open(filename)
+	if err != nil {
+		return nil, 0, fmt.Errorf("could not open file for reading: %v", err)
+	}
+	defer compressFile.Close()
+
+	compressTarReader, err := tb.tarProviders[algorithm](compressFile)
+	if err != nil {
+		return nil, 0, err
+	}
+
+	// create uncompress temp tar file and uncompress tar reader.
+	uncompressFile, err := os.CreateTemp("/tmp", "tempfile-ztoc-builder")
+	if err != nil {
+		return nil, 0, err
+	}
+	defer os.Remove(uncompressFile.Name())
+
+	uncompressFileSize, err := io.Copy(uncompressFile, compressTarReader)
+	if err != nil {
+		return nil, 0, err
+	}
+
+	// create toc from tar reader.
+	tarSectionReader := io.NewSectionReader(uncompressFile, 0, uncompressFileSize)
+	md, err := metadataFromTarReader(tarSectionReader)
+	if err != nil {
+		return nil, 0, err
+	}
+	return md, compression.Offset(uncompressFileSize), nil
+}
+
+// metadataFromTarReader reads every file from tar reader `sr` and creates
+// `FileMetadata` for each file.
+func metadataFromTarReader(sr *io.SectionReader) ([]FileMetadata, error) {
+	pt := &positionTrackerReader{r: sr}
+	tarRdr := tar.NewReader(pt)
+	var md []FileMetadata
+
+	for {
+		hdr, err := tarRdr.Next()
+		if err != nil {
+			if err == io.EOF {
+				break
+			} else {
+				return nil, fmt.Errorf("error while reading tar header: %w", err)
+			}
+		}
+
+		fileType, err := getType(hdr)
+		if err != nil {
+			return nil, err
+		}
+
+		metadataEntry := FileMetadata{
+			Name:               hdr.Name,
+			Type:               fileType,
+			UncompressedOffset: pt.CurrentPos(),
+			UncompressedSize:   compression.Offset(hdr.Size),
+			Linkname:           hdr.Linkname,
+			Mode:               hdr.Mode,
+			UID:                hdr.Uid,
+			GID:                hdr.Gid,
+			Uname:              hdr.Uname,
+			Gname:              hdr.Gname,
+			ModTime:            hdr.ModTime,
+			Devmajor:           hdr.Devmajor,
+			Devminor:           hdr.Devminor,
+			Xattrs:             hdr.PAXRecords,
+		}
+		md = append(md, metadataEntry)
+	}
+	return md, nil
+}
+
+func getType(header *tar.Header) (fileType string, e error) {
+	switch header.Typeflag {
+	case tar.TypeLink:
+		fileType = "hardlink"
+	case tar.TypeSymlink:
+		fileType = "symlink"
+	case tar.TypeDir:
+		fileType = "dir"
+	case tar.TypeReg:
+		fileType = "reg"
+	case tar.TypeChar:
+		fileType = "char"
+	case tar.TypeBlock:
+		fileType = "block"
+	case tar.TypeFifo:
+		fileType = "fifo"
+	default:
+		return "", fmt.Errorf("unsupported input tar entry %q", header.Typeflag)
+	}
+	return
+}
+
+type positionTrackerReader struct {
+	r   io.ReaderAt
+	pos compression.Offset
+}
+
+func (p *positionTrackerReader) Read(b []byte) (int, error) {
+	n, err := p.r.ReadAt(b, int64(p.pos))
+	if err == nil {
+		p.pos += compression.Offset(n)
+	}
+	return n, err
+}
+
+func (p *positionTrackerReader) CurrentPos() compression.Offset {
+	return p.pos
+}
