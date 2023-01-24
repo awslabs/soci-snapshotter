@@ -45,6 +45,7 @@ var CreateCommand = cli.Command{
 	ArgsUsage: "[flags] <image_ref>",
 	Flags: append(
 		internal.PlatformFlags,
+		internal.LegacyRegistryFlag,
 		cli.Int64Flag{
 			Name:  spanSizeFlag,
 			Usage: "Span size that soci index uses to segment layer data. Default is 4 MiB",
@@ -96,12 +97,16 @@ var CreateCommand = cli.Command{
 			return err
 		}
 
+		builderOpts := []soci.BuildOption{
+			soci.WithMinLayerSize(minLayerSize),
+			soci.WithSpanSize(spanSize),
+			soci.WithBuildToolIdentifier(buildToolIdentifier),
+		}
+		if cliContext.Bool(internal.LegacyRegistryFlagName) {
+			builderOpts = append(builderOpts, soci.WithLegacyRegistrySupport)
+		}
 		for _, plat := range ps {
-			builder, err := soci.NewIndexBuilder(cs, blobStore,
-				soci.WithMinLayerSize(minLayerSize),
-				soci.WithSpanSize(spanSize),
-				soci.WithBuildToolIdentifier(buildToolIdentifier),
-				soci.WithPlatform(plat))
+			builder, err := soci.NewIndexBuilder(cs, blobStore, append(builderOpts, soci.WithPlatform(plat))...)
 
 			if err != nil {
 				return err

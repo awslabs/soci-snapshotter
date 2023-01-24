@@ -155,7 +155,7 @@ var listCommand = cli.Command{
 		}
 
 		writer := tabwriter.NewWriter(os.Stdout, 8, 8, 4, ' ', 0)
-		writer.Write([]byte("DIGEST\tSIZE\tIMAGE REF\tPLATFORM\tCREATED\t\n"))
+		writer.Write([]byte("DIGEST\tSIZE\tIMAGE REF\tPLATFORM\tMEDIA TYPE\tCREATED\t\n"))
 
 		for _, ae := range artifacts {
 			imgs, _ := is.List(ctx, fmt.Sprintf("target.digest==%s", ae.ImageDigest))
@@ -174,11 +174,12 @@ var listCommand = cli.Command{
 
 func writeArtifactEntry(w io.Writer, ae *soci.ArtifactEntry, imageRef string) {
 	w.Write([]byte(fmt.Sprintf(
-		"%s\t%d\t%s\t%s\t%s\t\n",
+		"%s\t%d\t%s\t%s\t%s\t%s\t\n",
 		ae.Digest,
 		ae.Size,
 		imageRef,
 		ae.Platform,
+		ae.MediaType,
 		getDuration(ae.CreatedAt),
 	)))
 }

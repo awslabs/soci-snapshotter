@@ -20,7 +20,6 @@ import (
 	"bytes"
 	"context"
 	"crypto/tls"
-	"encoding/json"
 	"fmt"
 	"io"
 
@@ -183,13 +182,14 @@ func FetchSociArtifacts(ctx context.Context, refspec reference.Spec, indexDesc o
 	cw := new(ioutils.CountWriter)
 	tee := io.TeeReader(indexReader, cw)
 
-	index, err := soci.NewIndexFromReader(tee)
+	var index soci.Index
+	err = soci.DecodeIndex(tee, &index)
 	if err != nil {
 		return nil, fmt.Errorf("cannot deserialize byte data to index: %w", err)
 	}
 
 	if !local {
-		b, err := json.Marshal(index)
+		b, err := soci.MarshalIndex(&index)
 		if err != nil {
 			return nil, err
 		}
@@ -223,5 +223,5 @@ func FetchSociArtifacts(ctx context.Context, refspec reference.Spec, indexDesc o
 		return nil, err
 	}
 
-	return index, nil
+	return &index, nil
 }

@@ -66,7 +66,8 @@ func TestSociCreateSparseIndex(t *testing.T) {
 			indexDigest := buildIndex(sh, imgInfo, withMinLayerSize(tt.minLayerSize))
 			checkpoints := fetchContentFromPath(sh, blobStorePath+"/"+trimSha256Prefix(indexDigest))
 
-			index, err := soci.NewIndexFromReader(bytes.NewReader(checkpoints))
+			var index soci.Index
+			err := soci.DecodeIndex(bytes.NewReader(checkpoints), &index)
 			if err != nil {
 				t.Fatalf("cannot get index data: %v", err)
 			}
@@ -84,7 +85,7 @@ func TestSociCreateSparseIndex(t *testing.T) {
 				}
 			}
 
-			validateSociIndex(t, sh, *index, manifestDigest, includedLayers)
+			validateSociIndex(t, sh, index, manifestDigest, includedLayers)
 		})
 	}
 }
@@ -145,7 +146,8 @@ func TestSociCreate(t *testing.T) {
 			imgInfo := dockerhub(tt.containerImage, withPlatform(platform))
 			indexDigest := buildIndex(sh, imgInfo, withMinLayerSize(0))
 			checkpoints := fetchContentFromPath(sh, blobStorePath+"/"+trimSha256Prefix(indexDigest))
-			sociIndex, err := soci.NewIndexFromReader(bytes.NewReader(checkpoints))
+			var sociIndex soci.Index
+			err := soci.DecodeIndex(bytes.NewReader(checkpoints), &sociIndex)
 			if err != nil {
 				t.Fatalf("cannot get soci index: %v", err)
 			}
@@ -155,7 +157,7 @@ func TestSociCreate(t *testing.T) {
 				t.Fatalf("failed to get manifest digest: %v", err)
 			}
 
-			validateSociIndex(t, sh, *sociIndex, m, nil)
+			validateSociIndex(t, sh, sociIndex, m, nil)
 		})
 	}
 }

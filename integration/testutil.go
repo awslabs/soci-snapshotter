@@ -68,8 +68,13 @@ const (
 	dockerLibrary                = "public.ecr.aws/docker/library/"
 	blobStorePath                = "/var/lib/soci-snapshotter-grpc/content/blobs/sha256"
 	containerdBlobStorePath      = "/var/lib/containerd/io.containerd.content.v1.content/blobs/sha256"
+	// Registry images to use in the test infrastructure. These are not intended to be used
+	// as images in the test itself, but just when we're setting up docker compose.
+	oci11RegistryImage = "ghcr.io/oci-playground/registry:v3.0.0-alpha.1"
+	oci10RegistryImage = "docker.io/library/registry:2"
 )
 
+// These are images that we use in our integration tests
 const (
 	alpineImage   = "alpine:latest"
 	nginxImage    = "nginx:latest"
@@ -272,13 +277,27 @@ func (c registryConfig) mirror(imageName string, opts ...imageOpt) imageInfo {
 }
 
 type registryOptions struct {
-	network string
+	network          string
+	registryImageRef string
+}
+
+func defaultRegistryOptions() registryOptions {
+	return registryOptions{
+		network:          "",
+		registryImageRef: oci11RegistryImage,
+	}
 }
 
 type registryOpt func(o *registryOptions)
 
+func withRegistryImageRef(ref string) registryOpt {
+	return func(o *registryOptions) {
+		o.registryImageRef = ref
+	}
+}
+
 func newShellWithRegistry(t *testing.T, r registryConfig, opts ...registryOpt) (sh *shell.Shell, done func() error) {
-	var rOpts registryOptions
+	rOpts := defaultRegistryOptions()
 	for _, o := range opts {
 		o(&rOpts)
 	}
@@ -356,7 +375,7 @@ services:
     volumes:
     - /dev/fuse:/dev/fuse
   registry:
-    image: ghcr.io/oci-playground/registry:v3.0.0-alpha.1
+    image: {{.RegistryImageRef}}
     container_name: {{.RegistryHost}}
     environment:
     - REGISTRY_AUTH=htpasswd
@@ -369,19 +388,21 @@ services:
     - {{.AuthDir}}:/auth:ro
 {{.NetworkConfig}}
 `, struct {
-		ServiceName     string
-		ImageContextDir string
-		TargetStage     string
-		RegistryHost    string
-		AuthDir         string
-		NetworkConfig   string
+		ServiceName      string
+		ImageContextDir  string
+		TargetStage      string
+		RegistryImageRef string
+		RegistryHost     string
+		AuthDir          string
+		NetworkConfig    string
 	}{
-		ServiceName:     serviceName,
-		ImageContextDir: pRoot,
-		TargetStage:     targetStage,
-		RegistryHost:    r.host,
-		AuthDir:         authDir,
-		NetworkConfig:   networkConfig,
+		ServiceName:      serviceName,
+		ImageContextDir:  pRoot,
+		TargetStage:      targetStage,
+		RegistryImageRef: rOpts.registryImageRef,
+		RegistryHost:     r.host,
+		AuthDir:          authDir,
+		NetworkConfig:    networkConfig,
 	}), cOpts...)
 	if err != nil {
 		t.Fatalf("failed to prepare compose: %v", err)

@@ -828,7 +828,7 @@ func TestRpullImageThenRemove(t *testing.T) {
 
 	rawJSON := sh.O("soci", "index", "info", indexDigest)
 	var sociIndex soci.Index
-	if err := json.Unmarshal(rawJSON, &sociIndex); err != nil {
+	if err := soci.UnmarshalIndex(rawJSON, &sociIndex); err != nil {
 		t.Fatalf("invalid soci index from digest %s: %v", indexDigest, rawJSON)
 	}
 

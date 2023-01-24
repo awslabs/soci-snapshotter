@@ -28,6 +28,7 @@ import (
 	"github.com/awslabs/soci-snapshotter/util/dbutil"
 	"github.com/containerd/containerd/errdefs"
 	"github.com/containerd/containerd/log"
+	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	bolt "go.etcd.io/bbolt"
 )
 
@@ -254,7 +255,7 @@ func (db *ArtifactsDb) RemoveArtifactEntryByImageDigest(digest string) error {
 // Determines whether a bucket represents an index, as opposed to a zTOC
 func indexBucket(b *bolt.Bucket) bool {
 	mt := string(b.Get(bucketKeyMediaType))
-	return mt == OCIArtifactManifestMediaType
+	return mt == OCIArtifactManifestMediaType || mt == ocispec.MediaTypeImageManifest
 }
 
 // Determines whether a bucket's image digest is the same as digest

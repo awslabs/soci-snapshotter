@@ -249,7 +249,7 @@ func TestNewIndex(t *testing.T) {
 
 	for _, tc := range testcases {
 		t.Run(tc.name, func(t *testing.T) {
-			index := NewIndex(tc.blobs, &tc.subject, tc.annotations)
+			index := NewIndex(tc.blobs, &tc.subject, tc.annotations, false)
 
 			if diff := cmp.Diff(index.Blobs, tc.blobs); diff != "" {
 				t.Fatalf("unexpected blobs; diff = %v", diff)
@@ -270,7 +270,7 @@ func TestNewIndex(t *testing.T) {
 	}
 }
 
-func TestNewIndexFromReader(t *testing.T) {
+func TestDecodeIndex(t *testing.T) {
 	testcases := []struct {
 		name        string
 		blobs       []ocispec.Descriptor
@@ -297,17 +297,75 @@ func TestNewIndexFromReader(t *testing.T) {
 
 	for _, tc := range testcases {
 		t.Run(tc.name, func(t *testing.T) {
-			index := NewIndex(tc.blobs, &tc.subject, tc.annotations)
+			index := NewIndex(tc.blobs, &tc.subject, tc.annotations, false)
 			jsonBytes, err := json.Marshal(index)
 			if err != nil {
 				t.Fatalf("cannot convert index to json byte data: %v", err)
 			}
-			index2, err := NewIndexFromReader(bytes.NewReader(jsonBytes))
+			var index2 Index
+			err = DecodeIndex(bytes.NewReader(jsonBytes), &index2)
 			if err != nil {
 				t.Fatal(err)
 			}
-			if diff := cmp.Diff(index, index2); diff != "" {
+			if diff := cmp.Diff(index, &index2); diff != "" {
 				t.Fatalf("unexpected index after deserialzing from byte data; diff = %v", diff)
+			}
+		})
+	}
+}
+
+func TestMarshalIndex(t *testing.T) {
+	blobs := []ocispec.Descriptor{
+		{
+			Size:   4,
+			Digest: digest.FromBytes([]byte("test")),
+		},
+	}
+
+	subject := ocispec.Descriptor{
+		Size:   4,
+		Digest: digest.FromBytes([]byte("test")),
+	}
+
+	annotations := map[string]string{
+		"foo": "bar",
+	}
+
+	testcases := []struct {
+		name  string
+		index *Index
+		ty    interface{}
+	}{
+		{
+			name:  "successfully roundtrip as Artifact Manifest",
+			index: NewIndex(blobs, &subject, annotations, false),
+			ty:    ocispec.Artifact{},
+		},
+		{
+			name:  "successfully roundtrip as Image Manifest",
+			index: NewIndex(blobs, &subject, annotations, true),
+			ty:    ocispec.Manifest{},
+		},
+	}
+
+	for _, tc := range testcases {
+		t.Run(tc.name, func(t *testing.T) {
+			b, err := MarshalIndex(tc.index)
+			if err != nil {
+				t.Fatalf("could not marshal index: %v", err)
+			}
+			err = json.Unmarshal(b, &tc.ty)
+			if err != nil {
+				t.Fatalf("could not unmarshal index as underlying type: %v", err)
+			}
+			var unmarshalled Index
+			err = UnmarshalIndex(b, &unmarshalled)
+			if err != nil {
+				t.Fatalf("could not unmarshal index as index: %v", err)
+			}
+			diff := cmp.Diff(tc.index, &unmarshalled)
+			if diff != "" {
+				t.Fatalf("deserialized index does not match original index: %s", diff)
 			}
 		})
 	}
