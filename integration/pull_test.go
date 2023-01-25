@@ -840,8 +840,8 @@ func TestRpullImageThenRemove(t *testing.T) {
 
 	checkFuseMounts(t, sh, len(sociIndex.Blobs))
 
-	sh.X("ctr", "image", "rm", regConfig.mirror(containerImage).ref)
-	sh.X("ctr", "image", "rm", dockerhub(containerImage).ref)
+	sh.X("ctr", "image", "rm", "--sync", regConfig.mirror(containerImage).ref)
+	sh.X("ctr", "image", "rm", "--sync", dockerhub(containerImage).ref)
 
 	checkFuseMounts(t, sh, 0)
 }
