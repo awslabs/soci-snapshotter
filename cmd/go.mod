@@ -14,7 +14,7 @@ require (
 	github.com/urfave/cli v1.22.12
 	go.etcd.io/bbolt v1.3.6
 	golang.org/x/sys v0.4.0
-	google.golang.org/grpc v1.52.0
+	google.golang.org/grpc v1.52.3
 	k8s.io/cri-api v0.25.6
 	oras.land/oras-go/v2 v2.0.0
 )
@@ -37,7 +37,7 @@ require (
 	github.com/containernetworking/plugins v1.1.1 // indirect
 	github.com/cpuguy83/go-md2man/v2 v2.0.2 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
-	github.com/docker/cli v20.10.22+incompatible // indirect
+	github.com/docker/cli v20.10.23+incompatible // indirect
 	github.com/docker/docker v20.10.7+incompatible // indirect
 	github.com/docker/docker-credential-helpers v0.6.4 // indirect
 	github.com/docker/go-events v0.0.0-20190806004212-e31b211e4f1c // indirect
@@ -56,7 +56,7 @@ require (
 	github.com/google/go-cmp v0.5.9 // indirect
 	github.com/google/gofuzz v1.2.0 // indirect
 	github.com/google/uuid v1.3.0 // indirect
-	github.com/hanwen/go-fuse/v2 v2.1.1-0.20210825171523-3ab5d95a30ae // indirect
+	github.com/hanwen/go-fuse/v2 v2.2.0 // indirect
 	github.com/hashicorp/errwrap v1.1.0 // indirect
 	github.com/hashicorp/go-cleanhttp v0.5.2 // indirect
 	github.com/hashicorp/go-multierror v1.1.1 // indirect
@@ -95,7 +95,7 @@ require (
 	golang.org/x/time v0.3.0 // indirect
 	golang.org/x/tools v0.5.0 // indirect
 	google.golang.org/appengine v1.6.7 // indirect
-	google.golang.org/genproto v0.0.0-20230110181048-76db0878b65f // indirect
+	google.golang.org/genproto v0.0.0-20230125152338-dcaf20b6aeaa // indirect
 	google.golang.org/protobuf v1.28.1 // indirect
 	gopkg.in/inf.v0 v0.9.1 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
