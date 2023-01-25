@@ -106,7 +106,7 @@ func TestOverlayFallbackMetric(t *testing.T) {
 			name:  "image with all layers having ztocs and no fs.Mount error results in 0 overlay fallback",
 			image: rabbitmqImage,
 			indexDigestFn: func(sh *shell.Shell, image imageInfo) string {
-				return buildSparseIndex(sh, image, 0, defaultSpanSize)
+				return buildIndex(sh, image, withMinLayerSize(0))
 			},
 			expectedFallbackCount: 0,
 		},
@@ -114,7 +114,7 @@ func TestOverlayFallbackMetric(t *testing.T) {
 			name:  "image with some layers not having ztoc and no fs.Mount results in 0 overlay fallback",
 			image: rabbitmqImage,
 			indexDigestFn: func(sh *shell.Shell, image imageInfo) string {
-				return buildSparseIndex(sh, image, defaultMinLayerSize, defaultSpanSize)
+				return buildIndex(sh, image, withMinLayerSize(defaultMinLayerSize))
 			},
 			expectedFallbackCount: 0,
 		},
@@ -184,7 +184,7 @@ log_fuse_operations = true
 			name:  "image with valid ztocs and index doesn't cause fuse file.read failures",
 			image: rabbitmqImage,
 			indexDigestFn: func(t *testing.T, sh *shell.Shell, image imageInfo) string {
-				return buildSparseIndex(sh, image, 0, defaultSpanSize)
+				return buildIndex(sh, image)
 			},
 			// even a valid index/ztoc produces some fuse operation failures such as
 			// node.lookup and node.getxattr failures, so we only check a specific fuse failure metric.
@@ -195,7 +195,7 @@ log_fuse_operations = true
 			name:  "image with valid-formatted but invalid-data ztocs causes fuse file.read failures",
 			image: rabbitmqImage,
 			indexDigestFn: func(t *testing.T, sh *shell.Shell, image imageInfo) string {
-				indexDigest, err := buildIndexByManipulatingZtocData(sh, buildSparseIndex(sh, image, 0, defaultSpanSize), manipulateZtocMetadata)
+				indexDigest, err := buildIndexByManipulatingZtocData(sh, buildIndex(sh, image), manipulateZtocMetadata)
 				if err != nil {
 					t.Fatal(err)
 				}
