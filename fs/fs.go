@@ -95,6 +95,9 @@ const (
 
 	// Amount of time Mount will time out if a layer can't be resolved.
 	defaultMountTimeout = 30 * time.Second
+
+	// Amount of time the snapshotter will wait before emitting the metrics for FUSE operation.
+	defaultFuseMetricsEmitWaitDuration = 60 * time.Second
 )
 
 var (
@@ -226,20 +229,26 @@ func NewFilesystem(root string, cfg config.Config, opts ...Option) (_ snapshot.F
 		mountTimeout = defaultMountTimeout
 	}
 
+	fuseMetricsEmitWaitDuration := time.Duration(cfg.FuseMetricsEmitWaitDurationSec) * time.Second
+	if fuseMetricsEmitWaitDuration == 0 {
+		fuseMetricsEmitWaitDuration = defaultFuseMetricsEmitWaitDuration
+	}
+
 	return &filesystem{
-		resolver:            r,
-		getSources:          getSources,
-		debug:               cfg.Debug,
-		layer:               make(map[string]layer.Layer),
-		allowNoVerification: cfg.AllowNoVerification,
-		disableVerification: true,
-		metricsController:   c,
-		attrTimeout:         attrTimeout,
-		entryTimeout:        entryTimeout,
-		negativeTimeout:     negativeTimeout,
-		orasStore:           store,
-		bgFetcher:           bgFetcher,
-		mountTimeout:        mountTimeout,
+		resolver:                    r,
+		getSources:                  getSources,
+		debug:                       cfg.Debug,
+		layer:                       make(map[string]layer.Layer),
+		allowNoVerification:         cfg.AllowNoVerification,
+		disableVerification:         true,
+		metricsController:           c,
+		attrTimeout:                 attrTimeout,
+		entryTimeout:                entryTimeout,
+		negativeTimeout:             negativeTimeout,
+		orasStore:                   store,
+		bgFetcher:                   bgFetcher,
+		mountTimeout:                mountTimeout,
+		fuseMetricsEmitWaitDuration: fuseMetricsEmitWaitDuration,
 	}, nil
 }
 
@@ -250,9 +259,10 @@ type sociContext struct {
 	fetchOnce            sync.Once
 	sociIndex            *soci.Index
 	imageLayerToSociDesc map[string]ocispec.Descriptor
+	fuseOperationCounter *layer.FuseOperationCounter
 }
 
-func (c *sociContext) Init(ctx context.Context, imageRef, indexDigest, imageManifestDigest string, store orascontent.Storage) error {
+func (c *sociContext) Init(ctx context.Context, imageRef, indexDigest, imageManifestDigest string, store orascontent.Storage, fuseOpEmitWaitDuration time.Duration) error {
 	var retErr error
 	c.fetchOnce.Do(func() {
 		defer func() {
@@ -304,6 +314,11 @@ func (c *sociContext) Init(ctx context.Context, imageRef, indexDigest, imageMani
 		}
 		c.sociIndex = index
 		c.populateImageLayerToSociMapping(index)
+
+		// Create the FUSE operation counter.
+		// Metrics are emitted after a wait time of fuseOpEmitWaitDuration.
+		c.fuseOperationCounter = layer.NewFuseOperationCounter(digest.Digest(imageManifestDigest), fuseOpEmitWaitDuration)
+		go c.fuseOperationCounter.Run()
 	})
 	c.cachedErrMu.RLock()
 	retErr = c.cachedErr
@@ -320,21 +335,22 @@ func (c *sociContext) populateImageLayerToSociMapping(sociIndex *soci.Index) {
 }
 
 type filesystem struct {
-	resolver            *layer.Resolver
-	debug               bool
-	layer               map[string]layer.Layer
-	layerMu             sync.Mutex
-	allowNoVerification bool
-	disableVerification bool
-	getSources          source.GetSources
-	metricsController   *layermetrics.Controller
-	attrTimeout         time.Duration
-	entryTimeout        time.Duration
-	negativeTimeout     time.Duration
-	sociContexts        sync.Map
-	orasStore           orascontent.Storage
-	bgFetcher           *bf.BackgroundFetcher
-	mountTimeout        time.Duration
+	resolver                    *layer.Resolver
+	debug                       bool
+	layer                       map[string]layer.Layer
+	layerMu                     sync.Mutex
+	allowNoVerification         bool
+	disableVerification         bool
+	getSources                  source.GetSources
+	metricsController           *layermetrics.Controller
+	attrTimeout                 time.Duration
+	entryTimeout                time.Duration
+	negativeTimeout             time.Duration
+	sociContexts                sync.Map
+	orasStore                   orascontent.Storage
+	bgFetcher                   *bf.BackgroundFetcher
+	mountTimeout                time.Duration
+	fuseMetricsEmitWaitDuration time.Duration
 }
 
 func (fs *filesystem) MountLocal(ctx context.Context, mountpoint string, labels map[string]string, mounts []mount.Mount) error {
@@ -380,7 +396,7 @@ func (fs *filesystem) getSociContext(ctx context.Context, imageRef, indexDigest,
 	if !ok {
 		return nil, fmt.Errorf("could not load index: fs soci context is invalid type for %s", indexDigest)
 	}
-	err := c.Init(ctx, imageRef, indexDigest, imageManifestDigest, fs.orasStore)
+	err := c.Init(ctx, imageRef, indexDigest, imageManifestDigest, fs.orasStore, fs.fuseMetricsEmitWaitDuration)
 	return c, err
 }
 
@@ -433,7 +449,7 @@ func (fs *filesystem) Mount(ctx context.Context, mountpoint string, labels map[s
 				break
 			}
 
-			l, err := fs.resolver.Resolve(ctx, s.Hosts, s.Name, s.Target, sociDesc)
+			l, err := fs.resolver.Resolve(ctx, s.Hosts, s.Name, s.Target, sociDesc, c.fuseOperationCounter)
 			if err == nil {
 				resultChan <- l
 				return
@@ -456,7 +472,7 @@ func (fs *filesystem) Mount(ctx context.Context, mountpoint string, labels map[s
 				return
 			}
 
-			l, err := fs.resolver.Resolve(ctx, preResolve.Hosts, preResolve.Name, desc, sociDesc)
+			l, err := fs.resolver.Resolve(ctx, preResolve.Hosts, preResolve.Name, desc, sociDesc, c.fuseOperationCounter)
 			if err != nil {
 				log.G(ctx).WithError(err).Debug("failed to pre-resolve")
 				return

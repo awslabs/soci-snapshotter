@@ -371,7 +371,7 @@ func hasSize(name string, size int) check {
 }
 
 func getRootNode(t *testing.T, r reader.Reader, opaque OverlayOpaqueType) *node {
-	rootNode, err := newNode(testStateLayerDigest, &testReader{r}, &testBlobState{10, 5}, 100, opaque, false)
+	rootNode, err := newNode(testStateLayerDigest, &testReader{r}, &testBlobState{10, 5}, 100, opaque, false, nil)
 	if err != nil {
 		t.Fatalf("failed to get root node: %v", err)
 	}
