@@ -53,6 +53,9 @@ const (
 	// BytesServedKey is the key for any metric related to counting bytes served as the part of specific operation.
 	BytesServedKey = "bytes_served"
 
+	// ImageOperationCountKey is the key for any metric related to operation count metric at the image level (as opposed to layer).
+	ImageOperationCountKey = "image_operation_count_key"
+
 	// Keep namespace as soci and subsystem as fs.
 	namespace = "soci"
 	subsystem = "fs"
@@ -143,6 +146,15 @@ var (
 		},
 		[]string{"operation_type", "layer"},
 	)
+
+	imageOperationCount = prometheus.NewGaugeVec(
+		prometheus.GaugeOpts{
+			Namespace: namespace,
+			Subsystem: subsystem,
+			Name:      ImageOperationCountKey,
+			Help:      "The count of soci snapshotter operations. Broken down by operation type and image digest.",
+		},
+		[]string{"operation_type", "image"})
 )
 
 var register sync.Once
@@ -168,6 +180,7 @@ func Register() {
 		prometheus.MustRegister(operationLatencyMicroseconds)
 		prometheus.MustRegister(operationCount)
 		prometheus.MustRegister(bytesCount)
+		prometheus.MustRegister(imageOperationCount)
 	})
 }
 
@@ -197,4 +210,9 @@ func IncOperationCount(operation string, layer digest.Digest) {
 // AddBytesCount wraps the labels attachment as well as calling Add into a single method.
 func AddBytesCount(operation string, layer digest.Digest, bytes int64) {
 	bytesCount.WithLabelValues(operation, layer.String()).Add(float64(bytes))
+}
+
+// AddImageOperationCount wraps the labels attachment as well as calling Add into a single method.
+func AddImageOperationCount(operation string, image digest.Digest, count int32) {
+	imageOperationCount.WithLabelValues(operation, image.String()).Add(float64(count))
 }

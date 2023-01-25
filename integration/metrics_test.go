@@ -25,7 +25,9 @@ import (
 	"strconv"
 	"strings"
 	"testing"
+	"time"
 
+	"github.com/awslabs/soci-snapshotter/fs/layer"
 	commonmetrics "github.com/awslabs/soci-snapshotter/fs/metrics/common"
 	"github.com/awslabs/soci-snapshotter/soci"
 
@@ -222,6 +224,74 @@ log_fuse_operations = true
 			checkFuseOperationFailureMetrics(t, curlOutput, tc.metricToCheck, tc.expectFuseOperationFailure)
 		})
 	}
+}
+
+func TestFuseOperationCountMetrics(t *testing.T) {
+	regConfig := newRegistryConfig()
+
+	const snapshotterConfig = `
+fuse_metrics_emit_wait_duration_sec = 10
+	`
+
+	sh, done := newShellWithRegistry(t, regConfig)
+	defer done()
+
+	if err := testutil.WriteFileContents(sh, defaultContainerdConfigPath, getContainerdConfigYaml(t, false), 0600); err != nil {
+		t.Fatalf("failed to write %v: %v", defaultContainerdConfigPath, err)
+	}
+	if err := testutil.WriteFileContents(sh, defaultSnapshotterConfigPath, getSnapshotterConfigYaml(t, false, tcpMetricsConfig, snapshotterConfig), 0600); err != nil {
+		t.Fatalf("failed to write %v: %v", defaultSnapshotterConfigPath, err)
+	}
+
+	checkMetricExists := func(output, metric string) bool {
+		lines := strings.Split(output, "\n")
+		for _, line := range lines {
+			if strings.Contains(line, metric) {
+				return true
+			}
+		}
+		return false
+	}
+
+	testCases := []struct {
+		name  string
+		image string
+	}{
+		{
+			name:  "rabbitmq image",
+			image: rabbitmqImage,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			rebootContainerd(t, sh, "", "")
+
+			imgInfo := dockerhub(tc.image)
+			sh.X("ctr", "i", "pull", imgInfo.ref)
+			indexDigest := buildIndex(sh, imgInfo)
+
+			sh.X("soci", "image", "rpull", "--soci-index-digest", indexDigest, imgInfo.ref)
+			sh.XLog("ctr", "run", "--rm", "-d", "--snapshotter=soci", imgInfo.ref, "test", "echo", "hi")
+
+			curlOutput := string(sh.O("curl", tcpMetricsAddress+metricsPath))
+
+			for _, m := range layer.FuseOpsList {
+				if checkMetricExists(curlOutput, m) {
+					t.Fatalf("got unexpected metric: %s", m)
+				}
+			}
+
+			time.Sleep(10 * time.Second)
+			curlOutput = string(sh.O("curl", tcpMetricsAddress+metricsPath))
+			for _, m := range layer.FuseOpsList {
+				if !checkMetricExists(curlOutput, m) {
+					t.Fatalf("missing expected metric: %s", m)
+				}
+			}
+		})
+	}
+
 }
 
 // buildIndexByManipulatingZtocData produces a new soci index by manipulating

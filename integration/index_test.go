@@ -25,7 +25,6 @@ import (
 	"testing"
 
 	"github.com/awslabs/soci-snapshotter/soci"
-	"github.com/awslabs/soci-snapshotter/util/dockershell"
 	shell "github.com/awslabs/soci-snapshotter/util/dockershell"
 	"github.com/containerd/containerd/platforms"
 )
@@ -38,7 +37,7 @@ type testImageIndex struct {
 	ztocDigests     []string
 }
 
-func prepareSociIndices(t *testing.T, sh *dockershell.Shell) []testImageIndex {
+func prepareSociIndices(t *testing.T, sh *shell.Shell) []testImageIndex {
 	testImages := []testImageIndex{
 		{
 			imgName:  ubuntuImage,
@@ -80,7 +79,7 @@ func prepareSociIndices(t *testing.T, sh *dockershell.Shell) []testImageIndex {
 	return testImages
 }
 
-func getZtocDigestsForImage(sh *dockershell.Shell, img imageInfo) ([]string, error) {
+func getZtocDigestsForImage(sh *shell.Shell, img imageInfo) ([]string, error) {
 	ztocInfoBytes := sh.O("soci", "ztoc", "list", "--image-ref", img.ref)
 	scanner := bufio.NewScanner(bytes.NewReader(ztocInfoBytes))
 	scanner.Split(bufio.ScanLines)

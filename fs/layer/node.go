@@ -49,6 +49,7 @@ import (
 	"sort"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"syscall"
 	"time"
 
@@ -112,6 +113,61 @@ var fuseOpFailureMetrics = map[string]string{
 	fuseOpWhiteoutGetattr: commonmetrics.FuseWhiteoutGetattrFailureCount,
 }
 
+// FuseOperationCounter collects number of invocations of the various FUSE implementations and emits them as metrics.
+// Setting `waitPeriod` to be > 0 allows delaying the time when the metrics are emitted.
+type FuseOperationCounter struct {
+	opCounts    map[string]*atomic.Int32
+	waitPeriod  time.Duration
+	imageDigest digest.Digest
+}
+
+// List of available FUSE operations
+var FuseOpsList = []string{
+	fuseOpGetattr,
+	fuseOpGetxattr,
+	fuseOpListxattr,
+	fuseOpLookup,
+	fuseOpOpen,
+	fuseOpReaddir,
+	fuseOpFileRead,
+	fuseOpFileGetattr,
+	fuseOpWhiteoutGetattr,
+}
+
+// NewFuseOperationCounter constructs a FuseOperationCounter for an image with digest imgDigest.
+// waitPeriod specifies how long to wait before emitting the aggregated metrics.
+func NewFuseOperationCounter(imgDigest digest.Digest, waitPeriod time.Duration) *FuseOperationCounter {
+	f := &FuseOperationCounter{
+		imageDigest: imgDigest,
+		waitPeriod:  waitPeriod,
+		opCounts:    make(map[string]*atomic.Int32),
+	}
+	for _, m := range FuseOpsList {
+		f.opCounts[m] = new(atomic.Int32)
+	}
+	return f
+}
+
+// Atomically increase the count of FUSE operation op.
+// Noop if op is not in FuseOpsList.
+func (f *FuseOperationCounter) Inc(op string) {
+	operation, ok := f.opCounts[op]
+	if !ok {
+		return
+	}
+	operation.Add(1)
+}
+
+// Waits for f.waitPeriod to pass before emitting metric for
+// operation in FuseOpsList. Should be started in different goroutine so that it
+// doesn't block the current goroutine.
+func (f *FuseOperationCounter) Run() {
+	<-time.After(f.waitPeriod)
+	for k, v := range f.opCounts {
+		commonmetrics.AddImageOperationCount(k, f.imageDigest, v.Load())
+	}
+}
+
 func incFuseOpFailureMetric(operationName string, layer digest.Digest) {
 	metric, ok := fuseOpFailureMetrics[operationName]
 	if !ok {
@@ -120,7 +176,7 @@ func incFuseOpFailureMetric(operationName string, layer digest.Digest) {
 	commonmetrics.IncOperationCount(metric, layer)
 }
 
-func newNode(layerDgst digest.Digest, r reader.Reader, blob remote.Blob, baseInode uint32, opaque OverlayOpaqueType, logFSOperations bool) (fusefs.InodeEmbedder, error) {
+func newNode(layerDgst digest.Digest, r reader.Reader, blob remote.Blob, baseInode uint32, opaque OverlayOpaqueType, logFSOperations bool, opCounter *FuseOperationCounter) (fusefs.InodeEmbedder, error) {
 	rootID := r.Metadata().RootID()
 	rootAttr, err := r.Metadata().GetAttr(rootID)
 	if err != nil {
@@ -131,12 +187,13 @@ func newNode(layerDgst digest.Digest, r reader.Reader, blob remote.Blob, baseIno
 		return nil, fmt.Errorf("unknown overlay opaque type")
 	}
 	ffs := &fs{
-		r:               r,
-		layerDigest:     layerDgst,
-		baseInode:       baseInode,
-		rootID:          rootID,
-		opaqueXattrs:    opq,
-		logFSOperations: logFSOperations,
+		r:                r,
+		layerDigest:      layerDgst,
+		baseInode:        baseInode,
+		rootID:           rootID,
+		opaqueXattrs:     opq,
+		logFSOperations:  logFSOperations,
+		operationCounter: opCounter,
 	}
 	ffs.s = ffs.newState(layerDgst, blob)
 	return &node{
@@ -148,13 +205,14 @@ func newNode(layerDgst digest.Digest, r reader.Reader, blob remote.Blob, baseIno
 
 // fs contains global metadata used by nodes
 type fs struct {
-	r               reader.Reader
-	s               *state
-	layerDigest     digest.Digest
-	baseInode       uint32
-	rootID          uint32
-	opaqueXattrs    []string
-	logFSOperations bool
+	r                reader.Reader
+	s                *state
+	layerDigest      digest.Digest
+	baseInode        uint32
+	rootID           uint32
+	opaqueXattrs     []string
+	logFSOperations  bool
+	operationCounter *FuseOperationCounter
 }
 
 func (fs *fs) inodeOfState() uint64 {
@@ -209,6 +267,9 @@ var _ = (fusefs.NodeReaddirer)((*node)(nil))
 
 func (n *node) Readdir(ctx context.Context) (fusefs.DirStream, syscall.Errno) {
 	n.logOperation(ctx, fuseOpReaddir)
+	if n.fs.operationCounter != nil {
+		n.fs.operationCounter.Inc(fuseOpReaddir)
+	}
 	ents, errno := n.readdir()
 	if errno != 0 {
 		return nil, errno
@@ -291,6 +352,9 @@ var _ = (fusefs.NodeLookuper)((*node)(nil))
 
 func (n *node) Lookup(ctx context.Context, name string, out *fuse.EntryOut) (*fusefs.Inode, syscall.Errno) {
 	n.logOperation(ctx, fuseOpLookup)
+	if n.fs.operationCounter != nil {
+		n.fs.operationCounter.Inc(fuseOpLookup)
+	}
 
 	isRoot := n.isRootNode()
 
@@ -381,6 +445,9 @@ var _ = (fusefs.NodeOpener)((*node)(nil))
 
 func (n *node) Open(ctx context.Context, flags uint32) (fh fusefs.FileHandle, fuseFlags uint32, errno syscall.Errno) {
 	n.logOperation(ctx, fuseOpOpen)
+	if n.fs.operationCounter != nil {
+		n.fs.operationCounter.Inc(fuseOpOpen)
+	}
 	ra, err := n.fs.r.OpenFile(n.id)
 	if err != nil {
 		incFuseOpFailureMetric(fuseOpOpen, n.fs.layerDigest)
@@ -397,6 +464,9 @@ var _ = (fusefs.NodeGetattrer)((*node)(nil))
 
 func (n *node) Getattr(ctx context.Context, f fusefs.FileHandle, out *fuse.AttrOut) syscall.Errno {
 	n.logOperation(ctx, fuseOpGetattr)
+	if n.fs.operationCounter != nil {
+		n.fs.operationCounter.Inc(fuseOpGetattr)
+	}
 	ino, err := n.fs.inodeOfID(n.id)
 	if err != nil {
 		incFuseOpFailureMetric(fuseOpGetattr, n.fs.layerDigest)
@@ -411,6 +481,9 @@ var _ = (fusefs.NodeGetxattrer)((*node)(nil))
 
 func (n *node) Getxattr(ctx context.Context, attr string, dest []byte) (uint32, syscall.Errno) {
 	n.logOperation(ctx, fuseOpGetxattr)
+	if n.fs.operationCounter != nil {
+		n.fs.operationCounter.Inc(fuseOpGetxattr)
+	}
 	ent := n.attr
 	opq := n.isOpaque()
 	for _, opaqueXattr := range n.fs.opaqueXattrs {
@@ -435,6 +508,9 @@ var _ = (fusefs.NodeListxattrer)((*node)(nil))
 
 func (n *node) Listxattr(ctx context.Context, dest []byte) (uint32, syscall.Errno) {
 	n.logOperation(ctx, fuseOpListxattr)
+	if n.fs.operationCounter != nil {
+		n.fs.operationCounter.Inc(fuseOpListxattr)
+	}
 	ent := n.attr
 	opq := n.isOpaque()
 	var attrs []byte
@@ -478,6 +554,9 @@ var _ = (fusefs.FileReader)((*file)(nil))
 
 func (f *file) Read(ctx context.Context, dest []byte, off int64) (fuse.ReadResult, syscall.Errno) {
 	f.n.logOperation(ctx, fuseOpFileRead)
+	if f.n.fs.operationCounter != nil {
+		f.n.fs.operationCounter.Inc(fuseOpFileRead)
+	}
 	defer commonmetrics.MeasureLatencyInMicroseconds(commonmetrics.SynchronousRead, f.n.fs.layerDigest, time.Now()) // measure time for synchronous file reads (in microseconds)
 	defer commonmetrics.IncOperationCount(commonmetrics.SynchronousReadCount, f.n.fs.layerDigest)                   // increment the counter for synchronous file reads
 	n, err := f.ra.ReadAt(dest, off)
@@ -493,6 +572,9 @@ var _ = (fusefs.FileGetattrer)((*file)(nil))
 
 func (f *file) Getattr(ctx context.Context, out *fuse.AttrOut) syscall.Errno {
 	f.n.logOperation(ctx, fuseOpFileGetattr)
+	if f.n.fs.operationCounter != nil {
+		f.n.fs.operationCounter.Inc(fuseOpFileGetattr)
+	}
 	ino, err := f.n.fs.inodeOfID(f.n.id)
 	if err != nil {
 		incFuseOpFailureMetric(fuseOpFileGetattr, f.n.fs.layerDigest)
@@ -514,6 +596,9 @@ type whiteout struct {
 var _ = (fusefs.NodeGetattrer)((*whiteout)(nil))
 
 func (w *whiteout) Getattr(ctx context.Context, f fusefs.FileHandle, out *fuse.AttrOut) syscall.Errno {
+	if w.fs.operationCounter != nil {
+		w.fs.operationCounter.Inc(fuseOpWhiteoutGetattr)
+	}
 	ino, err := w.fs.inodeOfID(w.id)
 	if err != nil {
 		incFuseOpFailureMetric(fuseOpWhiteoutGetattr, w.fs.layerDigest)

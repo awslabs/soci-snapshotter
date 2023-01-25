@@ -53,15 +53,16 @@ const (
 )
 
 type Config struct {
-	HTTPCacheType       string `toml:"http_cache_type"`
-	FSCacheType         string `toml:"filesystem_cache_type"`
-	ResolveResultEntry  int    `toml:"resolve_result_entry"`
-	Debug               bool   `toml:"debug"`
-	AllowNoVerification bool   `toml:"allow_no_verification"`
-	DisableVerification bool   `toml:"disable_verification"`
-	MaxConcurrency      int64  `toml:"max_concurrency"`
-	NoPrometheus        bool   `toml:"no_prometheus"`
-	MountTimeoutSec     int    `toml:"mount_timeout_sec"`
+	HTTPCacheType                  string `toml:"http_cache_type"`
+	FSCacheType                    string `toml:"filesystem_cache_type"`
+	ResolveResultEntry             int    `toml:"resolve_result_entry"`
+	Debug                          bool   `toml:"debug"`
+	AllowNoVerification            bool   `toml:"allow_no_verification"`
+	DisableVerification            bool   `toml:"disable_verification"`
+	MaxConcurrency                 int64  `toml:"max_concurrency"`
+	NoPrometheus                   bool   `toml:"no_prometheus"`
+	MountTimeoutSec                int    `toml:"mount_timeout_sec"`
+	FuseMetricsEmitWaitDurationSec int    `toml:"fuse_metrics_emit_wait_duration_sec"`
 
 	// BlobConfig is config for layer blob management.
 	BlobConfig `toml:"blob"`

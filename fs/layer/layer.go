@@ -229,7 +229,7 @@ func newCache(root string, cacheType string, cfg config.Config) (cache.BlobCache
 }
 
 // Resolve resolves a layer based on the passed layer blob information.
-func (r *Resolver) Resolve(ctx context.Context, hosts source.RegistryHosts, refspec reference.Spec, desc, sociDesc ocispec.Descriptor, metadataOpts ...metadata.Option) (_ Layer, retErr error) {
+func (r *Resolver) Resolve(ctx context.Context, hosts source.RegistryHosts, refspec reference.Spec, desc, sociDesc ocispec.Descriptor, opCounter *FuseOperationCounter, metadataOpts ...metadata.Option) (_ Layer, retErr error) {
 	name := refspec.String() + "/" + desc.Digest.String()
 
 	// Wait if resolving this layer is already running. The result
@@ -340,7 +340,7 @@ func (r *Resolver) Resolve(ctx context.Context, hosts source.RegistryHosts, refs
 	}
 
 	// Combine layer information together and cache it.
-	l := newLayer(r, desc, blobR, vr, bgLayerResolver)
+	l := newLayer(r, desc, blobR, vr, bgLayerResolver, opCounter)
 	r.layerCacheMu.Lock()
 	cachedL, done2, added := r.layerCache.Add(name, l)
 	r.layerCacheMu.Unlock()
@@ -401,13 +401,15 @@ func newLayer(
 	blob *blobRef,
 	vr *reader.VerifiableReader,
 	bgResolver backgroundfetcher.Resolver,
+	opCounter *FuseOperationCounter,
 ) *layer {
 	return &layer{
-		resolver:         resolver,
-		desc:             desc,
-		blob:             blob,
-		verifiableReader: vr,
-		bgResolver:       bgResolver,
+		resolver:             resolver,
+		desc:                 desc,
+		blob:                 blob,
+		verifiableReader:     vr,
+		bgResolver:           bgResolver,
+		fuseOperationCounter: opCounter,
 	}
 }
 
@@ -420,6 +422,8 @@ type layer struct {
 	bgResolver backgroundfetcher.Resolver
 
 	r reader.Reader
+
+	fuseOperationCounter *FuseOperationCounter
 
 	closed   bool
 	closedMu sync.Mutex
@@ -481,7 +485,7 @@ func (l *layer) RootNode(baseInode uint32) (fusefs.InodeEmbedder, error) {
 	if l.r == nil {
 		return nil, fmt.Errorf("layer hasn't been verified yet")
 	}
-	return newNode(l.desc.Digest, l.r, l.blob, baseInode, l.resolver.overlayOpaqueType, l.resolver.config.LogFuseOperations)
+	return newNode(l.desc.Digest, l.r, l.blob, baseInode, l.resolver.overlayOpaqueType, l.resolver.config.LogFuseOperations, l.fuseOperationCounter)
 }
 
 func (l *layer) ReadAt(p []byte, offset int64, opts ...remote.Option) (int, error) {
