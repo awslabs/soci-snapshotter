@@ -122,7 +122,7 @@ func TestPushAlwaysMostRecentlyCreatedIndex(t *testing.T) {
 			copyImage(sh, dockerhub(tc.image), regConfig.mirror(tc.image))
 
 			for _, opt := range tc.opts {
-				index := buildSparseIndex(sh, regConfig.mirror(tc.image), opt.minLayerSize, opt.spanSize)
+				index := buildIndex(sh, regConfig.mirror(tc.image), withMinLayerSize(opt.minLayerSize), withSpanSize(opt.spanSize))
 				index = strings.Split(index, "\n")[0]
 				out := sh.O("soci", "push", "--user", regConfig.creds(), regConfig.mirror(tc.image).ref, "-q")
 				pushedIndex := strings.Trim(string(out), "\n")

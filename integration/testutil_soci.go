@@ -50,19 +50,56 @@ const (
 	defaultMinLayerSize = 10 << 20
 )
 
-// buildIndex builds a soci index with default span size and 0 min-layer-size, so every layer
-// will have a corresponding ztoc.
-func buildIndex(sh *shell.Shell, src imageInfo) string {
-	return buildSparseIndex(sh, src, 0, defaultSpanSize) // we build an index with min-layer-size 0
+// indexBuildConfig represents the values of the CLI flags that should be used
+// when creating an index with `buildIndex`
+type indexBuildConfig struct {
+	spanSize     int64
+	minLayerSize int64
 }
 
-// buildSparseIndex builds a soci index by passing `--min-layer-size` and `--span-size`.
-func buildSparseIndex(sh *shell.Shell, src imageInfo, minLayerSize, spanSize int64) string {
+// indexBuildOption is a functional argument to update `indexBuildConfig`
+type indexBuildOption func(*indexBuildConfig)
+
+// withSpanSize overrides the spansize to use when creating and index with `buildIndex`
+func withSpanSize(spanSize int64) indexBuildOption {
+	return func(ibc *indexBuildConfig) {
+		ibc.spanSize = spanSize
+	}
+}
+
+// withMinLayerSize overrides the minimum layer size for which to create a ztoc
+// when creating an index with `buildIndex`
+func withMinLayerSize(minLayerSize int64) indexBuildOption {
+	return func(ibc *indexBuildConfig) {
+		ibc.minLayerSize = minLayerSize
+	}
+}
+
+// defaultIndexBuildConfig is the default parameters when creating and index with `buildIndex`
+func defaultIndexBuildConfig() indexBuildConfig {
+	return indexBuildConfig{
+		spanSize:     defaultSpanSize,
+		minLayerSize: 0,
+	}
+}
+
+// buildIndex builds an index for the source image with given options. By default, it will build with
+// min-layer-size = 0 and span-size = CLI default
+func buildIndex(sh *shell.Shell, src imageInfo, opt ...indexBuildOption) string {
+	indexBuildConfig := defaultIndexBuildConfig()
+	for _, o := range opt {
+		o(&indexBuildConfig)
+	}
 	opts := encodeImageInfo(src)
 	indexDigest := sh.
 		X(append([]string{"ctr", "i", "pull", "--platform", platforms.Format(src.platform)}, opts[0]...)...).
-		X("soci", "create", src.ref, "--min-layer-size", fmt.Sprintf("%d", minLayerSize), "--span-size", fmt.Sprintf("%d", spanSize), "--platform", platforms.Format(src.platform)).
-		O("soci", "index", "list", "-q", "--ref", src.ref, "--platform", platforms.Format(src.platform)) // this will make SOCI artifact available locally
+		X("soci", "create", src.ref,
+			"--min-layer-size", fmt.Sprintf("%d", indexBuildConfig.minLayerSize),
+			"--span-size", fmt.Sprintf("%d", indexBuildConfig.spanSize),
+			"--platform", platforms.Format(src.platform)).
+		O("soci", "index", "list",
+			"-q", "--ref", src.ref,
+			"--platform", platforms.Format(src.platform)) // this will make SOCI artifact available locally
 	return strings.Trim(string(indexDigest), "\n")
 }
 

@@ -165,7 +165,7 @@ func TestLazyPullWithSparseIndex(t *testing.T) {
 
 	rebootContainerd(t, sh, "", "")
 	copyImage(sh, dockerhub(imageName), regConfig.mirror(imageName))
-	indexDigest := buildSparseIndex(sh, regConfig.mirror(imageName), minLayerSize, defaultSpanSize)
+	indexDigest := buildIndex(sh, regConfig.mirror(imageName), withMinLayerSize(minLayerSize))
 
 	fromNormalSnapshotter := func(image string) tarPipeExporter {
 		return func(t *testing.T, tarExportArgs ...string) {
@@ -204,7 +204,7 @@ func TestLazyPullWithSparseIndex(t *testing.T) {
 			test: func(t *testing.T, tarExportArgs ...string) {
 				image := regConfig.mirror(imageName).ref
 				rebootContainerd(t, sh, "", "")
-				buildSparseIndex(sh, regConfig.mirror(imageName), minLayerSize, defaultSpanSize)
+				buildIndex(sh, regConfig.mirror(imageName), withMinLayerSize(minLayerSize))
 				sh.X("ctr", "i", "rm", imageName)
 				export(sh, image, tarExportArgs)
 				checkFuseMounts(t, sh, remoteSnapshotsExpectedCount)
