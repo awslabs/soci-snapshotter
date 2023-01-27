@@ -61,7 +61,7 @@ func TestSociArtifactsPushAndPull(t *testing.T) {
 
 			imageName := ubuntuImage
 			copyImage(sh, dockerhub(imageName, withPlatform(platform)), regConfig.mirror(imageName, withPlatform(platform)))
-			indexDigest := buildIndex(sh, regConfig.mirror(imageName, withPlatform(platform)))
+			indexDigest := buildIndex(sh, regConfig.mirror(imageName, withPlatform(platform)), withMinLayerSize(0))
 			artifactsStoreContentDigest := getSociLocalStoreContentDigest(sh)
 			sh.X("soci", "push", "--user", regConfig.creds(), "--platform", tt.Platform, regConfig.mirror(imageName).ref)
 			sh.X("rm", "-rf", "/var/lib/soci-snapshotter-grpc/content/blobs/sha256")

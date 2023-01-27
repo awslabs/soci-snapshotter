@@ -113,7 +113,7 @@ func TestOptimizeConsistentSociArtifact(t *testing.T) {
 			// optimize for the first time
 			sh.
 				X("rm", "-rf", blobStorePath)
-			buildIndex(sh, regConfig.mirror(tt.containerImage))
+			buildIndex(sh, regConfig.mirror(tt.containerImage), withMinLayerSize(0))
 			// move the artifact to a folder
 			sh.
 				X("rm", "-rf", "copy").
@@ -121,7 +121,7 @@ func TestOptimizeConsistentSociArtifact(t *testing.T) {
 				X("cp", "-r", blobStorePath, "copy") // move the contents of soci dir to another folder
 
 			// optimize for the second time
-			buildIndex(sh, regConfig.mirror(tt.containerImage))
+			buildIndex(sh, regConfig.mirror(tt.containerImage), withMinLayerSize(0))
 
 			currContent := sh.O("ls", blobStorePath)
 			prevContent := sh.O("ls", "copy/sha256")
@@ -261,8 +261,8 @@ func TestLazyPull(t *testing.T) {
 	copyImage(sh, dockerhub(optimizedImageName1), regConfig.mirror(optimizedImageName1))
 	copyImage(sh, dockerhub(optimizedImageName2), regConfig.mirror(optimizedImageName2))
 	copyImage(sh, dockerhub(nonOptimizedImageName), regConfig.mirror(nonOptimizedImageName))
-	indexDigest1 := buildIndex(sh, regConfig.mirror(optimizedImageName1))
-	indexDigest2 := buildIndex(sh, regConfig.mirror(optimizedImageName2))
+	indexDigest1 := buildIndex(sh, regConfig.mirror(optimizedImageName1), withMinLayerSize(0))
+	indexDigest2 := buildIndex(sh, regConfig.mirror(optimizedImageName2), withMinLayerSize(0))
 
 	// Test if contents are pulled
 	fromNormalSnapshotter := func(image string) tarPipeExporter {
@@ -298,7 +298,7 @@ func TestLazyPull(t *testing.T) {
 			test: func(t *testing.T, tarExportArgs ...string) {
 				image := regConfig.mirror(optimizedImageName1).ref
 				m := rebootContainerd(t, sh, "", "")
-				buildIndex(sh, regConfig.mirror(optimizedImageName1))
+				buildIndex(sh, regConfig.mirror(optimizedImageName1), withMinLayerSize(0))
 				sh.X("ctr", "i", "rm", optimizedImageName1)
 				export(sh, image, tarExportArgs)
 				m.CheckAllRemoteSnapshots(t)
@@ -310,9 +310,9 @@ func TestLazyPull(t *testing.T) {
 			test: func(t *testing.T, tarExportArgs ...string) {
 				image := regConfig.mirror(optimizedImageName1).ref
 				m := rebootContainerd(t, sh, "", "")
-				buildIndex(sh, regConfig.mirror(optimizedImageName2))
+				buildIndex(sh, regConfig.mirror(optimizedImageName2), withMinLayerSize(0))
 				sh.X("soci", "image", "rpull", "--user", regConfig.creds(), "--soci-index-digest", indexDigest2, regConfig.mirror(optimizedImageName2).ref)
-				buildIndex(sh, regConfig.mirror(optimizedImageName1))
+				buildIndex(sh, regConfig.mirror(optimizedImageName1), withMinLayerSize(0))
 				sh.X("ctr", "i", "rm", optimizedImageName1)
 				export(sh, image, tarExportArgs)
 				m.CheckAllRemoteSnapshots(t)
@@ -349,7 +349,7 @@ func TestLazyPullNoIndexDigest(t *testing.T) {
 	rebootContainerd(t, sh, "", "")
 	copyImage(sh, dockerhub(optimizedImageName), regConfig.mirror(optimizedImageName))
 	copyImage(sh, dockerhub(nonOptimizedImageName), regConfig.mirror(nonOptimizedImageName))
-	buildIndex(sh, regConfig.mirror(optimizedImageName))
+	buildIndex(sh, regConfig.mirror(optimizedImageName), withMinLayerSize(0))
 	sh.X("soci", "push", "--user", regConfig.creds(), regConfig.mirror(optimizedImageName).ref)
 
 	// Test if contents are pulled
@@ -545,8 +545,8 @@ disable = true
 	copyImage(sh, dockerhub(optimizedImageName1), regConfig.mirror(optimizedImageName1))
 	copyImage(sh, dockerhub(optimizedImageName2), regConfig.mirror(optimizedImageName2))
 	copyImage(sh, dockerhub(nonOptimizedImageName), regConfig.mirror(nonOptimizedImageName))
-	indexDigest1 := buildIndex(sh, regConfig.mirror(optimizedImageName1))
-	indexDigest2 := buildIndex(sh, regConfig.mirror(optimizedImageName2))
+	indexDigest1 := buildIndex(sh, regConfig.mirror(optimizedImageName1), withMinLayerSize(0))
+	indexDigest2 := buildIndex(sh, regConfig.mirror(optimizedImageName2), withMinLayerSize(0))
 
 	// Test if contents are pulled
 	fromNormalSnapshotter := func(image string) tarPipeExporter {
@@ -582,7 +582,7 @@ disable = true
 			test: func(t *testing.T, tarExportArgs ...string) {
 				image := regConfig.mirror(optimizedImageName1).ref
 				m := rebootContainerd(t, sh, "", "")
-				buildIndex(sh, regConfig.mirror(optimizedImageName1))
+				buildIndex(sh, regConfig.mirror(optimizedImageName1), withMinLayerSize(0))
 				sh.X("ctr", "i", "rm", optimizedImageName1)
 				export(sh, image, tarExportArgs)
 				m.CheckAllRemoteSnapshots(t)
@@ -594,9 +594,9 @@ disable = true
 			test: func(t *testing.T, tarExportArgs ...string) {
 				image := regConfig.mirror(optimizedImageName1).ref
 				m := rebootContainerd(t, sh, "", "")
-				buildIndex(sh, regConfig.mirror(optimizedImageName2))
+				buildIndex(sh, regConfig.mirror(optimizedImageName2), withMinLayerSize(0))
 				sh.X("soci", "image", "rpull", "--user", regConfig.creds(), "--soci-index-digest", indexDigest2, regConfig.mirror(optimizedImageName2).ref)
-				buildIndex(sh, regConfig.mirror(optimizedImageName1))
+				buildIndex(sh, regConfig.mirror(optimizedImageName1), withMinLayerSize(0))
 				sh.X("ctr", "i", "rm", optimizedImageName1)
 				export(sh, image, tarExportArgs)
 				m.CheckAllRemoteSnapshots(t)
@@ -740,7 +740,7 @@ insecure = true
 	rebootContainerd(t, sh, "", "")
 	copyImage(sh, dockerhub(imageName), regConfig.mirror(imageName))
 	copyImage(sh, regConfig.mirror(imageName), regAltConfig.mirror(imageName))
-	indexDigest := buildIndex(sh, regConfig.mirror(imageName))
+	indexDigest := buildIndex(sh, regConfig.mirror(imageName), withMinLayerSize(0))
 
 	// Pull images
 	// NOTE: Registry connection will still be checked on each "run" because
@@ -824,7 +824,7 @@ func TestRpullImageThenRemove(t *testing.T) {
 	containerImage := nginxImage
 
 	copyImage(sh, dockerhub(containerImage), regConfig.mirror(containerImage))
-	indexDigest := buildIndex(sh, regConfig.mirror(containerImage))
+	indexDigest := buildIndex(sh, regConfig.mirror(containerImage), withMinLayerSize(0))
 
 	rawJSON := sh.O("soci", "index", "info", indexDigest)
 	var sociIndex soci.Index

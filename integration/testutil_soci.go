@@ -44,10 +44,8 @@ import (
 const (
 	// copied from `soci/soci_index.go` for convenience so we don't always need to
 	// import the `soci` pkg only to use the default values.
-	// default span size (4MiB)
-	defaultSpanSize = int64(1 << 22)
-	// min layer size (10MiB)
-	defaultMinLayerSize = 10 << 20
+	defaultSpanSize     = int64(1 << 22) // 4MiB
+	defaultMinLayerSize = 10 << 20       // 10MiB
 )
 
 // indexBuildConfig represents the values of the CLI flags that should be used
@@ -60,7 +58,7 @@ type indexBuildConfig struct {
 // indexBuildOption is a functional argument to update `indexBuildConfig`
 type indexBuildOption func(*indexBuildConfig)
 
-// withSpanSize overrides the spansize to use when creating and index with `buildIndex`
+// withSpanSize overrides the default span size to use when creating an index with `buildIndex`
 func withSpanSize(spanSize int64) indexBuildOption {
 	return func(ibc *indexBuildConfig) {
 		ibc.spanSize = spanSize
@@ -79,7 +77,7 @@ func withMinLayerSize(minLayerSize int64) indexBuildOption {
 func defaultIndexBuildConfig() indexBuildConfig {
 	return indexBuildConfig{
 		spanSize:     defaultSpanSize,
-		minLayerSize: 0,
+		minLayerSize: defaultMinLayerSize,
 	}
 }
 
