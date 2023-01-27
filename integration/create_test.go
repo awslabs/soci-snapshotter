@@ -143,7 +143,7 @@ func TestSociCreate(t *testing.T) {
 				}
 			}
 			imgInfo := dockerhub(tt.containerImage, withPlatform(platform))
-			indexDigest := buildIndex(sh, imgInfo)
+			indexDigest := buildIndex(sh, imgInfo, withMinLayerSize(0))
 			checkpoints := fetchContentFromPath(sh, blobStorePath+"/"+trimSha256Prefix(indexDigest))
 			sociIndex, err := soci.NewIndexFromReader(bytes.NewReader(checkpoints))
 			if err != nil {
