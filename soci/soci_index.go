@@ -40,23 +40,21 @@ import (
 )
 
 const (
-	// artifactType of index SOCI index
+	// SociIndexArtifactType is the artifactType of index SOCI index
 	SociIndexArtifactType = "application/vnd.amazon.soci.index.v1+json"
-	// mediaType of ztoc
+	// SociLayerMediaType is the mediaType of ztoc
 	SociLayerMediaType = "application/octet-stream"
-	// index annotation for image layer media type
+	// IndexAnnotationImageLayerMediaType is the index annotation for image layer media type
 	IndexAnnotationImageLayerMediaType = "com.amazon.soci.image-layer-mediaType"
-	// index annotation for image layer digest
+	// IndexAnnotationImageLayerDigest is the index annotation for image layer digest
 	IndexAnnotationImageLayerDigest = "com.amazon.soci.image-layer-digest"
-	// index annotation for build tool identifier
+	// IndexAnnotationBuildToolIdentifier is the index annotation for build tool identifier
 	IndexAnnotationBuildToolIdentifier = "com.amazon.soci.build-tool-identifier"
-	// media type for OCI Artifact manifest
+	// OCIArtifactManifestMediaType is the media type for OCI Artifact manifest
 	OCIArtifactManifestMediaType = "application/vnd.oci.artifact.manifest.v1+json"
-	// default span size (4MiB)
-	defaultSpanSize = int64(1 << 22)
-	// min layer size (10MiB)
-	minLayerSize = 10 << 20
-	// default build tool identier
+
+	defaultSpanSize            = int64(1 << 22) // 4MiB
+	defaultMinLayerSize        = 10 << 20       // 10MiB
 	defaultBuildToolIdentifier = "AWS SOCI CLI v0.1"
 )
 
@@ -82,6 +80,7 @@ type Index struct {
 	Annotations map[string]string `json:"annotations,omitempty"`
 }
 
+// IndexWithMetadata has a soci `Index` and its metadata.
 type IndexWithMetadata struct {
 	Index       *Index
 	Platform    *ocispec.Platform
@@ -89,11 +88,13 @@ type IndexWithMetadata struct {
 	CreatedAt   time.Time
 }
 
+// IndexDescriptorInfo has a soci index descriptor and additional metadata.
 type IndexDescriptorInfo struct {
 	ocispec.Descriptor
 	CreatedAt time.Time
 }
 
+// GetIndexDescriptorCollection returns all `IndexDescriptorInfo` of the given image and platforms.
 func GetIndexDescriptorCollection(ctx context.Context, cs content.Store, img images.Image, ps []ocispec.Platform) ([]IndexDescriptorInfo, error) {
 	descriptors := []IndexDescriptorInfo{}
 	var entries []ArtifactEntry
@@ -136,8 +137,10 @@ type buildConfig struct {
 	platform            ocispec.Platform
 }
 
+// BuildOption specifies a config change to build soci indices.
 type BuildOption func(c *buildConfig) error
 
+// WithSpanSize specifies span size.
 func WithSpanSize(spanSize int64) BuildOption {
 	return func(c *buildConfig) error {
 		c.spanSize = spanSize
@@ -145,6 +148,7 @@ func WithSpanSize(spanSize int64) BuildOption {
 	}
 }
 
+// WithMinLayerSize specifies min layer size to build a ztoc for a layer.
 func WithMinLayerSize(minLayerSize int64) BuildOption {
 	return func(c *buildConfig) error {
 		c.minLayerSize = minLayerSize
@@ -152,6 +156,7 @@ func WithMinLayerSize(minLayerSize int64) BuildOption {
 	}
 }
 
+// WithBuildToolIdentifier specifies the build tool annotation value.
 func WithBuildToolIdentifier(tool string) BuildOption {
 	return func(c *buildConfig) error {
 		c.buildToolIdentifier = tool
@@ -159,6 +164,7 @@ func WithBuildToolIdentifier(tool string) BuildOption {
 	}
 }
 
+// WithPlatform specifies platform used to build soci indices.
 func WithPlatform(platform ocispec.Platform) BuildOption {
 	return func(c *buildConfig) error {
 		c.platform = platform
@@ -166,17 +172,19 @@ func WithPlatform(platform ocispec.Platform) BuildOption {
 	}
 }
 
+// IndexBuilder creates soci indices.
 type IndexBuilder struct {
 	contentStore content.Store
 	blobStore    orascontent.Storage
 	config       *buildConfig
 }
 
+// NewIndexBuilder returns an `IndexBuilder` that is used to create soci indices.
 func NewIndexBuilder(contentStore content.Store, blobStore orascontent.Storage, opts ...BuildOption) (*IndexBuilder, error) {
 	defaultPlatform := platforms.DefaultSpec()
 	config := &buildConfig{
 		spanSize:            defaultSpanSize,
-		minLayerSize:        minLayerSize,
+		minLayerSize:        defaultMinLayerSize,
 		buildToolIdentifier: defaultBuildToolIdentifier,
 		platform:            defaultPlatform,
 	}
@@ -194,6 +202,7 @@ func NewIndexBuilder(contentStore content.Store, blobStore orascontent.Storage, 
 	}, nil
 }
 
+// Build builds a soci index for `img` and return the index with metadata.
 func (b *IndexBuilder) Build(ctx context.Context, img images.Image) (*IndexWithMetadata, error) {
 	// we get manifest descriptor before calling images.Manifest, since after calling
 	// images.Manifest, images.Children will error out when reading the manifest blob (this happens on containerd side)
@@ -248,37 +257,6 @@ func (b *IndexBuilder) Build(ctx context.Context, img images.Image) (*IndexWithM
 		ImageDigest: img.Target.Digest,
 		CreatedAt:   time.Now(),
 	}, nil
-}
-
-// Returns a new index.
-func NewIndex(blobs []ocispec.Descriptor, subject *ocispec.Descriptor, annotations map[string]string) *Index {
-	return &Index{
-		Blobs:        blobs,
-		ArtifactType: SociIndexArtifactType,
-		Annotations:  annotations,
-		Subject:      subject,
-		MediaType:    OCIArtifactManifestMediaType,
-	}
-}
-
-// Returns a new index from a Reader.
-func NewIndexFromReader(reader io.Reader) (*Index, error) {
-	index := new(Index)
-	if err := json.NewDecoder(reader).Decode(index); err != nil {
-		return nil, fmt.Errorf("unable to decode reader into index: %v", err)
-	}
-	return index, nil
-}
-
-func skipBuildingZtoc(desc ocispec.Descriptor, cfg *buildConfig) bool {
-	if cfg == nil {
-		return false
-	}
-	// avoid the file access if the layer size is below threshold
-	if desc.Size < cfg.minLayerSize {
-		return true
-	}
-	return false
 }
 
 // buildSociLayer builds the ztoc for an image layer and returns a Descriptor for the new ztoc.
@@ -361,7 +339,38 @@ func (b *IndexBuilder) buildSociLayer(ctx context.Context, desc ocispec.Descript
 	return &ztocDesc, err
 }
 
-// getImageManifestDescriptor gets the descriptor of image manifest
+// NewIndex returns a new index.
+func NewIndex(blobs []ocispec.Descriptor, subject *ocispec.Descriptor, annotations map[string]string) *Index {
+	return &Index{
+		Blobs:        blobs,
+		ArtifactType: SociIndexArtifactType,
+		Annotations:  annotations,
+		Subject:      subject,
+		MediaType:    OCIArtifactManifestMediaType,
+	}
+}
+
+// NewIndexFromReader returns a new index from a Reader.
+func NewIndexFromReader(reader io.Reader) (*Index, error) {
+	index := new(Index)
+	if err := json.NewDecoder(reader).Decode(index); err != nil {
+		return nil, fmt.Errorf("unable to decode reader into index: %v", err)
+	}
+	return index, nil
+}
+
+func skipBuildingZtoc(desc ocispec.Descriptor, cfg *buildConfig) bool {
+	if cfg == nil {
+		return false
+	}
+	// avoid the file access if the layer size is below threshold
+	if desc.Size < cfg.minLayerSize {
+		return true
+	}
+	return false
+}
+
+// GetImageManifestDescriptor gets the descriptor of image manifest
 func GetImageManifestDescriptor(ctx context.Context, cs content.Store, imageTarget ocispec.Descriptor, platform platforms.MatchComparer) (*ocispec.Descriptor, error) {
 	if images.IsIndexType(imageTarget.MediaType) {
 		manifests, err := images.Children(ctx, cs, imageTarget)
@@ -384,7 +393,7 @@ func GetImageManifestDescriptor(ctx context.Context, cs content.Store, imageTarg
 	return nil, nil
 }
 
-// WriteSociIndex writes the SociIndex manifest
+// WriteSociIndex writes the SociIndex manifest to oras `store`.
 func WriteSociIndex(ctx context.Context, indexWithMetadata *IndexWithMetadata, store orascontent.Storage) error {
 	manifest, err := json.Marshal(indexWithMetadata.Index)
 	if err != nil {
