@@ -28,6 +28,36 @@ import (
 	"github.com/awslabs/soci-snapshotter/compression"
 )
 
+// Ztoc is a table of contents for compressed data which consists 2 parts:
+//
+// (1). toc (`TOC`): a table of contents containing file metadata and its
+// offset in the decompressed TAR archive.
+// (2). zinfo (`CompressionInfo`): a collection of "checkpoints" of the
+// state of the compression engine at various points in the layer.
+type Ztoc struct {
+	Version                 string
+	BuildToolIdentifier     string
+	CompressedArchiveSize   compression.Offset
+	UncompressedArchiveSize compression.Offset
+	TOC                     TOC
+	CompressionInfo         CompressionInfo
+}
+
+// CompressionInfo is the "zinfo" part of ztoc including the `Checkpoints` data
+// and other metadata such as all span digests.
+type CompressionInfo struct {
+	MaxSpanID   compression.SpanID //The total number of spans in Ztoc - 1
+	SpanDigests []digest.Digest
+	Checkpoints []byte
+}
+
+// TOC is the "ztoc" part of ztoc including metadata of all files in the compressed
+// data (e.g., a gzip tar file).
+type TOC struct {
+	Metadata []FileMetadata
+}
+
+// FileMetadata contains metadata of a file in the compressed data.
 type FileMetadata struct {
 	Name               string
 	Type               string
@@ -47,25 +77,7 @@ type FileMetadata struct {
 	Xattrs map[string]string
 }
 
-type Ztoc struct {
-	Version                 string
-	BuildToolIdentifier     string
-	CompressedArchiveSize   compression.Offset
-	UncompressedArchiveSize compression.Offset
-	TOC                     TOC
-	CompressionInfo         CompressionInfo
-}
-
-type CompressionInfo struct {
-	MaxSpanID   compression.SpanID //The total number of spans in Ztoc - 1
-	SpanDigests []digest.Digest
-	Checkpoints []byte
-}
-
-type TOC struct {
-	Metadata []FileMetadata
-}
-
+// FileExtractConfig contains information used to extract a file from compressed data.
 type FileExtractConfig struct {
 	UncompressedSize      compression.Offset
 	UncompressedOffset    compression.Offset
@@ -74,11 +86,14 @@ type FileExtractConfig struct {
 	MaxSpanID             compression.SpanID
 }
 
+// MetadataEntry is used to locate a file based on its metadata.
 type MetadataEntry struct {
 	UncompressedSize   compression.Offset
 	UncompressedOffset compression.Offset
 }
 
+// ExtractFile extracts a file from compressed data (as a reader) and returns the
+// byte data.
 func ExtractFile(r *io.SectionReader, config *FileExtractConfig) ([]byte, error) {
 	if config.UncompressedSize == 0 {
 		return []byte{}, nil
@@ -155,13 +170,15 @@ func ExtractFile(r *io.SectionReader, config *FileExtractConfig) ([]byte, error)
 	return bytes, nil
 }
 
+// NewGzipZinfo is the go implementation of getting "checkpoints" from compressed data.
 func NewGzipZinfo(b []byte) {
 	panic("unimplemented")
 }
 
-func GetMetadataEntry(ztoc *Ztoc, text string) (*MetadataEntry, error) {
+// GetMetadataEntry gets MetadataEntry from `ztoc` given a filename.
+func GetMetadataEntry(ztoc *Ztoc, filename string) (*MetadataEntry, error) {
 	for _, v := range ztoc.TOC.Metadata {
-		if v.Name == text {
+		if v.Name == filename {
 			if v.Linkname != "" {
 				return GetMetadataEntry(ztoc, v.Linkname)
 			}
@@ -171,9 +188,10 @@ func GetMetadataEntry(ztoc *Ztoc, text string) (*MetadataEntry, error) {
 			}, nil
 		}
 	}
-	return nil, fmt.Errorf("text %s does not exist in metadata", text)
+	return nil, fmt.Errorf("file %s does not exist in metadata", filename)
 }
 
+// ExtractFromTarGz extracts data given a gzip tar file (`gz`) and its `ztoc`.
 func ExtractFromTarGz(gz string, ztoc *Ztoc, text string) (string, error) {
 	entry, err := GetMetadataEntry(ztoc, text)
 

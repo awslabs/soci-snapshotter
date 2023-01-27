@@ -47,12 +47,12 @@ var CreateCommand = cli.Command{
 		internal.PlatformFlags,
 		cli.Int64Flag{
 			Name:  spanSizeFlag,
-			Usage: "Span size of index. Default is 4 MiB",
+			Usage: "Span size that soci index uses to segment layer data. Default is 4 MiB",
 			Value: 1 << 22,
 		},
 		cli.Int64Flag{
 			Name:  minLayerSizeFlag,
-			Usage: "The minimum layer size in bytes to build zTOC for. Default is 10 MiB.",
+			Usage: "Minimum layer size to build zTOC for. Smaller layers won't have zTOC and not lazy pulled. Default is 10 MiB.",
 			Value: 10 << 20,
 		},
 	),
