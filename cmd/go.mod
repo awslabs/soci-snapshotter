@@ -4,7 +4,7 @@ go 1.17
 
 require (
 	github.com/awslabs/soci-snapshotter v0.0.0-local
-	github.com/containerd/containerd v1.6.15
+	github.com/containerd/containerd v1.6.16
 	github.com/coreos/go-systemd/v22 v22.5.0
 	github.com/docker/go-metrics v0.0.1
 	github.com/opencontainers/go-digest v1.0.0
