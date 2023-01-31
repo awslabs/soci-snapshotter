@@ -40,7 +40,6 @@ import (
 	"testing"
 
 	shell "github.com/awslabs/soci-snapshotter/util/dockershell"
-	"github.com/awslabs/soci-snapshotter/util/testutil"
 )
 
 // TestRunMultipleContainers runs multiple containers at the same time and performs a test in each
@@ -83,20 +82,7 @@ func TestRunMultipleContainers(t *testing.T) {
 			sh, done := newShellWithRegistry(t, regConfig)
 			defer done()
 
-			// Setup environment
-			if err := testutil.WriteFileContents(sh, defaultContainerdConfigPath, getContainerdConfigYaml(t, false), 0600); err != nil {
-				t.Fatalf("failed to write %v: %v", defaultContainerdConfigPath, err)
-			}
-
-			if err := testutil.WriteFileContents(sh, defaultSnapshotterConfigPath, getSnapshotterConfigYaml(t, false, tcpMetricsConfig), 0600); err != nil {
-				t.Fatalf("failed to write %v: %v", defaultSnapshotterConfigPath, err)
-			}
-
-			sh.
-				X("update-ca-certificates").
-				Retry(100, "nerdctl", "login", "-u", regConfig.user, "-p", regConfig.pass, regConfig.host)
-
-			rebootContainerd(t, sh, "", "")
+			rebootContainerd(t, sh, getContainerdConfigToml(t, false), getSnapshotterConfigToml(t, false, tcpMetricsConfig))
 			for _, container := range deduplicateByContainerImage(tt.containers) {
 				// Mirror image
 				copyImage(sh, dockerhub(container.containerImage), regConfig.mirror(container.containerImage))

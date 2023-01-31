@@ -86,17 +86,8 @@ func TestMetrics(t *testing.T) {
 }
 
 func TestOverlayFallbackMetric(t *testing.T) {
-	regConfig := newRegistryConfig()
-
-	sh, done := newShellWithRegistry(t, regConfig)
+	sh, done := newShellWithRegistry(t, newRegistryConfig())
 	defer done()
-
-	if err := testutil.WriteFileContents(sh, defaultContainerdConfigPath, getContainerdConfigYaml(t, false), 0600); err != nil {
-		t.Fatalf("failed to write %v: %v", defaultContainerdConfigPath, err)
-	}
-	if err := testutil.WriteFileContents(sh, defaultSnapshotterConfigPath, getSnapshotterConfigYaml(t, false, tcpMetricsConfig), 0600); err != nil {
-		t.Fatalf("failed to write %v: %v", defaultSnapshotterConfigPath, err)
-	}
 
 	testCases := []struct {
 		name                  string
@@ -132,7 +123,7 @@ func TestOverlayFallbackMetric(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			rebootContainerd(t, sh, "", "")
+			rebootContainerd(t, sh, getContainerdConfigToml(t, false), getSnapshotterConfigToml(t, false, tcpMetricsConfig))
 
 			imgInfo := dockerhub(tc.image)
 
@@ -150,21 +141,13 @@ func TestOverlayFallbackMetric(t *testing.T) {
 }
 
 func TestFuseOperationFailureMetrics(t *testing.T) {
-	regConfig := newRegistryConfig()
-
-	logFuseOperationConfig := `
+	const logFuseOperationConfig = `
 [fuse]
 log_fuse_operations = true
 `
-	sh, done := newShellWithRegistry(t, regConfig)
-	defer done()
 
-	if err := testutil.WriteFileContents(sh, defaultContainerdConfigPath, getContainerdConfigYaml(t, false), 0600); err != nil {
-		t.Fatalf("failed to write %v: %v", defaultContainerdConfigPath, err)
-	}
-	if err := testutil.WriteFileContents(sh, defaultSnapshotterConfigPath, getSnapshotterConfigYaml(t, false, tcpMetricsConfig, logFuseOperationConfig), 0600); err != nil {
-		t.Fatalf("failed to write %v: %v", defaultSnapshotterConfigPath, err)
-	}
+	sh, done := newShellWithRegistry(t, newRegistryConfig())
+	defer done()
 
 	manipulateZtocMetadata := func(zt *ztoc.Ztoc) {
 		for i, md := range zt.TOC.Metadata {
@@ -210,7 +193,7 @@ log_fuse_operations = true
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			rebootContainerd(t, sh, "", "")
+			rebootContainerd(t, sh, getContainerdConfigToml(t, false), getSnapshotterConfigToml(t, false, tcpMetricsConfig, logFuseOperationConfig))
 
 			imgInfo := dockerhub(tc.image)
 			sh.X("ctr", "i", "pull", imgInfo.ref)
@@ -227,21 +210,12 @@ log_fuse_operations = true
 }
 
 func TestFuseOperationCountMetrics(t *testing.T) {
-	regConfig := newRegistryConfig()
-
 	const snapshotterConfig = `
 fuse_metrics_emit_wait_duration_sec = 10
 	`
 
-	sh, done := newShellWithRegistry(t, regConfig)
+	sh, done := newShellWithRegistry(t, newRegistryConfig())
 	defer done()
-
-	if err := testutil.WriteFileContents(sh, defaultContainerdConfigPath, getContainerdConfigYaml(t, false), 0600); err != nil {
-		t.Fatalf("failed to write %v: %v", defaultContainerdConfigPath, err)
-	}
-	if err := testutil.WriteFileContents(sh, defaultSnapshotterConfigPath, getSnapshotterConfigYaml(t, false, tcpMetricsConfig, snapshotterConfig), 0600); err != nil {
-		t.Fatalf("failed to write %v: %v", defaultSnapshotterConfigPath, err)
-	}
 
 	checkMetricExists := func(output, metric string) bool {
 		lines := strings.Split(output, "\n")
@@ -265,7 +239,7 @@ fuse_metrics_emit_wait_duration_sec = 10
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			rebootContainerd(t, sh, "", "")
+			rebootContainerd(t, sh, getContainerdConfigToml(t, false), getSnapshotterConfigToml(t, false, tcpMetricsConfig, snapshotterConfig))
 
 			imgInfo := dockerhub(tc.image)
 			sh.X("ctr", "i", "pull", imgInfo.ref)
