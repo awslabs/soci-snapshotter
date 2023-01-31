@@ -85,7 +85,6 @@ func TestSnapshotterStartup(t *testing.T) {
 func TestOptimizeConsistentSociArtifact(t *testing.T) {
 	regConfig := newRegistryConfig()
 
-	// Setup environment
 	sh, done := newShellWithRegistry(t, regConfig)
 	defer done()
 
@@ -148,22 +147,15 @@ func TestOptimizeConsistentSociArtifact(t *testing.T) {
 
 func TestLazyPullWithSparseIndex(t *testing.T) {
 	regConfig := newRegistryConfig()
-	// Prepare config for containerd and snapshotter
 
 	sh, done := newShellWithRegistry(t, regConfig)
 	defer done()
-	if err := testutil.WriteFileContents(sh, defaultContainerdConfigPath, getContainerdConfigYaml(t, false), 0600); err != nil {
-		t.Fatalf("failed to write %v: %v", defaultContainerdConfigPath, err)
-	}
-	if err := testutil.WriteFileContents(sh, defaultSnapshotterConfigPath, getSnapshotterConfigYaml(t, false), 0600); err != nil {
-		t.Fatalf("failed to write %v: %v", defaultSnapshotterConfigPath, err)
-	}
 
 	const imageName = "rethinkdb@sha256:4452aadba3e99771ff3559735dab16279c5a352359d79f38737c6fdca941c6e5"
 	const imageManifestDigest = "sha256:4452aadba3e99771ff3559735dab16279c5a352359d79f38737c6fdca941c6e5"
 	const minLayerSize = 10000000
 
-	rebootContainerd(t, sh, "", "")
+	rebootContainerd(t, sh, getContainerdConfigToml(t, false), getSnapshotterConfigToml(t, false))
 	copyImage(sh, dockerhub(imageName), regConfig.mirror(imageName))
 	indexDigest := buildIndex(sh, regConfig.mirror(imageName), withMinLayerSize(minLayerSize))
 
@@ -241,23 +233,16 @@ func checkLayersInSnapshottersContentStore(t *testing.T, sh *shell.Shell, layers
 // TestLazyPull tests if lazy pulling works.
 func TestLazyPull(t *testing.T) {
 	regConfig := newRegistryConfig()
-	// Prepare config for containerd and snapshotter
 
 	sh, done := newShellWithRegistry(t, regConfig)
 	defer done()
-	if err := testutil.WriteFileContents(sh, defaultContainerdConfigPath, getContainerdConfigYaml(t, false), 0600); err != nil {
-		t.Fatalf("failed to write %v: %v", defaultContainerdConfigPath, err)
-	}
-	if err := testutil.WriteFileContents(sh, defaultSnapshotterConfigPath, getSnapshotterConfigYaml(t, false), 0600); err != nil {
-		t.Fatalf("failed to write %v: %v", defaultSnapshotterConfigPath, err)
-	}
 
 	optimizedImageName1 := alpineImage
 	optimizedImageName2 := nginxImage
 	nonOptimizedImageName := ubuntuImage
 
 	// Mirror images
-	rebootContainerd(t, sh, "", "")
+	rebootContainerd(t, sh, getContainerdConfigToml(t, false), getSnapshotterConfigToml(t, false))
 	copyImage(sh, dockerhub(optimizedImageName1), regConfig.mirror(optimizedImageName1))
 	copyImage(sh, dockerhub(optimizedImageName2), regConfig.mirror(optimizedImageName2))
 	copyImage(sh, dockerhub(nonOptimizedImageName), regConfig.mirror(nonOptimizedImageName))
@@ -328,25 +313,16 @@ func TestLazyPull(t *testing.T) {
 
 // TestLazyPull tests if lazy pulling works when no index digest is provided (makes a Referrers API call)
 func TestLazyPullNoIndexDigest(t *testing.T) {
-	// Prepare config for containerd and snapshotter
-
 	regConfig := newRegistryConfig()
 
-	// Setup environment
 	sh, done := newShellWithRegistry(t, regConfig)
 	defer done()
-	if err := testutil.WriteFileContents(sh, defaultContainerdConfigPath, getContainerdConfigYaml(t, false), 0600); err != nil {
-		t.Fatalf("failed to write %v: %v", defaultContainerdConfigPath, err)
-	}
-	if err := testutil.WriteFileContents(sh, defaultSnapshotterConfigPath, getSnapshotterConfigYaml(t, false), 0600); err != nil {
-		t.Fatalf("failed to write %v: %v", defaultSnapshotterConfigPath, err)
-	}
 
 	optimizedImageName := alpineImage
 	nonOptimizedImageName := ubuntuImage
 
 	// Mirror images
-	rebootContainerd(t, sh, "", "")
+	rebootContainerd(t, sh, getContainerdConfigToml(t, false), getSnapshotterConfigToml(t, false))
 	copyImage(sh, dockerhub(optimizedImageName), regConfig.mirror(optimizedImageName))
 	copyImage(sh, dockerhub(nonOptimizedImageName), regConfig.mirror(nonOptimizedImageName))
 	buildIndex(sh, regConfig.mirror(optimizedImageName), withMinLayerSize(0))
@@ -410,13 +386,6 @@ func TestPullWithAribtraryBlobInvalidZtocFormat(t *testing.T) {
 	sh, done := newShellWithRegistry(t, regConfig)
 	defer done()
 
-	if err := testutil.WriteFileContents(sh, defaultContainerdConfigPath, getContainerdConfigYaml(t, false), 0600); err != nil {
-		t.Fatalf("failed to write %v: %v", defaultContainerdConfigPath, err)
-	}
-	if err := testutil.WriteFileContents(sh, defaultSnapshotterConfigPath, getSnapshotterConfigYaml(t, false), 0600); err != nil {
-		t.Fatalf("failed to write %v: %v", defaultSnapshotterConfigPath, err)
-	}
-
 	images := []struct {
 		name   string
 		digest string
@@ -429,7 +398,7 @@ func TestPullWithAribtraryBlobInvalidZtocFormat(t *testing.T) {
 
 	fromNormalSnapshotter := func(image string) tarPipeExporter {
 		return func(t *testing.T, tarExportArgs ...string) {
-			rebootContainerd(t, sh, "", "")
+			rebootContainerd(t, sh, getContainerdConfigToml(t, false), getSnapshotterConfigToml(t, false))
 			sh.X("ctr", "i", "pull", "--user", regConfig.creds(), image)
 			sh.Pipe(nil, shell.C("ctr", "run", "--rm", image, "test", "tar", "-zc", "/usr"), tarExportArgs)
 		}
@@ -487,7 +456,7 @@ func TestPullWithAribtraryBlobInvalidZtocFormat(t *testing.T) {
 
 	for _, img := range images {
 		t.Run(img.name, func(t *testing.T) {
-			rebootContainerd(t, sh, "", "")
+			rebootContainerd(t, sh, getContainerdConfigToml(t, false), getSnapshotterConfigToml(t, false))
 			imgRef := fmt.Sprintf("%s@%s", img.name, img.digest)
 			sociImage := regConfig.mirror(imgRef)
 			copyImage(sh, dockerhub(imgRef), sociImage)
@@ -518,30 +487,22 @@ func TestPullWithAribtraryBlobInvalidZtocFormat(t *testing.T) {
 
 // TestLazyPull tests if lazy pulling works without background fetch.
 func TestLazyPullNoBackgroundFetch(t *testing.T) {
-	regConfig := newRegistryConfig()
-	// Prepare config for containerd and snapshotter
-
-	backgroundFetcherConfig := `
+	const backgroundFetcherConfig = `
 [background_fetch]
 disable = true
 `
 
-	// Setup environment
+	regConfig := newRegistryConfig()
+
 	sh, done := newShellWithRegistry(t, regConfig)
 	defer done()
-	if err := testutil.WriteFileContents(sh, defaultContainerdConfigPath, getContainerdConfigYaml(t, false), 0600); err != nil {
-		t.Fatalf("failed to write %v: %v", defaultContainerdConfigPath, err)
-	}
-	if err := testutil.WriteFileContents(sh, defaultSnapshotterConfigPath, getSnapshotterConfigYaml(t, false, backgroundFetcherConfig), 0600); err != nil {
-		t.Fatalf("failed to write %v: %v", defaultSnapshotterConfigPath, err)
-	}
 
 	optimizedImageName1 := alpineImage
 	optimizedImageName2 := nginxImage
 	nonOptimizedImageName := ubuntuImage
 
 	// Mirror images
-	rebootContainerd(t, sh, "", "")
+	rebootContainerd(t, sh, getContainerdConfigToml(t, false), getSnapshotterConfigToml(t, false, backgroundFetcherConfig))
 	copyImage(sh, dockerhub(optimizedImageName1), regConfig.mirror(optimizedImageName1))
 	copyImage(sh, dockerhub(optimizedImageName2), regConfig.mirror(optimizedImageName2))
 	copyImage(sh, dockerhub(nonOptimizedImageName), regConfig.mirror(nonOptimizedImageName))
@@ -721,12 +682,6 @@ insecure = true
 `, regConfig.host, regAltConfig.hostWithPort())
 
 	// Setup environment
-	if err := testutil.WriteFileContents(sh, defaultContainerdConfigPath, getContainerdConfigYaml(t, false, containerdMirrorConfig), 0600); err != nil {
-		t.Fatalf("failed to write %v: %v", defaultContainerdConfigPath, err)
-	}
-	if err := testutil.WriteFileContents(sh, defaultSnapshotterConfigPath, getSnapshotterConfigYaml(t, false, snapshotterMirrorConfig), 0600); err != nil {
-		t.Fatalf("failed to write %v: %v", defaultSnapshotterConfigPath, err)
-	}
 	if err := testutil.WriteFileContents(sh, filepath.Join(caCertDir, "domain.crt"), crt, 0600); err != nil {
 		t.Fatalf("failed to write %v: %v", caCertDir, err)
 	}
@@ -737,7 +692,7 @@ insecure = true
 
 	imageName := alpineImage
 	// Mirror images
-	rebootContainerd(t, sh, "", "")
+	rebootContainerd(t, sh, getContainerdConfigToml(t, false, containerdMirrorConfig), getSnapshotterConfigToml(t, false, snapshotterMirrorConfig))
 	copyImage(sh, dockerhub(imageName), regConfig.mirror(imageName))
 	copyImage(sh, regConfig.mirror(imageName), regAltConfig.mirror(imageName))
 	indexDigest := buildIndex(sh, regConfig.mirror(imageName), withMinLayerSize(0))
@@ -811,15 +766,7 @@ func TestRpullImageThenRemove(t *testing.T) {
 	sh, done := newShellWithRegistry(t, regConfig)
 	defer done()
 
-	// Setup environment
-	if err := testutil.WriteFileContents(sh, defaultContainerdConfigPath, getContainerdConfigYaml(t, false), 0600); err != nil {
-		t.Fatalf("failed to write %v: %v", defaultContainerdConfigPath, err)
-	}
-	sh.
-		X("update-ca-certificates").
-		Retry(100, "nerdctl", "login", "-u", regConfig.user, "-p", regConfig.pass, regConfig.host)
-
-	rebootContainerd(t, sh, "", "")
+	rebootContainerd(t, sh, getContainerdConfigToml(t, false), "")
 
 	containerImage := nginxImage
 

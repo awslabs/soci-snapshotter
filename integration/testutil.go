@@ -107,20 +107,20 @@ level = "debug"
 {{.AdditionalConfig}}
 `
 
-// getContainerdConfigYaml creates a containerd config yaml, by appending all
+// getContainerdConfigToml creates a containerd config yaml, by appending all
 // `additionalConfigs` to the default `containerdConfigTemplate`.
-func getContainerdConfigYaml(t *testing.T, disableVerification bool, additionalConfigs ...string) []byte {
+func getContainerdConfigToml(t *testing.T, disableVerification bool, additionalConfigs ...string) string {
 	if !isTestingBuiltinSnapshotter() {
 		additionalConfigs = append(additionalConfigs, proxySnapshotterConfig)
 	}
 
-	return []byte(testutil.ApplyTextTemplate(t, containerdConfigTemplate, struct {
+	return testutil.ApplyTextTemplate(t, containerdConfigTemplate, struct {
 		DisableVerification bool
 		AdditionalConfig    string
 	}{
 		DisableVerification: disableVerification,
 		AdditionalConfig:    strings.Join(additionalConfigs, "\n"),
-	}))
+	})
 }
 
 const snapshotterConfigTemplate = `
@@ -129,14 +129,14 @@ disable_verification = {{.DisableVerification}}
 {{.AdditionalConfig}}
 `
 
-func getSnapshotterConfigYaml(t *testing.T, disableVerification bool, additionalConfigs ...string) []byte {
-	return []byte(testutil.ApplyTextTemplate(t, snapshotterConfigTemplate, struct {
+func getSnapshotterConfigToml(t *testing.T, disableVerification bool, additionalConfigs ...string) string {
+	return testutil.ApplyTextTemplate(t, snapshotterConfigTemplate, struct {
 		DisableVerification bool
 		AdditionalConfig    string
 	}{
 		DisableVerification: disableVerification,
 		AdditionalConfig:    strings.Join(additionalConfigs, "\n"),
-	}))
+	})
 }
 
 func trimSha256Prefix(s string) string {

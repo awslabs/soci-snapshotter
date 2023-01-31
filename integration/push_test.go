@@ -21,7 +21,6 @@ import (
 	"testing"
 
 	"github.com/awslabs/soci-snapshotter/soci"
-	"github.com/awslabs/soci-snapshotter/util/testutil"
 	"github.com/containerd/containerd/platforms"
 )
 
@@ -29,13 +28,6 @@ func TestSociArtifactsPushAndPull(t *testing.T) {
 	regConfig := newRegistryConfig()
 	sh, done := newShellWithRegistry(t, regConfig)
 	defer done()
-
-	if err := testutil.WriteFileContents(sh, defaultContainerdConfigPath, getContainerdConfigYaml(t, false), 0600); err != nil {
-		t.Fatalf("failed to write %v: %v", defaultContainerdConfigPath, err)
-	}
-	if err := testutil.WriteFileContents(sh, defaultSnapshotterConfigPath, getSnapshotterConfigYaml(t, false), 0600); err != nil {
-		t.Fatalf("failed to write %v: %v", defaultSnapshotterConfigPath, err)
-	}
 
 	tests := []struct {
 		Name     string
@@ -53,7 +45,7 @@ func TestSociArtifactsPushAndPull(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.Name, func(t *testing.T) {
-			rebootContainerd(t, sh, "", "")
+			rebootContainerd(t, sh, getContainerdConfigToml(t, false), getSnapshotterConfigToml(t, false))
 
 			platform, err := platforms.Parse(tt.Platform)
 			if err != nil {
@@ -81,13 +73,6 @@ func TestPushAlwaysMostRecentlyCreatedIndex(t *testing.T) {
 	regConfig := newRegistryConfig()
 	sh, done := newShellWithRegistry(t, regConfig)
 	defer done()
-
-	if err := testutil.WriteFileContents(sh, defaultContainerdConfigPath, getContainerdConfigYaml(t, false), 0600); err != nil {
-		t.Fatalf("failed to write %v: %v", defaultContainerdConfigPath, err)
-	}
-	if err := testutil.WriteFileContents(sh, defaultSnapshotterConfigPath, getSnapshotterConfigYaml(t, false), 0600); err != nil {
-		t.Fatalf("failed to write %v: %v", defaultSnapshotterConfigPath, err)
-	}
 
 	type buildOpts struct {
 		spanSize     int64
@@ -118,7 +103,7 @@ func TestPushAlwaysMostRecentlyCreatedIndex(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			rebootContainerd(t, sh, "", "")
+			rebootContainerd(t, sh, getContainerdConfigToml(t, false), getSnapshotterConfigToml(t, false))
 
 			copyImage(sh, dockerhub(tc.image), regConfig.mirror(tc.image))
 
@@ -176,13 +161,7 @@ func TestLegacyOCI(t *testing.T) {
 			sh, done := newShellWithRegistry(t, regConfig, withRegistryImageRef(tc.registryImage))
 			defer done()
 
-			if err := testutil.WriteFileContents(sh, defaultContainerdConfigPath, getContainerdConfigYaml(t, false), 0600); err != nil {
-				t.Fatalf("failed to write %v: %v", defaultContainerdConfigPath, err)
-			}
-			if err := testutil.WriteFileContents(sh, defaultSnapshotterConfigPath, getSnapshotterConfigYaml(t, false), 0600); err != nil {
-				t.Fatalf("failed to write %v: %v", defaultSnapshotterConfigPath, err)
-			}
-			rebootContainerd(t, sh, "", "")
+			rebootContainerd(t, sh, getContainerdConfigToml(t, false), getSnapshotterConfigToml(t, false))
 
 			imageName := ubuntuImage
 			copyImage(sh, dockerhub(imageName), regConfig.mirror(imageName))
