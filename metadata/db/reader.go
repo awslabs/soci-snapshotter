@@ -68,6 +68,8 @@ type reader struct {
 	initG   *errgroup.Group
 }
 
+var errFailedToGetUniqueId = fmt.Errorf("failed to get a unique id for metadata reader")
+
 func (r *reader) nextID() (uint32, error) {
 	r.curIDMu.Lock()
 	defer r.curIDMu.Unlock()
@@ -134,7 +136,7 @@ func (r *reader) init(ztoc *ztoc.Ztoc, rOpts metadata.Options) (retErr error) {
 		break
 	}
 	if !ok {
-		return fmt.Errorf("failed to get a unique id for metadata reader")
+		return errFailedToGetUniqueId
 	}
 
 	if err := r.initNodes(ztoc); err != nil {
