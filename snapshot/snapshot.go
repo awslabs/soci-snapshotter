@@ -103,9 +103,8 @@ type FileSystem interface {
 // SnapshotterConfig is used to configure the remote snapshotter instance
 type SnapshotterConfig struct {
 	asyncRemove bool
-
 	// minLayerSize skips remote mounting of smaller layers
-	minLayerSize int
+	minLayerSize int64
 }
 
 // Opt is an option to configure the remote snapshotter
@@ -121,7 +120,7 @@ func WithAsynchronousRemove(config *SnapshotterConfig) error {
 }
 
 // WithMinLayerSize sets the smallest layer that will be mounted remotely.
-func WithMinLayerSize(minLayerSize int) Opt {
+func WithMinLayerSize(minLayerSize int64) Opt {
 	return func(config *SnapshotterConfig) error {
 		config.minLayerSize = minLayerSize
 		return nil
@@ -134,10 +133,9 @@ type snapshotter struct {
 	asyncRemove bool
 
 	// fs is a filesystem that this snapshotter recognizes.
-	fs        FileSystem
-	userxattr bool // whether to enable "userxattr" mount option
-
-	minLayerSize int // minimum layer size for remote mounting
+	fs           FileSystem
+	userxattr    bool  // whether to enable "userxattr" mount option
+	minLayerSize int64 // minimum layer size for remote mounting
 }
 
 // NewSnapshotter returns a Snapshotter which can use unpacked remote layers
@@ -295,7 +293,7 @@ func (o *snapshotter) Prepare(ctx context.Context, key, parent string, opts ...s
 		localOverride := false
 		if o.minLayerSize > 0 {
 			if strVal, ok := base.Labels[source.TargetSizeLabel]; ok {
-				if intVal, err := strconv.Atoi(strVal); err == nil {
+				if intVal, err := strconv.ParseInt(strVal, 10, 64); err == nil {
 					if intVal < o.minLayerSize {
 						localOverride = true
 						log.G(lCtx).Info("Layer size less than runtime min_layer_size, skipping remote snapshot preparation")

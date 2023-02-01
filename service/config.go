@@ -49,8 +49,8 @@ type Config struct {
 	// ResolverConfig is config for resolving registries.
 	ResolverConfig `toml:"resolver"`
 
-	// MinLayerSize skips remote mounting of smaller layers
-	MinLayerSize int `toml:"min_layer_size"`
+	// SnapshotterConfig is snapshotter-related config.
+	SnapshotterConfig `toml:"snapshotter"`
 }
 
 // KubeconfigKeychainConfig is config for kubeconfig-based keychain.
@@ -74,3 +74,9 @@ type CRIKeychainConfig struct {
 
 // ResolverConfig is config for resolving registries.
 type ResolverConfig resolver.Config
+
+// SnapshotterConfig is snapshotter-related config.
+type SnapshotterConfig struct {
+	// MinLayerSize skips remote mounting of smaller layers
+	MinLayerSize int64 `toml:"min_layer_size"`
+}
