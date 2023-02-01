@@ -80,23 +80,21 @@ func (r *testableReadCloser) Close() error {
 }
 
 func TestReaderInitFailsFindingFreeId(t *testing.T) {
-	// mock reader.initRootNode() to always return bolt.ErrBucketExists
-	type fakeReader struct {
-		initRootNode func() error
-		reader
-	}
-	var r fakeReader
-	r.initRootNode = func() error {
-		return bolt.ErrBucketExists
+	idGen := func() string {
+		return "fake-id"
 	}
 
-	// call reader.init
+	r := &reader{
+		newBucketID: idGen,
+	}
+
+	// Create our bucket so initialization will have collisions.
+	r.initRootNode("fake-id")
+
+	// Execute our test
 	err := r.init(nil, metadata.Options{})
-	// ^ this produces SIGSEGV "invalid memory address or nil pointer dereference"
-	// because r.init() calls reader.initRootNode instead of fakeReader.initRootNode
-	// which skips the failure condition then tries to dereference the nil
 
-	// expect fmt.Errorf("failed to get a unique id for metadata reader")
+	// validate the error is as expected
 	if err != errFailedToGetUniqueId {
 		t.Errorf("reader init did not return expected error after failing to get unique id")
 	}

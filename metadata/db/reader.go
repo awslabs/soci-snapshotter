@@ -66,6 +66,8 @@ type reader struct {
 	curID   uint32
 	curIDMu sync.Mutex
 	initG   *errgroup.Group
+
+	newBucketID func() string
 }
 
 var errFailedToGetUniqueId = fmt.Errorf("failed to get a unique id for metadata reader")
@@ -89,7 +91,7 @@ func NewReader(db *bolt.DB, sr *io.SectionReader, ztoc *ztoc.Ztoc, opts ...metad
 		}
 	}
 
-	r := &reader{sr: sr, db: db, initG: new(errgroup.Group)}
+	r := &reader{sr: sr, db: db, initG: new(errgroup.Group), newBucketID: func() string { return xid.New().String() }}
 	start := time.Now()
 	if rOpts.Telemetry != nil && rOpts.Telemetry.InitMetadataStoreLatency != nil {
 		rOpts.Telemetry.InitMetadataStoreLatency(start)
@@ -125,7 +127,7 @@ func (r *reader) init(ztoc *ztoc.Ztoc, rOpts metadata.Options) (retErr error) {
 	// Initialize root node
 	var ok bool
 	for i := 0; i < 100; i++ {
-		fsID := xid.New().String()
+		fsID := r.newBucketID()
 		if err := r.initRootNode(fsID); err != nil {
 			if errors.Is(err, bolt.ErrBucketExists) {
 				continue // try with another id
