@@ -797,6 +797,7 @@ func TestRpullImageThenRemove(t *testing.T) {
 func TestRpullImageWithMinLayerSize(t *testing.T) {
 	const minLayerSize = "25000000"
 	const minLayerSizeConfig = `
+[snapshotter]
 min_layer_size=` + minLayerSize + `
 `
 
