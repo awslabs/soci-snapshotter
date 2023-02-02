@@ -45,6 +45,7 @@ import (
 	"math/big"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 	"testing"
 	"time"
@@ -717,4 +718,46 @@ func teardown(cleanups []func() error) error {
 		}
 	}
 	return nil
+}
+
+// middleSizeLayerInfo finds a layer not the smallest or largest (if possible), returns index, size, and layer count
+// It requires containerd to be running
+func middleSizeLayerInfo(t *testing.T, sh *shell.Shell, image imageInfo) (int, int64, int) {
+	sh.O("ctr", "i", "pull", "--platform", platforms.Format(image.platform), image.ref)
+
+	imageManifestDigest, err := getManifestDigest(sh, image.ref, image.platform)
+	if err != nil {
+		t.Fatalf("Failed to get manifest digest: %v", err)
+	}
+	imageManifestJSON := fetchContentByDigest(sh, imageManifestDigest)
+	imageManifest := new(spec.Manifest)
+	if err := json.Unmarshal(imageManifestJSON, imageManifest); err != nil {
+		t.Fatalf("cannot unmarshal image manifest: %v", err)
+	}
+
+	snapshotSizes := make([]int64, 0)
+	for _, layerBlob := range imageManifest.Layers {
+		snapshotSizes = append(snapshotSizes, layerBlob.Size)
+	}
+
+	sort.Slice(snapshotSizes, func(i, j int) bool { return snapshotSizes[i] < snapshotSizes[j] })
+	if snapshotSizes[0] == snapshotSizes[len(snapshotSizes)-1] {
+		// This condition would almost certainly invalidate the expected behavior of the calling test
+		t.Fatalf("all %v layers are the same size (%v) when seeking middle size layer", len(snapshotSizes), snapshotSizes[0])
+	}
+	middleIndex := len(snapshotSizes) / 2
+	middleSize := snapshotSizes[middleIndex]
+	if snapshotSizes[0] == middleSize {
+		// if the middle is also the smallest, find the next larger layer
+		for middleIndex < len(snapshotSizes)-1 && snapshotSizes[middleIndex] == middleSize {
+			middleIndex++
+		}
+	} else {
+		// find the lowest index that is the same size as the middle
+		for middleIndex > 0 && snapshotSizes[middleIndex-1] == middleSize {
+			middleIndex--
+		}
+	}
+
+	return middleIndex, middleSize, len(snapshotSizes)
 }
