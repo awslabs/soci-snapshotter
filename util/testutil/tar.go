@@ -66,7 +66,7 @@ func WithPrefix(prefix string) BuildTarOption {
 	}
 }
 
-// BuildTar builds a tar blob
+// BuildTar builds a tar given a list of tar entries and returns an io.Reader
 func BuildTar(ents []TarEntry, opts ...BuildTarOption) io.Reader {
 	var bo BuildTarOptions
 	for _, o := range opts {
@@ -90,6 +90,7 @@ func BuildTar(ents []TarEntry, opts ...BuildTarOption) io.Reader {
 	return pr
 }
 
+// BuildTarGz builds a tar.gz given a list of tar entries and returns an io.Reader
 func BuildTarGz(ents []TarEntry, compressionLevel int, opts ...BuildTarOption) io.Reader {
 	var bo BuildTarOptions
 	for _, o := range opts {
@@ -103,12 +104,14 @@ func BuildTarGz(ents []TarEntry, compressionLevel int, opts ...BuildTarOption) i
 			return
 		}
 		tw := tar.NewWriter(gw)
+
 		for _, ent := range ents {
 			if err := ent.AppendTar(tw, bo); err != nil {
 				pw.CloseWithError(err)
 				return
 			}
 		}
+
 		if err := tw.Close(); err != nil {
 			pw.CloseWithError(err)
 			return
@@ -122,8 +125,58 @@ func BuildTarGz(ents []TarEntry, compressionLevel int, opts ...BuildTarOption) i
 	return pr
 }
 
+// WriteTarToTempFile writes the contents of a tar archive to a specified path
+func WriteTarToTempFile(archiveName string, r io.Reader) (string, error) {
+	tarFile, err := os.CreateTemp("", archiveName)
+	if err != nil {
+		return "", err
+	}
+	defer tarFile.Close()
+	w := io.Writer(tarFile)
+	_, err = io.Copy(w, r)
+	if err != nil {
+		return "", fmt.Errorf("failed to create archive: %w", err)
+	}
+	path := tarFile.Name()
+	return path, nil
+}
+
+// GetFilesAndContentsWithinTarGz takes a path to a targz archive and returns a list of its files and their contents
+func GetFilesAndContentsWithinTarGz(tarGz string) (map[string][]byte, []string, error) {
+	var files []string
+	f, err := os.Open(tarGz)
+	if err != nil {
+		return nil, nil, err
+	}
+	gr, err := gzip.NewReader(f)
+	if err != nil {
+		return nil, nil, err
+	}
+	tr := tar.NewReader(gr)
+
+	m := make(map[string][]byte)
+
+	for {
+		header, err := tr.Next()
+		if err == io.EOF {
+			break
+		}
+		if header.Typeflag == tar.TypeReg {
+			files = append(files, header.Name)
+			contents, err := io.ReadAll(tr)
+			if err != nil {
+				return nil, nil, err
+			}
+			m[header.Name] = contents
+		}
+
+	}
+	return m, files, nil
+}
+
 type tarEntryFunc func(*tar.Writer, BuildTarOptions) error
 
+// AppendTar appends a file to a tar writer
 func (f tarEntryFunc) AppendTar(tw *tar.Writer, opts BuildTarOptions) error { return f(tw, opts) }
 
 // DirectoryBuildTarOption is an option for a directory entry.
@@ -232,7 +285,7 @@ func WithFileMode(mode os.FileMode) FileBuildTarOption {
 	}
 }
 
-// File is a regilar file entry
+// File is a regular file entry
 func File(name, contents string, opts ...FileBuildTarOption) TarEntry {
 	return tarEntryFunc(func(tw *tar.Writer, buildOpts BuildTarOptions) error {
 		var fOpts fileOpts

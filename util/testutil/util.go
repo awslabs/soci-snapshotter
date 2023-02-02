@@ -33,11 +33,11 @@
 package testutil
 
 import (
-	"crypto/rand"
 	"encoding/binary"
 	"fmt"
 	"io"
 	"log"
+	"math/rand"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -111,13 +111,29 @@ func RandomUInt64() (uint64, error) {
 	return binary.LittleEndian.Uint64(b), nil
 }
 
-// RandomByteData returns a byte slice with `size` random generated data
+// RandomByteData returns a byte slice with `size` populated with random generated data
 func RandomByteData(size int64) []byte {
 	b := make([]byte, size)
 	rand.Read(b)
 	return b
 }
 
+// RandomByteDataRange returns a byte slice with `size` between minBytes and maxBytes exclusive populated with random data
+func RandomByteDataRange(minBytes int, maxBytes int) []byte {
+	const charset = "abcdefghijklmnopqrstuvwxyz" +
+		"ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789" + " "
+	const randSeed = 1658503010463818386
+
+	rand.Seed(randSeed)
+	randByteNum := rand.Intn(maxBytes-minBytes) + minBytes
+	randBytes := make([]byte, randByteNum)
+	for i := range randBytes {
+		randBytes[i] = charset[rand.Intn(len(charset))]
+	}
+	return randBytes
+}
+
+// RandomDigest generates a random digest from a random sequence of bytes
 func RandomDigest() string {
 	d := digest.FromBytes(RandomByteData(10))
 	return d.String()
