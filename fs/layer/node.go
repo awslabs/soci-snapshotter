@@ -75,8 +75,10 @@ const (
 	stateDirMode      = syscall.S_IFDIR | 0500 // dr-x------
 )
 
+// OverlayOpaqueType enum possible types.
 type OverlayOpaqueType int
 
+// OverlayOpaqueType enum.
 const (
 	OverlayOpaqueAll OverlayOpaqueType = iota
 	OverlayOpaqueTrusted
@@ -89,8 +91,8 @@ var opaqueXattrs = map[OverlayOpaqueType][]string{
 	OverlayOpaqueUser:    {"user.overlay.opaque"},
 }
 
+// fuse operations.
 const (
-	// fuse operations
 	fuseOpGetattr         = "node.Getattr"
 	fuseOpGetxattr        = "node.Getxattr"
 	fuseOpListxattr       = "node.Listxattr"
@@ -116,12 +118,12 @@ var fuseOpFailureMetrics = map[string]string{
 // FuseOperationCounter collects number of invocations of the various FUSE implementations and emits them as metrics.
 // Setting `waitPeriod` to be > 0 allows delaying the time when the metrics are emitted.
 type FuseOperationCounter struct {
-	opCounts    map[string]*atomic.Int32
+	opCounts    map[string]*int32
 	waitPeriod  time.Duration
 	imageDigest digest.Digest
 }
 
-// List of available FUSE operations
+// FuseOpsList is a list of available FUSE operations.
 var FuseOpsList = []string{
 	fuseOpGetattr,
 	fuseOpGetxattr,
@@ -140,31 +142,31 @@ func NewFuseOperationCounter(imgDigest digest.Digest, waitPeriod time.Duration) 
 	f := &FuseOperationCounter{
 		imageDigest: imgDigest,
 		waitPeriod:  waitPeriod,
-		opCounts:    make(map[string]*atomic.Int32),
+		opCounts:    make(map[string]*int32),
 	}
 	for _, m := range FuseOpsList {
-		f.opCounts[m] = new(atomic.Int32)
+		f.opCounts[m] = new(int32)
 	}
 	return f
 }
 
-// Atomically increase the count of FUSE operation op.
+// Inc atomically increase the count of FUSE operation op.
 // Noop if op is not in FuseOpsList.
 func (f *FuseOperationCounter) Inc(op string) {
-	operation, ok := f.opCounts[op]
+	opCount, ok := f.opCounts[op]
 	if !ok {
 		return
 	}
-	operation.Add(1)
+	atomic.AddInt32(opCount, 1)
 }
 
-// Waits for f.waitPeriod to pass before emitting metric for
+// Run waits for f.waitPeriod to pass before emitting metric for
 // operation in FuseOpsList. Should be started in different goroutine so that it
 // doesn't block the current goroutine.
 func (f *FuseOperationCounter) Run() {
 	<-time.After(f.waitPeriod)
-	for k, v := range f.opCounts {
-		commonmetrics.AddImageOperationCount(k, f.imageDigest, v.Load())
+	for op, opCount := range f.opCounts {
+		commonmetrics.AddImageOperationCount(op, f.imageDigest, atomic.LoadInt32(opCount))
 	}
 }
 
