@@ -352,7 +352,7 @@ func (o *snapshotter) skipRemoteSnapshotPrepare(ctx context.Context, labels map[
 					return true
 				}
 			} else {
-				log.G(ctx).WithError(err).Error("config min_layer_size cannot be converted to int")
+				log.G(ctx).WithError(err).Errorf("config min_layer_size cannot be converted to int: %s", strVal)
 			}
 		}
 	}
