@@ -16,7 +16,7 @@ ARG CONTAINERD_VERSION=v1.6.4
 ARG RUNC_VERSION=v1.1.1
 ARG NERDCTL_VERSION=0.19.0
 
-FROM golang:1.19-buster AS golang-base
+FROM golang:1.20-buster AS golang-base
 
 FROM golang-base AS containerd-snapshotter-base
 ARG CONTAINERD_VERSION
