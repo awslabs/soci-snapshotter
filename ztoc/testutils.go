@@ -25,24 +25,18 @@ import (
 	"github.com/awslabs/soci-snapshotter/util/testutil"
 )
 
-// buildZtocReader creates the tar gz file for tar entries. It returns ztoc and io.SectionReader of the file.
+// BuildZtocReader creates the tar gz file for tar entries. It returns ztoc and io.SectionReader of the file.
 func BuildZtocReader(ents []testutil.TarEntry, compressionLevel int, spanSize int64, opts ...testutil.BuildTarOption) (*Ztoc, *io.SectionReader, error) {
 	tarReader := testutil.BuildTarGz(ents, compressionLevel, opts...)
 
-	tarFile, err := os.CreateTemp("", "tmp.*")
+	tarFileName, tarData, err := testutil.WriteTarToTempFile("tmp.*", tarReader)
 	if err != nil {
-		return nil, nil, fmt.Errorf("failed to create temp file: %v", err)
+		return nil, nil, err
 	}
-	defer os.Remove(tarFile.Name())
-	tarBuf := new(bytes.Buffer)
-	w := io.MultiWriter(tarFile, tarBuf)
-	_, err = io.Copy(w, tarReader)
-	if err != nil {
-		return nil, nil, fmt.Errorf("failed to write tar file: %v", err)
-	}
-	tarData := tarBuf.Bytes()
+	defer os.Remove(tarFileName)
+
 	sr := io.NewSectionReader(bytes.NewReader(tarData), 0, int64(len(tarData)))
-	ztoc, err := BuildZtoc(tarFile.Name(), spanSize, "test")
+	ztoc, err := BuildZtoc(tarFileName, spanSize, "test")
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to build sample ztoc: %v", err)
 	}
