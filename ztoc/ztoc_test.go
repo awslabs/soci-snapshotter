@@ -138,6 +138,72 @@ func TestDecompress(t *testing.T) {
 	}
 }
 
+func TestDecompressWithGzipHeaders(t *testing.T) {
+	const spanSize = 1024
+	testcases := []struct {
+		name string
+		opts []testutil.BuildTarOption
+	}{
+		{
+			name: "ztoc decompress works with gzip comments",
+			opts: []testutil.BuildTarOption{testutil.WithGzipComment("test comment")},
+		},
+		{
+			name: "ztoc decompress works with gzip filename",
+			opts: []testutil.BuildTarOption{testutil.WithGzipFilename("filename.tar")},
+		},
+		{
+			name: "ztoc decompress works with gzip extra data",
+			opts: []testutil.BuildTarOption{testutil.WithGzipExtra(testutil.RandomByteData(100))},
+		},
+		{
+			name: "ztoc decompress works with gzip comments, filename, and extra data",
+			opts: []testutil.BuildTarOption{
+				testutil.WithGzipComment("test comment"),
+				testutil.WithGzipFilename("filename.tar"),
+				testutil.WithGzipExtra(testutil.RandomByteData(100)),
+			},
+		},
+		{
+			name: "ztoc decompress works when extra data is bigger than the span size",
+			opts: []testutil.BuildTarOption{testutil.WithGzipExtra(testutil.RandomByteData(2 * spanSize))},
+		},
+	}
+	for _, tc := range testcases {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			data := testutil.RandomByteData(100)
+			ztoc, sr, err := BuildZtocReader(
+				[]testutil.TarEntry{
+					testutil.File("file", string(data)),
+				},
+				gzip.DefaultCompression,
+				spanSize,
+				tc.opts...,
+			)
+			if err != nil {
+				t.Fatalf("failed to create ztoc: %v", err)
+			}
+			metadata := ztoc.TOC.Metadata[0]
+			config := FileExtractConfig{
+				UncompressedSize:      metadata.UncompressedSize,
+				UncompressedOffset:    metadata.UncompressedOffset,
+				Checkpoints:           ztoc.CompressionInfo.Checkpoints,
+				CompressedArchiveSize: ztoc.CompressedArchiveSize,
+				MaxSpanID:             ztoc.CompressionInfo.MaxSpanID,
+			}
+			b, err := ExtractFile(sr, &config)
+			if err != nil {
+				t.Fatalf("failed to extract from ztoc: %v", err)
+			}
+			diff := getPositionOfFirstDiffInByteSlice(data, b)
+			if diff != -1 {
+				t.Fatalf("data mismatched at %d. expected %v, got %v", diff, data, b)
+			}
+		})
+	}
+}
+
 func TestZtocGenerationConsistency(t *testing.T) {
 	testcases := []struct {
 		name       string
