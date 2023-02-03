@@ -21,8 +21,10 @@ import (
 	"errors"
 	"fmt"
 	"sync"
+	"time"
 
 	"github.com/awslabs/soci-snapshotter/compression"
+	commonmetrics "github.com/awslabs/soci-snapshotter/fs/metrics/common"
 	sm "github.com/awslabs/soci-snapshotter/fs/span-manager"
 	"github.com/containerd/containerd/log"
 	"github.com/opencontainers/go-digest"
@@ -46,6 +48,8 @@ type base struct {
 	layerDigest digest.Digest
 	closed      bool
 	closedMu    sync.Mutex
+	// timestamp when background fetch for the layer starts
+	start time.Time
 }
 
 func (b *base) Close() error {
@@ -82,15 +86,21 @@ func (lr *sequentialLayerResolver) Resolve(ctx context.Context) (bool, error) {
 		"spanId": lr.nextSpanFetchID,
 	}).Debug("fetching span")
 
+	if lr.nextSpanFetchID == 0 {
+		lr.base.start = time.Now()
+	}
 	err := lr.FetchSingleSpan(lr.nextSpanFetchID)
 	if err == nil {
+		commonmetrics.IncOperationCount(commonmetrics.BackgroundSpanFetchCount, lr.layerDigest)
 		lr.nextSpanFetchID++
 		return true, nil
 	}
 	if errors.Is(err, sm.ErrExceedMaxSpan) {
+		commonmetrics.MeasureLatencyInMilliseconds(commonmetrics.BackgroundFetch, lr.layerDigest, lr.base.start)
 		return false, nil
 	}
 
+	commonmetrics.IncOperationCount(commonmetrics.BackgroundSpanFetchFailureCount, lr.layerDigest)
 	return false, fmt.Errorf("error trying to fetch span with spanId = %d from layerDigest = %s: %w",
 		lr.nextSpanFetchID, lr.layerDigest.String(), err)
 }

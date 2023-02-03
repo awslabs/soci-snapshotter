@@ -50,7 +50,7 @@ func (c *countingPauser) pause(time.Duration) {
 
 func TestBackgroundFetcherPause(t *testing.T) {
 	p := &countingPauser{}
-	bf, err := NewBackgroundFetcher(WithSilencePeriod(0), withPauser(p))
+	bf, err := NewBackgroundFetcher(WithSilencePeriod(0), withPauser(p), WithEmitMetricPeriod(time.Second))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -84,7 +84,7 @@ func TestBackgroundFetcherRun(t *testing.T) {
 		},
 		{
 			name:     "background fetcher fetches all data for multiple span managers",
-			waitTime: 1 * time.Second,
+			waitTime: 3 * time.Second,
 			entries: [][]testutil.TarEntry{
 				{
 					testutil.File("test1", string(testutil.RandomByteData(10000000))),
@@ -116,7 +116,7 @@ func TestBackgroundFetcherRun(t *testing.T) {
 				infos = append(infos, testInfo{sm, cache, ztoc})
 			}
 
-			bf, err := NewBackgroundFetcher(WithFetchPeriod(0))
+			bf, err := NewBackgroundFetcher(WithFetchPeriod(0), WithEmitMetricPeriod(time.Second))
 			if err != nil {
 				t.Fatalf("unable to construct background fetcher: %v", err)
 			}

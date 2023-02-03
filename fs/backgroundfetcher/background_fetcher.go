@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"time"
 
+	commonmetrics "github.com/awslabs/soci-snapshotter/fs/metrics/common"
 	"github.com/containerd/containerd/log"
 	"golang.org/x/time/rate"
 )
@@ -48,6 +49,13 @@ func WithMaxQueueSize(size int) Option {
 	}
 }
 
+func WithEmitMetricPeriod(period time.Duration) Option {
+	return func(bf *BackgroundFetcher) error {
+		bf.emitMetricPeriod = period
+		return nil
+	}
+}
+
 // An interface for a type to "pause" the background fetcher.
 // Useful for mocking in unit tests.
 type pauser interface {
@@ -63,9 +71,10 @@ func (p defaultPauser) pause(d time.Duration) {
 // A backgroundFetcher is responsible for fetching spans from layers
 // in the background.
 type BackgroundFetcher struct {
-	silencePeriod time.Duration
-	fetchPeriod   time.Duration
-	maxQueueSize  int
+	silencePeriod    time.Duration
+	fetchPeriod      time.Duration
+	maxQueueSize     int
+	emitMetricPeriod time.Duration
 
 	rateLimiter *rate.Limiter
 
@@ -135,14 +144,19 @@ loop:
 }
 
 func (bf *BackgroundFetcher) Run(ctx context.Context) error {
+	ticker := time.NewTicker(bf.emitMetricPeriod)
+	go bf.emitWorkQueueMetric(ctx, ticker)
+
 	for {
 		// Pause the background fetcher if necessary.
 		bf.pause(ctx)
 
 		select {
 		case <-bf.closeChan:
+			ticker.Stop()
 			return nil
 		case <-ctx.Done():
+			ticker.Stop()
 			return nil
 		default:
 		}
@@ -165,6 +179,20 @@ func (bf *BackgroundFetcher) Run(ctx context.Context) error {
 
 		if err := bf.rateLimiter.Wait(ctx); err != nil {
 			return fmt.Errorf("background fetch: error while waiting for rate limiter: %w", err)
+		}
+	}
+}
+
+func (bf *BackgroundFetcher) emitWorkQueueMetric(ctx context.Context, ticker *time.Ticker) {
+	for {
+		select {
+		case <-bf.closeChan:
+			return
+		case <-ctx.Done():
+			return
+		case <-ticker.C:
+			// background fetcher is at the snapshotter's fs level, so no image digest as key
+			commonmetrics.AddImageOperationCount(commonmetrics.BackgroundFetchWorkQueueSize, "", int32(len(bf.workQueue)))
 		}
 	}
 }

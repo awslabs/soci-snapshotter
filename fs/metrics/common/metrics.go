@@ -69,6 +69,7 @@ const (
 	NodeReaddir       = "node_readdir"
 	InitMetadataStore = "init_metadata_store"
 	SynchronousRead   = "synchronous_read"
+	BackgroundFetch   = "background_fetch"
 
 	SynchronousReadCount              = "synchronous_read_count"
 	SynchronousReadRegistryFetchCount = "synchronous_read_remote_registry_fetch_count" // TODO revisit (wrong place)
@@ -91,6 +92,15 @@ const (
 	// Number of times the snapshotter falls back to use a normal overlay mount instead of mounting the layer as a FUSE mount.
 	// Note that a layer not having a ztoc is NOT classified as an error, even though `fs.Mount` returns an error in that case.
 	FuseMountFailureCount = "fuse_mount_failure_count"
+
+	// Number of errors of span fetch by background fetcher
+	BackgroundSpanFetchFailureCount = "background_span_fetch_failure_count"
+
+	// Number of spans fetched by background fetcher
+	BackgroundSpanFetchCount = "background_span_fetch_count"
+
+	// Number of items in the work queue of background fetcher
+	BackgroundFetchWorkQueueSize = "background_fetch_work_queue_size"
 )
 
 var (
