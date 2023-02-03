@@ -126,4 +126,8 @@ type BackgroundFetchConfig struct {
 	// i.e., the maximum number of span managers that can be queued
 	// in the background fetcher.
 	MaxQueueSize int `toml:"max_queue_size"`
+
+	// EmitMetricPeriodSec is the amount of interval (in second) at which the background
+	// fetcher emits metrics
+	EmitMetricPeriodSec int64 `toml:"emit_metric_period_sec"`
 }

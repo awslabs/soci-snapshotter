@@ -93,6 +93,9 @@ const (
 	// will block until a span manager is removed from the workqueue.
 	defaultBgMaxQueueSize = 100
 
+	// The default amount of interval at which the background fetcher emits metrics
+	defaultBgMetricEmitPeriod = 10 * time.Second
+
 	// Amount of time Mount will time out if a layer can't be resolved.
 	defaultMountTimeout = 30 * time.Second
 
@@ -185,6 +188,11 @@ func NewFilesystem(root string, cfg config.Config, opts ...Option) (_ snapshot.F
 		bgMaxQueueSize = defaultBgMaxQueueSize
 	}
 
+	bgEmitMetricPeriod := time.Duration(cfg.BackgroundFetchConfig.EmitMetricPeriodSec) * time.Second
+	if bgEmitMetricPeriod == 0 {
+		bgEmitMetricPeriod = defaultBgMetricEmitPeriod
+	}
+
 	store, err := oci.New(config.SociContentStorePath)
 	if err != nil {
 		return nil, fmt.Errorf("cannot create local store: %w", err)
@@ -193,14 +201,16 @@ func NewFilesystem(root string, cfg config.Config, opts ...Option) (_ snapshot.F
 	var bgFetcher *bf.BackgroundFetcher
 	if !cfg.BackgroundFetchConfig.Disable {
 		log.G(context.Background()).WithFields(logrus.Fields{
-			"fetchPeriod":   bgFetchPeriod,
-			"silencePeriod": bgSilencePeriod,
-			"maxQueueSize":  bgMaxQueueSize,
+			"fetchPeriod":      bgFetchPeriod,
+			"silencePeriod":    bgSilencePeriod,
+			"maxQueueSize":     bgMaxQueueSize,
+			"emitMetricPeriod": bgEmitMetricPeriod,
 		}).Info("constructing background fetcher")
 
 		bgFetcher, err = bf.NewBackgroundFetcher(bf.WithFetchPeriod(bgFetchPeriod),
 			bf.WithSilencePeriod(bgSilencePeriod),
-			bf.WithMaxQueueSize(bgMaxQueueSize))
+			bf.WithMaxQueueSize(bgMaxQueueSize),
+			bf.WithEmitMetricPeriod(bgEmitMetricPeriod))
 
 		if err != nil {
 			return nil, fmt.Errorf("cannot create background fetcher: %w", err)
