@@ -253,21 +253,24 @@ func TestSociZtocGetFile(t *testing.T) {
 		randomZtocDigest = testutil.RandomDigest()
 	)
 
-	getRandomFilePathsWithinZtoc := func(ztocDigest string, numFiles int) []string {
+	getRandomFilePathsWithinZtoc := func(ztocDigest string, numFilesPerSpan int) []string {
 		rand.Seed(time.Now().UnixNano())
 		var (
-			zinfo               Info
-			regPaths, randPaths []string
+			zinfo     Info
+			randPaths []string
 		)
+		regPathsBySpan := make(map[compression.SpanID][]string)
 		output := sh.O("soci", "ztoc", "info", ztocDigest)
 		json.Unmarshal(output, &zinfo)
 		for _, file := range zinfo.Files {
 			if file.Type == "reg" {
-				regPaths = append(regPaths, file.Filename)
+				regPathsBySpan[file.StartSpan] = append(regPathsBySpan[file.StartSpan], file.Filename)
 			}
 		}
-		for i := 0; i < numFiles; i++ {
-			randPaths = append(randPaths, regPaths[rand.Intn(len(regPaths))])
+		for _, regPaths := range regPathsBySpan {
+			for i := 0; i < numFilesPerSpan; i++ {
+				randPaths = append(randPaths, regPaths[rand.Intn(len(regPaths))])
+			}
 		}
 		return randPaths
 	}
@@ -295,7 +298,7 @@ func TestSociZtocGetFile(t *testing.T) {
 			}
 		}
 		layerContents := sh.O("cat", filepath.Join(containerdBlobStorePath, trimSha256Prefix(layerDigest)))
-		files := getRandomFilePathsWithinZtoc(ztocDigest, 10)
+		files := getRandomFilePathsWithinZtoc(ztocDigest, 1)
 
 		testCases := []struct {
 			name        string

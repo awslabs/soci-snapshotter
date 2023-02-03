@@ -120,8 +120,6 @@ static struct gzip_zinfo *add_checkpoint(struct gzip_zinfo *index, uint8_t bits,
     return index;
 }
 
-
-
 /* Pretty much the same as from zran.c */
 int generate_zinfo(FILE* in, offset_t span, struct gzip_zinfo** idx)
 {
@@ -216,6 +214,7 @@ int generate_zinfo(FILE* in, offset_t span, struct gzip_zinfo** idx)
     int32_t sz = index->size;
     index->size = encode_int32(index->size);
     index->span_size = encode_offset(span);
+    index->version = encode_int32(ZINFO_VERSION_CUR);
     *idx = index;
     return sz;
 
@@ -495,19 +494,19 @@ unsigned get_blob_size(struct gzip_zinfo* index)
         return 0;
     }
 
-    unsigned size = decode_int32(index->size); 
+    unsigned size = decode_int32(index->size);
+    if (decode_int32(index->version) == ZINFO_VERSION_ONE) {
+        size--;
+    }
 
     /*
         The buffer will be tightly packed. The layout of the buffer is: 
-        -   4 bytes, number of span entries
-        -   8 bytes, size of span
-        -   for each entry (except span 0)
-            -  8 bytes, compressed offset
-            -  8 bytes, uncompressed offset
-            -  1 byte, bits
-            -  32768 bytes, window
+        -   Some fixed size based on which version
+        -   PACKED_CHECKPOINT_SIZE for each span.
+            If we have a v1 gzip_zinfo, we skip the first checkpoint
+            this is a bug, but it keeps backwards compatibility
     */
-    return  ((2 << 14) + 17) * (size - 1)  + 12;
+    return PACKED_CHECKPOINT_SIZE * size + BLOB_HEADER_SIZE;
 }
 
 int32_t get_max_span_id(struct gzip_zinfo* index)
@@ -534,13 +533,22 @@ int index_to_blob(struct gzip_zinfo* index, void* buf)
     }
 
     uchar* cur = buf;
+    int32_t first_checkpoint_index;
     memcpy(cur, &index->have, 4);
     cur += 4;
     memcpy(cur, &index->span_size, 8);
     cur += 8;
+    first_checkpoint_index = 0;
+    // in v1, we skipped the 0th checkpoint becasue we assumed it was fixed size.
+    // in v2, we encode the 0th block because it's not a fixed size if gzip headers are used.
+    // for backwards compatibility we want to reserialize v1 zinfo to exactly the same bytes
+    // even though there is technically a bug.
+    if (decode_int32(index->version) == ZINFO_VERSION_ONE)
+    {
+        first_checkpoint_index = 1;
+    }
 
-    // The values of dictionary 0 are known, so no need to save it
-    for(int i = 1; i < decode_int32(index->have); i++)
+    for(int i = first_checkpoint_index; i < decode_int32(index->have); i++)
     {
         struct gzip_checkpoint* pt = &index->list[i];
         memcpy(cur, &pt->in, 8);
@@ -556,7 +564,7 @@ int index_to_blob(struct gzip_zinfo* index, void* buf)
     return get_blob_size(index);
 }
 
-struct gzip_zinfo* blob_to_zinfo(void* buf)
+struct gzip_zinfo* blob_to_zinfo(void* buf, offset_t len)
 {
     if (buf == NULL)
     {
@@ -570,6 +578,8 @@ struct gzip_zinfo* blob_to_zinfo(void* buf)
     }
 
     int32_t size;
+    int32_t first_checkpoint_index;
+    int32_t version;
     offset_t span_size;
 
     uchar* cur = buf;
@@ -585,14 +595,22 @@ struct gzip_zinfo* blob_to_zinfo(void* buf)
         return NULL;
     }
 
-    struct gzip_checkpoint* pt0 = &index->list[0];
-    pt0->bits = 0; 
-    // gzip header takes the first 10 bytes, so span 0 always starts at offset 10 in compressed file
-    pt0->in = encode_offset(10); 
-    pt0->out = 0;
-    memset(pt0->window, 0, WINSIZE);
+    first_checkpoint_index = 0;
+    index->version = encode_int32(ZINFO_VERSION_CUR);
 
-    for(int32_t i = 1; i < decode_int32(size); i++)
+    // If we only have size - 1 checkpoints, then we have an old blob and need to 
+    // inject checkpoint 0.
+    if (PACKED_CHECKPOINT_SIZE * (decode_int32(size) - 1) + BLOB_HEADER_SIZE == len) {
+        index->version = encode_int32(ZINFO_VERSION_ONE);
+        first_checkpoint_index = 1; 
+        struct gzip_checkpoint* pt0 = &index->list[0];
+        pt0->bits = 0; 
+        pt0->in = encode_offset(10);
+        pt0->out = 0;
+        memset(pt0->window, 0, WINSIZE);
+    }
+
+    for(int32_t i = first_checkpoint_index; i < decode_int32(size); i++)
     {
         struct gzip_checkpoint* pt = &index->list[i];
         memcpy(&pt->in, cur, 8);

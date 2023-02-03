@@ -37,7 +37,7 @@ func NewGzipZinfo(checkpoints []byte) (*GzipZinfo, error) {
 	if len(checkpoints) == 0 {
 		return nil, fmt.Errorf("empty checkpoints")
 	}
-	cZinfo := C.blob_to_zinfo(unsafe.Pointer(&checkpoints[0]))
+	cZinfo := C.blob_to_zinfo(unsafe.Pointer(&checkpoints[0]), C.off_t(len(checkpoints)))
 	if cZinfo == nil {
 		return nil, fmt.Errorf("cannot convert blob to gzip_zinfo")
 	}

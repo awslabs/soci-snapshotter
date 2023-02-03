@@ -53,8 +53,28 @@
 typedef unsigned char uchar;
 typedef int64_t offset_t;
 
+#define ZINFO_VERSION_ONE 1
+#define ZINFO_VERSION_TWO 2
+
+#define ZINFO_VERSION_CUR ZINFO_VERSION_TWO
+
 /* Since gzip is compressed with 32 KiB window size, WINDOW_SIZE is fixed */
 #define WINSIZE 32768U
+
+/*
+    -  8 bytes, compressed offset
+    -  8 bytes, uncompressed offset
+    -  1 byte, bits
+    -  32768 bytes, window
+*/
+#define PACKED_CHECKPOINT_SIZE (8 + 8 + 1 + WINSIZE)
+
+/*
+    -  4 bytes, number of checkpoints
+    -  8 bytes, span size
+*/
+#define BLOB_HEADER_SIZE (4 + 8)
+
 
 enum 
 {
@@ -74,6 +94,7 @@ struct gzip_checkpoint
 
 struct gzip_zinfo 
 {
+    int32_t version;
     int32_t have;           /* number of list entries filled in */
     int32_t size;           /* number of list entries allocated */
     struct gzip_checkpoint *list; /* allocated list */
@@ -112,7 +133,7 @@ int32_t get_max_span_id(struct gzip_zinfo* index);
    to hold the entire index
 */ 
 int index_to_blob(struct gzip_zinfo* index, void* buf);
-struct gzip_zinfo* blob_to_zinfo(void* buf);
+struct gzip_zinfo* blob_to_zinfo(void* buf, offset_t len);
 
 void free_zinfo(struct gzip_zinfo *index);
 

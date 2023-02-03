@@ -55,6 +55,10 @@ type BuildTarOptions struct {
 
 	// Prefix is the prefix string need to be added to each file name (e.g. "./", "/", etc.)
 	Prefix string
+
+	GzipComment  string
+	GzipFilename string
+	GzipExtra    []byte
 }
 
 // BuildTarOption is an option used during building blob.
@@ -64,6 +68,24 @@ type BuildTarOption func(o *BuildTarOptions)
 func WithPrefix(prefix string) BuildTarOption {
 	return func(o *BuildTarOptions) {
 		o.Prefix = prefix
+	}
+}
+
+func WithGzipComment(comment string) BuildTarOption {
+	return func(o *BuildTarOptions) {
+		o.GzipComment = comment
+	}
+}
+
+func WithGzipFilename(filename string) BuildTarOption {
+	return func(o *BuildTarOptions) {
+		o.GzipFilename = filename
+	}
+}
+
+func WithGzipExtra(extra []byte) BuildTarOption {
+	return func(o *BuildTarOptions) {
+		o.GzipExtra = extra
 	}
 }
 
@@ -104,6 +126,9 @@ func BuildTarGz(ents []TarEntry, compressionLevel int, opts ...BuildTarOption) i
 			pw.CloseWithError(err)
 			return
 		}
+		gw.Comment = bo.GzipComment
+		gw.Name = bo.GzipFilename
+		gw.Extra = bo.GzipExtra
 		tw := tar.NewWriter(gw)
 
 		for _, ent := range ents {
