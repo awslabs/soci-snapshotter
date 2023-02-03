@@ -36,6 +36,7 @@ package testutil
 
 import (
 	"archive/tar"
+	"bytes"
 	"compress/gzip"
 	"fmt"
 	"io"
@@ -125,20 +126,25 @@ func BuildTarGz(ents []TarEntry, compressionLevel int, opts ...BuildTarOption) i
 	return pr
 }
 
-// WriteTarToTempFile writes the contents of a tar archive to a specified path
-func WriteTarToTempFile(archiveName string, r io.Reader) (string, error) {
-	tarFile, err := os.CreateTemp("", archiveName)
+// WriteTarToTempFile writes the contents of a tar archive to a specified path and
+// return the temp filename and the tar data (as []byte).
+//
+// It's the caller's responsibility to remove the genreated temp file.
+func WriteTarToTempFile(tarNamePattern string, tarReader io.Reader) (string, []byte, error) {
+	tarFile, err := os.CreateTemp("", tarNamePattern)
 	if err != nil {
-		return "", err
+		return "", nil, fmt.Errorf("failed to create temp file: %w", err)
 	}
 	defer tarFile.Close()
-	w := io.Writer(tarFile)
-	_, err = io.Copy(w, r)
+
+	tarBuf := new(bytes.Buffer)
+	w := io.MultiWriter(tarFile, tarBuf)
+	_, err = io.Copy(w, tarReader)
 	if err != nil {
-		return "", fmt.Errorf("failed to create archive: %w", err)
+		return "", nil, fmt.Errorf("failed to write tar file: %w", err)
 	}
-	path := tarFile.Name()
-	return path, nil
+
+	return tarFile.Name(), tarBuf.Bytes(), nil
 }
 
 // GetFilesAndContentsWithinTarGz takes a path to a targz archive and returns a list of its files and their contents

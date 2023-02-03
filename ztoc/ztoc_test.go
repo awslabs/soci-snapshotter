@@ -44,7 +44,7 @@ func TestDecompress(t *testing.T) {
 	}
 
 	tarReader := testutil.BuildTarGz(tarEntries, gzip.DefaultCompression)
-	tarGzFilePath, err := testutil.WriteTarToTempFile(testTag+".tar.gz", tarReader)
+	tarGzFilePath, _, err := testutil.WriteTarToTempFile(testTag+".tar.gz", tarReader)
 	if err != nil {
 		t.Fatalf("cannot prepare the .tar.gz file for testing")
 	}
@@ -170,7 +170,7 @@ func TestZtocGenerationConsistency(t *testing.T) {
 	for _, tc := range testcases {
 		t.Run(tc.name, func(t *testing.T) {
 			tarReader := testutil.BuildTarGz(tc.tarEntries, gzip.DefaultCompression)
-			tarGzFilePath, err := testutil.WriteTarToTempFile(tc.targzName, tarReader)
+			tarGzFilePath, _, err := testutil.WriteTarToTempFile(tc.targzName, tarReader)
 			if err != nil {
 				t.Fatalf("cannot prepare the .tar.gz file for testing")
 			}
@@ -294,7 +294,7 @@ func TestZtocGeneration(t *testing.T) {
 	for _, tc := range testcases {
 		t.Run(tc.name, func(t *testing.T) {
 			tarReader := testutil.BuildTarGz(tc.tarEntries, gzip.DefaultCompression)
-			tarGzFilePath, err := testutil.WriteTarToTempFile(tc.targzName, tarReader)
+			tarGzFilePath, _, err := testutil.WriteTarToTempFile(tc.targzName, tarReader)
 			if err != nil {
 				t.Fatalf("cannot prepare the .tar.gz file for testing")
 			}
@@ -385,7 +385,7 @@ func TestZtocSerialization(t *testing.T) {
 	for _, tc := range testcases {
 		t.Run(tc.name, func(t *testing.T) {
 			tarReader := testutil.BuildTarGz(tc.tarEntries, gzip.DefaultCompression)
-			tarGzFilePath, err := testutil.WriteTarToTempFile(tc.targzName, tarReader)
+			tarGzFilePath, _, err := testutil.WriteTarToTempFile(tc.targzName, tarReader)
 			if err != nil {
 				t.Fatalf("cannot prepare the .tar.gz file for testing")
 			}
