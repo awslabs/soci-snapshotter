@@ -31,7 +31,7 @@ CMD=soci-snapshotter-grpc soci
 
 CMD_BINARIES=$(addprefix $(OUTDIR)/,$(CMD))
 
-.PHONY: all build add-ltag install uninstall clean test integration
+.PHONY: all build check add-ltag install uninstall clean test integration
 
 all: build
 
@@ -44,6 +44,9 @@ soci-snapshotter-grpc: FORCE
 
 soci: FORCE
 	cd cmd/ ; GO111MODULE=$(GO111MODULE_VALUE) go build -o $(OUTDIR)/$@ $(GO_BUILD_FLAGS) $(GO_LD_FLAGS) ./soci
+
+check:
+	cd scripts/ ; ./check-all.sh
 
 flatc:
 	rm -rf $(CURDIR)/ztoc/fbs/ztoc
