@@ -282,78 +282,81 @@ func (o *snapshotter) Prepare(ctx context.Context, key, parent string, opts ...s
 		}
 	}
 
-	if target, ok := base.Labels[targetSnapshotLabel]; ok {
+	target, ok := base.Labels[targetSnapshotLabel]
+	if !ok {
+		return o.mounts(ctx, s, parent)
+	}
 
-		// NOTE: If passed labels include a target of the remote snapshot, `Prepare`
-		//       must log whether this method succeeded to prepare that remote snapshot
-		//       or not, using the key `remoteSnapshotLogKey` defined in the above. This
-		//       log is used by tests in this project.
-		lCtx := log.WithLogger(ctx, log.G(ctx).WithField("key", key).WithField("parent", parent))
+	// NOTE: If passed labels include a target of the remote snapshot, `Prepare`
+	//       must log whether this method succeeded to prepare that remote snapshot
+	//       or not, using the key `remoteSnapshotLogKey` defined in the above. This
+	//       log is used by tests in this project.
+	lCtx := log.WithLogger(ctx, log.G(ctx).WithField("key", key).WithField("parent", parent))
 
-		localOverride := false
-		if o.minLayerSize > 0 {
-			if strVal, ok := base.Labels[source.TargetSizeLabel]; ok {
-				if intVal, err := strconv.ParseInt(strVal, 10, 64); err == nil {
-					if intVal < o.minLayerSize {
-						localOverride = true
-						log.G(lCtx).Info("Layer size less than runtime min_layer_size, skipping remote snapshot preparation")
-					}
-				} else {
-					log.G(lCtx).WithError(err).Error("Config min_layer_size cannot be converted to int")
-				}
-			}
-		}
-
-		if !localOverride {
-			if err := o.prepareRemoteSnapshot(lCtx, key, base.Labels); err != nil {
-				log.G(lCtx).WithField(remoteSnapshotLogKey, prepareFailed).
-					WithError(err).Warn("failed to prepare remote snapshot")
-				if !errors.Is(err, ErrNoZtoc) {
-					commonmetrics.IncOperationCount(commonmetrics.FuseMountFailureCount, digest.Digest(""))
-				}
-			} else {
-				base.Labels[remoteLabel] = remoteLabelVal // Mark this snapshot as remote
-				err := o.commit(ctx, true, target, key, append(opts, snapshots.WithLabels(base.Labels))...)
-				if err == nil || errdefs.IsAlreadyExists(err) {
-					// count also AlreadyExists as "success"
-					log.G(lCtx).WithField(remoteSnapshotLogKey, prepareSucceeded).Info("Remote snapshot successfully prepared.")
-					return nil, fmt.Errorf("target snapshot %q: %w", target, errdefs.ErrAlreadyExists)
-				}
-				log.G(lCtx).WithField(remoteSnapshotLogKey, prepareFailed).
-					WithError(err).Warn("failed to internally commit remote snapshot")
-				// Don't fallback here (= prohibit to use this key again) because the FileSystem
-				// possible has done some work on this "upper" directory.
-				return nil, err
-			}
-		}
-
-		mounts, err := o.mounts(ctx, s, parent)
-		if err != nil {
-			// don't fallback here, since there was an error getting mounts
-			return nil, err
-		}
-
-		log.G(ctx).WithField("layerDigest", base.Labels[source.TargetDigestLabel]).Info("preparing snapshot as local snapshot")
-		if err = o.prepareLocalSnapshot(lCtx, key, base.Labels, mounts); err != nil {
-			log.G(lCtx).WithField(remoteSnapshotLogKey, prepareFailed).
-				WithError(err).Warn("failed to prepare snapshot; deferring to container runtime")
-		} else {
-			err := o.commit(ctx, false, target, key, append(opts, snapshots.WithLabels(base.Labels))...)
+	// remote snapshot prepare
+	if !o.skipRemoteSnapshotPrepare(lCtx, base.Labels) {
+		err := o.prepareRemoteSnapshot(lCtx, key, base.Labels)
+		if err == nil {
+			base.Labels[remoteLabel] = remoteLabelVal // Mark this snapshot as remote
+			err := o.commit(ctx, true, target, key, append(opts, snapshots.WithLabels(base.Labels))...)
 			if err == nil || errdefs.IsAlreadyExists(err) {
 				// count also AlreadyExists as "success"
-				// there's no need to provide any details on []mount.Mount because mounting is already taken care of
-				// by snapshotter
-				log.G(lCtx).WithField(remoteSnapshotLogKey, prepareSucceeded).Info("Local snapshot successfully prepared")
+				log.G(lCtx).WithField(remoteSnapshotLogKey, prepareSucceeded).Info("remote snapshot successfully prepared.")
 				return nil, fmt.Errorf("target snapshot %q: %w", target, errdefs.ErrAlreadyExists)
 			}
-			log.G(lCtx).WithField(remoteSnapshotLogKey, prepareFailed).
-				WithError(err).Warn("failed to internally commit local snapshot")
+			log.G(lCtx).WithField(remoteSnapshotLogKey, prepareFailed).WithError(err).Warn("failed to internally commit remote snapshot")
 			// Don't fallback here (= prohibit to use this key again) because the FileSystem
 			// possible has done some work on this "upper" directory.
 			return nil, err
 		}
+		log.G(lCtx).WithField(remoteSnapshotLogKey, prepareFailed).WithError(err).Warn("failed to prepare remote snapshot")
+		if !errors.Is(err, ErrNoZtoc) {
+			commonmetrics.IncOperationCount(commonmetrics.FuseMountFailureCount, digest.Digest(""))
+		}
 	}
-	return o.mounts(ctx, s, parent)
+
+	// fall back to local snapshot
+	mounts, err := o.mounts(ctx, s, parent)
+	if err != nil {
+		// don't fallback here, since there was an error getting mounts
+		return nil, err
+	}
+
+	log.G(ctx).WithField("layerDigest", base.Labels[source.TargetDigestLabel]).Info("preparing snapshot as local snapshot")
+	err = o.prepareLocalSnapshot(lCtx, key, base.Labels, mounts)
+	if err == nil {
+		err := o.commit(ctx, false, target, key, append(opts, snapshots.WithLabels(base.Labels))...)
+		if err == nil || errdefs.IsAlreadyExists(err) {
+			// count also AlreadyExists as "success"
+			// there's no need to provide any details on []mount.Mount because mounting is already taken care of
+			// by snapshotter
+			log.G(lCtx).WithField(remoteSnapshotLogKey, prepareSucceeded).Info("local snapshot successfully prepared")
+			return nil, fmt.Errorf("target snapshot %q: %w", target, errdefs.ErrAlreadyExists)
+		}
+		log.G(lCtx).WithField(remoteSnapshotLogKey, prepareFailed).WithError(err).Warn("failed to internally commit local snapshot")
+		// Don't fallback here (= prohibit to use this key again) because the FileSystem
+		// possible has done some work on this "upper" directory.
+		return nil, err
+	}
+
+	log.G(lCtx).WithField(remoteSnapshotLogKey, prepareFailed).WithError(err).Warn("failed to prepare snapshot; deferring to container runtime")
+	return mounts, nil
+}
+
+func (o *snapshotter) skipRemoteSnapshotPrepare(ctx context.Context, labels map[string]string) bool {
+	if o.minLayerSize > 0 {
+		if strVal, ok := labels[source.TargetSizeLabel]; ok {
+			if intVal, err := strconv.ParseInt(strVal, 10, 64); err == nil {
+				if intVal < o.minLayerSize {
+					log.G(ctx).Info("layer size less than runtime min_layer_size, skipping remote snapshot preparation")
+					return true
+				}
+			} else {
+				log.G(ctx).WithError(err).Error("config min_layer_size cannot be converted to int")
+			}
+		}
+	}
+	return false
 }
 
 func (o *snapshotter) View(ctx context.Context, key, parent string, opts ...snapshots.Opt) ([]mount.Mount, error) {
