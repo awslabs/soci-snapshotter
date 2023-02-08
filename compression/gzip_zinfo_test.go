@@ -24,24 +24,54 @@ func TestNewGzipZinfo(t *testing.T) {
 	t.Parallel()
 	testCases := []struct {
 		name        string
-		checkpoints []byte
+		zinfoBytes  []byte
 		expectError bool
 	}{
 		{
-			name:        "nil checkpoints should return error",
-			checkpoints: nil,
+			name:        "nil zinfoBytes should return error",
+			zinfoBytes:  nil,
 			expectError: true,
 		},
 		{
-			name:        "empty checkpoints should return error",
-			checkpoints: []byte{},
+			name:        "empty zinfoBytes should return error",
+			zinfoBytes:  []byte{},
 			expectError: true,
+		},
+		{
+			name:        "zinfoBytes with less than 'header size' bytes header should return error",
+			zinfoBytes:  []byte{00},
+			expectError: true,
+		},
+		{
+			name: "zinfoBytes with too few checkpoints should return error",
+			zinfoBytes: []byte{
+				0xFF, 00, 00, 00, // 255 checkpoints
+				00, 00, 00, 00, 00, 00, 00, 00, // span size 0
+				// No checkpoint data. We should not try to read 255 checkpoints from this buffer.
+			},
+			expectError: true,
+		},
+		{
+			name: "zinfoBytes with zero checkpoints should succeed",
+			zinfoBytes: []byte{
+				00, 00, 00, 00, // 0 checkpoints
+				00, 00, 00, 00, 00, 00, 00, 00, // span size 0
+			},
+			expectError: false,
+		},
+		{
+			name: "zinfoBytes v1 with zero checkpoints should succeed",
+			zinfoBytes: []byte{
+				01, 00, 00, 00, // 1 checkpoint
+				00, 00, 00, 00, 00, 00, 00, 00, // span size 0
+			},
+			expectError: false,
 		},
 	}
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			_, err := NewGzipZinfo(tc.checkpoints)
+			_, err := NewGzipZinfo(tc.zinfoBytes)
 			if tc.expectError != (err != nil) {
 				t.Fatalf("expect error: %t, actual error: %v", tc.expectError, err)
 			}

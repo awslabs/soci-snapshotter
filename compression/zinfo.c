@@ -571,6 +571,10 @@ struct gzip_zinfo* blob_to_zinfo(void* buf, offset_t len)
         return NULL;
     }
 
+    if (len < BLOB_HEADER_SIZE) {
+        return NULL;
+    }
+
     struct gzip_zinfo* index = malloc(sizeof(struct gzip_zinfo));
     if (index == NULL)
     {
@@ -580,6 +584,7 @@ struct gzip_zinfo* blob_to_zinfo(void* buf, offset_t len)
     int32_t size;
     int32_t first_checkpoint_index;
     int32_t version;
+    offset_t claimed_size;
     offset_t span_size;
 
     uchar* cur = buf;
@@ -587,6 +592,18 @@ struct gzip_zinfo* blob_to_zinfo(void* buf, offset_t len)
     cur += 4;
     memcpy(&span_size, cur, 8);
     cur += 8;
+
+    claimed_size = PACKED_CHECKPOINT_SIZE * decode_int32(size) + BLOB_HEADER_SIZE;
+    if (claimed_size == len) {
+        // If we have exactly size checkpoints, then we have a current blob
+        version = ZINFO_VERSION_CUR;
+    } else if (claimed_size - PACKED_CHECKPOINT_SIZE == len) {
+        // If we only have size - 1 checkpoints, then we have a v1 blob
+        version = ZINFO_VERSION_ONE;
+    } else {
+        // size is invalid. don't attempt to deserialize any more data.
+        return NULL;
+    }
 
     index->list = malloc(sizeof(struct gzip_checkpoint) * decode_int32(size));
     if (index->list == NULL)
@@ -596,12 +613,9 @@ struct gzip_zinfo* blob_to_zinfo(void* buf, offset_t len)
     }
 
     first_checkpoint_index = 0;
-    index->version = encode_int32(ZINFO_VERSION_CUR);
+    index->version = encode_int32(version);
 
-    // If we only have size - 1 checkpoints, then we have an old blob and need to 
-    // inject checkpoint 0.
-    if (PACKED_CHECKPOINT_SIZE * (decode_int32(size) - 1) + BLOB_HEADER_SIZE == len) {
-        index->version = encode_int32(ZINFO_VERSION_ONE);
+    if (version == ZINFO_VERSION_ONE) {
         first_checkpoint_index = 1; 
         struct gzip_checkpoint* pt0 = &index->list[0];
         pt0->bits = 0; 

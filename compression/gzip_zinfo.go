@@ -33,11 +33,11 @@ type GzipZinfo struct {
 }
 
 // NewGzipZinfo creates a new instance of `GzipZinfo` from cZinfo byte blob on zTOC.
-func NewGzipZinfo(checkpoints []byte) (*GzipZinfo, error) {
-	if len(checkpoints) == 0 {
+func NewGzipZinfo(zinfoBytes []byte) (*GzipZinfo, error) {
+	if len(zinfoBytes) == 0 {
 		return nil, fmt.Errorf("empty checkpoints")
 	}
-	cZinfo := C.blob_to_zinfo(unsafe.Pointer(&checkpoints[0]), C.off_t(len(checkpoints)))
+	cZinfo := C.blob_to_zinfo(unsafe.Pointer(&zinfoBytes[0]), C.off_t(len(zinfoBytes)))
 	if cZinfo == nil {
 		return nil, fmt.Errorf("cannot convert blob to gzip_zinfo")
 	}
