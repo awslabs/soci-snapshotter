@@ -127,6 +127,7 @@ func main() {
 	logrus.SetFormatter(&logrus.JSONFormatter{
 		TimestampFormat: log.RFC3339NanoFixed,
 	})
+	logrus.ErrorKey = "context"
 
 	var (
 		ctx    = log.WithLogger(context.Background(), log.L)
