@@ -140,7 +140,7 @@ func WithOverlayOpaqueType(overlayOpaqueType layer.OverlayOpaqueType) Option {
 	}
 }
 
-func NewFilesystem(root string, cfg config.Config, opts ...Option) (_ snapshot.FileSystem, err error) {
+func NewFilesystem(ctx context.Context, root string, cfg config.Config, opts ...Option) (_ snapshot.FileSystem, err error) {
 	var fsOpts options
 	for _, o := range opts {
 		o(&fsOpts)
@@ -235,6 +235,14 @@ func NewFilesystem(root string, cfg config.Config, opts ...Option) (_ snapshot.F
 	}
 
 	return &filesystem{
+		// it's generally considered bad practice to store a context in a struct,
+		// however `filesystem` has it's own lifecycle as well as a per-request lifecycle.
+		// Some operations (e.g. remote calls) exist within a per-request lifecycle and use
+		// the context passed to the specific function, but some operations (e.g. fuse operation counts)
+		// are tied to the lifecycle of the filesystem itself. In order to avoid leaking goroutines,
+		// we store the snapshotter's lifecycle in the struct itself so that we can tie new goroutines
+		// to it later.
+		ctx:                         ctx,
 		resolver:                    r,
 		getSources:                  getSources,
 		debug:                       cfg.Debug,
@@ -262,7 +270,7 @@ type sociContext struct {
 	fuseOperationCounter *layer.FuseOperationCounter
 }
 
-func (c *sociContext) Init(ctx context.Context, imageRef, indexDigest, imageManifestDigest string, store orascontent.Storage, fuseOpEmitWaitDuration time.Duration) error {
+func (c *sociContext) Init(fsCtx context.Context, ctx context.Context, imageRef, indexDigest, imageManifestDigest string, store orascontent.Storage, fuseOpEmitWaitDuration time.Duration) error {
 	var retErr error
 	c.fetchOnce.Do(func() {
 		defer func() {
@@ -318,7 +326,7 @@ func (c *sociContext) Init(ctx context.Context, imageRef, indexDigest, imageMani
 		// Create the FUSE operation counter.
 		// Metrics are emitted after a wait time of fuseOpEmitWaitDuration.
 		c.fuseOperationCounter = layer.NewFuseOperationCounter(digest.Digest(imageManifestDigest), fuseOpEmitWaitDuration)
-		go c.fuseOperationCounter.Run()
+		go c.fuseOperationCounter.Run(fsCtx)
 	})
 	c.cachedErrMu.RLock()
 	retErr = c.cachedErr
@@ -335,6 +343,7 @@ func (c *sociContext) populateImageLayerToSociMapping(sociIndex *soci.Index) {
 }
 
 type filesystem struct {
+	ctx                         context.Context
 	resolver                    *layer.Resolver
 	debug                       bool
 	layer                       map[string]layer.Layer
@@ -396,7 +405,7 @@ func (fs *filesystem) getSociContext(ctx context.Context, imageRef, indexDigest,
 	if !ok {
 		return nil, fmt.Errorf("could not load index: fs soci context is invalid type for %s", indexDigest)
 	}
-	err := c.Init(ctx, imageRef, indexDigest, imageManifestDigest, fs.orasStore, fs.fuseMetricsEmitWaitDuration)
+	err := c.Init(fs.ctx, ctx, imageRef, indexDigest, imageManifestDigest, fs.orasStore, fs.fuseMetricsEmitWaitDuration)
 	return c, err
 }
 

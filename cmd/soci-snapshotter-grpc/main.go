@@ -129,9 +129,10 @@ func main() {
 	})
 
 	var (
-		ctx    = log.WithLogger(context.Background(), log.L)
-		config snapshotterConfig
+		ctx, cancel = context.WithCancel(log.WithLogger(context.Background(), log.L))
+		config      snapshotterConfig
 	)
+	defer cancel()
 	// Streams log of standard lib (go-fuse uses this) into debug log
 	// Snapshotter should use "github.com/containerd/containerd/log" otherwize
 	// logs are always printed as "debug" mode.

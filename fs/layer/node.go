@@ -160,13 +160,25 @@ func (f *FuseOperationCounter) Inc(op string) {
 	atomic.AddInt32(opCount, 1)
 }
 
-// Run waits for f.waitPeriod to pass before emitting metric for
+// Run waits for f.waitPeriod to pass before emitting a log and metric for each
 // operation in FuseOpsList. Should be started in different goroutine so that it
 // doesn't block the current goroutine.
-func (f *FuseOperationCounter) Run() {
-	<-time.After(f.waitPeriod)
-	for op, opCount := range f.opCounts {
-		commonmetrics.AddImageOperationCount(op, f.imageDigest, atomic.LoadInt32(opCount))
+func (f *FuseOperationCounter) Run(ctx context.Context) {
+	select {
+	case <-ctx.Done():
+		return
+	case <-time.After(f.waitPeriod):
+		for op, opCount := range f.opCounts {
+			// We want both an aggregated metric (e.g. p90) and an image specific metric so that we can compare
+			// how a specific image is behaving to a larger dataset. When the image cardinatlity is small,
+			// we can just include the image digest as a label on the metric itself, however, when the cardinality
+			// is large, this can be very expensive. Here we give consumers options by emitting both logs and
+			// metrics. A low cardinality use case can rely on metrics. A high cardinality use case can
+			// aggregate the metrics across all images, but still get the per-image info via logs.
+			count := atomic.LoadInt32(opCount)
+			commonmetrics.AddImageOperationCount(op, f.imageDigest, count)
+			log.G(ctx).Infof("fuse operation count for image %s: %s = %d", f.imageDigest, op, count)
+		}
 	}
 }
 
