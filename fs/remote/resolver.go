@@ -152,7 +152,12 @@ func (r *Resolver) resolveFetcher(ctx context.Context, hosts source.RegistryHost
 		return &remoteFetcher{r}, size, nil
 	}
 
-	log.G(ctx).WithError(handlersErr).WithField("ref", refspec.String()).WithField("digest", desc.Digest).Debugf("using default handler")
+	logger := log.G(ctx)
+	if handlersErr != nil {
+		logger = logger.WithError(handlersErr)
+	}
+	logger.WithField("ref", refspec.String()).WithField("digest", desc.Digest).Debugf("using default handler")
+
 	hf, err := newHTTPFetcher(ctx, fc)
 	if err != nil {
 		return nil, 0, err
