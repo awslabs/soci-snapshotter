@@ -12,9 +12,9 @@
 #   See the License for the specific language governing permissions and
 #   limitations under the License.
 
-ARG CONTAINERD_VERSION=1.6.4
-ARG RUNC_VERSION=1.1.1
-ARG NERDCTL_VERSION=0.19.0
+ARG CONTAINERD_VERSION=1.6.17
+ARG RUNC_VERSION=1.1.4
+ARG NERDCTL_VERSION=1.2.0
 
 FROM golang:1.18.10-buster AS golang-base
 
