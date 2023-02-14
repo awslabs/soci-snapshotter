@@ -93,8 +93,6 @@ func buildIndex(sh *shell.Shell, src imageInfo, opt ...indexBuildOption) string 
 	for _, o := range opt {
 		o(&indexBuildConfig)
 	}
-	opts := encodeImageInfoNerdctl(src)
-
 	createCommand := []string{"soci", "create", src.ref}
 	createArgs := []string{
 		"--min-layer-size", fmt.Sprintf("%d", indexBuildConfig.minLayerSize),
@@ -104,9 +102,8 @@ func buildIndex(sh *shell.Shell, src imageInfo, opt ...indexBuildOption) string 
 	if indexBuildConfig.supportLegacyRegistry {
 		createArgs = append(createArgs, "--legacy-registry")
 	}
-
+	pullOrImport(sh, src)
 	indexDigest := sh.
-		X(append([]string{"nerdctl", "pull", "-q", "--platform", platforms.Format(src.platform)}, opts[0]...)...).
 		X(append(createCommand, createArgs...)...).
 		O("soci", "index", "list",
 			"-q", "--ref", src.ref,

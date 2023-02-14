@@ -161,11 +161,11 @@ func TestLazyPullWithSparseIndex(t *testing.T) {
 	copyImage(sh, dockerhub(imageName), regConfig.mirror(imageName))
 	indexDigest := buildIndex(sh, regConfig.mirror(imageName), withMinLayerSize(minLayerSize))
 
-	fromNormalSnapshotter := func(image string) tarPipeExporter {
+	fromNormalSnapshotter := func(image imageInfo) tarPipeExporter {
 		return func(t *testing.T, tarExportArgs ...string) {
 			rebootContainerd(t, sh, "", "")
-			sh.X("nerdctl", "pull", "-q", image)
-			sh.Pipe(nil, shell.C("ctr", "run", "--rm", image, "test", "tar", "-zc", "/usr"), tarExportArgs)
+			pullOrImport(sh, image)
+			sh.Pipe(nil, shell.C("ctr", "run", "--rm", image.ref, "test", "tar", "-zc", "/usr"), tarExportArgs)
 		}
 	}
 	export := func(sh *shell.Shell, image string, tarExportArgs []string) {
@@ -198,7 +198,7 @@ func TestLazyPullWithSparseIndex(t *testing.T) {
 	}{
 		{
 			name: "Soci",
-			want: fromNormalSnapshotter(regConfig.mirror(imageName).ref),
+			want: fromNormalSnapshotter(regConfig.mirror(imageName)),
 			test: func(t *testing.T, tarExportArgs ...string) {
 				image := regConfig.mirror(imageName).ref
 				rebootContainerd(t, sh, "", "")
@@ -256,11 +256,11 @@ func TestLazyPull(t *testing.T) {
 	indexDigest2 := buildIndex(sh, regConfig.mirror(optimizedImageName2), withMinLayerSize(0))
 
 	// Test if contents are pulled
-	fromNormalSnapshotter := func(image string) tarPipeExporter {
+	fromNormalSnapshotter := func(image imageInfo) tarPipeExporter {
 		return func(t *testing.T, tarExportArgs ...string) {
 			rebootContainerd(t, sh, "", "")
-			sh.X("nerdctl", "pull", "-q", image)
-			sh.Pipe(nil, shell.C("ctr", "run", "--rm", image, "test", "tar", "-zc", "/usr"), tarExportArgs)
+			pullOrImport(sh, image)
+			sh.Pipe(nil, shell.C("ctr", "run", "--rm", image.ref, "test", "tar", "-zc", "/usr"), tarExportArgs)
 		}
 	}
 	export := func(sh *shell.Shell, image string, tarExportArgs []string) {
@@ -276,7 +276,7 @@ func TestLazyPull(t *testing.T) {
 	}{
 		{
 			name: "normal",
-			want: fromNormalSnapshotter(regConfig.mirror(nonOptimizedImageName).ref),
+			want: fromNormalSnapshotter(regConfig.mirror(nonOptimizedImageName)),
 			test: func(t *testing.T, tarExportArgs ...string) {
 				image := regConfig.mirror(nonOptimizedImageName).ref
 				rebootContainerd(t, sh, "", "")
@@ -285,7 +285,7 @@ func TestLazyPull(t *testing.T) {
 		},
 		{
 			name: "Soci",
-			want: fromNormalSnapshotter(regConfig.mirror(optimizedImageName1).ref),
+			want: fromNormalSnapshotter(regConfig.mirror(optimizedImageName1)),
 			test: func(t *testing.T, tarExportArgs ...string) {
 				image := regConfig.mirror(optimizedImageName1).ref
 				m := rebootContainerd(t, sh, "", "")
@@ -297,7 +297,7 @@ func TestLazyPull(t *testing.T) {
 		},
 		{
 			name: "multi-image",
-			want: fromNormalSnapshotter(regConfig.mirror(optimizedImageName1).ref),
+			want: fromNormalSnapshotter(regConfig.mirror(optimizedImageName1)),
 			test: func(t *testing.T, tarExportArgs ...string) {
 				image := regConfig.mirror(optimizedImageName1).ref
 				m := rebootContainerd(t, sh, "", "")
@@ -335,11 +335,11 @@ func TestLazyPullNoIndexDigest(t *testing.T) {
 	sh.X("soci", "push", "--user", regConfig.creds(), regConfig.mirror(optimizedImageName).ref)
 
 	// Test if contents are pulled
-	fromNormalSnapshotter := func(image string) tarPipeExporter {
+	fromNormalSnapshotter := func(image imageInfo) tarPipeExporter {
 		return func(t *testing.T, tarExportArgs ...string) {
 			rebootContainerd(t, sh, "", "")
-			sh.X("nerdctl", "pull", "-q", image)
-			sh.Pipe(nil, shell.C("ctr", "run", "--rm", image, "test", "tar", "-zc", "/usr"), tarExportArgs)
+			pullOrImport(sh, image)
+			sh.Pipe(nil, shell.C("ctr", "run", "--rm", image.ref, "test", "tar", "-zc", "/usr"), tarExportArgs)
 		}
 	}
 	export := func(sh *shell.Shell, image string, tarExportArgs []string) {
@@ -356,7 +356,7 @@ func TestLazyPullNoIndexDigest(t *testing.T) {
 	}{
 		{
 			name: "normal",
-			want: fromNormalSnapshotter(regConfig.mirror(nonOptimizedImageName).ref),
+			want: fromNormalSnapshotter(regConfig.mirror(nonOptimizedImageName)),
 			test: func(t *testing.T, tarExportArgs ...string) {
 				image := regConfig.mirror(nonOptimizedImageName).ref
 				export(sh, image, tarExportArgs)
@@ -364,7 +364,7 @@ func TestLazyPullNoIndexDigest(t *testing.T) {
 		},
 		{
 			name: "soci",
-			want: fromNormalSnapshotter(regConfig.mirror(optimizedImageName).ref),
+			want: fromNormalSnapshotter(regConfig.mirror(optimizedImageName)),
 			test: func(t *testing.T, tarExportArgs ...string) {
 				image := regConfig.mirror(optimizedImageName).ref
 				sh.X("ctr", "i", "rm", regConfig.mirror(optimizedImageName).ref)
@@ -402,11 +402,11 @@ func TestPullWithAribtraryBlobInvalidZtocFormat(t *testing.T) {
 		},
 	}
 
-	fromNormalSnapshotter := func(image string) tarPipeExporter {
+	fromNormalSnapshotter := func(image imageInfo) tarPipeExporter {
 		return func(t *testing.T, tarExportArgs ...string) {
 			rebootContainerd(t, sh, getContainerdConfigToml(t, false), getSnapshotterConfigToml(t, false))
-			sh.X("nerdctl", "pull", "-q", image)
-			sh.Pipe(nil, shell.C("ctr", "run", "--rm", image, "test", "tar", "-zc", "/usr"), tarExportArgs)
+			pullOrImport(sh, image)
+			sh.Pipe(nil, shell.C("ctr", "run", "--rm", image.ref, "test", "tar", "-zc", "/usr"), tarExportArgs)
 		}
 	}
 
@@ -467,7 +467,7 @@ func TestPullWithAribtraryBlobInvalidZtocFormat(t *testing.T) {
 			sociImage := regConfig.mirror(imgRef)
 			copyImage(sh, dockerhub(imgRef), sociImage)
 
-			want := fromNormalSnapshotter(sociImage.ref)
+			want := fromNormalSnapshotter(sociImage)
 			test := func(t *testing.T, tarExportArgs ...string) {
 				image := sociImage.ref
 				indexBytes, imgLayers, err := buildMaliciousIndex(sh, img.digest)
@@ -516,11 +516,11 @@ disable = true
 	indexDigest2 := buildIndex(sh, regConfig.mirror(optimizedImageName2), withMinLayerSize(0))
 
 	// Test if contents are pulled
-	fromNormalSnapshotter := func(image string) tarPipeExporter {
+	fromNormalSnapshotter := func(image imageInfo) tarPipeExporter {
 		return func(t *testing.T, tarExportArgs ...string) {
 			rebootContainerd(t, sh, "", "")
-			sh.X("nerdctl", "pull", "-q", image)
-			sh.Pipe(nil, shell.C("ctr", "run", "--rm", image, "test", "tar", "-zc", "/usr"), tarExportArgs)
+			pullOrImport(sh, image)
+			sh.Pipe(nil, shell.C("ctr", "run", "--rm", image.ref, "test", "tar", "-zc", "/usr"), tarExportArgs)
 		}
 	}
 	export := func(sh *shell.Shell, image string, tarExportArgs []string) {
@@ -536,7 +536,7 @@ disable = true
 	}{
 		{
 			name: "normal",
-			want: fromNormalSnapshotter(regConfig.mirror(nonOptimizedImageName).ref),
+			want: fromNormalSnapshotter(regConfig.mirror(nonOptimizedImageName)),
 			test: func(t *testing.T, tarExportArgs ...string) {
 				image := regConfig.mirror(nonOptimizedImageName).ref
 				rebootContainerd(t, sh, "", "")
@@ -545,7 +545,7 @@ disable = true
 		},
 		{
 			name: "Soci",
-			want: fromNormalSnapshotter(regConfig.mirror(optimizedImageName1).ref),
+			want: fromNormalSnapshotter(regConfig.mirror(optimizedImageName1)),
 			test: func(t *testing.T, tarExportArgs ...string) {
 				image := regConfig.mirror(optimizedImageName1).ref
 				m := rebootContainerd(t, sh, "", "")
@@ -557,7 +557,7 @@ disable = true
 		},
 		{
 			name: "multi-image",
-			want: fromNormalSnapshotter(regConfig.mirror(optimizedImageName1).ref),
+			want: fromNormalSnapshotter(regConfig.mirror(optimizedImageName1)),
 			test: func(t *testing.T, tarExportArgs ...string) {
 				image := regConfig.mirror(optimizedImageName1).ref
 				m := rebootContainerd(t, sh, "", "")
@@ -679,7 +679,8 @@ insecure = true
 	//       we added "check_always = true" to the configuration in the above.
 	//       We use this behaviour for testing mirroring & refleshing functionality.
 	rebootContainerd(t, sh, "", "")
-	sh.X("nerdctl", "pull", "-q", regConfig.mirror(imageName).ref)
+	imageInfo := regConfig.mirror(imageName)
+	pullOrImport(sh, imageInfo)
 	sh.X("soci", "create", regConfig.mirror(imageName).ref)
 	sh.X("soci", "image", "rpull", "--user", regConfig.creds(), "--soci-index-digest", indexDigest, regConfig.mirror(imageName).ref)
 	registryHostIP, registryAltHostIP := getIP(t, sh, regConfig.host), getIP(t, sh, regAltConfig.host)

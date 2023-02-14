@@ -3,3 +3,4 @@
 .vscode/
 /benchmark/*/output/
 /benchmark/bin/
+/integration/_images

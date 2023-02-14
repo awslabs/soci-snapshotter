@@ -126,8 +126,7 @@ func TestOverlayFallbackMetric(t *testing.T) {
 			rebootContainerd(t, sh, getContainerdConfigToml(t, false), getSnapshotterConfigToml(t, false, tcpMetricsConfig))
 
 			imgInfo := dockerhub(tc.image)
-
-			sh.X("nerdctl", "pull", "-q", imgInfo.ref)
+			pullOrImport(sh, imgInfo)
 			indexDigest := tc.indexDigestFn(sh, imgInfo)
 
 			sh.X("soci", "image", "rpull", "--soci-index-digest", indexDigest, imgInfo.ref)
@@ -196,7 +195,7 @@ log_fuse_operations = true
 			rebootContainerd(t, sh, getContainerdConfigToml(t, false), getSnapshotterConfigToml(t, false, tcpMetricsConfig, logFuseOperationConfig))
 
 			imgInfo := dockerhub(tc.image)
-			sh.X("nerdctl", "pull", "-q", imgInfo.ref)
+			pullOrImport(sh, imgInfo)
 			indexDigest := tc.indexDigestFn(t, sh, imgInfo)
 
 			sh.X("soci", "image", "rpull", "--soci-index-digest", indexDigest, imgInfo.ref)
@@ -232,7 +231,7 @@ fuse_metrics_emit_wait_duration_sec = 10
 			rebootContainerd(t, sh, getContainerdConfigToml(t, false), getSnapshotterConfigToml(t, false, tcpMetricsConfig, snapshotterConfig))
 
 			imgInfo := dockerhub(tc.image)
-			sh.X("nerdctl", "pull", "-q", imgInfo.ref)
+			pullOrImport(sh, imgInfo)
 			indexDigest := buildIndex(sh, imgInfo)
 
 			sh.X("soci", "image", "rpull", "--soci-index-digest", indexDigest, imgInfo.ref)
@@ -289,7 +288,7 @@ emit_metric_period_sec = 2
 			rebootContainerd(t, sh, getContainerdConfigToml(t, false), getSnapshotterConfigToml(t, false, tcpMetricsConfig, backgroundFetchConfig))
 
 			imgInfo := dockerhub(tc.image)
-			sh.X("nerdctl", "pull", "-q", imgInfo.ref)
+			pullOrImport(sh, imgInfo)
 			indexDigest := buildIndex(sh, imgInfo)
 
 			sh.X("soci", "image", "rpull", "--soci-index-digest", indexDigest, imgInfo.ref)

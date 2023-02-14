@@ -34,6 +34,7 @@ package integration
 
 import (
 	"bytes"
+	"context"
 	"crypto/rand"
 	"crypto/rsa"
 	"crypto/x509"
@@ -55,6 +56,9 @@ import (
 	"github.com/awslabs/soci-snapshotter/util/dockershell/compose"
 	dexec "github.com/awslabs/soci-snapshotter/util/dockershell/exec"
 	"github.com/awslabs/soci-snapshotter/util/testutil"
+	"github.com/containerd/containerd"
+	"github.com/containerd/containerd/images/archive"
+	"github.com/containerd/containerd/namespaces"
 	"github.com/containerd/containerd/platforms"
 	spec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/rs/xid"
@@ -77,11 +81,19 @@ const (
 
 // These are images that we use in our integration tests
 const (
-	alpineImage   = "alpine:3.17.1"
-	nginxImage    = "nginx:1.23.3"
-	ubuntuImage   = "ubuntu:23.04"
-	drupalImage   = "drupal:10.0.2"
-	rabbitmqImage = "rabbitmq:3.11.7"
+	alpineImage       = "alpine:3.17.1"
+	nginxImage        = "nginx:1.23.3"
+	ubuntuImage       = "ubuntu:23.04"
+	drupalImage       = "drupal:10.0.2"
+	rabbitmqImage     = "rabbitmq:3.11.7"
+	rabbitmqShaImage  = "rabbitmq@sha256:603be6b7fd5f1d8c6eab8e7a234ed30d664b9356ec1b87833f3a46bb6725458e"
+	rethinkdbShaImage = "rethinkdb@sha256:4452aadba3e99771ff3559735dab16279c5a352359d79f38737c6fdca941c6e5"
+)
+
+// List of all images and platforms used in our integration tests
+var (
+	testImages    = []string{alpineImage, ubuntuImage, drupalImage, nginxImage, rabbitmqImage, rabbitmqShaImage, rethinkdbShaImage}
+	testPlatforms = []string{"linux/amd64", "linux/arm64"}
 )
 
 const proxySnapshotterConfig = `
@@ -290,14 +302,22 @@ func withPlatform(p spec.Platform) imageOpt {
 }
 
 type imageInfo struct {
+	imgName   string
 	ref       string
+	mirror    bool
 	creds     string
 	plainHTTP bool
 	platform  spec.Platform
 }
 
 func dockerhub(name string, opts ...imageOpt) imageInfo {
-	i := imageInfo{dockerLibrary + name, "", false, platforms.DefaultSpec()}
+	i := imageInfo{
+		imgName:   name[:strings.IndexByte(name, ':')],
+		ref:       dockerLibrary + name,
+		creds:     "",
+		plainHTTP: false,
+		platform:  platforms.DefaultSpec(),
+	}
 	for _, opt := range opts {
 		opt(&i)
 	}
@@ -320,9 +340,8 @@ func encodeImageInfoNerdctl(ii ...imageInfo) [][]string {
 
 func copyImage(sh *shell.Shell, src, dst imageInfo) {
 	opts := encodeImageInfoNerdctl(src, dst)
-	sh.
-		X(append([]string{"nerdctl", "pull", "-q", "--platform", platforms.Format(src.platform)}, opts[0]...)...).
-		X("ctr", "i", "tag", src.ref, dst.ref).
+	pullOrImport(sh, src)
+	sh.X("ctr", "i", "tag", src.ref, dst.ref).
 		X(append([]string{"nerdctl", "push", "--platform", platforms.Format(src.platform)}, opts[1]...)...)
 }
 
@@ -380,7 +399,13 @@ func (c registryConfig) creds() string {
 }
 
 func (c registryConfig) mirror(imageName string, opts ...imageOpt) imageInfo {
-	i := imageInfo{c.hostWithPort() + "/" + imageName, c.creds(), c.plainHTTP, platforms.DefaultSpec()}
+	i := imageInfo{
+		ref:       c.hostWithPort() + "/" + imageName,
+		creds:     c.creds(),
+		mirror:    true,
+		plainHTTP: c.plainHTTP,
+		platform:  platforms.DefaultSpec(),
+	}
 	for _, opt := range opts {
 		opt(&i)
 	}
@@ -675,11 +700,23 @@ func checkOverlayFallbackCount(output string, expected int) error {
 	return nil
 }
 
-// setup can be used to initialize things before integration tests start (as of now it only builds the services used by the integration tests so they can be referenced)
+// If the image resides in a local registry (mirror) then pull the image, else
+// import the image
+func pullOrImport(sh *shell.Shell, image imageInfo) {
+	if image.mirror {
+		opts := encodeImageInfoNerdctl(image)
+		sh.X(append([]string{"nerdctl", "pull", "-q", "--platform", platforms.Format(image.platform)}, opts[0]...)...)
+	} else {
+		sh.X(append([]string{"ctr", "i", "import", "--platform", platforms.Format(image.platform)}, fmt.Sprintf("testImages/%s.tar", image.imgName))...)
+	}
+}
+
+// setup can be used to initialize things before integration tests are run
 func setup() ([]func() error, error) {
 	var (
-		serviceName = "testing"
-		targetStage = "containerd-snapshotter-base"
+		serviceName       = "testing"
+		targetStage       = "containerd-snapshotter-base"
+		containerdAddress = "/run/containerd/containerd.sock"
 	)
 	pRoot, err := testutil.GetProjectRoot()
 	if err != nil {
@@ -703,7 +740,63 @@ func setup() ([]func() error, error) {
 		compose.WithStdio(testutil.TestingLogDest()),
 	}
 
-	return compose.Build(composeYaml, cOpts...)
+	ctx := namespaces.WithNamespace(context.Background(), "soci-testing")
+	client, err := containerd.New(containerdAddress)
+	if err != nil {
+		return nil, fmt.Errorf("failed to connect to containerd: %w", err)
+	}
+	defer client.Close()
+
+	testImagePath := "_images/"
+	err = os.MkdirAll(testImagePath, 0777)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create directory: %w", err)
+	}
+	var p []spec.Platform
+	for _, platform := range testPlatforms {
+		pl, err := platforms.Parse(platform)
+		if err != nil {
+			return nil, fmt.Errorf("invalid platform %q: %w", platform, err)
+		}
+		p = append(p, pl)
+	}
+	remoteOpts := []containerd.RemoteOpt{containerd.WithPlatformMatcher(platforms.Ordered(p...))}
+	exportOpts := []archive.ExportOpt{archive.WithPlatform(platforms.Ordered(p...))}
+	is := client.ImageService()
+
+	for _, img := range testImages {
+		imageInfo := dockerhub(img)
+		i, err := client.ImageService().Get(ctx, imageInfo.ref)
+		if err != nil {
+			fmt.Println("pulling", imageInfo.ref, "...")
+			i, err = client.Fetch(ctx, imageInfo.ref, remoteOpts...)
+			if err != nil {
+				return nil, fmt.Errorf("failed to pull image %s: %w", imageInfo.ref, err)
+			}
+		} else {
+			fmt.Printf("%s already exists. skipping pulling...\n", i.Name)
+		}
+		fmt.Println("exporting...")
+		tarballPath := filepath.Join(testImagePath, fmt.Sprintf("%s.tar", imageInfo.imgName))
+		w, err := os.Create(tarballPath)
+		if err != nil {
+			return nil, fmt.Errorf("failed to create tar file: %w", err)
+		}
+		exportOpts := append(exportOpts, archive.WithImage(is, i.Name))
+		err = client.Export(ctx, w, exportOpts...)
+		if err != nil {
+			return nil, fmt.Errorf("failed to export image %s: %w", img, err)
+		}
+
+	}
+	cleanups, err := compose.Build(composeYaml, cOpts...)
+	if err != nil {
+		return nil, fmt.Errorf("failed to build services: %w", err)
+	}
+	cleanups = append(cleanups, func() error {
+		return os.RemoveAll(testImagePath)
+	})
+	return cleanups, nil
 
 }
 
@@ -721,8 +814,7 @@ func teardown(cleanups []func() error) error {
 // middleSizeLayerInfo finds a layer not the smallest or largest (if possible), returns index, size, and layer count
 // It requires containerd to be running
 func middleSizeLayerInfo(t *testing.T, sh *shell.Shell, image imageInfo) (int, int64, int) {
-	sh.O("nerdctl", "pull", "-q", "--platform", platforms.Format(image.platform), image.ref)
-
+	pullOrImport(sh, image)
 	imageManifestDigest, err := getManifestDigest(sh, image.ref, image.platform)
 	if err != nil {
 		t.Fatalf("Failed to get manifest digest: %v", err)
