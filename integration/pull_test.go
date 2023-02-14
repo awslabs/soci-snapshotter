@@ -164,7 +164,7 @@ func TestLazyPullWithSparseIndex(t *testing.T) {
 	fromNormalSnapshotter := func(image string) tarPipeExporter {
 		return func(t *testing.T, tarExportArgs ...string) {
 			rebootContainerd(t, sh, "", "")
-			sh.X("ctr", "i", "pull", "--user", regConfig.creds(), image)
+			sh.X("nerdctl", "pull", "-q", image)
 			sh.Pipe(nil, shell.C("ctr", "run", "--rm", image, "test", "tar", "-zc", "/usr"), tarExportArgs)
 		}
 	}
@@ -259,7 +259,7 @@ func TestLazyPull(t *testing.T) {
 	fromNormalSnapshotter := func(image string) tarPipeExporter {
 		return func(t *testing.T, tarExportArgs ...string) {
 			rebootContainerd(t, sh, "", "")
-			sh.X("ctr", "i", "pull", "--user", regConfig.creds(), image)
+			sh.X("nerdctl", "pull", "-q", image)
 			sh.Pipe(nil, shell.C("ctr", "run", "--rm", image, "test", "tar", "-zc", "/usr"), tarExportArgs)
 		}
 	}
@@ -338,7 +338,7 @@ func TestLazyPullNoIndexDigest(t *testing.T) {
 	fromNormalSnapshotter := func(image string) tarPipeExporter {
 		return func(t *testing.T, tarExportArgs ...string) {
 			rebootContainerd(t, sh, "", "")
-			sh.X("ctr", "i", "pull", "--user", regConfig.creds(), image)
+			sh.X("nerdctl", "pull", "-q", image)
 			sh.Pipe(nil, shell.C("ctr", "run", "--rm", image, "test", "tar", "-zc", "/usr"), tarExportArgs)
 		}
 	}
@@ -405,7 +405,7 @@ func TestPullWithAribtraryBlobInvalidZtocFormat(t *testing.T) {
 	fromNormalSnapshotter := func(image string) tarPipeExporter {
 		return func(t *testing.T, tarExportArgs ...string) {
 			rebootContainerd(t, sh, getContainerdConfigToml(t, false), getSnapshotterConfigToml(t, false))
-			sh.X("ctr", "i", "pull", "--user", regConfig.creds(), image)
+			sh.X("nerdctl", "pull", "-q", image)
 			sh.Pipe(nil, shell.C("ctr", "run", "--rm", image, "test", "tar", "-zc", "/usr"), tarExportArgs)
 		}
 	}
@@ -519,7 +519,7 @@ disable = true
 	fromNormalSnapshotter := func(image string) tarPipeExporter {
 		return func(t *testing.T, tarExportArgs ...string) {
 			rebootContainerd(t, sh, "", "")
-			sh.X("ctr", "i", "pull", "--user", regConfig.creds(), image)
+			sh.X("nerdctl", "pull", "-q", image)
 			sh.Pipe(nil, shell.C("ctr", "run", "--rm", image, "test", "tar", "-zc", "/usr"), tarExportArgs)
 		}
 	}
@@ -679,7 +679,7 @@ insecure = true
 	//       we added "check_always = true" to the configuration in the above.
 	//       We use this behaviour for testing mirroring & refleshing functionality.
 	rebootContainerd(t, sh, "", "")
-	sh.X("ctr", "i", "pull", "--user", regConfig.creds(), regConfig.mirror(imageName).ref)
+	sh.X("nerdctl", "pull", "-q", regConfig.mirror(imageName).ref)
 	sh.X("soci", "create", regConfig.mirror(imageName).ref)
 	sh.X("soci", "image", "rpull", "--user", regConfig.creds(), "--soci-index-digest", indexDigest, regConfig.mirror(imageName).ref)
 	registryHostIP, registryAltHostIP := getIP(t, sh, regConfig.host), getIP(t, sh, regAltConfig.host)

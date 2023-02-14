@@ -93,7 +93,7 @@ func buildIndex(sh *shell.Shell, src imageInfo, opt ...indexBuildOption) string 
 	for _, o := range opt {
 		o(&indexBuildConfig)
 	}
-	opts := encodeImageInfo(src)
+	opts := encodeImageInfoNerdctl(src)
 
 	createCommand := []string{"soci", "create", src.ref}
 	createArgs := []string{
@@ -106,7 +106,7 @@ func buildIndex(sh *shell.Shell, src imageInfo, opt ...indexBuildOption) string 
 	}
 
 	indexDigest := sh.
-		X(append([]string{"ctr", "i", "pull", "--platform", platforms.Format(src.platform)}, opts[0]...)...).
+		X(append([]string{"nerdctl", "pull", "-q", "--platform", platforms.Format(src.platform)}, opts[0]...)...).
 		X(append(createCommand, createArgs...)...).
 		O("soci", "index", "list",
 			"-q", "--ref", src.ref,
