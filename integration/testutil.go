@@ -675,49 +675,6 @@ func checkOverlayFallbackCount(output string, expected int) error {
 	return nil
 }
 
-// setup can be used to initialize things before integration tests start (as of now it only builds the services used by the integration tests so they can be referenced)
-func setup() ([]func() error, error) {
-	var (
-		serviceName = "testing"
-		targetStage = "containerd-snapshotter-base"
-	)
-	pRoot, err := testutil.GetProjectRoot()
-	if err != nil {
-		return nil, err
-	}
-	buildArgs, err := getBuildArgsFromEnv()
-	if err != nil {
-		return nil, err
-	}
-
-	composeYaml, err := testutil.ApplyTextTemplate(composeBuildTemplate, dockerComposeYaml{
-		ServiceName:     serviceName,
-		ImageContextDir: pRoot,
-		TargetStage:     targetStage,
-	})
-	if err != nil {
-		return nil, err
-	}
-	cOpts := []compose.Option{
-		compose.WithBuildArgs(buildArgs...),
-		compose.WithStdio(testutil.TestingLogDest()),
-	}
-
-	return compose.Build(composeYaml, cOpts...)
-
-}
-
-// teardown takes a list of cleanup functions and executes them after integration tests have ended
-func teardown(cleanups []func() error) error {
-	for i := 0; i < len(cleanups); i++ {
-		err := cleanups[i]()
-		if err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
 // middleSizeLayerInfo finds a layer not the smallest or largest (if possible), returns index, size, and layer count
 // It requires containerd to be running
 func middleSizeLayerInfo(t *testing.T, sh *shell.Shell, image imageInfo) (int, int64, int) {
@@ -758,4 +715,12 @@ func middleSizeLayerInfo(t *testing.T, sh *shell.Shell, image imageInfo) (int, i
 	}
 
 	return middleIndex, middleSize, len(snapshotSizes)
+}
+
+func fetchContentFromPath(sh *shell.Shell, path string) []byte {
+	return sh.O("cat", path)
+}
+
+func fetchContentByDigest(sh *shell.Shell, digest string) []byte {
+	return sh.O("ctr", "content", "get", digest)
 }

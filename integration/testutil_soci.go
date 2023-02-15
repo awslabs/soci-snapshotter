@@ -36,9 +36,12 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/awslabs/soci-snapshotter/soci"
 	shell "github.com/awslabs/soci-snapshotter/util/dockershell"
 	"github.com/containerd/containerd/platforms"
+	"github.com/google/go-cmp/cmp"
 	"github.com/opencontainers/go-digest"
+	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 )
 
 const (
@@ -114,7 +117,69 @@ func buildIndex(sh *shell.Shell, src imageInfo, opt ...indexBuildOption) string 
 	return strings.Trim(string(indexDigest), "\n")
 }
 
+func validateSociIndex(sh *shell.Shell, sociIndex soci.Index, imgManifestDigest string, includedLayers map[string]struct{}) error {
+	if sociIndex.MediaType != ocispec.MediaTypeArtifactManifest {
+		return fmt.Errorf("unexpected index media type; expected = %v, got = %v", ocispec.MediaTypeArtifactManifest, sociIndex.MediaType)
+	}
+
+	if sociIndex.ArtifactType != soci.SociIndexArtifactType {
+		return fmt.Errorf("unexpected index artifact type; expected = %v, got = %v", soci.SociIndexArtifactType, sociIndex.ArtifactType)
+	}
+
+	expectedAnnotations := map[string]string{
+		soci.IndexAnnotationBuildToolIdentifier: "AWS SOCI CLI v0.1",
+	}
+
+	if diff := cmp.Diff(sociIndex.Annotations, expectedAnnotations); diff != "" {
+		return fmt.Errorf("unexpected index annotations; diff = %v", diff)
+	}
+
+	if imgManifestDigest != sociIndex.Subject.Digest.String() {
+		return fmt.Errorf("unexpected subject digest; expected = %v, got = %v", imgManifestDigest, sociIndex.Subject.Digest.String())
+	}
+
+	blobs := sociIndex.Blobs
+	if includedLayers != nil && len(blobs) != len(includedLayers) {
+		return fmt.Errorf("unexpected blob count; expected=%v, got=%v", len(includedLayers), len(blobs))
+	}
+
+	for _, blob := range blobs {
+		blobContent := fetchContentFromPath(sh, blobStorePath+"/"+trimSha256Prefix(blob.Digest.String()))
+		blobSize := int64(len(blobContent))
+		blobDigest := digest.FromBytes(blobContent)
+
+		if includedLayers != nil {
+			layerDigest := blob.Annotations[soci.IndexAnnotationImageLayerDigest]
+
+			if _, ok := includedLayers[layerDigest]; !ok {
+				return fmt.Errorf("found ztoc for layer %v in index but should not have built ztoc for it", layerDigest)
+			}
+		}
+
+		if blobSize != blob.Size {
+			return fmt.Errorf("unexpected blob size; expected = %v, got = %v", blob.Size, blobSize)
+		}
+
+		if blobDigest != blob.Digest {
+			return fmt.Errorf("unexpected blob digest; expected = %v, got = %v", blob.Digest, blobDigest)
+		}
+	}
+
+	return nil
+}
+
 func getSociLocalStoreContentDigest(sh *shell.Shell) digest.Digest {
 	content := sh.O("ls", blobStorePath)
 	return digest.FromBytes(content)
+}
+
+func sociIndexFromDigest(sh *shell.Shell, indexDigest string) (index soci.Index, err error) {
+	rawSociIndexJSON, err := sh.OLog("soci", "index", "info", indexDigest)
+	if err != nil {
+		return
+	}
+	if err = soci.UnmarshalIndex(rawSociIndexJSON, &index); err != nil {
+		err = fmt.Errorf("invalid soci index from digest %s: %s", indexDigest, err)
+	}
+	return
 }

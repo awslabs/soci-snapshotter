@@ -19,11 +19,9 @@ package integration
 import (
 	"bufio"
 	"bytes"
-	"fmt"
 	"strings"
 	"testing"
 
-	"github.com/awslabs/soci-snapshotter/soci"
 	shell "github.com/awslabs/soci-snapshotter/util/dockershell"
 	"github.com/containerd/containerd/platforms"
 )
@@ -120,6 +118,7 @@ func TestSociIndexInfo(t *testing.T) {
 			},
 		}
 		for _, tt := range tests {
+			tt := tt
 			t.Run(tt.name, func(t *testing.T) {
 				sociIndex, err := sociIndexFromDigest(sh, tt.digest)
 				if !tt.expectErr {
@@ -132,7 +131,9 @@ func TestSociIndexInfo(t *testing.T) {
 						t.Fatalf("failed to get manifest digest: %v", err)
 					}
 
-					validateSociIndex(t, sh, sociIndex, m, nil)
+					if err := validateSociIndex(sh, sociIndex, m, nil); err != nil {
+						t.Fatalf("failed to validate soci index: %v", err)
+					}
 				} else if err == nil {
 					t.Fatalf("failed to return err")
 				}
@@ -208,6 +209,7 @@ func TestSociIndexList(t *testing.T) {
 	}
 
 	for _, tt := range tests {
+		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
 			output := string(sh.O(tt.command...))
 			for _, img := range testImages {
@@ -272,15 +274,4 @@ func TestSociIndexRemove(t *testing.T) {
 			t.Fatalf("failed to return err")
 		}
 	})
-}
-
-func sociIndexFromDigest(sh *shell.Shell, indexDigest string) (index soci.Index, err error) {
-	rawSociIndexJSON, err := sh.OLog("soci", "index", "info", indexDigest)
-	if err != nil {
-		return
-	}
-	if err = soci.UnmarshalIndex(rawSociIndexJSON, &index); err != nil {
-		err = fmt.Errorf("invalid soci index from digest %s: %s", indexDigest, err)
-	}
-	return
 }
