@@ -94,6 +94,16 @@ const proxySnapshotterConfig = `
 const containerdConfigTemplate = `
 version = 2
 
+disabled_plugins = [
+	"io.containerd.snapshotter.v1.aufs",
+	"io.containerd.snapshotter.v1.btrfs",
+	"io.containerd.snapshotter.v1.devmapper",
+	"io.containerd.snapshotter.v1.zfs",
+	"io.containerd.tracing.processor.v1.otlp",
+	"io.containerd.internal.v1.tracing",
+	"io.containerd.grpc.v1.cri",
+]
+
 [plugins."io.containerd.snapshotter.v1.soci"]
 root_path = "/var/lib/soci-snapshotter-grpc/"
 disable_verification = {{.DisableVerification}}
@@ -521,7 +531,7 @@ func newSnapshotterBaseShell(t *testing.T) (*shell.Shell, func() error) {
 	}
 	sh := shell.New(de, testutil.NewTestingReporter(t))
 	if !isTestingBuiltinSnapshotter() {
-		if err := testutil.WriteFileContents(sh, defaultContainerdConfigPath, []byte(proxySnapshotterConfig), 0600); err != nil {
+		if err := testutil.WriteFileContents(sh, defaultContainerdConfigPath, []byte(getContainerdConfigToml(t, false)), 0600); err != nil {
 			t.Fatalf("failed to write containerd config %v: %v", defaultContainerdConfigPath, err)
 		}
 	}
