@@ -1,6 +1,16 @@
 # explicitly use v2 config format
 version = 2
 
+disabled_plugins = [
+	"io.containerd.snapshotter.v1.aufs",
+	"io.containerd.snapshotter.v1.btrfs",
+	"io.containerd.snapshotter.v1.devmapper",
+	"io.containerd.snapshotter.v1.zfs",
+	"io.containerd.tracing.processor.v1.otlp",
+	"io.containerd.internal.v1.tracing",
+	"io.containerd.grpc.v1.cri",
+]
+
 # Use soci snapshotter
 [proxy_plugins]
   [proxy_plugins.soci]
