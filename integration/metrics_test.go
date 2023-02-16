@@ -236,7 +236,7 @@ fuse_metrics_emit_wait_duration_sec = 10
 			indexDigest := buildIndex(sh, imgInfo)
 
 			sh.X("soci", "image", "rpull", "--soci-index-digest", indexDigest, imgInfo.ref)
-			sh.XLog("ctr", "run", "--rm", "-d", "--snapshotter=soci", imgInfo.ref, "test", "echo", "hi")
+			sh.XLog("ctr", "run", "-d", "--snapshotter=soci", imgInfo.ref, "test", "echo", "hi")
 
 			curlOutput := string(sh.O("curl", tcpMetricsAddress+metricsPath))
 
@@ -293,7 +293,7 @@ emit_metric_period_sec = 2
 			indexDigest := buildIndex(sh, imgInfo)
 
 			sh.X("soci", "image", "rpull", "--soci-index-digest", indexDigest, imgInfo.ref)
-			sh.XLog("ctr", "run", "--rm", "-d", "--snapshotter=soci", imgInfo.ref, "test", "echo", "hi")
+			sh.XLog("ctr", "run", "-d", "--snapshotter=soci", imgInfo.ref, "test", "echo", "hi")
 
 			time.Sleep(5 * time.Second)
 			curlOutput := string(sh.O("curl", tcpMetricsAddress+metricsPath))

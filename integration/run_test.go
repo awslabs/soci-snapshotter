@@ -98,7 +98,7 @@ func TestRunMultipleContainers(t *testing.T) {
 			// Run the containers
 			for index, container := range tt.containers {
 				image := regConfig.mirror(container.containerImage).ref
-				sh.X("soci", "run", "-d", "--rm", "--snapshotter=soci", image, getTestContainerName(index, container))
+				sh.X("soci", "run", "-d", "--snapshotter=soci", image, getTestContainerName(index, container))
 			}
 
 			// Verify that no mounts fallback to overlayfs
