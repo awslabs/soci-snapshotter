@@ -71,8 +71,8 @@ const (
 	containerdBlobStorePath      = "/var/lib/containerd/io.containerd.content.v1.content/blobs/sha256"
 	// Registry images to use in the test infrastructure. These are not intended to be used
 	// as images in the test itself, but just when we're setting up docker compose.
-	oci11RegistryImage = "ghcr.io/oci-playground/registry:v3.0.0-alpha.1"
-	oci10RegistryImage = "docker.io/library/registry:2"
+	oci11RegistryImage = "ghcr:soci_test"
+	oci10RegistryImage = "registry2:soci_test"
 )
 
 // These are images that we use in our integration tests
@@ -126,7 +126,7 @@ const composeDefaultTemplate = `
 version: "3.7"
 services:
   testing:
-   image: soci_integ_test 
+   image: soci_base:soci_test
    privileged: true
    init: true
    entrypoint: [ "sleep", "infinity" ]
@@ -143,7 +143,7 @@ const composeRegistryTemplate = `
 version: "3.7"
 services:
  {{.ServiceName}}:
-  image: soci_integ_test
+  image: soci_base:soci_test
   privileged: true
   init: true
   entrypoint: [ "sleep", "infinity" ]
@@ -173,7 +173,7 @@ const composeRegistryAltTemplate = `
 version: "3.7"
 services:
   {{.ServiceName}}:
-    image: soci_integ_test
+    image: soci_base:soci_test
     privileged: true
     init: true
     entrypoint: [ "sleep", "infinity" ]
@@ -186,7 +186,7 @@ services:
     volumes:
     - /dev/fuse:/dev/fuse
   registry:
-    image: ghcr.io/oci-playground/registry:v3.0.0-alpha.1
+    image: ghcr:soci_test
     container_name: {{.RegistryHost}}
     environment:
     - REGISTRY_AUTH=htpasswd
@@ -198,7 +198,7 @@ services:
     volumes:
     - {{.AuthDir}}:/auth:ro
   registry-alt:
-    image: registry:2
+    image: registry2:soci_test
     container_name: {{.RegistryAltHost}}
 `
 
@@ -206,27 +206,35 @@ const composeBuildTemplate = `
 version: "3.7"
 services:
  {{.ServiceName}}:
-  image: soci_integ_test
+  image: soci_base:soci_test
   build:
    context: {{.ImageContextDir}}
    target: {{.TargetStage}}
    args:
     - SNAPSHOTTER_BUILD_FLAGS="-race"
  registry:
-  image: ghcr.io/oci-playground/registry:v3.0.0-alpha.1
+  image: ghcr:soci_test
+  build:
+   context: {{.ImageContextDir}}
+   target: {{.Registry3Alpha1Stage}}
  registry-alt:
-  image: registry:2
+  image: registry2:soci_test
+  build:
+   context: {{.ImageContextDir}}
+   target: {{.Registry2Stage}}
 `
 
 type dockerComposeYaml struct {
-	ServiceName      string
-	ImageContextDir  string
-	TargetStage      string
-	RegistryHost     string
-	RegistryImageRef string
-	RegistryAltHost  string
-	AuthDir          string
-	NetworkConfig    string
+	ServiceName          string
+	ImageContextDir      string
+	TargetStage          string
+	Registry2Stage       string
+	Registry3Alpha1Stage string
+	RegistryHost         string
+	RegistryImageRef     string
+	RegistryAltHost      string
+	AuthDir              string
+	NetworkConfig        string
 }
 
 // getContainerdConfigToml creates a containerd config yaml, by appending all
