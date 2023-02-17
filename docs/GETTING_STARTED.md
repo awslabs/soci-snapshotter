@@ -1,288 +1,272 @@
-# Getting Started With SOCI Snapshotter
-This document is a guide to walk through an example of using the
-soci-snapshotter.  To get everything running we will need to do a few things:
-- prerequisites
-- start a local references-enabled OCI registry
-- push an image to our registry using ctr
-- create and push a SOCI index to our registry
-- run a lazily loaded container from the registry
+# Getting Started With soci-snapshotter
 
-Along the way we will make sure to inspect each of our actions to ensure that
-they worked.  This is valuable to help learn about the tool and debugging.
+This document walks through how to use soci-snapshotter, including building SOCI
+index, pushing/pulling an image and associated SOCI index, and running a container
+with soci-snapshotter.
+
+<!-- START doctoc generated TOC please keep comment here to allow auto update -->
+<!-- DON'T EDIT THIS SECTION, INSTEAD RE-RUN doctoc TO UPDATE -->
+
+- [Prerequisites](#prerequisites)
+- [Install soci-snapshotter](#install-soci-snapshotter)
+- [Push an image to your registry](#push-an-image-to-your-registry)
+- [Create and push SOCI index](#create-and-push-soci-index)
+  - [Create SOCI index](#create-soci-index)
+  - [(Optional) Inspect SOCI index and ztoc](#optional-inspect-soci-index-and-ztoc)
+  - [Push SOCI index to registry](#push-soci-index-to-registry)
+- [Run container with soci-snapshotter](#run-container-with-soci-snapshotter)
+  - [Configure containerd](#configure-containerd)
+  - [Start soci-snapshotter](#start-soci-snapshotter)
+  - [Lazily pull image](#lazily-pull-image)
+  - [Run container](#run-container)
+
+<!-- END doctoc generated TOC please keep comment here to allow auto update -->
 
 ## Prerequisites
-**docker** - to confirm that you have docker working please check with `docker
-version` and `docker images` - both should succeed.
 
-**containerd** - to confirm that you have containerd working please check with
-`ctr version` and `ctr i ls`.  The version needs to be 1.4 or greater
+- **[go](https://go.dev/doc/install) >= 1.18** - to confirm please check with `go version`.
+- **[containerd](https://github.com/containerd/containerd/blob/main/docs/getting-started.md) >= 1.4** - to confirm that you have containerd working please check with
+`sudo ctr version`.
+- **[ctr](https://github.com/containerd/containerd/blob/main/docs/getting-started.md)/[nerdctl](https://github.com/containerd/nerdctl#install)** - you need one of the containerd clients to interact with containerd/registry.
+- **fuse** - used for mounting without root access (`sudo yum install fuse`).
+- **zlib** - used for decompression and ztoc creation (`sudo yum install zlib-devel`).
+- **gcc** - used for compiling SOCI's c code, gzip's zinfo implementation (`sudo yum install gcc`).
 
-**ctr** - to confirm that you have ctr, the containerd CLI installed, check with
-`ctr version` and `ctr i ls`
+## Install soci-snapshotter
 
-**soci-snapshotter** - this you will need to make sure you can build from
-source. You should be able to run `make` in the soci-snapshotter dir.
-Some common issues:
-- getting the github repository `git clone
-https://github.com/awslabs/soci-snapshotter.git`
-- having the zlib developer tools (zlib is used for decompression and ztoc creation).
-Often fixed with `sudo yum install zlib-devel`
-- having the proper go version installed, as of this document please use 1.18+
+The soci-snapshotter project consists of 2 main components:
 
-**fuse** - confirm FUSE is installed for mounting userspace filesystems with `fusermount -V`
-(optional, enables mounting without root access)
+- `soci`: the CLI tool used to build/manage SOCI indices.
+- `soci-snapshotter-grpc`: the daemon (a containerd snapshotter plugin) used for lazy loading.
 
-## Start a local ORAS registry
-Most OCI registries do not currently support the "referrers" feature.
-SOCI relies on this feature to link its indices and manifests.  The [ORAS
-project](https://oras.land/) tries to fill this gap; in their words:
+Currently to get the binaries, we need to build the project from source after cloing the repo:
 
-> Registries are evolving as generic artifact stores. To enable this goal, the ORAS project provides a way to push and pull OCI Artifacts to and from OCI Registries.
-
-[The longer term solution for this issue is using the OCI Reference
-Types](https://github.com/awslabs/soci-snapshotter/issues/42).  For now we are
-relying on the ORAS project for the referrers feature.
-
-Given this we want to start our registry using an OCI image from the ORAS 
-project.  We will run it on port 5000 as an HTTP (**NOT** HTTPS) server without
-certificates.  To do this we will use Docker:
-
-```
-docker run -d -p 5000:5000 --restart=always --name registry ghcr.io/oci-playground/registry:v3.0.0-alpha.1
+```shell
+git clone https://github.com/awslabs/soci-snapshotter.git
+cd soci-snapshotter
+make
 ```
 
-Since this is just a locally run HTTP server we can interact with
-it using standard `curl` commands. To confirm this is running lets
-use the following commands:
+This builds the project binaries into the `./out` directory. You can install them
+to a `PATH` directory (`/usr/local/bin`) with:
 
-```
-docker ps
-```
-
-which should yield a running container at 0.0.0.0:5000 for the ORAS image. Now
-to check that we can interact with the server run the following:
-```
-curl http://localhost:5000/v2/_catalog
-```
-This should return with `{"repositories":[]}` given that we haven't put anything
-in there yet
-
-## Push an image to the registry using ctr
-First things first, let's choose our favorite image.  For the purpose of this
-document we will use the latest image of rabbitmq from DockerHub, aptly named
-`docker.io/library/rabbitmq:latest`.
-
-To do this with ctr use the following command:
-```
-ctr i pull docker.io/library/rabbitmq:latest
-```
-To confirm this image (or the image you have chosen) is in containerd's local
-content store please run:
-```
-ctr i ls
-```
-and you should see the image.  Now we need to add an image reference it so that
-it can be added to our repository.
-```
-ctr i tag docker.io/library/rabbitmq:latest localhost:5000/rabbitmq:latest
-```
-Note that the `localhost:5000` is the address of our registry, `rabbitmq` will
-be the name of the repository, and `latest` will be the tag within the
-repository.
-
-To confirm this worked once more run `ctr i ls` and see that there is now a new
-line with the tag you just created.  Also confirm that the digest, the long
-alphanumeric hash that is prefixed by "sha256:", matches the base image.
-
-Finally, we can push to the local registry:
-
-```
-ctr i push --platform linux/amd64 --plain-http localhost:5000/rabbitmq:latest
+```shell
+sudo make install
+# check soci can be found in PATH
+sudo soci --help
 ```
 
-**NOTE**: the platform tag might be different depending what environment you
-are working in.
+Many `soci` CLI commands need to be run as `sudo`, because the metadata is saved
+in directories that a non-root user often does not have access to.
 
-Once again let's confirm via a curl command:
-```
-curl http://localhost:5000/v2/_catalog
-```
-We should now see that our repository has been created
-`{"repositories":["rabbitmq"]}`.  We can further inspect and see what tags were
-created.
-```
-curl http://localhost:5000/v2/rabbitmq/tags/list
-```
-We can also look at the details of the tag using:
-```
-curl http://localhost:5000/v2/rabbitmq/manifests/latest
-```
-## Create and push a SOCI index
-Now that we have confidence that our registry contains the image let's work on
-the SOCI index.  This is the pre-built index that allows random access of the
-compressed layer. For more detail please see [our
-README](https://github.com/awslabs/soci-snapshotter#no-image-conversion).
+> This doc assumes SOCI binaries are installed into `PATH`. If not, please use
+> the full path of the binaries (e.g. `./out/soci`).
 
-First off, we need to build the SOCI project using the `make` command.  This
-will generate two binaries in the `out` directory.  You should see:
-- soci (this is the CLI tool)
-- soci-snapshotter-grpc (this is the daemon used for lazy loading, we will use
-this later)
+## Push an image to your registry
 
-Many of the `soci` CLI tool commands will need to be run as sudo, this is
-because the metadata is saved in directories that a non-root user often
-does not have access to.
+In this document we will use `rabbitmq` from DockerHub `docker.io/library/rabbitmq:latest`.
+We use [AWS ECR](https://docs.aws.amazon.com/AmazonECR/latest/userguide/getting-started-console.html)
+as the public registry for demonstration. Other OCI 1.0 compatible registries such
+as dockerhub should also work.
 
-### Creating the SOCI index
+First let's pull the image from docker into containerd's data store, then (tag and)
+push it up to your registry:
 
-To create the index, which can be pushed to ORAS-compatible registry, run:
-```
-sudo ./soci create localhost:5000/rabbitmq:latest
-```
-Behind the scenes SOCI is interacting with containerd. So the tag `localhost:5000/rabbitmq` 
-has to exist in containerd. This created two kinds of objects.  
-The first is a series of ztocs (one per layer).  A ztoc is a table of contents for compressed data 
-(z is the compression, toc is Table Of Contents).  The other is a manifest that relates
-the ztocs to the various layers.  Example output is:
-```
-layer sha256:aa5c1807c64faef5411fdf8d572336478d2ae55881a348ca98d27de0c1031012 -> ztoc sha256:7482d8b46f52b9abc85b417e5cd6ce596fe078de428b46afad2943ec1ea1110c
-layer sha256:a2c7ff857687a23fe0c41f456c2b8f42359fbf35f3a5a6f3dc2cabee26aa4e9c -> ztoc sha256:4bbc8d97f9007e4023355f6a5634ad922d377256e94ccc322c975f19db351d3d
-layer sha256:08ed900bdfb06a0db4f07f002103a52dc480d98f448f939723cd49670e44a43d -> ztoc sha256:2d62d75c5342abfdab9acdeaa66f2f7d44032b70ac31469984da4e8bbb455605
-layer sha256:688ea927e54f8ad42dd715f3803db20f58f804970da295dbafa45ae8e094b588 -> ztoc sha256:d0864573c4166a91595bf19799d1e931ac15573ef4e535a61348f3afc7723a63
-layer sha256:11e66458f619be5b2e7ca677d6a82ea650682c6554487438e6f68ba3039248db -> ztoc sha256:50c548ae1967542cd50fd7796f20add555e24acbb03ea12608e3697c153afa01
-layer sha256:2f11156fa5ac4b97d38486ef618b292e112c7822d29b5dd7b425cb34a96b6594 -> ztoc sha256:d941838ee3b9862d0dfe4d0b50724818040584f0375a7c09257702d7fe40c9f5
-layer sha256:87d3a0863f984408afb6caf67a12832bc45cc3b3acbbf98c28ec916499c38a33 -> ztoc sha256:9e1c3ddb273db141e57fed0af6a0ba4a3b864adbf7bd42608715a6fb95a9e3b1
-layer sha256:3b65ec22a9e96affe680712973e88355927506aa3f792ff03330f3a3eb601a98 -> ztoc sha256:f9d786ee3e082fc671dac3e4b38dd1458a20e0425be31b6b09dfaa727925c3d2
-layer sha256:7e1cc2fa8c69560f02a99729c513ec7e3f49257d893bf8d30b5c6e7f50992644 -> ztoc sha256:4c1d63f476d4907e0db42b8736f578e79432a28d304935708c918c95e0e4df00
-```
-We can inspect one of these ztoc's with the following command (you will need to
-replace the digest with one of the ones created above):
-```
-sudo ./soci ztoc info sha256:4c1d63f476d4907e0db42b8736f578e79432a28d304935708c918c95e0e4df00
+> The example assumes you have created an ECR repository called `rabbitmq` and
+> have credentials available to the AWS CLI. You just need to update `AWS_ACCOUNT` and `AWS_REGION`.
+>
+> If you are using a different registry, you will need to set `REGISTRY` and `REGISTRY_USER/REGISTRY_PASSWORD` appropriately
+> (and the `rabbitmq` repository is created or can be created automatically while pushing).
+>
+> The platform tag might be different depending on your machine.
+
+```shell
+export AWS_ACCOUNT=000000000000
+export AWS_REGION=us-east-1
+export REGISTRY_USER=AWS
+export REGISTRY_PASSWORD=$(aws ecr get-login-password --region $AWS_REGION)
+export REGISTRY=$AWS_ACCOUNT.dkr.ecr.$AWS_REGION.amazonaws.com
+sudo ctr i pull docker.io/library/rabbitmq:latest
+sudo ctr i tag docker.io/library/rabbitmq:latest $REGISTRY/rabbitmq:latest
+sudo ctr i push --user $REGISTRY_USER:$REGISTRY_PASSWORD --platform linux/amd64 $REGISTRY/rabbitmq:latest
 ```
 
-This will print to STDOUT the ztoc, which contains all of the information that
-SOCI needs to find a given file in the layer.  We can also view the
-index manifests by running:
+After this step, please check your registry to confirm the image is pushed to it.
+You can go to your registry console or use your registry's CLI (e.g. for ECR, you
+can use `aws ecr describe-images --repository-name rabbitmq --region $AWS_REGION`).
 
+## Create and push SOCI index
+
+Instead of converting the image format, soci-snapshotter uses the SOCI index
+associated with an image to implement its lazy loading. For more detail
+please see [README](../README.md#no-image-conversion).
+
+### Create SOCI index
+
+Let's create a SOCI index, which later will be pushed to your registry:
+
+> The `--legacy-registry` flag specifies to create SOCI index as image manifest
+> instead of artifact.
+
+```shell
+sudo soci create --legacy-registry $REGISTRY/rabbitmq:latest
+
+# output
+layer sha256:57315aaee690b22265ebb83b5443587443398a7cd99dd2a43985c28868d34053 -> ztoc skipped
+layer sha256:ed46dea0429646ca97e7a90d273159154ab8c28e631f2582d32713e584d98ace -> ztoc skipped
+layer sha256:3f0e404c1d688448c1c3947d91d6e0926c67212f4d647369518077513ebdfd91 -> ztoc skipped
+layer sha256:626e07084b41a102f8bcedf05172676423d1c37b8391be76eee2d7bbf56ec31e -> ztoc skipped
+layer sha256:b49348aba7cfd44d33b07730fd8d3b44ac97d16a268f2d74f7bfb78c4c9d1ff7 -> ztoc skipped
+layer sha256:ec66df5c883fd24406c6ef53864970f628b51216e8e1f3f5981c439ed6e4ed41 -> ztoc skipped
+layer sha256:8147f1b064ec70039aad0068f71b316b42cf515d2ba87e6668cb66de4f042f5a -> ztoc skipped
+layer sha256:f63218e95551afe34f3107b1769a556a3c9a39279cb66979914215e03f4e2754 -> ztoc sha256:ccae6b7217b73ae9caf80bff4c5411dada341739c8b443791fba227b226c61d0
+layer sha256:7608715873ec5c02d370e963aa9b19a149023ce218887221d93fe671b3abbf58 -> ztoc sha256:740374aa7cac1764593430843d428a73a30d4a6a0d45fb171c369f3914a638eb
+layer sha256:96fb4c28b2c1fc1528bf053e2938d5173990eb12097d51f66c2bb3d01a2c9a39 -> ztoc sha256:dc9a2ca27d2b680279fc8052228772b9c03a779d0b7cc61012d2ad833ad1ff5e
+...
 ```
-sudo ./soci index list
+
+Behind the scene SOCI created two kinds of objects. One is a series of ztocs
+(one per layer). A ztoc is a table of contents for compressed data. The other is
+a manifest that relates the ztocs to their corresponding image layers and relates
+the entire SOCI index to a particular image manifest (i.e. a particular image for a particular platform).
+
+> We skip building ztocs for smaller layers (controlled by `--min-layer-size` of
+> `soci create`) because small layers don't benefit much from lazy loading.)
+
+From the above output, we can see that SOCI creates ztocs for 3 layers and skips
+7 layers, which means only the 3 layers with ztocs will be lazily pulled.
+
+### (Optional) Inspect SOCI index and ztoc
+
+We can inspect one of these ztoc's from the output of previous command (replace
+the digest with one in your command output). This command will print the ztoc,
+which contains all of the information that SOCI needs to find a given file in the layer:
+
+```shell
+sudo soci ztoc info sha256:4c1d63f476d4907e0db42b8736f578e79432a28d304935708c918c95e0e4df00
 ```
 
-This will list out all of our index manifests.  To inspect an individual one we
-can use following (as always replace the digest with your own):
+We can also view the SOCI index manifests. This command list out all of our index manifests:
 
+```shell
+sudo soci index list
 ```
-sudo ./soci index info sha256:f5f2a8558d0036c0a316638c5575607c01d1fa1588dbe56c6a5a7253e30ce107
+
+To inspect an individual SOCI index, we can use the following command, which dump
+out the index manifest in json:
+
+```shell
+sudo soci index info sha256:f5f2a8558d0036c0a316638c5575607c01d1fa1588dbe56c6a5a7253e30ce107
 ```
 
-This will dump out the index manifest in json.
+### Push SOCI index to registry
 
-### Pushing the manifest to the registry
 Next we need to push the manifest to the registry with the following command.
-Just like with ctr we need to use `--plain-http` flag:
+This will push all of the SOCI related artifacts (index manifest, ztoc):
 
+```shell
+sudo soci push --user $REGISTRY_USER:$REGISTRY_PASSWORD $REGISTRY/rabbitmq:latest
 ```
-sudo ./soci push --plain-http localhost:5000/rabbitmq:latest
-```
 
-This will push all of the SOCI related artifacts.
+## Run container with soci-snapshotter
 
-## Running the image
+### Configure containerd
 
-### Configuring containerd
-To have containerd use the soci-snapshotter we need to reconfigure it.
-Containerd is a daemon managed using the systemd / systemctl tools.
-First let's stop containerd
+We need to reconfigure and restart containerd to enable soci-snapshotter. This
+section assume your containerd is managed by `systemd`. First let's stop containerd:
 
-```
+```shell
 sudo systemctl stop containerd
 ```
 
-Next we need to edit the config file that manages all of containerd's settings.
-This file is /etc/containerd/config.toml.  By default the file has an example
-configuration that is all commented out (please see all of the # signs). Let's
-edit this file to include SOCI snapshotter as a plugin with the following:
+Next we need to modify containerd's config file (`/etc/containerd/config.toml`).
+Let's add the following config to the file to enable soci-snapshotter as a plugin:
 
-```
+```toml
 [proxy_plugins]
   [proxy_plugins.soci]
     type = "snapshot"
     address = "/run/soci-snapshotter-grpc/soci-snapshotter-grpc.sock"
 ```
 
-These lines tell containerd that there is a snapshot plugin named SOCI and to
-communicate with it via a socket file.  Now let's restart containerd
+This config section tells containerd that there is a snapshot plugin named `soci`
+and to communicate with it via a socket file.
 
-```
+Now let's restart containerd and confirm containerd knows about soci-snapshotter plugin:
+
+```shell
 sudo systemctl restart containerd
+sudo ctr plugin ls id==soci
 ```
 
-To confirm that containerd knows about SOCI run
+`ctr plugin ls` lists all of the plugins from which you should see there is a
+`soci` plugin of type `io.containerd.snapshotter.v1`.
 
-```
-ctr plugin ls
-```
+### Start soci-snapshotter
 
-This will list all of the plugins confirm that there is a **soci**
-plugin of type **io.containerd.snapshotter.v1**
+First we need to start the snapshotter grpc service binary (`soci-snapshotter-grpc`).
+Here we start the binary in background and simply redirect logs to an arbitrary file:
 
-### Preparing SOCI snapshotter
-First we need to start the snapshotter binary, it lives in the `out` directory.
-In the example command we arbitrarily are pushing the logs to a file named
-`~/soci-snapshotter-logs`, but please feel free to choose a different location:
-
-```
-sudo ./soci-snapshotter-grpc&> ~/soci-snapshotter-logs &
+```shell
+sudo soci-snapshotter-grpc &> ~/soci-snapshotter-logs &
 ```
 
 Alternately, you can split up stdout (json logs) and stderr (plain text errors):
 
-```
-sudo ./soci-snapshotter-grpc 2> ~/soci-snapshotter-errors 1> ~/soci-snapshotter-logs &
+```shell
+sudo soci-snapshotter-grpc 2> ~/soci-snapshotter-errors 1> ~/soci-snapshotter-logs &
 ```
 
-Once the snapshotter is running we can call the rpull command from the SOCI CLI.
+### Lazily pull image
+
+Once the snapshotter is running we can call the `rpull` command from SOCI CLI.
 This command reads the manfiest from the registry and mounts FUSE filesystems
 for each layer.
 
-In this command the `--soci-index-digest` needs to be the digest of the SOCI
-index manifest.  The final argument is the tag of the image:
+> The optional flag `--soci-index-digest` needs to be the digest of the SOCI index manifest.
+> If not provided, the snapshotter will use the OCI distribution-spec's [Referrers API](https://github.com/opencontainers/distribution-spec/blob/main/spec.md#listing-referrers)
+> (if available, otherwise the spec's [fallback mechanism](https://github.com/opencontainers/distribution-spec/blob/main/spec.md#unavailable-referrers-api)) to fetch a list of available indices.
 
-**NOTE: Specifying `--soci-index-digest` is optional. If the argument is not provided, the snapshotter will use the [Referrers API](https://github.com/opencontainers/distribution-spec/blob/main/spec.md#listing-referrers) to fetch a list of available indices.**
-```
-sudo ./soci image rpull --plain-http --soci-index-digest sha256:f5f2a8558d0036c0a316638c5575607c01d1fa1588dbe56c6a5a7253e30ce107 localhost:5000/rabbitmq:latest
+```shell
+sudo soci image rpull --user $REGISTRY_USER:$REGISTRY_PASSWORD --soci-index-digest sha256:f5f2a8558d0036c0a316638c5575607c01d1fa1588dbe56c6a5a7253e30ce107 $REGISTRY/rabbitmq:latest
+
+# output
+fetching sha256:a9072496... application/vnd.docker.distribution.manifest.v2+json
+fetching sha256:4027609f... application/vnd.docker.container.image.v1+json
+fetching sha256:9e3ecea6... application/vnd.docker.image.rootfs.diff.tar.gzip
+fetching sha256:32a25b60... application/vnd.docker.image.rootfs.diff.tar.gzip
+fetching sha256:7ed5ffe2... application/vnd.docker.image.rootfs.diff.tar.gzip
+fetching sha256:e02f149b... application/vnd.docker.image.rootfs.diff.tar.gzip
+fetching sha256:9f1239da... application/vnd.docker.image.rootfs.diff.tar.gzip
+fetching sha256:0d64e0d6... application/vnd.docker.image.rootfs.diff.tar.gzip
+fetching sha256:6d7e0f86... application/vnd.docker.image.rootfs.diff.tar.gzip
 ```
 
-After running this command you will see a minimal output.  If you see all of the
-layers being fetched now, then SOCI has not worked.  It should look something
-like:
+After running this command you will see a minimal output as the example, because
+with lazy pulling, not all layers are pulled during the `pull` step. From
+previous step we created 3 ztocs for 3 layers and skipped 7 layers. Here we see
+exactly 7 layers are pulled during `pull` step and not the 3 layers with ztocs.
 
-```
-fetching sha256:7e2a3a93... application/vnd.docker.distribution.manifest.v2+json
-fetching sha256:31b721ac... application/vnd.docker.container.image.v1+json
-```
+Now let's check the mounts for the FUSE filesystems. There should be one mount per layer
+for layers with ztoc. In our rabbitmq example, there should be 3 mounts.
 
-Now we should also be able to see the mounts that were created for the FUSE
-filesystems.  There should be one mount for each layer.  To see this use the
-`mount` command.  Within the output you should see lines like:
+```shell
+mount | grep fuse
 
-```
-/home/ec2-user/soci-snapshotter/out/soci on /var/lib/soci-snapshotter-grpc/snapshotter/snapshots/1/fs type fuse.rawBridge (rw,relatime,user_id=0,group_id=0,allow_other)
+# output
 fusectl on /sys/fs/fuse/connections type fusectl (rw,relatime)
-/home/ec2-user/soci-snapshotter/out/soci on /var/lib/soci-snapshotter-grpc/snapshotter/snapshots/2/fs type fuse.rawBridge (rw,relatime,user_id=0,group_id=0,allow_other)
-.....
+/home/ec2-user/code/soci-snapshotter/soci on /var/lib/soci-snapshotter-grpc/snapshotter/snapshots/57/fs type fuse.rawBridge (rw,nodev,relatime,user_id=0,group_id=0,allow_other)
+/home/ec2-user/code/soci-snapshotter/soci on /var/lib/soci-snapshotter-grpc/snapshotter/snapshots/60/fs type fuse.rawBridge (rw,nodev,relatime,user_id=0,group_id=0,allow_other)
+/home/ec2-user/code/soci-snapshotter/soci on /var/lib/soci-snapshotter-grpc/snapshotter/snapshots/62/fs type fuse.rawBridge (rw,nodev,relatime,user_id=0,group_id=0,allow_other)
 ```
 
-### Running the Container
+### Run container
+
 Now that all of the mounts are set up we can run the image using the following
 command in ctr.  We need to specify which snapshotter we shall use and we will
 use the `--net-host` binary flag.  Then we pass in the two main arguments, our
 image registry and the id of the container:
 
+```shell
+sudo ctr run --user $REGISTRY_USER:$REGISTRY_PASSWORD --snapshotter soci --net-host $REGISTRY/rabbitmq:latest sociExample
 ```
-sudo ctr run --snapshotter soci --net-host localhost:5000/rabbitmq:latest sociExample
-```
-
-## Well done
-Thank you very much for trying out SOCI!
