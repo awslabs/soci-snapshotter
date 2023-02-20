@@ -19,13 +19,14 @@ package internal
 import "github.com/urfave/cli"
 
 const (
-	LegacyRegistryFlagName = "legacy-registry"
+	ManifestTypeFlagName = "manifest-type"
+	ImageManifestType    = "image"
+	ArtifactManifestType = "artifact"
 )
 
-var LegacyRegistryFlag = cli.BoolFlag{
-	Name: LegacyRegistryFlagName,
-	Usage: `Whether to create the SOCI index for a legacy registry. OCI 1.1 added support for associating artifacts such as soci indices with images.
-     There is a mechanism to emulate this behavior with OCI 1.0 registries by pretending that the SOCI index
-     is itself an image. This option should only be use if the SOCI index will be pushed to a
-     registry which does not support OCI 1.1 features.`,
+var ManifestTypeFlag = cli.StringFlag{
+	Name:  ManifestTypeFlagName,
+	Value: ImageManifestType,
+	Usage: `Generate either an OCI 1.1 artifact manifest or OCI 1.0 image manifest for the SOCI index. 
+        (You should use 'artifact' only if you intend on interacting with a registry that supports OCI 1.1 artifacts)`,
 }

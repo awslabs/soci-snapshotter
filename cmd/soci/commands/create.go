@@ -18,6 +18,7 @@ package commands
 
 import (
 	"errors"
+	"fmt"
 	"os"
 
 	"github.com/awslabs/soci-snapshotter/cmd/soci/commands/internal"
@@ -30,9 +31,8 @@ import (
 
 const (
 	buildToolIdentifier = "AWS SOCI CLI v0.1"
-
-	spanSizeFlag     = "span-size"
-	minLayerSizeFlag = "min-layer-size"
+	spanSizeFlag        = "span-size"
+	minLayerSizeFlag    = "min-layer-size"
 )
 
 // CreateCommand creates SOCI index for an image
@@ -45,7 +45,7 @@ var CreateCommand = cli.Command{
 	ArgsUsage: "[flags] <image_ref>",
 	Flags: append(
 		internal.PlatformFlags,
-		internal.LegacyRegistryFlag,
+		internal.ManifestTypeFlag,
 		cli.Int64Flag{
 			Name:  spanSizeFlag,
 			Usage: "Span size that soci index uses to segment layer data. Default is 4 MiB",
@@ -107,9 +107,17 @@ var CreateCommand = cli.Command{
 			soci.WithSpanSize(spanSize),
 			soci.WithBuildToolIdentifier(buildToolIdentifier),
 		}
-		if cliContext.Bool(internal.LegacyRegistryFlagName) {
-			builderOpts = append(builderOpts, soci.WithLegacyRegistrySupport)
+
+		manifestType := cliContext.String(internal.ManifestTypeFlagName)
+
+		if manifestType != internal.ImageManifestType && manifestType != internal.ArtifactManifestType {
+			return fmt.Errorf("undefined manifest type: %v. supported manifest types: [%s, %s]", manifestType, internal.ImageManifestType, internal.ArtifactManifestType)
 		}
+
+		if manifestType == internal.ArtifactManifestType {
+			builderOpts = append(builderOpts, soci.WithOCIArtifactRegistrySupport)
+		}
+
 		for _, plat := range ps {
 			builder, err := soci.NewIndexBuilder(cs, blobStore, artifactsDb, append(builderOpts, soci.WithPlatform(plat))...)
 

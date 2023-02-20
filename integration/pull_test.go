@@ -331,7 +331,7 @@ func TestLazyPullNoIndexDigest(t *testing.T) {
 	rebootContainerd(t, sh, getContainerdConfigToml(t, false), getSnapshotterConfigToml(t, false))
 	copyImage(sh, dockerhub(optimizedImageName), regConfig.mirror(optimizedImageName))
 	copyImage(sh, dockerhub(nonOptimizedImageName), regConfig.mirror(nonOptimizedImageName))
-	buildIndex(sh, regConfig.mirror(optimizedImageName), withMinLayerSize(0))
+	buildIndex(sh, regConfig.mirror(optimizedImageName), withMinLayerSize(0), withOCIArtifactRegistrySupport)
 	sh.X("soci", "push", "--user", regConfig.creds(), regConfig.mirror(optimizedImageName).ref)
 
 	// Test if contents are pulled
@@ -443,11 +443,11 @@ func TestPullWithAribtraryBlobInvalidZtocFormat(t *testing.T) {
 		}
 
 		index := soci.Index{
-			MediaType:    soci.OCIArtifactManifestMediaType,
+			MediaType:    ocispec.MediaTypeArtifactManifest,
 			ArtifactType: soci.SociIndexArtifactType,
 			Blobs:        ztocDescs,
 			Subject: &ocispec.Descriptor{
-				MediaType: soci.OCIArtifactManifestMediaType,
+				MediaType: ocispec.MediaTypeArtifactManifest,
 				Digest:    digest.Digest(imgDigest),
 				Size:      int64(len(imgBytes)),
 			},
