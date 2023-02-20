@@ -54,7 +54,7 @@ func TestSociArtifactsPushAndPull(t *testing.T) {
 
 			imageName := ubuntuImage
 			copyImage(sh, dockerhub(imageName, withPlatform(platform)), regConfig.mirror(imageName, withPlatform(platform)))
-			indexDigest := buildIndex(sh, regConfig.mirror(imageName, withPlatform(platform)), withMinLayerSize(0))
+			indexDigest := buildIndex(sh, regConfig.mirror(imageName, withPlatform(platform)), withMinLayerSize(0), withOCIArtifactRegistrySupport)
 			artifactsStoreContentDigest := getSociLocalStoreContentDigest(sh)
 			sh.X("soci", "push", "--user", regConfig.creds(), "--platform", tt.Platform, regConfig.mirror(imageName).ref)
 			sh.X("rm", "-rf", "/var/lib/soci-snapshotter-grpc/content/blobs/sha256")
@@ -108,7 +108,7 @@ func TestPushAlwaysMostRecentlyCreatedIndex(t *testing.T) {
 			copyImage(sh, dockerhub(tc.image), regConfig.mirror(tc.image))
 
 			for _, opt := range tc.opts {
-				index := buildIndex(sh, regConfig.mirror(tc.image), withMinLayerSize(opt.minLayerSize), withSpanSize(opt.spanSize))
+				index := buildIndex(sh, regConfig.mirror(tc.image), withMinLayerSize(opt.minLayerSize), withSpanSize(opt.spanSize), withOCIArtifactRegistrySupport)
 				index = strings.Split(index, "\n")[0]
 				out := sh.O("soci", "push", "--user", regConfig.creds(), regConfig.mirror(tc.image).ref, "-q")
 				pushedIndex := strings.Trim(string(out), "\n")
@@ -123,34 +123,34 @@ func TestPushAlwaysMostRecentlyCreatedIndex(t *testing.T) {
 
 func TestLegacyOCI(t *testing.T) {
 	tests := []struct {
-		name                  string
-		registryImage         string
-		supportLegacyRegistry bool
-		expectError           bool
+		name                    string
+		registryImage           string
+		supportArtifactRegistry bool
+		expectError             bool
 	}{
 		{
-			name:                  "OCI 1.1 Artifacts succeed with OCI 1.1 registry",
-			registryImage:         oci11RegistryImage,
-			supportLegacyRegistry: false,
-			expectError:           false,
+			name:                    "OCI 1.1 Artifacts succeed with OCI 1.1 registry",
+			registryImage:           oci11RegistryImage,
+			supportArtifactRegistry: true,
+			expectError:             false,
 		},
 		{
-			name:                  "OCI 1.0 Artifacts succeed with OCI 1.1 registry",
-			registryImage:         oci11RegistryImage,
-			supportLegacyRegistry: true,
-			expectError:           false,
+			name:                    "OCI 1.0 Artifacts succeed with OCI 1.1 registry",
+			registryImage:           oci11RegistryImage,
+			supportArtifactRegistry: false,
+			expectError:             false,
 		},
 		{
-			name:                  "OCI 1.1 Artifacts fail with OCI 1.0 registry",
-			registryImage:         oci10RegistryImage,
-			supportLegacyRegistry: false,
-			expectError:           true,
+			name:                    "OCI 1.1 Artifacts fail with OCI 1.0 registry",
+			registryImage:           oci10RegistryImage,
+			supportArtifactRegistry: true,
+			expectError:             true,
 		},
 		{
-			name:                  "OCI 1.0 Artifacts succeed with OCI 1.0 registry",
-			registryImage:         oci10RegistryImage,
-			supportLegacyRegistry: true,
-			expectError:           false,
+			name:                    "OCI 1.0 Artifacts succeed with OCI 1.0 registry",
+			registryImage:           oci10RegistryImage,
+			supportArtifactRegistry: false,
+			expectError:             false,
 		},
 	}
 
@@ -165,11 +165,11 @@ func TestLegacyOCI(t *testing.T) {
 
 			imageName := ubuntuImage
 			copyImage(sh, dockerhub(imageName), regConfig.mirror(imageName))
-			var buildOpts []indexBuildOption
-			if tc.supportLegacyRegistry {
-				buildOpts = append(buildOpts, withLegacyRegistrySupport)
-			}
 
+			var buildOpts []indexBuildOption
+			if tc.supportArtifactRegistry {
+				buildOpts = append(buildOpts, withOCIArtifactRegistrySupport)
+			}
 			indexDigest := buildIndex(sh, regConfig.mirror(imageName), buildOpts...)
 			rawJSON := sh.O("soci", "index", "info", indexDigest)
 			var sociIndex soci.Index
