@@ -173,7 +173,8 @@ func (m *SpanManager) buildAllSpans() {
 	}
 }
 
-// fetchWithRetries fetches the requested data and verifies that the span digest matches the one in the ztoc m.retries times.
+// fetchWithRetries fetches the requested data and verifies that the span digest matches the one in the ztoc.
+// It will retry the fetch and verification m.maxSpanVerificationFailureRetries times.
 // It does not retry when there is an error fetching the data, because retries already happen lower in the stack in httpFetcher.
 // If there is an error fetching data from remote, it is not an transient error.
 func (m *SpanManager) fetchWithRetries(spanID compression.SpanID, buf []byte, offset compression.Offset) error {

@@ -173,12 +173,12 @@ func NewFilesystem(ctx context.Context, root string, cfg config.Config, opts ...
 		})
 	}
 
-	bgFetchPeriod := time.Duration(cfg.BackgroundFetchConfig.FetchPeriodMSec) * time.Millisecond
+	bgFetchPeriod := time.Duration(cfg.BackgroundFetchConfig.FetchPeriodMsec) * time.Millisecond
 	if bgFetchPeriod == 0 {
 		bgFetchPeriod = defaultBgFetchPeriod
 	}
 
-	bgSilencePeriod := time.Duration(cfg.BackgroundFetchConfig.SilencePeriodMSec) * time.Millisecond
+	bgSilencePeriod := time.Duration(cfg.BackgroundFetchConfig.SilencePeriodMsec) * time.Millisecond
 	if bgSilencePeriod == 0 {
 		bgSilencePeriod = defaultBgSilencePeriod
 	}

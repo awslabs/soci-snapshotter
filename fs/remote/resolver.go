@@ -73,9 +73,10 @@ const (
 	defaultValidIntervalSec = 60
 	defaultFetchTimeoutSec  = 300
 
-	defaultMaxRetries  = 5
-	defaultMinWaitMSec = 30
-	defaultMaxWaitMSec = 300000
+	// defaults based on a target total retry time of at least 5s. 30*((2^8)-1)>5000
+	defaultMaxRetries  = 8
+	defaultMinWaitMsec = 30
+	defaultMaxWaitMsec = 300000
 )
 
 func NewResolver(cfg config.BlobConfig, handlers map[string]Handler) *Resolver {
@@ -91,11 +92,11 @@ func NewResolver(cfg config.BlobConfig, handlers map[string]Handler) *Resolver {
 	if cfg.MaxRetries == 0 {
 		cfg.MaxRetries = defaultMaxRetries
 	}
-	if cfg.MinWaitMSec == 0 {
-		cfg.MinWaitMSec = defaultMinWaitMSec
+	if cfg.MinWaitMsec == 0 {
+		cfg.MinWaitMsec = defaultMinWaitMsec
 	}
-	if cfg.MaxWaitMSec == 0 {
-		cfg.MaxWaitMSec = defaultMaxWaitMSec
+	if cfg.MaxWaitMsec == 0 {
+		cfg.MaxWaitMsec = defaultMaxWaitMsec
 	}
 
 	return &Resolver{
@@ -132,12 +133,12 @@ func (r *Resolver) Resolve(ctx context.Context, hosts source.RegistryHosts, refs
 func (r *Resolver) resolveFetcher(ctx context.Context, hosts source.RegistryHosts, refspec reference.Spec, desc ocispec.Descriptor) (f fetcher, size int64, err error) {
 	blobConfig := &r.blobConfig
 	fc := &fetcherConfig{
-		hosts:       hosts,
-		refspec:     refspec,
-		desc:        desc,
-		maxRetries:  blobConfig.MaxRetries,
-		minWaitMSec: time.Duration(blobConfig.MinWaitMSec) * time.Millisecond,
-		maxWaitMSec: time.Duration(blobConfig.MaxWaitMSec) * time.Millisecond,
+		hosts:      hosts,
+		refspec:    refspec,
+		desc:       desc,
+		maxRetries: blobConfig.MaxRetries,
+		minWait:    time.Duration(blobConfig.MinWaitMsec) * time.Millisecond,
+		maxWait:    time.Duration(blobConfig.MaxWaitMsec) * time.Millisecond,
 	}
 	var handlersErr error
 	for name, p := range r.handlers {
@@ -169,25 +170,26 @@ func (r *Resolver) resolveFetcher(ctx context.Context, hosts source.RegistryHost
 }
 
 type fetcherConfig struct {
-	hosts       source.RegistryHosts
-	refspec     reference.Spec
-	desc        ocispec.Descriptor
-	maxRetries  int
-	minWaitMSec time.Duration
-	maxWaitMSec time.Duration
+	hosts      source.RegistryHosts
+	refspec    reference.Spec
+	desc       ocispec.Descriptor
+	maxRetries int
+	minWait    time.Duration
+	maxWait    time.Duration
 }
 
-func jitter(duration time.Duration) time.Duration {
-	return time.Duration(rand.Int63n(int64(duration)) + int64(duration))
+// jitter returns a number in the range duration to duration+(duration/divisor)-1, inclusive
+func jitter(duration time.Duration, divisor int64) time.Duration {
+	return time.Duration(rand.Int63n(int64(duration)/divisor) + int64(duration))
 }
 
-// backoffStrategy extends retryablehttp's DefaultBackoff to add a random jitter to avoid overwhelming the repository
-// when it comes back online
-// DefaultBackoff either tries to parse the 'Retry-After' header of the response; or, it uses an exponential backoff
-// 2 ^ numAttempts, limited by max
+// backoffStrategy extends retryablehttp's DefaultBackoff to add a random jitter to avoid
+// overwhelming the repository when it comes back online
+// DefaultBackoff either tries to parse the 'Retry-After' header of the response; or, it uses an
+// exponential backoff 2 ^ numAttempts, limited by max
 func backoffStrategy(min, max time.Duration, attemptNum int, resp *http.Response) time.Duration {
 	delayTime := rhttp.DefaultBackoff(min, max, attemptNum, resp)
-	return jitter(delayTime)
+	return jitter(delayTime, 8)
 }
 
 // retryStrategy extends retryablehttp's DefaultRetryPolicy to log the error and response when retrying
@@ -211,7 +213,7 @@ func newHTTPFetcher(ctx context.Context, fc *fetcherConfig) (*httpFetcher, error
 	}
 	desc := fc.desc
 	if desc.Digest.String() == "" {
-		return nil, fmt.Errorf("Digest is mandatory in layer descriptor")
+		return nil, fmt.Errorf("digest is mandatory in layer descriptor")
 	}
 	digest := desc.Digest
 	pullScope, err := repositoryScope(fc.refspec, false)
@@ -234,8 +236,8 @@ func newHTTPFetcher(ctx context.Context, fc *fetcherConfig) (*httpFetcher, error
 
 		if rt, ok := tr.(*rhttp.RoundTripper); ok {
 			rt.Client.RetryMax = fc.maxRetries
-			rt.Client.RetryWaitMin = fc.minWaitMSec
-			rt.Client.RetryWaitMax = fc.maxWaitMSec
+			rt.Client.RetryWaitMin = fc.minWait
+			rt.Client.RetryWaitMax = fc.maxWait
 			rt.Client.Backoff = backoffStrategy
 			rt.Client.CheckRetry = retryStrategy
 		}
