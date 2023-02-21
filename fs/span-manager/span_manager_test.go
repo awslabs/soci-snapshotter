@@ -238,7 +238,7 @@ func TestStateTransition(t *testing.T) {
 					t.Fatalf("failed transitioning to Fetched state")
 				}
 			} else {
-				_, err := m.GetSpanContent(tc.spanID, 0, s.endUncompOffset-s.startUncompOffset, s.endUncompOffset-s.startUncompOffset)
+				_, err := m.GetSpanContent(tc.spanID, 0, s.endUncompOffset-s.startUncompOffset)
 				if err != nil {
 					t.Fatalf("failed getting the span for on-demand fetch: %v", err)
 				}
