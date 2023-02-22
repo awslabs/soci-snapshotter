@@ -391,7 +391,7 @@ type retryableReaderAt struct {
 
 func (r *retryableReaderAt) ReadAt(buf []byte, off int64) (int, error) {
 	n, err := r.inner.ReadAt(buf, off)
-	if err != nil || n != len(buf) {
+	if (err != nil && err != io.EOF) || n != len(buf) {
 		return n, err
 	}
 	if r.errCount < r.maxErrors {
