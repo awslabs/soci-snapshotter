@@ -155,7 +155,7 @@ func ExtractFile(r *io.SectionReader, config *FileExtractConfig) ([]byte, error)
 				rangeStart--
 			}
 			n, err := r.ReadAt(buf[rangeStart-start:rangeEnd-start], int64(rangeStart)) // need to convert rangeStart to int64 to use in ReadAt
-			if err != nil {
+			if err != nil && err != io.EOF {
 				return err
 			}
 

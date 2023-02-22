@@ -192,6 +192,9 @@ type positionTrackerReader struct {
 
 func (p *positionTrackerReader) Read(b []byte) (int, error) {
 	n, err := p.r.ReadAt(b, int64(p.pos))
+	if err == io.EOF {
+		err = nil
+	}
 	if err == nil {
 		p.pos += compression.Offset(n)
 	}

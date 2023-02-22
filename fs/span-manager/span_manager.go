@@ -385,7 +385,7 @@ func (m *SpanManager) resolveSpanFromCache(s *span, offsetStart, size compressio
 func (m *SpanManager) fetchAndCacheSpan(spanID compression.SpanID) ([]byte, error) {
 	// fetch compressed span
 	compressedBuf, err := m.fetchSpanWithRetries(spanID)
-	if err != nil && err != io.EOF {
+	if err != nil {
 		return nil, err
 	}
 
@@ -430,7 +430,9 @@ func (m *SpanManager) fetchSpanWithRetries(spanID compression.SpanID) ([]byte, e
 	)
 	for i := 0; i < m.maxSpanVerificationFailureRetries+1; i++ {
 		n, err = m.r.ReadAt(compressedBuf, int64(offset))
-		if err != nil {
+		// if the n = len(p) bytes returned by ReadAt are at the end of the input source,
+		// ReadAt may return either err == EOF or err == nil: https://pkg.go.dev/io#ReaderAt
+		if err != nil && err != io.EOF {
 			return []byte{}, err
 		}
 
