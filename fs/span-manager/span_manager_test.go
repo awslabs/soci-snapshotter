@@ -108,14 +108,14 @@ func TestSpanManager(t *testing.T) {
 			// Test resolving all spans
 			var i compression.SpanID
 			for i = 0; i <= toc.CompressionInfo.MaxSpanID; i++ {
-				err := m.ResolveSpan(i)
+				err := m.resolveSpan(i)
 				if err != nil {
 					t.Fatalf("error resolving span %d. error: %v", i, err)
 				}
 			}
 
-			// Test ResolveSpan returning ErrExceedMaxSpan for span id larger than max span id
-			resolveSpanErr := m.ResolveSpan(toc.CompressionInfo.MaxSpanID + 1)
+			// Test resolveSpan returning ErrExceedMaxSpan for span id larger than max span id
+			resolveSpanErr := m.resolveSpan(toc.CompressionInfo.MaxSpanID + 1)
 			if !errors.Is(resolveSpanErr, ErrExceedMaxSpan) {
 				t.Fatalf("failed returning ErrExceedMaxSpan for span id larger than max span id")
 			}
@@ -137,7 +137,7 @@ func TestSpanManagerCache(t *testing.T) {
 	defer cache.Close()
 	m := New(toc, r, cache, 0)
 	spanID := 0
-	err = m.ResolveSpan(compression.SpanID(spanID))
+	err = m.resolveSpan(compression.SpanID(spanID))
 	if err != nil {
 		t.Fatalf("failed to resolve span 0: %v", err)
 	}
@@ -162,8 +162,7 @@ func TestSpanManagerCache(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			// Test resolveSpanFromCache
-			s := m.spans[spanID]
-			spanR, err := m.resolveSpanFromCache(s, tc.offset, tc.size)
+			spanR, err := m.getSpanContent(compression.SpanID(spanID), tc.offset, tc.offset+tc.size)
 			if err != nil {
 				t.Fatalf("error resolving span from cache")
 			}
@@ -238,7 +237,7 @@ func TestStateTransition(t *testing.T) {
 					t.Fatalf("failed transitioning to Fetched state")
 				}
 			} else {
-				_, err := m.GetSpanContent(tc.spanID, 0, s.endUncompOffset-s.startUncompOffset)
+				_, err := m.getSpanContent(tc.spanID, 0, s.endUncompOffset-s.startUncompOffset)
 				if err != nil {
 					t.Fatalf("failed getting the span for on-demand fetch: %v", err)
 				}
@@ -261,49 +260,49 @@ func TestValidateState(t *testing.T) {
 		{
 			name:         "span in Unrequested state with valid new state",
 			currentState: unrequested,
-			newState:     []spanState{unrequested, requested},
+			newState:     []spanState{requested},
 			expectedErr:  nil,
 		},
 		{
 			name:         "span in Unrequested state with invalid new state",
 			currentState: unrequested,
-			newState:     []spanState{fetched},
+			newState:     []spanState{unrequested, fetched, uncompressed},
 			expectedErr:  errInvalidSpanStateTransition,
 		},
 		{
 			name:         "span in Requested state with valid new state",
 			currentState: requested,
-			newState:     []spanState{requested, fetched},
+			newState:     []spanState{unrequested, fetched, uncompressed},
 			expectedErr:  nil,
 		},
 		{
 			name:         "span in Requested state with invalid new state",
 			currentState: requested,
-			newState:     []spanState{unrequested},
+			newState:     []spanState{requested},
 			expectedErr:  errInvalidSpanStateTransition,
 		},
 		{
 			name:         "span in Fetched state with valid new state",
 			currentState: fetched,
-			newState:     []spanState{uncompressed, fetched},
+			newState:     []spanState{uncompressed},
 			expectedErr:  nil,
 		},
 		{
 			name:         "span in Fetched state with invalid new state",
 			currentState: fetched,
-			newState:     []spanState{unrequested},
+			newState:     []spanState{unrequested, requested, fetched},
 			expectedErr:  errInvalidSpanStateTransition,
 		},
 		{
 			name:         "span in Uncompressed state with valid new state",
 			currentState: uncompressed,
-			newState:     []spanState{uncompressed},
+			newState:     []spanState{},
 			expectedErr:  nil,
 		},
 		{
 			name:         "span in Uncompressed state with invalid new state",
 			currentState: uncompressed,
-			newState:     []spanState{fetched},
+			newState:     []spanState{unrequested, requested, fetched, uncompressed},
 			expectedErr:  errInvalidSpanStateTransition,
 		},
 	}
@@ -314,7 +313,7 @@ func TestValidateState(t *testing.T) {
 				s.state.Store(tc.currentState)
 				err := s.validateStateTransition(ns)
 				if !errors.Is(err, tc.expectedErr) {
-					t.Fatalf("failed validateState")
+					t.Fatalf("failed validateState. current state: %v, new state: %v", tc.currentState, ns)
 				}
 			}
 		})
@@ -362,7 +361,7 @@ func TestSpanManagerRetries(t *testing.T) {
 			for i := 0; i < int(ztoc.CompressionInfo.MaxSpanID); i++ {
 				rdr.errCount = 0
 
-				_, err := sm.fetchAndCacheSpan(compression.SpanID(i))
+				_, err := sm.fetchAndCacheSpan(compression.SpanID(i), true)
 				if !errors.Is(err, tc.expectedErr) {
 					t.Fatalf("unexpected err; expected %v, got %v", tc.expectedErr, err)
 				}
