@@ -70,13 +70,13 @@ import (
 )
 
 const (
-	defaultValidIntervalSec = 60
-	defaultFetchTimeoutSec  = 300
+	defaultValidIntervalSec int64 = 60
+	defaultFetchTimeoutSec  int64 = 300
 
 	// defaults based on a target total retry time of at least 5s. 30*((2^8)-1)>5000
-	defaultMaxRetries  = 8
-	defaultMinWaitMsec = 30
-	defaultMaxWaitMsec = 300000
+	defaultMaxRetries        = 8
+	defaultMinWaitMsec int64 = 30
+	defaultMaxWaitMsec int64 = 300000
 )
 
 func NewResolver(cfg config.BlobConfig, handlers map[string]Handler) *Resolver {

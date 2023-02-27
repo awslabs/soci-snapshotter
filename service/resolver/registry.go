@@ -41,7 +41,7 @@ import (
 	rhttp "github.com/hashicorp/go-retryablehttp"
 )
 
-const defaultRequestTimeoutSec = 30
+const defaultRequestTimeoutSec int64 = 30
 
 // Config is config for resolving registries.
 type Config struct {
@@ -63,7 +63,7 @@ type MirrorConfig struct {
 	// RequestTimeoutSec is timeout seconds of each request to the registry.
 	// RequestTimeoutSec == 0 indicates the default timeout (defaultRequestTimeoutSec).
 	// RequestTimeoutSec < 0 indicates no timeout.
-	RequestTimeoutSec int `toml:"request_timeout_sec"`
+	RequestTimeoutSec int64 `toml:"request_timeout_sec"`
 }
 
 type Credential func(string, reference.Spec) (string, string, error)
@@ -80,7 +80,7 @@ func RegistryHostsFromConfig(cfg Config, credsFuncs ...Credential) source.Regist
 			tr := client.StandardClient()
 			if h.RequestTimeoutSec >= 0 {
 				if h.RequestTimeoutSec == 0 {
-					tr.Timeout = defaultRequestTimeoutSec * time.Second
+					tr.Timeout = time.Duration(defaultRequestTimeoutSec) * time.Second
 				} else {
 					tr.Timeout = time.Duration(h.RequestTimeoutSec) * time.Second
 				}

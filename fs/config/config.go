@@ -61,8 +61,8 @@ type Config struct {
 	DisableVerification            bool   `toml:"disable_verification"`
 	MaxConcurrency                 int64  `toml:"max_concurrency"`
 	NoPrometheus                   bool   `toml:"no_prometheus"`
-	MountTimeoutSec                int    `toml:"mount_timeout_sec"`
-	FuseMetricsEmitWaitDurationSec int    `toml:"fuse_metrics_emit_wait_duration_sec"`
+	MountTimeoutSec                int64  `toml:"mount_timeout_sec"`
+	FuseMetricsEmitWaitDurationSec int64  `toml:"fuse_metrics_emit_wait_duration_sec"`
 
 	// BlobConfig is config for layer blob management.
 	BlobConfig `toml:"blob"`
@@ -81,8 +81,8 @@ type BlobConfig struct {
 	FetchTimeoutSec      int64 `toml:"fetching_timeout_sec"`
 	ForceSingleRangeMode bool  `toml:"force_single_range_mode"`
 	MaxRetries           int   `toml:"max_retries"`
-	MinWaitMsec          int   `toml:"min_wait_msec"`
-	MaxWaitMsec          int   `toml:"max_wait_msec"`
+	MinWaitMsec          int64 `toml:"min_wait_msec"`
+	MaxWaitMsec          int64 `toml:"max_wait_msec"`
 
 	// MaxSpanVerificationRetries defines the number of additional times fetch
 	// will be invoked in case of span verification failure.
