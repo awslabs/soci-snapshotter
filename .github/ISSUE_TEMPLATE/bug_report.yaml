@@ -1,0 +1,36 @@
+name: Bug report
+description: Create a bug report to help improve soci-snapshotter
+title: "[Bug] "
+labels: ["bug"]
+body:
+  - type: textarea
+    attributes:
+      label: Description
+      description: |
+        Briefly describe the problem/bug you are having.
+    validations:
+      required: true
+
+  - type: textarea
+    attributes:
+      label: Steps to reproduce the bug
+
+  - type: textarea
+    attributes:
+      label: Describe the results you expected
+    validations:
+      required: true
+
+  - type: textarea
+    attributes:
+      label: Host information
+      value: |
+        1. OS: 
+        2. Snapshotter Version: 
+        3. Containerd Version: 
+    validations:
+      required: true
+
+  - type: textarea
+    attributes:
+      label: Any additional context or information about the bug
