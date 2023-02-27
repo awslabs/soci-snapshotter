@@ -1,0 +1,24 @@
+name: Feature request
+description: Suggest an idea or new feature for this project
+title: "[FEATURE] "
+labels: ["feature"]
+body:
+  - type: textarea
+    attributes:
+      label: Description
+      description: |
+        Briefly describe the feature request and, if related to a problem, what the problem is.
+    validations:
+      required: true
+
+  - type: textarea
+    attributes:
+      label: Describe the solution you'd like
+
+  - type: textarea
+    attributes:
+      label: Describe any alternative solutions/features you've considered
+
+  - type: textarea
+    attributes:
+      label: Any additional context or information about the feature request

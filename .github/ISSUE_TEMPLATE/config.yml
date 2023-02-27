@@ -1,0 +1,9 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Ask a question (GitHub Discussions)
+    url: https://github.com/awslabs/soci-snapshotter/discussions
+    about: |
+      In most cases, GitHub Discussions is the preferred place to ask a question, 
+      and visible to more users. If you encountered a bug or request a feature, 
+      please use the issue template. Otherwise, please consider asking in GitHub
+      Discussions first.
