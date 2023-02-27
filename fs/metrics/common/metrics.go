@@ -170,17 +170,17 @@ var (
 var register sync.Once
 
 // sinceInMilliseconds gets the time since the specified start in milliseconds.
-// The division by 1e6 is made to have the milliseconds value as floating point number, since the native method
-// .Milliseconds() returns an integer value and you can lost a precision for sub-millisecond values.
+// The division is made to have the milliseconds value as floating point number, since the native method
+// .Milliseconds() returns an integer value and you can lose precision for sub-millisecond values.
 func sinceInMilliseconds(start time.Time) float64 {
-	return float64(time.Since(start).Nanoseconds()) / 1e6
+	return float64(time.Since(start).Nanoseconds()) / float64(time.Millisecond/time.Nanosecond)
 }
 
 // sinceInMicroseconds gets the time since the specified start in microseconds.
-// The division by 1e3 is made to have the microseconds value as floating point number, since the native method
-// .Microseconds() returns an integer value and you can lost a precision for sub-microsecond values.
+// The division is made to have the microseconds value as floating point number, since the native method
+// .Microseconds() returns an integer value and you can lose precision for sub-microsecond values.
 func sinceInMicroseconds(start time.Time) float64 {
-	return float64(time.Since(start).Nanoseconds()) / 1e3
+	return float64(time.Since(start).Nanoseconds()) / float64(time.Microsecond/time.Nanosecond)
 }
 
 // Register registers metrics. This is always called only once.

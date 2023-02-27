@@ -558,7 +558,7 @@ func generateRegistrySelfSignedCert(registryHost string) (crt, key []byte, _ err
 		SerialNumber:          serialNumber,
 		Subject:               pkix.Name{CommonName: registryHost},
 		NotBefore:             time.Now(),
-		NotAfter:              time.Now().Add(365 * 24 * time.Hour),
+		NotAfter:              time.Now().AddDate(1, 0, 0), // one year
 		KeyUsage:              x509.KeyUsageDigitalSignature,
 		ExtKeyUsage:           []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth},
 		DNSNames:              []string{registryHost},
