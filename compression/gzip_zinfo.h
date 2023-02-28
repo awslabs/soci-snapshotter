@@ -40,8 +40,8 @@
   from the original.
 */
 
-#ifndef ZINFO_H
-#define ZINFO_H
+#ifndef GZIP_ZINFO_H
+#define GZIP_ZINFO_H
 
 #include <stdbool.h>
 #include <stdint.h>
@@ -124,4 +124,4 @@ int     zinfo_to_blob(struct gzip_zinfo* index, void* buf);
 struct  gzip_zinfo* blob_to_zinfo(void* buf, offset_t len);
 // zinfo -  zinfo <-> blob conversion ends.
 
-#endif // ZINFO_H
+#endif // GZIP_ZINFO_H
