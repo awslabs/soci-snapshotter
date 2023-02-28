@@ -176,18 +176,21 @@ func marshalIndexAs10Manifest(i *Index) ([]byte, error) {
 }
 
 // GetIndexDescriptorCollection returns all `IndexDescriptorInfo` of the given image and platforms.
-func GetIndexDescriptorCollection(ctx context.Context, cs content.Store, artifactsDb *ArtifactsDb, img images.Image, ps []ocispec.Platform) ([]IndexDescriptorInfo, error) {
-	descriptors := []IndexDescriptorInfo{}
-	var entries []ArtifactEntry
+func GetIndexDescriptorCollection(ctx context.Context, cs content.Store, artifactsDb *ArtifactsDb, img images.Image, ps []ocispec.Platform) ([]IndexDescriptorInfo, *ocispec.Descriptor, error) {
+	var (
+		descriptors []IndexDescriptorInfo
+		entries     []ArtifactEntry
+		indexDesc   *ocispec.Descriptor
+		err         error
+	)
 	for _, platform := range ps {
-		indexDesc, err := GetImageManifestDescriptor(ctx, cs, img.Target, platforms.OnlyStrict(platform))
+		indexDesc, err = GetImageManifestDescriptor(ctx, cs, img.Target, platforms.OnlyStrict(platform))
 		if err != nil {
-			return descriptors, err
+			return nil, nil, err
 		}
-
 		e, err := artifactsDb.getIndexArtifactEntries(indexDesc.Digest.String())
 		if err != nil {
-			return descriptors, err
+			return nil, nil, err
 		}
 		entries = append(entries, e...)
 	}
@@ -208,7 +211,7 @@ func GetIndexDescriptorCollection(ctx context.Context, cs content.Store, artifac
 		})
 	}
 
-	return descriptors, nil
+	return descriptors, indexDesc, nil
 }
 
 type buildConfig struct {

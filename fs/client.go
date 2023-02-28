@@ -65,7 +65,7 @@ func NewOCIArtifactClient(inner Inner) *OCIArtifactClient {
 }
 
 func (c *OCIArtifactClient) SelectReferrer(ctx context.Context, desc ocispec.Descriptor, fn IndexSelectionPolicy) (ocispec.Descriptor, error) {
-	descs, err := c.allReferrers(ctx, desc)
+	descs, err := c.AllReferrers(ctx, desc)
 	if err != nil {
 		return ocispec.Descriptor{}, fmt.Errorf("unable to fetch referrers: %w", err)
 	}
@@ -75,7 +75,7 @@ func (c *OCIArtifactClient) SelectReferrer(ctx context.Context, desc ocispec.Des
 	return fn(descs)
 }
 
-func (c *OCIArtifactClient) allReferrers(ctx context.Context, desc ocispec.Descriptor) ([]ocispec.Descriptor, error) {
+func (c *OCIArtifactClient) AllReferrers(ctx context.Context, desc ocispec.Descriptor) ([]ocispec.Descriptor, error) {
 	descs := []ocispec.Descriptor{}
 	err := c.Referrers(ctx, desc, soci.SociIndexArtifactType, func(referrers []ocispec.Descriptor) error {
 		descs = append(descs, referrers...)
