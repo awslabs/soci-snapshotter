@@ -331,7 +331,7 @@ func TestLazyPullNoIndexDigest(t *testing.T) {
 	rebootContainerd(t, sh, getContainerdConfigToml(t, false), getSnapshotterConfigToml(t, false))
 	copyImage(sh, dockerhub(optimizedImageName), regConfig.mirror(optimizedImageName))
 	copyImage(sh, dockerhub(nonOptimizedImageName), regConfig.mirror(nonOptimizedImageName))
-	buildIndex(sh, regConfig.mirror(optimizedImageName), withMinLayerSize(0), withOCIArtifactRegistrySupport)
+	buildIndex(sh, regConfig.mirror(optimizedImageName), withMinLayerSize(0))
 	sh.X("soci", "push", "--user", regConfig.creds(), regConfig.mirror(optimizedImageName).ref)
 
 	// Test if contents are pulled

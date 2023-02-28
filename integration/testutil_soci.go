@@ -33,6 +33,7 @@
 package integration
 
 import (
+	"bytes"
 	"fmt"
 	"strings"
 
@@ -168,9 +169,12 @@ func validateSociIndex(sh *shell.Shell, sociIndex soci.Index, imgManifestDigest 
 	return nil
 }
 
+// getSociLocalStoreContentDigest will generate a digest based on the contents of the soci content store
+// Files that are smaller than 10 bytes wil not be included when generating the digest
 func getSociLocalStoreContentDigest(sh *shell.Shell) digest.Digest {
-	content := sh.O("ls", blobStorePath)
-	return digest.FromBytes(content)
+	content := new(bytes.Buffer)
+	sh.Pipe(nil, []string{"find", blobStorePath, "-maxdepth", "1", "-type", "f", "-size", "+10c"}).Pipe(content, []string{"sort"})
+	return digest.FromBytes(content.Bytes())
 }
 
 func sociIndexFromDigest(sh *shell.Shell, indexDigest string) (index soci.Index, err error) {

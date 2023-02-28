@@ -18,12 +18,14 @@ package commands
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net/http"
 	"sort"
 	"strings"
 
 	"github.com/awslabs/soci-snapshotter/cmd/soci/commands/internal"
+	"github.com/awslabs/soci-snapshotter/fs"
 	"github.com/awslabs/soci-snapshotter/fs/config"
 	"github.com/awslabs/soci-snapshotter/soci"
 	"github.com/containerd/containerd/cmd/ctr/commands"
@@ -52,6 +54,7 @@ if they are available in the snapshotter's local content store.
 		commands.LabelFlag),
 		commands.SnapshotterFlags...),
 		internal.PlatformFlags...),
+		internal.ExistingIndexFlag,
 		cli.Uint64Flag{
 			Name:  "max-concurrent-uploads",
 			Usage: "Max concurrent uploads. Default is 10",
@@ -93,7 +96,7 @@ if they are available in the snapshotter's local content store.
 		}
 
 		for _, platform := range ps {
-			indexDescriptors, err := soci.GetIndexDescriptorCollection(ctx, cs, artifactsDb, img, []ocispec.Platform{platform})
+			indexDescriptors, imgManifestDesc, err := soci.GetIndexDescriptorCollection(ctx, cs, artifactsDb, img, []ocispec.Platform{platform})
 			if err != nil {
 				return err
 			}
@@ -145,7 +148,40 @@ if they are available in the snapshotter's local content store.
 			} else {
 				dst.Client = authClient
 			}
+			existingIndexOption := cliContext.String(internal.ExistingIndexFlagName)
+			if !internal.SupportedArg(existingIndexOption, internal.SupportedExistingIndexOptions) {
+				return fmt.Errorf("unexpected value for flag %s: %s, expected types %v",
+					internal.ExistingIndexFlagName, existingIndexOption, internal.SupportedExistingIndexOptions)
+			}
+			if existingIndexOption != internal.Allow {
+				if !quiet {
+					fmt.Println("checking if a soci index already exists in remote repository...")
+				}
+				client := fs.NewOCIArtifactClient(dst)
+				referrers, err := client.AllReferrers(ctx, ocispec.Descriptor{Digest: imgManifestDesc.Digest})
+				if err != nil && !errors.Is(err, fs.ErrNoReferrers) {
+					return fmt.Errorf("failed to fetch list of referrers: %w", err)
+				}
+				if len(referrers) > 0 {
+					var foundMessage string
+					if len(referrers) > 1 {
+						foundMessage = "multiple soci indices found in remote repository"
+					} else {
+						foundMessage = fmt.Sprintf("soci index found in remote repository with digest: %s", referrers[0].Digest.String())
+					}
+					switch existingIndexOption {
+					case internal.Skip:
+						if !quiet {
+							fmt.Printf("%s: skipping pushing artifacts for image manifest: %s\n", foundMessage, imgManifestDesc.Digest.String())
+						}
+						continue
+					case internal.Warn:
+						fmt.Printf("[WARN] %s: pushing index anyway\n", foundMessage)
+						// Fall through and attempt to push the index anyway
+					}
+				}
 
+			}
 			options := oraslib.DefaultCopyGraphOptions
 			options.PreCopy = func(_ context.Context, desc ocispec.Descriptor) error {
 				if !quiet {
@@ -165,16 +201,17 @@ if they are available in the snapshotter's local content store.
 				}
 				return nil
 			}
-
 			if quiet {
 				fmt.Println(indexDesc.Digest.String())
 			} else {
 				fmt.Printf("pushing soci index with digest: %v\n", indexDesc.Digest)
 			}
+
 			err = oraslib.CopyGraph(context.Background(), src, dst, indexDesc.Descriptor, options)
 			if err != nil {
 				return fmt.Errorf("error pushing graph to remote: %w", err)
 			}
+
 		}
 		return nil
 	},

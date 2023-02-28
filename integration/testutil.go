@@ -51,6 +51,7 @@ import (
 	"time"
 
 	commonmetrics "github.com/awslabs/soci-snapshotter/fs/metrics/common"
+	"github.com/awslabs/soci-snapshotter/util/dockershell"
 	shell "github.com/awslabs/soci-snapshotter/util/dockershell"
 	"github.com/awslabs/soci-snapshotter/util/dockershell/compose"
 	dexec "github.com/awslabs/soci-snapshotter/util/dockershell/exec"
@@ -605,6 +606,19 @@ func getManifestDigest(sh *shell.Shell, ref string, platform spec.Platform) (str
 		}
 	}
 	return "", fmt.Errorf("could not find manifest for %s for platform %s", ref, platforms.Format(platform))
+}
+
+func getReferrers(sh *dockershell.Shell, regConfig registryConfig, imgName, digest string) (*spec.Index, error) {
+	var index spec.Index
+	output, err := sh.OLog("curl", "-u", regConfig.creds(), fmt.Sprintf("https://%s:443/v2/%s/referrers/%s", regConfig.host, imgName, digest))
+	if err != nil {
+		return nil, fmt.Errorf("failed to get referrers: %w", err)
+	}
+	err = json.Unmarshal(output, &index)
+	if err != nil {
+		return nil, fmt.Errorf("failed to unmarshal index: %w", err)
+	}
+	return &index, nil
 }
 
 func rebootContainerd(t *testing.T, sh *shell.Shell, customContainerdConfig, customSnapshotterConfig string) *testutil.RemoteSnapshotMonitor {
