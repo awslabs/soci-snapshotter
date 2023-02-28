@@ -50,39 +50,120 @@
 
 #define CHUNK (1 << 14) // file input buffer size
 
-offset_t encode_offset(offset_t source) {
+
+// zinfo - internal helpers start.
+
+/* Convert integer types to little endian and vice versa.
+   This is needed to keep zinfo consistent across multiple architectures,
+   ensuring that all integer fields will be stored in little endian.
+*/
+inline offset_t encode_offset(offset_t source) {
     return htole64(source);
 }
 
-offset_t decode_offset(offset_t source) {
+inline offset_t decode_offset(offset_t source) {
     return le64toh(source);
 }
 
-int32_t encode_int32(int32_t source) {
+inline int32_t encode_int32(int32_t source) {
     return htole32(source);
 }
 
-int32_t decode_int32(int32_t source) {
+inline int32_t decode_int32(int32_t source) {
     return le32toh(source);
 }
 
-void free_zinfo(struct gzip_zinfo *index)
-{
+static int min(int lhs, int rhs) { return lhs < rhs ? lhs : rhs; }
+
+int init_flate(z_stream *strm, int windowBits) {
+    int ret;
+    strm->zalloc = Z_NULL;
+    strm->zfree = Z_NULL;
+    strm->opaque = Z_NULL;
+    strm->avail_in = 0;
+    strm->next_in = Z_NULL;
+    ret = inflateInit2(strm, windowBits);
+    return ret;
+}
+
+static uint8_t get_bits(struct gzip_zinfo *index, int checkpoint) {
+    return index->list[checkpoint].bits;
+}
+
+// zinfo - internal helpers end.
+
+// zinfo - metadata starts.
+int pt_index_from_ucmp_offset(struct gzip_zinfo* index, offset_t off) {
+    if (index == NULL)
+        return -1;
+
+    int res = 0;
+    struct gzip_checkpoint* here = index->list;
+    int ret = decode_int32(index->have);
+    while (--ret && decode_offset(here[1].out) <= off) {
+        here++;
+        res++;
+    }
+    return res;
+}
+
+offset_t get_ucomp_off(struct gzip_zinfo *index, int checkpoint) {
+    return decode_offset(index->list[checkpoint].out);
+}
+
+offset_t get_comp_off(struct gzip_zinfo *index, int checkpoint) {
+    return decode_offset(index->list[checkpoint].in);
+}
+
+unsigned get_blob_size(struct gzip_zinfo *index) {
+    if (index == NULL)
+        return 0;
+
+    unsigned size = decode_int32(index->size);
+    if (decode_int32(index->version) == ZINFO_VERSION_ONE)
+        size--;
+
+    /*
+        The buffer will be tightly packed. The layout of the buffer is:
+        -   Some fixed size based on which version
+        -   PACKED_CHECKPOINT_SIZE for each span.
+            If we have a v1 gzip_zinfo, we skip the first checkpoint
+            this is a bug, but it keeps backwards compatibility
+    */
+    return PACKED_CHECKPOINT_SIZE * size + BLOB_HEADER_SIZE;
+}
+
+int32_t get_max_span_id(struct gzip_zinfo *index) {
+    if (index == NULL)
+        return 0;
+    return decode_int32(index->have) - 1;
+}
+
+int has_bits(struct gzip_zinfo *index, int checkpoint) {
+    if (checkpoint >= decode_int32(index->have))
+        return 0;
+    return index->list[checkpoint].bits != 0;
+}
+
+// zinfo - metadata ends.
+
+void free_zinfo(struct gzip_zinfo *index) {
     if (index != NULL) {
         free(index->list);
         free(index);
     }
 }
 
+// zinfo - generation/extraction starts.
+
 /* Add an entry to the access point list.  If out of memory, deallocate the
    existing list and return NULL. */
 static struct gzip_zinfo *add_checkpoint(struct gzip_zinfo *index, uint8_t bits,
-    offset_t in, offset_t out, unsigned left, unsigned char *window)
-{
+    offset_t in, offset_t out, unsigned left, unsigned char *window) {
     struct gzip_checkpoint *next;
 
-    /* if list is empty, create it (start with eight points) */
     if (index == NULL) {
+        /* if list is empty, create it (start with eight points) */
         index = malloc(sizeof(struct gzip_zinfo));
         if (index == NULL) return NULL;
         index->list = malloc(sizeof(struct gzip_checkpoint) << 3);
@@ -92,10 +173,8 @@ static struct gzip_zinfo *add_checkpoint(struct gzip_zinfo *index, uint8_t bits,
         }
         index->size = 8;
         index->have = 0;
-    }
-
-    /* if list is full, make it bigger */
-    else if (index->have == index->size) {
+    } else if (index->have == index->size) {
+        /* if list is full, make it bigger */
         index->size <<= 1;
         next = realloc(index->list, sizeof(struct gzip_checkpoint) * index->size);
         if (next == NULL) {
@@ -121,24 +200,17 @@ static struct gzip_zinfo *add_checkpoint(struct gzip_zinfo *index, uint8_t bits,
 }
 
 /* Pretty much the same as from zran.c */
-int generate_zinfo(FILE* in, offset_t span, struct gzip_zinfo** idx)
-{
+int generate_zinfo_from_fp(FILE* in, offset_t span, struct gzip_zinfo** idx) {
     int ret;
     offset_t totin, totout;        /* our own total counters to avoid 4GB limit */
     offset_t last;                 /* totout value of last access point */
     struct gzip_zinfo *index;       /* access points being generated */
     z_stream strm;
-    unsigned char input[CHUNK];
-    unsigned char window[WINSIZE];
+    unsigned char input[CHUNK], window[WINSIZE];
     memset(window, 0, WINSIZE);
 
     /* initialize inflate */
-    strm.zalloc = Z_NULL;
-    strm.zfree = Z_NULL;
-    strm.opaque = Z_NULL;
-    strm.avail_in = 0;
-    strm.next_in = Z_NULL;
-    ret = inflateInit2(&strm, 47);      /* automatic zlib or gzip decoding */
+    ret = init_flate(&strm, 47); /* automatic zlib or gzip decoding */
     if (ret != Z_OK)
         return ret;
 
@@ -223,132 +295,22 @@ int generate_zinfo(FILE* in, offset_t span, struct gzip_zinfo** idx)
     (void)inflateEnd(&strm);
     free_zinfo(index);
     return ret;
-
 }
 
-int has_bits(struct gzip_zinfo* index, int checkpoint)
-{
-    if (checkpoint >= decode_int32(index->have))
-    {
-        return 0;
-    }
-    return index->list[checkpoint].bits != 0;
-}
-
-static uint8_t get_bits(struct gzip_zinfo* index, int checkpoint)
-{
-    return index->list[checkpoint].bits;
-}
-
-offset_t get_ucomp_off(struct gzip_zinfo* index, int checkpoint)
-{
-    return decode_offset(index->list[checkpoint].out);
-}
-
-offset_t get_comp_off(struct gzip_zinfo* index, int checkpoint)
-{
-    return decode_offset(index->list[checkpoint].in);
-}
-
-static int min(int lhs, int rhs)
-{
-    return lhs < rhs ? lhs : rhs;
-}
-
-// This is the same as extract_data_fp, but instead of a file, it decompresses data from a buffer which contains the exact data to decompress 
-int extract_data_from_buffer(void* d, offset_t datalen, struct gzip_zinfo* index, offset_t offset, void* buffer, offset_t len, int first_checkpoint)
-{
-    int ret, skip;
-    z_stream strm;
-    unsigned char input[CHUNK];
-    unsigned char discard[WINSIZE];
-    uchar* buf = buffer; 
-    uchar* data = d;
-    /* proceed only if something reasonable to do */
-    if (len < 0)
-        return 0;
-
-    uint8_t bits = get_bits(index, first_checkpoint);
-
-    strm.zalloc = Z_NULL;
-    strm.zfree = Z_NULL;
-    strm.opaque = Z_NULL;
-    strm.avail_in = 0;
-    strm.next_in = Z_NULL;
-    ret = inflateInit2(&strm, -15);         /* raw inflate */
-    if (ret != Z_OK)
-        return ret;
-
-    if (bits) {
-        int ret = data[0];
-        inflatePrime(&strm, bits, ret >> (8 - bits));
-        data++;
-    }
-    (void)inflateSetDictionary(&strm, index->list[first_checkpoint].window, WINSIZE);
-    offset -= decode_offset(index->list[first_checkpoint].out);
-    strm.avail_in = 0;
-    skip = 1;                               /* while skipping to offset */
-    int remaining = datalen;
-    do {
-        /* define where to put uncompressed data, and how much */
-        if (offset == 0 && skip) {          /* at offset now */
-            strm.avail_out = len;
-            strm.next_out = buf;
-            skip = 0;                       /* only do this once */
-        }
-        if (offset > WINSIZE) {             /* skip WINSIZE bytes */
-            strm.avail_out = WINSIZE;
-            strm.next_out = discard;
-            offset -= WINSIZE;
-        }
-        else if (offset != 0) {             /* last skip */
-            strm.avail_out = (unsigned)offset;
-            strm.next_out = discard;
-            offset = 0;
-        }
-        /* uncompress until avail_out filled, or end of stream */
-        do {
-            if (strm.avail_in == 0) {
-                int read = min(remaining, CHUNK);
-                remaining -= read;
-                memcpy(input, data, read);
-                data += read;
-                strm.avail_in = read;
-                strm.next_in = input;
-            }
-            ret = inflate(&strm, Z_NO_FLUSH);       /* normal inflate */
-            if (ret == Z_NEED_DICT)
-                ret = Z_DATA_ERROR;
-            if (ret == Z_MEM_ERROR || ret == Z_DATA_ERROR)
-                goto extract_ret;
-            if (ret == Z_STREAM_END)
-                break;
-        } while (strm.avail_out != 0);
-
-        /* if reach end of stream, then don't keep trying to get more */
-        if (ret == Z_STREAM_END)
-            break;
-
-        /* do until offset reached and requested data read, or stream ends */
-    } while (skip);
-
-    /* compute number of uncompressed bytes read after offset */
-    ret = skip ? 0 : len - strm.avail_out;
-
-    /* clean up and return bytes read or error */
-  extract_ret:
-    (void)inflateEnd(&strm);
+int generate_zinfo_from_file(const char *filepath, offset_t span, struct gzip_zinfo **index) {
+    FILE *fp = fopen(filepath, "rb");
+    if (fp == NULL)
+        return GZIP_ZINFO_FILE_NOT_FOUND;
+    int ret = generate_zinfo_from_fp(fp, span, index);
+    fclose(fp);
     return ret;
 }
 
-
-int extract_data_fp(FILE *in, struct gzip_zinfo *index, offset_t offset, void *buffer, int len)
-{
+int extract_data_from_fp(FILE *in, struct gzip_zinfo *index, offset_t offset, void *buffer, int len) {
     int ret, skip;
     z_stream strm;
     struct gzip_checkpoint *here;
-    unsigned char input[CHUNK];
-    unsigned char discard[WINSIZE];
+    unsigned char input[CHUNK], discard[WINSIZE];
     uchar* buf = buffer; 
 
     /* proceed only if something reasonable to do */
@@ -361,15 +323,11 @@ int extract_data_fp(FILE *in, struct gzip_zinfo *index, offset_t offset, void *b
     while (--ret && decode_offset(here[1].out) <= offset)
         here++;
 
-    /* initialize file and inflate state to start there */
-    strm.zalloc = Z_NULL;
-    strm.zfree = Z_NULL;
-    strm.opaque = Z_NULL;
-    strm.avail_in = 0;
-    strm.next_in = Z_NULL;
-    ret = inflateInit2(&strm, -15);         /* raw inflate */
+    /* initialize inflate */
+    ret = init_flate(&strm, -15); /* raw inflate */
     if (ret != Z_OK)
         return ret;
+
     ret = fseeko(in, decode_offset(here->in) - (here->bits ? 1 : 0), SEEK_SET);
     if (ret == -1)
         goto extract_ret;
@@ -397,8 +355,7 @@ int extract_data_fp(FILE *in, struct gzip_zinfo *index, offset_t offset, void *b
             strm.avail_out = WINSIZE;
             strm.next_out = discard;
             offset -= WINSIZE;
-        }
-        else if (offset != 0) {             /* last skip */
+        } else if (offset != 0) {             /* last skip */
             strm.avail_out = (unsigned)offset;
             strm.next_out = discard;
             offset = 0;
@@ -428,9 +385,7 @@ int extract_data_fp(FILE *in, struct gzip_zinfo *index, offset_t offset, void *b
 
         /* if reach end of stream, then don't keep trying to get more */
         if (ret == Z_STREAM_END)
-        {
             break;
-        }
         /* do until offset reached and requested data read, or stream ends */
     } while (skip);
 
@@ -443,94 +398,110 @@ int extract_data_fp(FILE *in, struct gzip_zinfo *index, offset_t offset, void *b
     return ret;
 }
 
-int extract_data(const char* file, struct gzip_zinfo* index, offset_t offset, void* buf, int len)
-{
+int extract_data_from_file(const char* file, struct gzip_zinfo* index, offset_t offset, void* buf, int len) {
     FILE* fp = fopen(file, "rb");
     if (fp == NULL) 
-    {
         return GZIP_ZINFO_FILE_NOT_FOUND;
-    }
 
-    int ret = extract_data_fp(fp, index, offset, buf, len);
+    int ret = extract_data_from_fp(fp, index, offset, buf, len);
     fclose(fp);
     return ret;
 }
 
-int generate_index(const char* filepath, offset_t span, struct gzip_zinfo** index)
-{
-    FILE* fp = fopen(filepath, "rb");
-    if (fp == NULL)
-    {
-        return GZIP_ZINFO_FILE_NOT_FOUND;
+// This is the same as extract_data_fp, but instead of a file, it decompresses
+// data from a buffer which contains the exact data to decompress
+int extract_data_from_buffer(void *d, offset_t datalen,
+                             struct gzip_zinfo *index, offset_t offset,
+                             void *buffer, offset_t len, int first_checkpoint) {
+    int ret, skip;
+    z_stream strm;
+    unsigned char input[CHUNK], discard[WINSIZE];
+    uchar *buf = buffer;
+    uchar *data = d;
+    /* proceed only if something reasonable to do */
+    if (len < 0)
+        return 0;
+
+    uint8_t bits = get_bits(index, first_checkpoint);
+
+    /* initialize inflate */
+    ret = init_flate(&strm, -15); /* raw inflate */
+    if (ret != Z_OK)
+        return ret;
+
+    if (bits) {
+        int ret = data[0];
+        inflatePrime(&strm, bits, ret >> (8 - bits));
+        data++;
     }
-    int ret = generate_zinfo(fp, span, index);
-    fclose(fp);
+    (void)inflateSetDictionary(&strm, index->list[first_checkpoint].window,
+                               WINSIZE);
+    offset -= decode_offset(index->list[first_checkpoint].out);
+    strm.avail_in = 0;
+    skip = 1; /* while skipping to offset */
+    int remaining = datalen;
+    do {
+        /* define where to put uncompressed data, and how much */
+        if (offset == 0 && skip) { /* at offset now */
+            strm.avail_out = len;
+            strm.next_out = buf;
+            skip = 0; /* only do this once */
+        }
+        if (offset > WINSIZE) { /* skip WINSIZE bytes */
+            strm.avail_out = WINSIZE;
+            strm.next_out = discard;
+            offset -= WINSIZE;
+        } else if (offset != 0) { /* last skip */
+            strm.avail_out = (unsigned)offset;
+            strm.next_out = discard;
+            offset = 0;
+        }
+        /* uncompress until avail_out filled, or end of stream */
+        do {
+            if (strm.avail_in == 0) {
+                int read = min(remaining, CHUNK);
+                remaining -= read;
+                memcpy(input, data, read);
+                data += read;
+                strm.avail_in = read;
+                strm.next_in = input;
+            }
+            ret = inflate(&strm, Z_NO_FLUSH); /* normal inflate */
+            if (ret == Z_NEED_DICT)
+                ret = Z_DATA_ERROR;
+            if (ret == Z_MEM_ERROR || ret == Z_DATA_ERROR)
+                goto extract_ret;
+            if (ret == Z_STREAM_END)
+                break;
+        } while (strm.avail_out != 0);
+
+        /* if reach end of stream, then don't keep trying to get more */
+        if (ret == Z_STREAM_END)
+            break;
+
+        /* do until offset reached and requested data read, or stream ends */
+    } while (skip);
+
+    /* compute number of uncompressed bytes read after offset */
+    ret = skip ? 0 : len - strm.avail_out;
+
+    /* clean up and return bytes read or error */
+extract_ret:
+    (void)inflateEnd(&strm);
     return ret;
 }
 
-int pt_index_from_ucmp_offset(struct gzip_zinfo* index, offset_t off)
-{
+// zinfo - generation/extraction ends.
+
+// zinfo -  zinfo <-> blob conversion starts.
+int zinfo_to_blob(struct gzip_zinfo* index, void* buf) {
     if (index == NULL)
-    {
-        return -1;
-    }
-
-    int res = 0;
-    struct gzip_checkpoint* here = index->list;
-    int ret = decode_int32(index->have);
-    while (--ret && decode_offset(here[1].out) <= off)
-    {
-        here++;
-        res++;
-    }
-    return res;
-}
-
-
-unsigned get_blob_size(struct gzip_zinfo* index)
-{
-    if (index == NULL)
-    {
-        return 0;
-    }
-
-    unsigned size = decode_int32(index->size);
-    if (decode_int32(index->version) == ZINFO_VERSION_ONE) {
-        size--;
-    }
-
-    /*
-        The buffer will be tightly packed. The layout of the buffer is: 
-        -   Some fixed size based on which version
-        -   PACKED_CHECKPOINT_SIZE for each span.
-            If we have a v1 gzip_zinfo, we skip the first checkpoint
-            this is a bug, but it keeps backwards compatibility
-    */
-    return PACKED_CHECKPOINT_SIZE * size + BLOB_HEADER_SIZE;
-}
-
-int32_t get_max_span_id(struct gzip_zinfo* index)
-{
-    if (index == NULL)
-    {
-        return 0;
-    }
-    return decode_int32(index->have) - 1;
-}
-
-int index_to_blob(struct gzip_zinfo* index, void* buf)
-{
-    if (index == NULL)
-    {
         return GZIP_ZINFO_INDEX_NULL;
-    }
 
     // TODO: Since this will be serialized to file, we need to be mindful of endianness. Right now, we are just ignoring it
     // Or maybe not, since Golang might take care of it 
     if (buf == NULL)
-    {
        return 0;
-    }
 
     uchar* cur = buf;
     int32_t first_checkpoint_index;
@@ -544,12 +515,9 @@ int index_to_blob(struct gzip_zinfo* index, void* buf)
     // for backwards compatibility we want to reserialize v1 zinfo to exactly the same bytes
     // even though there is technically a bug.
     if (decode_int32(index->version) == ZINFO_VERSION_ONE)
-    {
         first_checkpoint_index = 1;
-    }
 
-    for(int i = first_checkpoint_index; i < decode_int32(index->have); i++)
-    {
+    for(int i = first_checkpoint_index; i < decode_int32(index->have); i++) {
         struct gzip_checkpoint* pt = &index->list[i];
         memcpy(cur, &pt->in, 8);
         cur += 8;
@@ -564,28 +532,19 @@ int index_to_blob(struct gzip_zinfo* index, void* buf)
     return get_blob_size(index);
 }
 
-struct gzip_zinfo* blob_to_zinfo(void* buf, offset_t len)
-{
+struct gzip_zinfo* blob_to_zinfo(void* buf, offset_t len) {
     if (buf == NULL)
-    {
         return NULL;
-    }
 
-    if (len < BLOB_HEADER_SIZE) {
+    if (len < BLOB_HEADER_SIZE)
         return NULL;
-    }
 
     struct gzip_zinfo* index = malloc(sizeof(struct gzip_zinfo));
     if (index == NULL)
-    {
         return NULL;
-    }
 
-    int32_t size;
-    int32_t first_checkpoint_index;
-    int32_t version;
-    offset_t claimed_size;
-    offset_t span_size;
+    int32_t size, first_checkpoint_index, version;
+    offset_t claimed_size, span_size;
 
     uchar* cur = buf;
     memcpy(&size, cur, 4);
@@ -606,8 +565,7 @@ struct gzip_zinfo* blob_to_zinfo(void* buf, offset_t len)
     }
 
     index->list = malloc(sizeof(struct gzip_checkpoint) * decode_int32(size));
-    if (index->list == NULL)
-    {
+    if (index->list == NULL) {
         free_zinfo(index);
         return NULL;
     }
@@ -624,8 +582,7 @@ struct gzip_zinfo* blob_to_zinfo(void* buf, offset_t len)
         memset(pt0->window, 0, WINSIZE);
     }
 
-    for(int32_t i = first_checkpoint_index; i < decode_int32(size); i++)
-    {
+    for(int32_t i = first_checkpoint_index; i < decode_int32(size); i++) {
         struct gzip_checkpoint* pt = &index->list[i];
         memcpy(&pt->in, cur, 8);
         cur += 8;
@@ -643,3 +600,5 @@ struct gzip_zinfo* blob_to_zinfo(void* buf, offset_t len)
 
     return index;
 }
+
+// zinfo -  zinfo <-> blob conversion ends.

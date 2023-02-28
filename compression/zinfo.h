@@ -76,24 +76,21 @@ typedef int64_t offset_t;
 #define BLOB_HEADER_SIZE (4 + 8)
 
 
-enum 
-{
+enum {
     GZIP_ZINFO_OK = 0,
     GZIP_ZINFO_FILE_NOT_FOUND = -80,
     GZIP_ZINFO_INDEX_NULL = -81,
     GZIP_ZINFO_CANNOT_ALLOC = -82,
 };
 
-struct gzip_checkpoint
-{
+struct gzip_checkpoint {
     offset_t out;          /* corresponding offset in uncompressed data */
     offset_t in;           /* offset in input file of first full byte */
     uint8_t bits;           /* number of bits (1-7) from byte at in - 1, or 0 */
     unsigned char window[WINSIZE];  /* preceding 32K of uncompressed data */    
 };
 
-struct gzip_zinfo 
-{
+struct gzip_zinfo {
     int32_t version;
     int32_t have;           /* number of list entries filled in */
     int32_t size;           /* number of list entries allocated */
@@ -101,49 +98,30 @@ struct gzip_zinfo
     offset_t span_size;
 };
 
+// zinfo - metadata starts.
+// Get index number of gzip zinfo within which the uncompressed offset is present
+int         pt_index_from_ucmp_offset(struct gzip_zinfo *index, offset_t off);
+offset_t    get_ucomp_off(struct gzip_zinfo *index, int checkpoint);
+offset_t    get_comp_off(struct gzip_zinfo *index, int checkpoint);
+unsigned    get_blob_size(struct gzip_zinfo *index);
+int32_t     get_max_span_id(struct gzip_zinfo *index);
+int         has_bits(struct gzip_zinfo *index, int checkpoint);
+// zinfo - metadata ends.
 
-/* Get the index number of the point in the gzip index where
-   the uncompressed offset is present 
-*/
-int pt_index_from_ucmp_offset(struct gzip_zinfo* index, offset_t off);
-
-int generate_zinfo(FILE* fp, offset_t span, struct gzip_zinfo** index);
-int generate_index(const char* filepath, offset_t span, struct gzip_zinfo** index);
-
-// TODO: Improve this
+// zinfo - generation/extraction starts.
+int generate_zinfo_from_file(const char* filepath, offset_t span, struct gzip_zinfo** index);
+int extract_data_from_file(const char* file, struct gzip_zinfo* index, offset_t offset, void* buf, int len);
 int extract_data_from_buffer(void* d, offset_t datalen, struct gzip_zinfo* index, offset_t offset, void* buffer, offset_t len, int first_checkpoint);
-int extract_data_fp(FILE *in, struct gzip_zinfo *index, offset_t offset, void *buf, int len);
-int extract_data(const char* file, struct gzip_zinfo* index, offset_t offset, void* buf, int len);
+// zinfo - generation/extraction ends.
 
-
-int has_bits(struct gzip_zinfo* index, int checkpoint);
-offset_t get_ucomp_off(struct gzip_zinfo* index, int checkpoint);
-offset_t get_comp_off(struct gzip_zinfo* index, int checkpoint);
-
-/* Subroutines to convert index to/from a binary blob */
-
-/* Get size of blob given an index */
-unsigned get_blob_size(struct gzip_zinfo* index);
-
-int32_t get_max_span_id(struct gzip_zinfo* index);
-
-/* Converts index to blob
+// zinfo -  zinfo <-> blob conversion starts.
+/* Converts zinfo to blob
    Returns the size of the buffer on success
    This function assumes that the buffer is large enough already
-   to hold the entire index
-*/ 
-int index_to_blob(struct gzip_zinfo* index, void* buf);
-struct gzip_zinfo* blob_to_zinfo(void* buf, offset_t len);
-
-void free_zinfo(struct gzip_zinfo *index);
-
-/* Convert integer types to little endian and vice versa.
-   This is needed to keep index consistent across multiple architectures, ensuring that
-   all integer fields will be stored in little endian.
+   to hold the entire zinfo
 */
-offset_t store_offset(offset_t source);
-offset_t decode_offset(offset_t source);
-int32_t encode_int32(int32_t source);
-int32_t decode_int32(int32_t source);
+int     zinfo_to_blob(struct gzip_zinfo* index, void* buf);
+struct  gzip_zinfo* blob_to_zinfo(void* buf, offset_t len);
+// zinfo -  zinfo <-> blob conversion ends.
 
 #endif // ZINFO_H

@@ -18,6 +18,8 @@ package ztoc
 
 import (
 	"fmt"
+
+	"github.com/awslabs/soci-snapshotter/compression"
 )
 
 // Builder holds a single `TocBuilder` that builds toc, and one `ZinfoBuilder`
@@ -39,7 +41,7 @@ func NewBuilder(buildToolIdentifier string) *Builder {
 		zinfoBuilders:       make(map[string]ZinfoBuilder),
 		buildToolIdentifier: buildToolIdentifier,
 	}
-	builder.RegisterCompressionAlgorithm(CompressionGzip, TarProviderGzip, gzipZinfoBuilder{})
+	builder.RegisterCompressionAlgorithm(compression.CompressionGzip, TarProviderGzip, gzipZinfoBuilder{})
 
 	return &builder
 }
@@ -63,7 +65,7 @@ func WithCompression(algorithm string) BuildOption {
 // defaultBuildConfig creates a `buildConfig` with default values.
 func defaultBuildConfig() buildConfig {
 	return buildConfig{
-		algorithm: CompressionGzip, // use gzip by default
+		algorithm: compression.CompressionGzip, // use gzip by default
 	}
 }
 

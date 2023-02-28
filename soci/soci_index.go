@@ -26,6 +26,7 @@ import (
 	"os"
 	"time"
 
+	"github.com/awslabs/soci-snapshotter/compression"
 	"github.com/awslabs/soci-snapshotter/ztoc"
 	"github.com/containerd/containerd/content"
 	"github.com/containerd/containerd/images"
@@ -377,13 +378,13 @@ func (b *IndexBuilder) buildSociLayer(ctx context.Context, desc ocispec.Descript
 		return nil, nil
 	}
 
-	compression, err := images.DiffCompression(ctx, desc.MediaType)
+	compressionAlgo, err := images.DiffCompression(ctx, desc.MediaType)
 	if err != nil {
 		return nil, fmt.Errorf("could not determine layer compression: %w", err)
 	}
-	if compression != ztoc.CompressionGzip {
+	if compressionAlgo != compression.CompressionGzip {
 		return nil, fmt.Errorf("layer %s (%s) must be compressed by gzip, but got %q: %w",
-			desc.Digest, desc.MediaType, compression, errUnsupportedLayerFormat)
+			desc.Digest, desc.MediaType, compressionAlgo, errUnsupportedLayerFormat)
 	}
 
 	ra, err := b.contentStore.ReaderAt(ctx, desc)
@@ -406,7 +407,7 @@ func (b *IndexBuilder) buildSociLayer(ctx context.Context, desc ocispec.Descript
 		return nil, errors.New("the size of the temp file doesn't match that of the layer")
 	}
 
-	toc, err := b.ztocBuilder.BuildZtoc(tmpFile.Name(), b.config.spanSize, ztoc.WithCompression(compression))
+	toc, err := b.ztocBuilder.BuildZtoc(tmpFile.Name(), b.config.spanSize, ztoc.WithCompression(compressionAlgo))
 	if err != nil {
 		return nil, err
 	}

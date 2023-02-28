@@ -23,8 +23,6 @@ import (
 	"fmt"
 	"io"
 	"runtime"
-	"sync"
-	"sync/atomic"
 
 	"github.com/awslabs/soci-snapshotter/cache"
 	"github.com/awslabs/soci-snapshotter/compression"
@@ -33,93 +31,18 @@ import (
 	"golang.org/x/sync/errgroup"
 )
 
-type spanState int
-
-const (
-	// A span is in Unrequested state when it's not requested from remote.
-	unrequested spanState = iota
-	// A span is in Requested state when it's requested from remote but its content hasn't been returned.
-	requested
-	// A span is in Fetched state when its content is fetched from remote and compressed data is cached.
-	fetched
-	// A span is in Uncompressed state when it's uncompressed and its uncompressed content is cached.
-	uncompressed
-)
-
-const (
-	// Default number of tries fetching data from remote and verifying the digest.
-	defaultSpanVerificationFailureRetries = 3
-)
-
-// map of valid span transtions: current state -> valid new states.
-// stateTransitionMap is kept minimum so we won't change state by accident.
-// We should keep it documented when each transition will happen.
-var stateTransitionMap = map[spanState][]spanState{
-	unrequested: {
-		// when span starts being fetched; it makes other goroutines aware of this
-		requested,
-	},
-	requested: {
-		// when a span fetch fails; change back to unrequested so other goroutines can request again
-		unrequested,
-		// when bg-fetcher fetches and caches compressed span
-		fetched,
-		// when span data request comes; span is fetched, uncompressed and cached
-		uncompressed,
-	},
-	fetched: {
-		// when span data request comes and span is fetched by bg-fetcher; compressed span is available in cache
-		uncompressed,
-	},
-}
-
 // Specific error types raised by SpanManager.
 var (
-	ErrSpanNotAvailable           = errors.New("span not available in cache")
-	ErrIncorrectSpanDigest        = errors.New("span digests do not match")
-	ErrExceedMaxSpan              = errors.New("span id larger than max span id")
-	errInvalidSpanStateTransition = errors.New("invalid span state transition")
+	ErrSpanNotAvailable    = errors.New("span not available in cache")
+	ErrIncorrectSpanDigest = errors.New("span digests do not match")
+	ErrExceedMaxSpan       = errors.New("span id larger than max span id")
 )
-
-type span struct {
-	id                compression.SpanID
-	startCompOffset   compression.Offset
-	endCompOffset     compression.Offset
-	startUncompOffset compression.Offset
-	endUncompOffset   compression.Offset
-	state             atomic.Value
-	mu                sync.Mutex
-}
-
-func (s *span) checkState(expected spanState) bool {
-	state := s.state.Load().(spanState)
-	return state == expected
-}
-
-func (s *span) setState(state spanState) error {
-	err := s.validateStateTransition(state)
-	if err != nil {
-		return err
-	}
-	s.state.Store(state)
-	return nil
-}
-
-func (s *span) validateStateTransition(newState spanState) error {
-	state := s.state.Load().(spanState)
-	for _, s := range stateTransitionMap[state] {
-		if newState == s {
-			return nil
-		}
-	}
-	return fmt.Errorf("%w: %v -> %v", errInvalidSpanStateTransition, state, newState)
-}
 
 // SpanManager fetches and caches spans of a given layer.
 type SpanManager struct {
 	cache                             cache.BlobCache
 	cacheOpt                          []cache.Option
-	index                             *compression.GzipZinfo
+	extractor                         compression.Extractor
 	r                                 *io.SectionReader // reader for contents of the spans managed by SpanManager
 	spans                             []*span
 	ztoc                              *ztoc.Ztoc
@@ -142,7 +65,7 @@ type spanInfo struct {
 // New creates a SpanManager with given ztoc and content reader, and builds all
 // spans based on the ztoc.
 func New(ztoc *ztoc.Ztoc, r *io.SectionReader, cache cache.BlobCache, retries int, cacheOpt ...cache.Option) *SpanManager {
-	index, err := compression.NewGzipZinfo(ztoc.CompressionInfo.Checkpoints)
+	index, err := compression.NewExtractor(compression.CompressionGzip, ztoc.CompressionInfo.Checkpoints)
 	if err != nil {
 		return nil
 	}
@@ -150,7 +73,7 @@ func New(ztoc *ztoc.Ztoc, r *io.SectionReader, cache cache.BlobCache, retries in
 	m := &SpanManager{
 		cache:                             cache,
 		cacheOpt:                          cacheOpt,
-		index:                             index,
+		extractor:                         index,
 		r:                                 r,
 		spans:                             spans,
 		ztoc:                              ztoc,
@@ -168,28 +91,16 @@ func New(ztoc *ztoc.Ztoc, r *io.SectionReader, cache cache.BlobCache, retries in
 }
 
 func (m *SpanManager) buildAllSpans() {
-	m.spans[0] = &span{
-		id:                0,
-		startCompOffset:   m.index.SpanIDToCompressedOffset(compression.SpanID(0)),
-		endCompOffset:     m.getEndCompressedOffset(0),
-		startUncompOffset: m.index.SpanIDToUncompressedOffset(compression.SpanID(0)),
-		endUncompOffset:   m.getEndUncompressedOffset(0),
-	}
-	m.spans[0].state.Store(unrequested)
 	var i compression.SpanID
-	for i = 1; i <= m.ztoc.CompressionInfo.MaxSpanID; i++ {
-		startCompOffset := m.spans[i-1].endCompOffset
-		hasBits := m.index.HasBits(i)
-		if hasBits {
-			startCompOffset--
-		}
+	for i = 0; i <= m.ztoc.CompressionInfo.MaxSpanID; i++ {
 		s := span{
 			id:                i,
-			startCompOffset:   startCompOffset,
-			endCompOffset:     m.getEndCompressedOffset(i),
-			startUncompOffset: m.spans[i-1].endUncompOffset,
-			endUncompOffset:   m.getEndUncompressedOffset(i),
+			startCompOffset:   m.extractor.SpanIDToStartCompressedOffset(i),
+			endCompOffset:     m.extractor.SpanIDToEndCompressedOffset(i, m.ztoc.CompressedArchiveSize),
+			startUncompOffset: m.extractor.SpanIDToStartUncompressedOffset(i),
+			endUncompOffset:   m.extractor.SpanIDToEndUncompressedOffset(i, m.ztoc.UncompressedArchiveSize),
 		}
+
 		m.spans[i] = &s
 		m.spans[i].state.Store(unrequested)
 	}
@@ -262,8 +173,8 @@ func (m *SpanManager) GetContents(startUncompOffset, endUncompOffset compression
 
 // getSpanInfo returns spanInfo from the offsets of the requested file
 func (m *SpanManager) getSpanInfo(offsetStart, offsetEnd compression.Offset) *spanInfo {
-	spanStart := m.index.UncompressedOffsetToSpanID(offsetStart)
-	spanEnd := m.index.UncompressedOffsetToSpanID(offsetEnd)
+	spanStart := m.extractor.UncompressedOffsetToSpanID(offsetStart)
+	spanEnd := m.extractor.UncompressedOffsetToSpanID(offsetEnd)
 	numSpans := spanEnd - spanStart + 1
 	start := make([]compression.Offset, numSpans)
 	end := make([]compression.Offset, numSpans)
@@ -453,7 +364,7 @@ func (m *SpanManager) uncompressSpan(s *span, compressedBuf []byte) ([]byte, err
 		return []byte{}, nil
 	}
 
-	bytes, err := m.index.ExtractDataFromBuffer(compressedBuf, uncompSize, s.startUncompOffset, s.id)
+	bytes, err := m.extractor.ExtractDataFromBuffer(compressedBuf, uncompSize, s.startUncompOffset, s.id)
 	if err != nil {
 		return nil, err
 	}
@@ -504,28 +415,8 @@ func (m *SpanManager) verifySpanContents(compressedData []byte, spanID compressi
 	return nil
 }
 
-func (m *SpanManager) getEndCompressedOffset(spanID compression.SpanID) compression.Offset {
-	var end compression.Offset
-	if spanID == m.ztoc.CompressionInfo.MaxSpanID {
-		end = m.ztoc.CompressedArchiveSize
-	} else {
-		end = m.index.SpanIDToCompressedOffset(spanID + 1)
-	}
-	return end
-}
-
-func (m *SpanManager) getEndUncompressedOffset(spanID compression.SpanID) compression.Offset {
-	var end compression.Offset
-	if spanID == m.ztoc.CompressionInfo.MaxSpanID {
-		end = m.ztoc.UncompressedArchiveSize
-	} else {
-		end = m.index.SpanIDToUncompressedOffset(spanID + 1)
-	}
-	return end
-}
-
 // Close closes both the underlying zinfo data and blob cache.
 func (m *SpanManager) Close() {
-	m.index.Close()
+	m.extractor.Close()
 	m.cache.Close()
 }
