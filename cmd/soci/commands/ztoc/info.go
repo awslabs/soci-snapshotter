@@ -86,7 +86,7 @@ var infoCommand = cli.Command{
 		if err != nil {
 			return err
 		}
-		gzInfo, err := compression.NewGzipZinfo(ztoc.CompressionInfo.Checkpoints)
+		gzInfo, err := compression.NewZinfo(compression.Gzip, ztoc.CompressionInfo.Checkpoints)
 		if err != nil {
 			return err
 		}

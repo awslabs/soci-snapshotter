@@ -71,7 +71,7 @@ func TestNewGzipZinfo(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			_, err := NewGzipZinfo(tc.zinfoBytes)
+			_, err := newGzipZinfo(tc.zinfoBytes)
 			if tc.expectError != (err != nil) {
 				t.Fatalf("expect error: %t, actual error: %v", tc.expectError, err)
 			}

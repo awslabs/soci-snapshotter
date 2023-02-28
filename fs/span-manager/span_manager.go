@@ -42,7 +42,7 @@ var (
 type SpanManager struct {
 	cache                             cache.BlobCache
 	cacheOpt                          []cache.Option
-	extractor                         compression.Extractor
+	zinfo                             compression.Zinfo
 	r                                 *io.SectionReader // reader for contents of the spans managed by SpanManager
 	spans                             []*span
 	ztoc                              *ztoc.Ztoc
@@ -65,7 +65,7 @@ type spanInfo struct {
 // New creates a SpanManager with given ztoc and content reader, and builds all
 // spans based on the ztoc.
 func New(ztoc *ztoc.Ztoc, r *io.SectionReader, cache cache.BlobCache, retries int, cacheOpt ...cache.Option) *SpanManager {
-	index, err := compression.NewExtractor(compression.CompressionGzip, ztoc.CompressionInfo.Checkpoints)
+	index, err := compression.NewZinfo(compression.Gzip, ztoc.CompressionInfo.Checkpoints)
 	if err != nil {
 		return nil
 	}
@@ -73,7 +73,7 @@ func New(ztoc *ztoc.Ztoc, r *io.SectionReader, cache cache.BlobCache, retries in
 	m := &SpanManager{
 		cache:                             cache,
 		cacheOpt:                          cacheOpt,
-		extractor:                         index,
+		zinfo:                             index,
 		r:                                 r,
 		spans:                             spans,
 		ztoc:                              ztoc,
@@ -95,10 +95,10 @@ func (m *SpanManager) buildAllSpans() {
 	for i = 0; i <= m.ztoc.CompressionInfo.MaxSpanID; i++ {
 		s := span{
 			id:                i,
-			startCompOffset:   m.extractor.SpanIDToStartCompressedOffset(i),
-			endCompOffset:     m.extractor.SpanIDToEndCompressedOffset(i, m.ztoc.CompressedArchiveSize),
-			startUncompOffset: m.extractor.SpanIDToStartUncompressedOffset(i),
-			endUncompOffset:   m.extractor.SpanIDToEndUncompressedOffset(i, m.ztoc.UncompressedArchiveSize),
+			startCompOffset:   m.zinfo.StartCompressedOffset(i),
+			endCompOffset:     m.zinfo.EndCompressedOffset(i, m.ztoc.CompressedArchiveSize),
+			startUncompOffset: m.zinfo.StartUncompressedOffset(i),
+			endUncompOffset:   m.zinfo.EndUncompressedOffset(i, m.ztoc.UncompressedArchiveSize),
 		}
 
 		m.spans[i] = &s
@@ -173,8 +173,8 @@ func (m *SpanManager) GetContents(startUncompOffset, endUncompOffset compression
 
 // getSpanInfo returns spanInfo from the offsets of the requested file
 func (m *SpanManager) getSpanInfo(offsetStart, offsetEnd compression.Offset) *spanInfo {
-	spanStart := m.extractor.UncompressedOffsetToSpanID(offsetStart)
-	spanEnd := m.extractor.UncompressedOffsetToSpanID(offsetEnd)
+	spanStart := m.zinfo.UncompressedOffsetToSpanID(offsetStart)
+	spanEnd := m.zinfo.UncompressedOffsetToSpanID(offsetEnd)
 	numSpans := spanEnd - spanStart + 1
 	start := make([]compression.Offset, numSpans)
 	end := make([]compression.Offset, numSpans)
@@ -364,7 +364,7 @@ func (m *SpanManager) uncompressSpan(s *span, compressedBuf []byte) ([]byte, err
 		return []byte{}, nil
 	}
 
-	bytes, err := m.extractor.ExtractDataFromBuffer(compressedBuf, uncompSize, s.startUncompOffset, s.id)
+	bytes, err := m.zinfo.ExtractDataFromBuffer(compressedBuf, uncompSize, s.startUncompOffset, s.id)
 	if err != nil {
 		return nil, err
 	}
@@ -417,6 +417,6 @@ func (m *SpanManager) verifySpanContents(compressedData []byte, spanID compressi
 
 // Close closes both the underlying zinfo data and blob cache.
 func (m *SpanManager) Close() {
-	m.extractor.Close()
+	m.zinfo.Close()
 	m.cache.Close()
 }

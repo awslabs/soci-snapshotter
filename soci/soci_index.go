@@ -393,7 +393,7 @@ func (b *IndexBuilder) buildSociLayer(ctx context.Context, desc ocispec.Descript
 	if err != nil {
 		return nil, fmt.Errorf("could not determine layer compression: %w", err)
 	}
-	if compressionAlgo != compression.CompressionGzip {
+	if compressionAlgo != compression.Gzip {
 		return nil, fmt.Errorf("layer %s (%s) must be compressed by gzip, but got %q: %w",
 			desc.Digest, desc.MediaType, compressionAlgo, errUnsupportedLayerFormat)
 	}

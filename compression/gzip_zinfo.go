@@ -18,7 +18,7 @@ package compression
 
 // #cgo CFLAGS: -I${SRCDIR}/
 // #cgo LDFLAGS: -L${SRCDIR}/../out -lz
-// #include "zinfo.h"
+// #include "gzip_zinfo.h"
 // #include <stdlib.h>
 // #include <stdint.h>
 import "C"
@@ -33,8 +33,8 @@ type GzipZinfo struct {
 	cZinfo *C.struct_gzip_zinfo
 }
 
-// NewGzipZinfo creates a new instance of `GzipZinfo` from cZinfo byte blob on zTOC.
-func NewGzipZinfo(zinfoBytes []byte) (*GzipZinfo, error) {
+// newGzipZinfo creates a new instance of `GzipZinfo` from cZinfo byte blob on zTOC.
+func newGzipZinfo(zinfoBytes []byte) (*GzipZinfo, error) {
 	if len(zinfoBytes) == 0 {
 		return nil, fmt.Errorf("empty checkpoints")
 	}
@@ -47,8 +47,8 @@ func NewGzipZinfo(zinfoBytes []byte) (*GzipZinfo, error) {
 	}, nil
 }
 
-// NewGzipZinfoFromFile creates a new instance of `GzipZinfo` given gzip file name and span size.
-func NewGzipZinfoFromFile(gzipFile string, spanSize int64) (*GzipZinfo, error) {
+// newGzipZinfoFromFile creates a new instance of `GzipZinfo` given gzip file name and span size.
+func newGzipZinfoFromFile(gzipFile string, spanSize int64) (*GzipZinfo, error) {
 	cstr := C.CString(gzipFile)
 	defer C.free(unsafe.Pointer(cstr))
 
@@ -149,40 +149,40 @@ func (i *GzipZinfo) ExtractDataFromFile(fileName string, uncompressedSize, uncom
 	return bytes, nil
 }
 
-// SpanIDToStartCompressedOffset returns the start offset of the span in the compressed stream.
-func (i *GzipZinfo) SpanIDToStartCompressedOffset(spanID SpanID) Offset {
-	start := i.spanIDToCompressedOffset(spanID)
+// StartCompressedOffset returns the start offset of the span in the compressed stream.
+func (i *GzipZinfo) StartCompressedOffset(spanID SpanID) Offset {
+	start := i.getCompressedOffset(spanID)
 	if i.hasBits(spanID) {
 		start--
 	}
 	return start
 }
 
-// SpanIDToEndCompressedOffset returns the end offset of the span in the compressed stream. If
+// EndCompressedOffset returns the end offset of the span in the compressed stream. If
 // it's the last span, returns the size of the compressed stream.
-func (i *GzipZinfo) SpanIDToEndCompressedOffset(spanID SpanID, fileSize Offset) Offset {
+func (i *GzipZinfo) EndCompressedOffset(spanID SpanID, fileSize Offset) Offset {
 	if spanID == i.MaxSpanID() {
 		return fileSize
 	}
-	return i.spanIDToCompressedOffset(spanID + 1)
+	return i.getCompressedOffset(spanID + 1)
 }
 
-// SpanIDToStartUncompressedOffset returns the start offset of the span in the uncompressed stream.
-func (i *GzipZinfo) SpanIDToStartUncompressedOffset(spanID SpanID) Offset {
-	return i.spanIDToUncompressedOffset(spanID)
+// StartUncompressedOffset returns the start offset of the span in the uncompressed stream.
+func (i *GzipZinfo) StartUncompressedOffset(spanID SpanID) Offset {
+	return i.getUncompressedOffset(spanID)
 }
 
-// SpanIDToEndUncompressedOffset returns the end offset of the span in the uncompressed stream. If
+// EndUncompressedOffset returns the end offset of the span in the uncompressed stream. If
 // it's the last span, returns the size of the uncompressed stream.
-func (i *GzipZinfo) SpanIDToEndUncompressedOffset(spanID SpanID, fileSize Offset) Offset {
+func (i *GzipZinfo) EndUncompressedOffset(spanID SpanID, fileSize Offset) Offset {
 	if spanID == i.MaxSpanID() {
 		return fileSize
 	}
-	return i.spanIDToUncompressedOffset(spanID + 1)
+	return i.getUncompressedOffset(spanID + 1)
 }
 
-// spanIDToCompressedOffset wraps `C.get_comp_off` and returns the offset for the span in the compressed stream.
-func (i *GzipZinfo) spanIDToCompressedOffset(spanID SpanID) Offset {
+// getCompressedOffset wraps `C.get_comp_off` and returns the offset for the span in the compressed stream.
+func (i *GzipZinfo) getCompressedOffset(spanID SpanID) Offset {
 	return Offset(C.get_comp_off(i.cZinfo, C.int(spanID)))
 }
 
@@ -191,7 +191,7 @@ func (i *GzipZinfo) hasBits(spanID SpanID) bool {
 	return C.has_bits(i.cZinfo, C.int(spanID)) != 0
 }
 
-// spanIDToUncompressedOffset wraps `C.get_uncomp_off` and returns the offset for the span in the uncompressed stream.
-func (i *GzipZinfo) spanIDToUncompressedOffset(spanID SpanID) Offset {
+// getUncompressedOffset wraps `C.get_uncomp_off` and returns the offset for the span in the uncompressed stream.
+func (i *GzipZinfo) getUncompressedOffset(spanID SpanID) Offset {
 	return Offset(C.get_ucomp_off(i.cZinfo, C.int(spanID)))
 }

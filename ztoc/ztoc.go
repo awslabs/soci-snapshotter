@@ -99,7 +99,7 @@ func ExtractFile(r *io.SectionReader, config *FileExtractConfig) ([]byte, error)
 		return []byte{}, nil
 	}
 
-	gzipZinfo, err := compression.NewExtractor(compression.CompressionGzip, config.Checkpoints)
+	gzipZinfo, err := compression.NewZinfo(compression.Gzip, config.Checkpoints)
 	if err != nil {
 		return nil, nil
 	}
@@ -110,11 +110,11 @@ func ExtractFile(r *io.SectionReader, config *FileExtractConfig) ([]byte, error)
 	numSpans := spanEnd - spanStart + 1
 
 	checkpoints := make([]compression.Offset, numSpans+1)
-	checkpoints[0] = gzipZinfo.SpanIDToStartCompressedOffset(spanStart)
+	checkpoints[0] = gzipZinfo.StartCompressedOffset(spanStart)
 
 	var i compression.SpanID
 	for i = 0; i < numSpans; i++ {
-		checkpoints[i+1] = gzipZinfo.SpanIDToEndCompressedOffset(spanStart+i, config.CompressedArchiveSize)
+		checkpoints[i+1] = gzipZinfo.EndCompressedOffset(spanStart+i, config.CompressedArchiveSize)
 	}
 
 	bufSize := checkpoints[len(checkpoints)-1] - checkpoints[0]
@@ -185,7 +185,7 @@ func ExtractFromTarGz(gz string, ztoc *Ztoc, text string) (string, error) {
 		return "", nil
 	}
 
-	gzipZinfo, err := compression.NewExtractor(compression.CompressionGzip, ztoc.CompressionInfo.Checkpoints)
+	gzipZinfo, err := compression.NewZinfo(compression.Gzip, ztoc.CompressionInfo.Checkpoints)
 	if err != nil {
 		return "", err
 	}

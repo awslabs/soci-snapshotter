@@ -40,7 +40,7 @@
   from the original.
 */
 
-#include "zinfo.h"
+#include "gzip_zinfo.h"
 
 #include <endian.h>
 #include <stdbool.h>
