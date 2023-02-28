@@ -22,6 +22,7 @@ import (
 	"os"
 	"testing"
 
+	"github.com/awslabs/soci-snapshotter/compression"
 	"github.com/awslabs/soci-snapshotter/util/testutil"
 	"github.com/klauspost/compress/zstd"
 )
@@ -55,14 +56,14 @@ func TestTocBuilder(t *testing.T) {
 	}{
 		{
 			name:          "TocBuilder supports gzip",
-			algorithm:     CompressionGzip,
+			algorithm:     compression.CompressionGzip,
 			tarEntries:    tarEntries,
 			makeTarReader: gzipTarReader,
 			expectErr:     false,
 		},
 		{
 			name:          "TocBuilder supports zstd",
-			algorithm:     CompressionZstd,
+			algorithm:     compression.CompressionZstd,
 			tarEntries:    tarEntries,
 			makeTarReader: zstdTarReader,
 			expectErr:     false,
@@ -76,7 +77,7 @@ func TestTocBuilder(t *testing.T) {
 		},
 		{
 			name:          "TocBuilder returns error if given tar file and algorithm mismatch",
-			algorithm:     CompressionZstd,
+			algorithm:     compression.CompressionZstd,
 			tarEntries:    tarEntries,
 			makeTarReader: gzipTarReader,
 			expectErr:     true,
@@ -84,8 +85,8 @@ func TestTocBuilder(t *testing.T) {
 	}
 
 	builder := NewTocBuilder()
-	builder.RegisterTarProvider(CompressionGzip, TarProviderGzip)
-	builder.RegisterTarProvider(CompressionZstd, TarProviderZstd)
+	builder.RegisterTarProvider(compression.CompressionGzip, TarProviderGzip)
+	builder.RegisterTarProvider(compression.CompressionZstd, TarProviderZstd)
 
 	for _, tt := range testCases {
 		tt := tt

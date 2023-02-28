@@ -76,20 +76,8 @@ func getPerSpanDigests(filename string, fileSize int64, index *compression.GzipZ
 	var i compression.SpanID
 	maxSpanID := index.MaxSpanID()
 	for i = 0; i <= maxSpanID; i++ {
-		var (
-			startOffset = index.SpanIDToCompressedOffset(i)
-			endOffset   compression.Offset
-		)
-
-		if index.HasBits(i) {
-			startOffset--
-		}
-
-		if i == maxSpanID {
-			endOffset = compression.Offset(fileSize)
-		} else {
-			endOffset = index.SpanIDToCompressedOffset(i + 1)
-		}
+		startOffset := index.SpanIDToStartCompressedOffset(i)
+		endOffset := index.SpanIDToEndCompressedOffset(i, compression.Offset(fileSize))
 
 		section := io.NewSectionReader(file, int64(startOffset), int64(endOffset-startOffset))
 		dgst, err := digest.FromReader(section)

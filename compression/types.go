@@ -21,3 +21,11 @@ type Offset int64
 
 // SpanID will hold any span related values (SpanID, MaxSpanID, etc)
 type SpanID int32
+
+// Compression algorithms used by an image layer. They should be kept consistent
+// with the return of `DiffCompression` from containerd.
+// https://github.com/containerd/containerd/blob/v1.7.0-beta.3/images/mediatypes.go#L66
+const (
+	CompressionGzip = "gzip"
+	CompressionZstd = "zstd"
+)

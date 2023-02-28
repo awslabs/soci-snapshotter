@@ -131,7 +131,7 @@ func TestExtractDataFromBuffer(t *testing.T) {
 	}
 }
 
-func TestExtractData(t *testing.T) {
+func TestExtractDataFromFile(t *testing.T) {
 	t.Parallel()
 	testCases := []struct {
 		name               string
@@ -159,7 +159,7 @@ func TestExtractData(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			data, err := tc.gzipZinfo.ExtractData(tc.filename, tc.uncompressedSize, tc.uncompressedOffset)
+			data, err := tc.gzipZinfo.ExtractDataFromFile(tc.filename, tc.uncompressedSize, tc.uncompressedOffset)
 			if tc.expectError != (err != nil) {
 				t.Fatalf("expect error: %t, actual error: %v", tc.expectError, err)
 			}

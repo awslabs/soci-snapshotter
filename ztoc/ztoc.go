@@ -28,14 +28,6 @@ import (
 	"github.com/awslabs/soci-snapshotter/compression"
 )
 
-// Compression algorithms used by an image layer. They should be kept consistent
-// with the return of `DiffCompression` from containerd.
-// https://github.com/containerd/containerd/blob/v1.7.0-beta.3/images/mediatypes.go#L66
-const (
-	CompressionGzip = "gzip"
-	CompressionZstd = "zstd"
-)
-
 // Ztoc is a table of contents for compressed data which consists 2 parts:
 //
 // (1). toc (`TOC`): a table of contents containing file metadata and its
@@ -107,7 +99,7 @@ func ExtractFile(r *io.SectionReader, config *FileExtractConfig) ([]byte, error)
 		return []byte{}, nil
 	}
 
-	gzipZinfo, err := compression.NewGzipZinfo(config.Checkpoints)
+	gzipZinfo, err := compression.NewExtractor(compression.CompressionGzip, config.Checkpoints)
 	if err != nil {
 		return nil, nil
 	}
@@ -117,44 +109,25 @@ func ExtractFile(r *io.SectionReader, config *FileExtractConfig) ([]byte, error)
 	spanEnd := gzipZinfo.UncompressedOffsetToSpanID(config.UncompressedOffset + config.UncompressedSize)
 	numSpans := spanEnd - spanStart + 1
 
-	var bufSize compression.Offset
-	starts := make([]compression.Offset, numSpans)
-	ends := make([]compression.Offset, numSpans)
+	checkpoints := make([]compression.Offset, numSpans+1)
+	checkpoints[0] = gzipZinfo.SpanIDToStartCompressedOffset(spanStart)
 
 	var i compression.SpanID
 	for i = 0; i < numSpans; i++ {
-		starts[i] = gzipZinfo.SpanIDToCompressedOffset(i + spanStart)
-		if i+spanStart == config.MaxSpanID {
-			ends[i] = config.CompressedArchiveSize - 1
-		} else {
-			ends[i] = gzipZinfo.SpanIDToCompressedOffset(i + 1 + spanStart)
-		}
-		bufSize += (ends[i] - starts[i])
+		checkpoints[i+1] = gzipZinfo.SpanIDToEndCompressedOffset(spanStart+i, config.CompressedArchiveSize)
 	}
 
-	start := starts[0]
-
-	// It the first span the file is present in has partially uncompressed data,
-	// fetch the previous byte too.
-	firstSpanHasBits := gzipZinfo.HasBits(spanStart)
-	if firstSpanHasBits {
-		bufSize++
-		start--
-	}
-
+	bufSize := checkpoints[len(checkpoints)-1] - checkpoints[0]
 	buf := make([]byte, bufSize)
 	eg, _ := errgroup.WithContext(context.Background())
 
 	// Fetch all span data in parallel
 	for i = 0; i < numSpans; i++ {
-		j := i
+		i := i
 		eg.Go(func() error {
-			rangeStart := starts[j]
-			rangeEnd := ends[j]
-			if j == 0 && firstSpanHasBits {
-				rangeStart--
-			}
-			n, err := r.ReadAt(buf[rangeStart-start:rangeEnd-start], int64(rangeStart)) // need to convert rangeStart to int64 to use in ReadAt
+			rangeStart := checkpoints[i]
+			rangeEnd := checkpoints[i+1]
+			n, err := r.ReadAt(buf[rangeStart-checkpoints[0]:rangeEnd-checkpoints[0]], int64(rangeStart)) // need to convert rangeStart to int64 to use in ReadAt
 			if err != nil && err != io.EOF {
 				return err
 			}
@@ -166,6 +139,7 @@ func ExtractFile(r *io.SectionReader, config *FileExtractConfig) ([]byte, error)
 			return nil
 		})
 	}
+
 	if err := eg.Wait(); err != nil {
 		return nil, err
 	}
@@ -211,13 +185,13 @@ func ExtractFromTarGz(gz string, ztoc *Ztoc, text string) (string, error) {
 		return "", nil
 	}
 
-	gzipZinfo, err := compression.NewGzipZinfo(ztoc.CompressionInfo.Checkpoints)
+	gzipZinfo, err := compression.NewExtractor(compression.CompressionGzip, ztoc.CompressionInfo.Checkpoints)
 	if err != nil {
 		return "", err
 	}
 	defer gzipZinfo.Close()
 
-	bytes, err := gzipZinfo.ExtractData(gz, entry.UncompressedSize, entry.UncompressedOffset)
+	bytes, err := gzipZinfo.ExtractDataFromFile(gz, entry.UncompressedSize, entry.UncompressedOffset)
 	if err != nil {
 		return "", err
 	}
