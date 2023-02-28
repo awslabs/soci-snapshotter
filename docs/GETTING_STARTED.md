@@ -105,11 +105,8 @@ please see [README](../README.md#no-image-conversion).
 
 Let's create a SOCI index, which later will be pushed to your registry:
 
-> The `--legacy-registry` flag specifies to create SOCI index as image manifest
-> instead of artifact.
-
 ```shell
-sudo soci create --legacy-registry $REGISTRY/rabbitmq:latest
+sudo soci create $REGISTRY/rabbitmq:latest
 
 # output
 layer sha256:57315aaee690b22265ebb83b5443587443398a7cd99dd2a43985c28868d34053 -> ztoc skipped
