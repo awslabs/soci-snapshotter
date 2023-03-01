@@ -3,7 +3,7 @@ module github.com/awslabs/soci-snapshotter
 go 1.18
 
 require (
-	github.com/containerd/containerd v1.6.18
+	github.com/containerd/containerd v1.6.19
 	github.com/containerd/continuity v0.3.0
 	github.com/docker/cli v23.0.1+incompatible
 	github.com/docker/go-metrics v0.0.1
@@ -37,7 +37,7 @@ require (
 
 require (
 	github.com/Microsoft/go-winio v0.6.0 // indirect
-	github.com/Microsoft/hcsshim v0.9.6 // indirect
+	github.com/Microsoft/hcsshim v0.9.7 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/cespare/xxhash/v2 v2.2.0 // indirect
 	github.com/containerd/cgroups v1.1.0 // indirect
