@@ -44,11 +44,11 @@ import (
 	"testing"
 	"time"
 
-	"github.com/awslabs/soci-snapshotter/metadata/db"
+	"github.com/awslabs/soci-snapshotter/metadata"
 )
 
 func TestLayer(t *testing.T) {
-	TestSuiteLayer(t, db.NewDbMetadataStore)
+	TestSuiteLayer(t, metadata.NewDbMetadataStore)
 }
 
 func TestWaiter(t *testing.T) {
