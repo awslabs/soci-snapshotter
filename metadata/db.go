@@ -30,7 +30,7 @@
    limitations under the License.
 */
 
-package db
+package metadata
 
 import (
 	"encoding/binary"
@@ -38,7 +38,6 @@ import (
 	"os"
 
 	"github.com/awslabs/soci-snapshotter/compression"
-	"github.com/awslabs/soci-snapshotter/metadata"
 	"github.com/awslabs/soci-snapshotter/util/dbutil"
 	bolt "go.etcd.io/bbolt"
 )
@@ -154,7 +153,7 @@ func getMetadataBucketByID(md *bolt.Bucket, id uint32) (*bolt.Bucket, error) {
 	return b, nil
 }
 
-func writeAttr(b *bolt.Bucket, attr *metadata.Attr) error {
+func writeAttr(b *bolt.Bucket, attr *Attr) error {
 	for _, v := range []struct {
 		key []byte
 		val int64
@@ -239,7 +238,7 @@ func writeAttr(b *bolt.Bucket, attr *metadata.Attr) error {
 	return nil
 }
 
-func readAttr(b *bolt.Bucket, attr *metadata.Attr) error {
+func readAttr(b *bolt.Bucket, attr *Attr) error {
 	return b.ForEach(func(k, v []byte) error {
 		switch string(k) {
 		case string(bucketKeySize):

@@ -30,7 +30,7 @@
    limitations under the License.
 */
 
-package db
+package metadata
 
 import (
 	"bytes"
@@ -48,7 +48,6 @@ import (
 	"time"
 
 	"github.com/awslabs/soci-snapshotter/compression"
-	"github.com/awslabs/soci-snapshotter/metadata"
 	"github.com/awslabs/soci-snapshotter/ztoc"
 	"github.com/rs/xid"
 	bolt "go.etcd.io/bbolt"
@@ -79,8 +78,8 @@ func (r *reader) nextID() (uint32, error) {
 }
 
 // NewReader parses ztoc and stores filesystem metadata to the provided DB.
-func NewReader(db *bolt.DB, sr *io.SectionReader, ztoc *ztoc.Ztoc, opts ...metadata.Option) (metadata.Reader, error) {
-	var rOpts metadata.Options
+func NewReader(db *bolt.DB, sr *io.SectionReader, ztoc *ztoc.Ztoc, opts ...Option) (Reader, error) {
+	var rOpts Options
 	for _, o := range opts {
 		if err := o(&rOpts); err != nil {
 			return nil, fmt.Errorf("failed to apply option: %w", err)
@@ -106,7 +105,7 @@ func (r *reader) RootID() uint32 {
 
 // Clone returns a new reader identical to the current reader
 // but uses the provided section reader for retrieving file paylaods.
-func (r *reader) Clone(sr *io.SectionReader) (metadata.Reader, error) {
+func (r *reader) Clone(sr *io.SectionReader) (Reader, error) {
 	if err := r.waitInit(); err != nil {
 		return nil, err
 	}
@@ -119,7 +118,7 @@ func (r *reader) Clone(sr *io.SectionReader) (metadata.Reader, error) {
 	}, nil
 }
 
-func (r *reader) init(ztoc *ztoc.Ztoc, rOpts metadata.Options) (retErr error) {
+func (r *reader) init(ztoc *ztoc.Ztoc, rOpts Options) (retErr error) {
 	// Initialize root node
 	var ok bool
 	for i := 0; i < 100; i++ {
@@ -169,7 +168,7 @@ func (r *reader) initRootNode(fsID string) error {
 		if err != nil {
 			return err
 		}
-		if err := writeAttr(rootBucket, &metadata.Attr{
+		if err := writeAttr(rootBucket, &Attr{
 			Mode:    os.ModeDir | 0755,
 			NumLink: 2, // The directory itself(.) and the parent link to this directory.
 		}); err != nil {
@@ -188,7 +187,7 @@ func (r *reader) initNodes(ztoc *ztoc.Ztoc) error {
 			return err
 		}
 		nodes.FillPercent = 1.0 // we only do sequential write to this bucket
-		var attr metadata.Attr
+		var attr Attr
 		for _, ent := range ztoc.TOC.Metadata {
 			var id uint32
 			var b *bolt.Bucket
@@ -311,7 +310,7 @@ func (r *reader) getOrCreateDir(nodes *bolt.Bucket, md map[uint32]*metadataEntry
 		if err != nil {
 			return 0, nil, err
 		}
-		attr := &metadata.Attr{
+		attr := &Attr{
 			Mode:    os.ModeDir | 0755,
 			NumLink: 2, // The directory itself(.) and the parent link to this directory.
 		}
@@ -375,7 +374,7 @@ func (r *reader) Close() error {
 }
 
 // GetAttr returns file attribute of specified node.
-func (r *reader) GetAttr(id uint32) (attr metadata.Attr, _ error) {
+func (r *reader) GetAttr(id uint32) (attr Attr, _ error) {
 	if r.rootID == id { // no need to wait for root dir
 		if err := r.db.View(func(tx *bolt.Tx) error {
 			nodes, err := getNodes(tx, r.fsID)
@@ -388,7 +387,7 @@ func (r *reader) GetAttr(id uint32) (attr metadata.Attr, _ error) {
 			}
 			return readAttr(b, &attr)
 		}); err != nil {
-			return metadata.Attr{}, err
+			return Attr{}, err
 		}
 		return attr, nil
 	}
@@ -403,13 +402,13 @@ func (r *reader) GetAttr(id uint32) (attr metadata.Attr, _ error) {
 		}
 		return readAttr(b, &attr)
 	}); err != nil {
-		return metadata.Attr{}, err
+		return Attr{}, err
 	}
 	return
 }
 
 // GetChild returns a child node that has the specified base name.
-func (r *reader) GetChild(pid uint32, base string) (id uint32, attr metadata.Attr, _ error) {
+func (r *reader) GetChild(pid uint32, base string) (id uint32, attr Attr, _ error) {
 	if err := r.view(func(tx *bolt.Tx) error {
 		metadataEntries, err := getMetadata(tx, r.fsID)
 		if err != nil {
@@ -433,7 +432,7 @@ func (r *reader) GetChild(pid uint32, base string) (id uint32, attr metadata.Att
 		}
 		return readAttr(child, &attr)
 	}); err != nil {
-		return 0, metadata.Attr{}, err
+		return 0, Attr{}, err
 	}
 	return
 }
@@ -506,7 +505,7 @@ func (r *reader) ForeachChild(id uint32, f func(name string, id uint32, mode os.
 }
 
 // OpenFile returns a section reader of the specified node.
-func (r *reader) OpenFile(id uint32) (metadata.File, error) {
+func (r *reader) OpenFile(id uint32) (File, error) {
 	var size int64
 	var uncompressedOffset compression.Offset
 
@@ -556,7 +555,7 @@ func (fr *file) GetUncompressedOffset() compression.Offset {
 	return fr.uncompressedOffset
 }
 
-func attrFromZtocEntry(src *ztoc.FileMetadata, dst *metadata.Attr) *metadata.Attr {
+func attrFromZtocEntry(src *ztoc.FileMetadata, dst *Attr) *Attr {
 	dst.Size = int64(src.UncompressedSize)
 	dst.ModTime = src.ModTime
 	dst.LinkName = src.Linkname
@@ -634,7 +633,7 @@ func (r *reader) NumOfNodes() (i int, _ error) {
 			if b == nil {
 				return fmt.Errorf("entry bucket for %q not found", string(k))
 			}
-			var attr metadata.Attr
+			var attr Attr
 			if err := readAttr(b, &attr); err != nil {
 				return err
 			}

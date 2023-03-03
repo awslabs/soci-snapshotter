@@ -46,6 +46,7 @@ import (
 	"github.com/awslabs/soci-snapshotter/util/testutil"
 	"github.com/awslabs/soci-snapshotter/ztoc"
 	"github.com/hashicorp/go-multierror"
+	"go.etcd.io/bbolt"
 )
 
 var allowedPrefix = [4]string{"", "./", "/", "../"}
@@ -56,6 +57,41 @@ var srcCompressions = map[string]int{
 	"gzip-bestcompression":    gzip.BestCompression,
 	"gzip-defaultcompression": gzip.DefaultCompression,
 	"gzip-huffmanonly":        gzip.HuffmanOnly,
+}
+
+// NewDbMetadataStore returns a Reader by creating a temp bolt db, which will
+// be removed when `Reader.Close()` is called.
+func NewDbMetadataStore(sr *io.SectionReader, ztoc *ztoc.Ztoc, opts ...Option) (Reader, error) {
+	f, err := os.CreateTemp("", "readertestdb")
+	if err != nil {
+		return nil, err
+	}
+	defer f.Close()
+	db, err := bbolt.Open(f.Name(), 0600, nil)
+	if err != nil {
+		return nil, err
+	}
+	r, err := NewReader(db, sr, ztoc, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return &readCloser{
+		Reader: r,
+		closeFn: func() error {
+			db.Close()
+			return os.Remove(f.Name())
+		},
+	}, nil
+}
+
+type readCloser struct {
+	Reader
+	closeFn func() error
+}
+
+func (r *readCloser) Close() error {
+	r.closeFn()
+	return r.Reader.Close()
 }
 
 type ReaderFactory func(sr *io.SectionReader, ztoc *ztoc.Ztoc, opts ...Option) (r TestableReader, err error)
