@@ -7,7 +7,7 @@ with soci-snapshotter.
 <!-- START doctoc generated TOC please keep comment here to allow auto update -->
 <!-- DON'T EDIT THIS SECTION, INSTEAD RE-RUN doctoc TO UPDATE -->
 
-- [Prerequisites](#prerequisites)
+- [Dependencies](#dependencies)
 - [Install soci-snapshotter](#install-soci-snapshotter)
 - [Push an image to your registry](#push-an-image-to-your-registry)
 - [Create and push SOCI index](#create-and-push-soci-index)
@@ -22,45 +22,51 @@ with soci-snapshotter.
 
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
 
-## Prerequisites
+## Dependencies
 
-- **[go](https://go.dev/doc/install) >= 1.18** - to confirm please check with `go version`.
-- **[containerd](https://github.com/containerd/containerd/blob/main/docs/getting-started.md) >= 1.4** - to confirm that you have containerd working please check with
-`sudo ctr version`.
-- **[ctr](https://github.com/containerd/containerd/blob/main/docs/getting-started.md)/[nerdctl](https://github.com/containerd/nerdctl#install)** - you need one of the containerd clients to interact with containerd/registry.
-- **fuse** - used for mounting without root access (`sudo yum install fuse`).
-- **zlib** - used for decompression and ztoc creation (`sudo yum install zlib-devel zlib-static`).
-- **gcc** - used for compiling SOCI's c code, gzip's zinfo implementation (`sudo yum install gcc`).
+soci-snapshotter has the following runtime dependencies. Please follow the links or commands
+to install them on your machine:
+
+> We only mention the direct dependencies of the project. Some dependencies may
+> have their own dependencies (e.g., containerd depends on runc/cni). Please refer
+> to their doc for a complete installation guide (mainly containerd).
+
+- **[containerd](https://github.com/containerd/containerd/blob/main/docs/getting-started.md) >= 1.4** -
+required to run soci-snapshotter; to confirm please check with `sudo ctr version`.
+- **[ctr](https://github.com/containerd/containerd/blob/main/docs/getting-started.md)** -
+required for this doc to interact with containerd/registry.
+- **fuse** - used for mounting without root access (`sudo yum install fuse` or
+other Linux package manager like `apt-get`, dpending on your Linux distro).
 
 ## Install soci-snapshotter
 
-The soci-snapshotter project consists of 2 main components:
+The soci-snapshotter project produces 2 binaries:
 
 - `soci`: the CLI tool used to build/manage SOCI indices.
 - `soci-snapshotter-grpc`: the daemon (a containerd snapshotter plugin) used for lazy loading.
 
-Currently to get the binaries, we need to build the project from source after cloing the repo:
+You can download prebuilt binaries from our [release page](https://github.com/awslabs/soci-snapshotter/releases)
+or [build them from source](./build.md).
+
+In this doc, let's just download the release binaries and move them to a `PATH`
+directory (`/usr/local/bin`):
+
+> You can find other download link in the release page that matches your machine.
 
 ```shell
-git clone https://github.com/awslabs/soci-snapshotter.git
-cd soci-snapshotter
-make
+wget -O https://github.com/awslabs/soci-snapshotter/releases/download/v0.1.0/soci-snapshotter-0.1.0-linux-amd64.tar.gz
+sudo tar -C /usr/local/bin -xvf soci-snapshotter-0.1.0-linux-amd64.tar.gz soci soci-snapshotter-grpc
 ```
 
-This builds the project binaries into the `./out` directory. You can install them
-to a `PATH` directory (`/usr/local/bin`) with:
+Now you should be able to use the `soci` CLI (and `soci-snapshotter-grpc` containerd plugin shortly):
 
 ```shell
-sudo make install
 # check soci can be found in PATH
 sudo soci --help
 ```
 
 Many `soci` CLI commands need to be run as `sudo`, because the metadata is saved
 in directories that a non-root user often does not have access to.
-
-> This doc assumes SOCI binaries are installed into `PATH`. If not, please use
-> the full path of the binaries (e.g. `./out/soci`).
 
 ## Push an image to your registry
 
