@@ -114,7 +114,7 @@ check_always = true
 
 [debug]
 format = "json"
-level = "debug"
+level = "{{.LogLevel}}"
 
 {{.AdditionalConfig}}
 `
@@ -245,9 +245,11 @@ func getContainerdConfigToml(t *testing.T, disableVerification bool, additionalC
 		additionalConfigs = append(additionalConfigs, proxySnapshotterConfig)
 	}
 	s, err := testutil.ApplyTextTemplate(containerdConfigTemplate, struct {
+		LogLevel            string
 		DisableVerification bool
 		AdditionalConfig    string
 	}{
+		LogLevel:            containerdLogLevel,
 		DisableVerification: disableVerification,
 		AdditionalConfig:    strings.Join(additionalConfigs, "\n"),
 	})
@@ -647,12 +649,12 @@ func rebootContainerd(t *testing.T, sh *shell.Shell, customContainerdConfig, cus
 
 	// run containerd and snapshotter
 	var m *testutil.RemoteSnapshotMonitor
-	containerdCmds := shell.C("containerd", "--log-level", "debug")
+	containerdCmds := shell.C("containerd", "--log-level", containerdLogLevel)
 	if customContainerdConfig != "" {
 		containerdCmds = addConfig(t, sh, customContainerdConfig, containerdCmds...)
 	}
 	sh.Gox(containerdCmds...)
-	snapshotterCmds := shell.C("/usr/local/bin/soci-snapshotter-grpc", "--log-level", "debug",
+	snapshotterCmds := shell.C("/usr/local/bin/soci-snapshotter-grpc", "--log-level", sociLogLevel,
 		"--address", snapshotterSocket)
 	if customSnapshotterConfig != "" {
 		snapshotterCmds = addConfig(t, sh, customSnapshotterConfig, snapshotterCmds...)

@@ -120,7 +120,7 @@ func Build(dockerComposeYaml string, opts ...Option) ([]func() error, error) {
 	for _, arg := range cOpts.buildArgs {
 		buildArgs = append(buildArgs, "--build-arg", arg)
 	}
-	cmd := exec.Command("docker-compose", append([]string{"-f", confFile, "build"}, buildArgs...)...)
+	cmd := exec.Command("docker-compose", append([]string{"-f", confFile, "build", "-q"}, buildArgs...)...)
 	if cOpts.addStdio != nil {
 		cOpts.addStdio(cmd)
 	}
@@ -224,7 +224,7 @@ func New(dockerComposeYaml string, opts ...Option) (*Compose, error) {
 	for _, arg := range cOpts.buildArgs {
 		buildArgs = append(buildArgs, "--build-arg", arg)
 	}
-	cmd := exec.Command("docker-compose", append([]string{"-f", confFile, "build"}, buildArgs...)...)
+	cmd := exec.Command("docker-compose", append([]string{"-f", confFile, "build", "-q"}, buildArgs...)...)
 	if cOpts.addStdio != nil {
 		cOpts.addStdio(cmd)
 	}

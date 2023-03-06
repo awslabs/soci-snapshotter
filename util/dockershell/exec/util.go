@@ -153,7 +153,7 @@ FROM %s
 
 func newTempImage(contextDir, dockerfilePath, targetStage string, opts *imageOptions) (string, func() error, error) {
 	image := "tmpimage" + xid.New().String()
-	c := []string{"build", "--progress", "plain", "-t", image}
+	c := []string{"build", "-q", "-t", image}
 	if dockerfilePath != "" {
 		c = append(c, "-f", dockerfilePath)
 	}
