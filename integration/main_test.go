@@ -40,9 +40,21 @@ import (
 	"github.com/awslabs/soci-snapshotter/util/dockershell/compose"
 	dexec "github.com/awslabs/soci-snapshotter/util/dockershell/exec"
 	"github.com/awslabs/soci-snapshotter/util/testutil"
+	"github.com/sirupsen/logrus"
 )
 
-const enableTestEnv = "ENABLE_INTEGRATION_TEST"
+const (
+	enableTestEnv         = "ENABLE_INTEGRATION_TEST"
+	containerdLogLevelEnv = "CONTAINERD_LOG_LEVEL"
+	sociLogLevelEnv       = "SOCI_LOG_LEVEL"
+)
+
+// this can be overwritten by setting up env variables specified by
+// `containerdLogLevelEnv`/`sociLogLevelEnv`.
+var (
+	containerdLogLevel = "warn"
+	sociLogLevel       = "debug"
+)
 
 // TestMain is a main function for integration tests.
 // This checks the system requirements the run tests.
@@ -51,6 +63,22 @@ func TestMain(m *testing.M) {
 		testutil.TestingL.Printf("%s is not true. skipping integration test", enableTestEnv)
 		return
 	}
+
+	if logLevel := os.Getenv(containerdLogLevelEnv); logLevel != "" {
+		if _, err := logrus.ParseLevel(logLevel); err != nil {
+			testutil.TestingL.Printf("unsupported log level: %s. skipping integration test", logLevel)
+			return
+		}
+		containerdLogLevel = logLevel
+	}
+	if logLevel := os.Getenv(sociLogLevelEnv); logLevel != "" {
+		if _, err := logrus.ParseLevel(logLevel); err != nil {
+			testutil.TestingL.Printf("unsupported log level: %s. skipping integration test", logLevel)
+			return
+		}
+		sociLogLevel = logLevel
+	}
+
 	if err := shell.Supported(); err != nil {
 		testutil.TestingL.Fatalf("shell pkg is not supported: %v", err)
 	}
