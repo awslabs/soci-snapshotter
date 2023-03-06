@@ -18,6 +18,7 @@ the container, and to instead lazily load data on demand, and also prefetch data
 ## Design considerations
 
 ### No image conversion
+
 Existing lazy loading snapshotters rely on a build-time conversion step, to produce a new image artifact.
 This is problematic for container developers who won't or can't modify their CI/CD pipeline, or don't
 want to manage the cost and complexity of keeping copies of images in two formats. It also creates
@@ -32,34 +33,16 @@ developed by the [OCI Reference Types working group](https://github.com/opencont
 
 ### Workload-specific load order optimization
 
-Some lazy loading snapshotters support load order optimization, where some files are
-prioritized for prefetching. Typically, there is a one-to-one relationship between
-the list of to-be-prefetched files and the image or layer artifact.
+Another big consideration that we haven't implmented/integrated
+into SOCI is to image load order based on your specific workload. See [design README](./docs/design-docs/README.md#workload-specific-load-order-optimization)
+for more details.
 
-For SOCI, we wanted a bit more flexibility. Often, which files to prefetch is highly
-dependent on the specific workload, not the image or base layer. For example, a customer
-may have a Python3 base layer that is shared by thousands of applications. To optimize
-the launch time of those applications using the traditional approach, the base
-layer can no longer be shared, because each application’s load order for that layer will be
-different. Registry storage costs will increase dramatically, and cache hit rates will plummet.
-And when it comes time to update that base layer, each and every copy will have to be reoptimized.
+## Documentation
 
-Secondly, there are some workloads that need to be able to prefetch at the subfile level. For example,
-we have observed machine learning workloads that launch and then immediately read a small header
-from a very large number of very large files.
-
-To meet these use-cases, SOCI will implement a separate load order document (LOD), that can specify
-which files or file-segments to load. Because it is a separate artifact, a single image can have
-many LODs. At container launch time, the appropriate LOD can be retrieved using business logic
-specified by the administrator.
-
-***Note:*** **SOCI Load order optimization is not yet implemented in SOCI.**
-
-## Learning More
-Check out our docs area:
-- [Getting
-Started](docs/GETTING_STARTED.md)
-- [Glossary](docs/GLOSSARY.md)
+- [Getting Started](docs/getting-started.md): walk through SOCI setups and features.
+- [Build](docs/build.md): how to build SOCI from source, test SOCI (and contribute).
+- [Install](docs/install.md): how to install SOCI as a systemd unit.
+- [Glossary](docs/glossary.md): glossary we use in the project.
 
 ## Project Origin
 

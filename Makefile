@@ -70,8 +70,7 @@ vendor:
 
 test:
 	@echo "$@"
-	@GO111MODULE=$(GO111MODULE_VALUE) go test -race ./...
-	@cd ./cmd/soci ; GO111MODULE=$(GO111MODULE_VALUE) go test -timeout 20m -race ./...
+	@GO111MODULE=$(GO111MODULE_VALUE) go test $(GO_TEST_FLAGS) -race ./...
 
 integration: build
 	@echo "$@"
