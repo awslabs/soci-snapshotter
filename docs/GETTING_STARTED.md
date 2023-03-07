@@ -29,7 +29,7 @@ with soci-snapshotter.
 `sudo ctr version`.
 - **[ctr](https://github.com/containerd/containerd/blob/main/docs/getting-started.md)/[nerdctl](https://github.com/containerd/nerdctl#install)** - you need one of the containerd clients to interact with containerd/registry.
 - **fuse** - used for mounting without root access (`sudo yum install fuse`).
-- **zlib** - used for decompression and ztoc creation (`sudo yum install zlib-devel`).
+- **zlib** - used for decompression and ztoc creation (`sudo yum install zlib-devel zlib-static`).
 - **gcc** - used for compiling SOCI's c code, gzip's zinfo implementation (`sudo yum install gcc`).
 
 ## Install soci-snapshotter
