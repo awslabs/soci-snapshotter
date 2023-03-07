@@ -119,7 +119,7 @@ func main() {
 		log.L.WithError(err).Fatal("failed to prepare logger")
 	}
 	if *printVersion {
-		fmt.Println("soci-snapshotter-grpc", version.Version, version.Revision)
+		fmt.Println("soci-snapshotter-grpc version", version.Version, version.Revision)
 		return
 	}
 	logrus.SetLevel(lvl)

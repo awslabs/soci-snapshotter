@@ -40,6 +40,7 @@ import (
 	"github.com/awslabs/soci-snapshotter/cmd/soci/commands/image"
 	"github.com/awslabs/soci-snapshotter/cmd/soci/commands/index"
 	"github.com/awslabs/soci-snapshotter/cmd/soci/commands/ztoc"
+	"github.com/awslabs/soci-snapshotter/version"
 	"github.com/containerd/containerd/cmd/ctr/commands/run"
 	"github.com/containerd/containerd/defaults"
 	"github.com/containerd/containerd/namespaces"
@@ -76,6 +77,8 @@ func main() {
 			Usage: "enable debug output",
 		},
 	}
+
+	app.Version = fmt.Sprintf("%s %s", version.Version, version.Revision)
 
 	app.Commands = []cli.Command{
 		image.Command,
