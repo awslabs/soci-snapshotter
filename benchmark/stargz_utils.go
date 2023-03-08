@@ -26,8 +26,8 @@ import (
 	"time"
 
 	"github.com/awslabs/soci-snapshotter/benchmark/framework"
-	"github.com/awslabs/soci-snapshotter/fs/source"
 	"github.com/containerd/containerd"
+	ctdsnapshotters "github.com/containerd/containerd/pkg/snapshotters"
 )
 
 type StargzProcess struct {
@@ -84,7 +84,7 @@ func StartStargz(
 			loopExit = true
 		}
 		if sleepCount > 15 {
-			return nil, errors.New("Could not create .sock in time")
+			return nil, errors.New("could not create .sock in time")
 		}
 	}
 	return &StargzProcess{
@@ -135,8 +135,7 @@ func (proc *StargzContainerdProcess) StargzRpullImageFromECR(
 		containerd.WithSchema1Conversion,
 		containerd.WithPullUnpack,
 		containerd.WithPullSnapshotter("stargz"),
-		containerd.WithImageHandlerWrapper(source.AppendDefaultLabelsHandlerWrapper(
-			imageRef, "")),
+		containerd.WithImageHandlerWrapper(ctdsnapshotters.AppendInfoHandlerWrapper(imageRef)),
 	}...)
 	if err != nil {
 		fmt.Printf("Stargz rpull failed: %v\n", err)

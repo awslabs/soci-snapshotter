@@ -47,6 +47,7 @@ import (
 	"github.com/containerd/containerd/errdefs"
 	"github.com/containerd/containerd/log"
 	"github.com/containerd/containerd/mount"
+	ctdsnapshotters "github.com/containerd/containerd/pkg/snapshotters"
 	"github.com/containerd/containerd/snapshots"
 	"github.com/containerd/containerd/snapshots/overlay/overlayutils"
 	"github.com/containerd/containerd/snapshots/storage"
@@ -330,7 +331,7 @@ func (o *snapshotter) Prepare(ctx context.Context, key, parent string, opts ...s
 		return nil, err
 	}
 
-	log.G(ctx).WithField("layerDigest", base.Labels[source.TargetDigestLabel]).Info("preparing snapshot as local snapshot")
+	log.G(ctx).WithField("layerDigest", base.Labels[ctdsnapshotters.TargetLayerDigestLabel]).Info("preparing snapshot as local snapshot")
 	err = o.prepareLocalSnapshot(lCtx, key, base.Labels, mounts)
 	if err == nil {
 		err := o.commit(ctx, false, target, key, append(opts, snapshots.WithLabels(base.Labels))...)

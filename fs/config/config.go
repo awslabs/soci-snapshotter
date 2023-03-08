@@ -39,12 +39,6 @@
 package config
 
 const (
-	// TargetImageRefLabel is a snapshot label key that contains the image ref
-	TargetImageRefLabel = "com.amazon.soci/remote/image.reference"
-
-	// TargetSociIndexDigestLabel is a snapshot label key that contains the soci index digest
-	TargetSociIndexDigestLabel = "com.amazon.soci/remote/soci.index.digest"
-
 	// Default path to OCI-compliant CAS
 	SociContentStorePath = "/var/lib/soci-snapshotter-grpc/content/"
 
