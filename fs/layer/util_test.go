@@ -71,22 +71,14 @@ import (
 )
 
 const (
-	sampleSpanSize = 3
-	sampleData1    = "0123456789"
-)
-
-func TestSuiteLayer(t *testing.T, store metadata.Store) {
-	testNodeRead(t, store)
-	testExistence(t, store)
-}
-
-var testStateLayerDigest = digest.FromString("dummy")
-var spanSizeCond = [3]int64{64, 128, 256}
-
-const (
+	sampleSpanSize     = 3
+	sampleData1        = "0123456789"
 	sampleMiddleOffset = sampleSpanSize / 2
 	lastSpanOffset1    = sampleSpanSize * (int64(len(sampleData1)) / sampleSpanSize)
 )
+
+var testStateLayerDigest = digest.FromString("dummy")
+var spanSizeCond = [3]int64{64, 128, 256}
 
 func testNodeRead(t *testing.T, factory metadata.Store) {
 	sizeCond := map[string]int64{
@@ -168,7 +160,7 @@ func testNodeRead(t *testing.T, factory metadata.Store) {
 func makeNodeReader(t *testing.T, contents []byte, spanSize int64, factory metadata.Store) (_ *file, closeFn func() error) {
 	testName := "test"
 	tarEntry := []testutil.TarEntry{testutil.File(testName, string(contents))}
-	ztoc, sr, err := ztoc.BuildZtocReader(tarEntry, gzip.DefaultCompression, spanSize)
+	ztoc, sr, err := ztoc.BuildZtocReader(t, tarEntry, gzip.DefaultCompression, spanSize)
 	if err != nil {
 		t.Fatalf("failed to build ztoc: %v", err)
 	}
@@ -328,7 +320,7 @@ func testExistenceWithOpaque(t *testing.T, factory metadata.Store, opaque Overla
 	for _, tt := range tests {
 		for _, spanSize := range spanSizeCond {
 			t.Run(fmt.Sprintf("testExistence_%s_spansize_%d", tt.name, spanSize), func(t *testing.T) {
-				ztoc, sr, err := ztoc.BuildZtocReader(tt.in, gzip.DefaultCompression, spanSize)
+				ztoc, sr, err := ztoc.BuildZtocReader(t, tt.in, gzip.DefaultCompression, spanSize)
 				if err != nil {
 					t.Fatalf("failed to build sample ztoc: %v", err)
 				}

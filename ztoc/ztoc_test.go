@@ -175,7 +175,7 @@ func TestDecompressWithGzipHeaders(t *testing.T) {
 		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			data := testutil.RandomByteData(100)
-			ztoc, sr, err := BuildZtocReader(
+			ztoc, sr, err := BuildZtocReader(t,
 				[]testutil.TarEntry{
 					testutil.File("file", string(data)),
 				},

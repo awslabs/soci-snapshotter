@@ -81,7 +81,7 @@ func TestSpanManager(t *testing.T) {
 				testutil.File(fileName, string(fileContent)),
 			}
 
-			toc, r, err := ztoc.BuildZtocReader(tarEntries, gzip.BestCompression, int64(spanSize))
+			toc, r, err := ztoc.BuildZtocReader(t, tarEntries, gzip.BestCompression, int64(spanSize))
 			if err != nil {
 				err = fmt.Errorf("failed to create ztoc: %w", err)
 				return
@@ -129,7 +129,7 @@ func TestSpanManagerCache(t *testing.T) {
 	tarEntries := []testutil.TarEntry{
 		testutil.File("span-manager-cache-test", string(content)),
 	}
-	toc, r, err := ztoc.BuildZtocReader(tarEntries, gzip.BestCompression, int64(spanSize))
+	toc, r, err := ztoc.BuildZtocReader(t, tarEntries, gzip.BestCompression, int64(spanSize))
 	if err != nil {
 		t.Fatalf("failed to create ztoc: %v", err)
 	}
@@ -183,7 +183,7 @@ func TestStateTransition(t *testing.T) {
 	tarEntries := []testutil.TarEntry{
 		testutil.File("set-span-test", string(content)),
 	}
-	toc, r, err := ztoc.BuildZtocReader(tarEntries, gzip.BestCompression, int64(spanSize))
+	toc, r, err := ztoc.BuildZtocReader(t, tarEntries, gzip.BestCompression, int64(spanSize))
 	if err != nil {
 		t.Fatalf("failed to create ztoc: %v", err)
 	}
@@ -350,7 +350,7 @@ func TestSpanManagerRetries(t *testing.T) {
 			entries := []testutil.TarEntry{
 				testutil.File("test", string(testutil.RandomByteData(10000000))),
 			}
-			ztoc, sr, err := ztoc.BuildZtocReader(entries, gzip.DefaultCompression, 100000)
+			ztoc, sr, err := ztoc.BuildZtocReader(t, entries, gzip.DefaultCompression, 100000)
 			if err != nil {
 				t.Fatal(err)
 			}

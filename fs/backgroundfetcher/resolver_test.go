@@ -43,7 +43,7 @@ func TestSequentialResolver(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			ztoc, sr, err := ztoc.BuildZtocReader(tc.entries, gzip.DefaultCompression, 1000000)
+			ztoc, sr, err := ztoc.BuildZtocReader(t, tc.entries, gzip.DefaultCompression, 1000000)
 			if err != nil {
 				t.Fatalf("error build ztoc and section reader: %v", err)
 			}
