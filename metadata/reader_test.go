@@ -42,10 +42,10 @@ import (
 )
 
 func TestMetadataReader(t *testing.T) {
-	TestReader(t, newTestableReader)
+	testReader(t, newTestableReader)
 }
 
-func newTestableReader(sr *io.SectionReader, ztoc *ztoc.Ztoc, opts ...Option) (TestableReader, error) {
+func newTestableReader(sr *io.SectionReader, ztoc *ztoc.Ztoc, opts ...Option) (testableReader, error) {
 	f, err := os.CreateTemp("", "readertestdb")
 	if err != nil {
 		return nil, err
@@ -60,7 +60,7 @@ func newTestableReader(sr *io.SectionReader, ztoc *ztoc.Ztoc, opts ...Option) (T
 		return nil, err
 	}
 	return &testableReadCloser{
-		TestableReader: r.(*reader),
+		testableReader: r.(*reader),
 		closeFn: func() error {
 			db.Close()
 			return os.Remove(f.Name())
@@ -69,11 +69,11 @@ func newTestableReader(sr *io.SectionReader, ztoc *ztoc.Ztoc, opts ...Option) (T
 }
 
 type testableReadCloser struct {
-	TestableReader
+	testableReader
 	closeFn func() error
 }
 
 func (r *testableReadCloser) Close() error {
 	r.closeFn()
-	return r.TestableReader.Close()
+	return r.testableReader.Close()
 }

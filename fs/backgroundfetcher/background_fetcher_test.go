@@ -107,7 +107,7 @@ func TestBackgroundFetcherRun(t *testing.T) {
 
 			var infos []testInfo
 			for _, entries := range tc.entries {
-				ztoc, sr, err := ztoc.BuildZtocReader(entries, gzip.DefaultCompression, 1000000)
+				ztoc, sr, err := ztoc.BuildZtocReader(t, entries, gzip.DefaultCompression, 1000000)
 				if err != nil {
 					t.Fatalf("error building span manager and section reader: %v", err)
 				}

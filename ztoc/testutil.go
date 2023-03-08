@@ -21,12 +21,13 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"testing"
 
 	"github.com/awslabs/soci-snapshotter/util/testutil"
 )
 
 // BuildZtocReader creates the tar gz file for tar entries. It returns ztoc and io.SectionReader of the file.
-func BuildZtocReader(ents []testutil.TarEntry, compressionLevel int, spanSize int64, opts ...testutil.BuildTarOption) (*Ztoc, *io.SectionReader, error) {
+func BuildZtocReader(_ *testing.T, ents []testutil.TarEntry, compressionLevel int, spanSize int64, opts ...testutil.BuildTarOption) (*Ztoc, *io.SectionReader, error) {
 	tarReader := testutil.BuildTarGz(ents, compressionLevel, opts...)
 
 	tarFileName, tarData, err := testutil.WriteTarToTempFile("tmp.*", tarReader)

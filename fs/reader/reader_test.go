@@ -64,9 +64,8 @@ const (
 var spanSizeCond = [3]int64{64, 128, 256}
 
 func TestFsReader(t *testing.T) {
-	store := metadata.NewDbMetadataStore
-	testFileReadAt(t, store)
-	testFailReader(t, store)
+	testFileReadAt(t, metadata.NewTempDbStore)
+	testFailReader(t, metadata.NewTempDbStore)
 }
 
 func testFileReadAt(t *testing.T, factory metadata.Store) {
@@ -147,7 +146,7 @@ func makeFile(t *testing.T, contents []byte, factory metadata.Store, spanSize in
 	tarEntry := []testutil.TarEntry{
 		testutil.File(testName, string(contents)),
 	}
-	ztoc, sr, err := ztoc.BuildZtocReader(tarEntry, gzip.DefaultCompression, spanSize)
+	ztoc, sr, err := ztoc.BuildZtocReader(t, tarEntry, gzip.DefaultCompression, spanSize)
 	if err != nil {
 		t.Fatalf("failed to build sample ztoc: %v", err)
 	}
@@ -188,7 +187,7 @@ func testFailReader(t *testing.T, factory metadata.Store) {
 	}
 	for _, spanSize := range spanSizeCond {
 		t.Run(fmt.Sprintf("reading_spansize_%d", spanSize), func(t *testing.T) {
-			ztoc, sr, err := ztoc.BuildZtocReader(tarEntry, gzip.DefaultCompression, spanSize)
+			ztoc, sr, err := ztoc.BuildZtocReader(t, tarEntry, gzip.DefaultCompression, spanSize)
 			if err != nil {
 				t.Fatalf("failed to build sample ztoc: %v", err)
 			}

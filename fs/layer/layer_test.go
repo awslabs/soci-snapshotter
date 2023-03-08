@@ -48,7 +48,8 @@ import (
 )
 
 func TestLayer(t *testing.T) {
-	TestSuiteLayer(t, metadata.NewDbMetadataStore)
+	testNodeRead(t, metadata.NewTempDbStore)
+	testExistence(t, metadata.NewTempDbStore)
 }
 
 func TestWaiter(t *testing.T) {
