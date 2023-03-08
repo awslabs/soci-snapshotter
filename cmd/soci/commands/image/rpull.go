@@ -43,6 +43,7 @@ import (
 	"github.com/containerd/containerd/cmd/ctr/commands/content"
 	"github.com/containerd/containerd/images"
 	"github.com/containerd/containerd/log"
+	ctdsnapshotters "github.com/containerd/containerd/pkg/snapshotters"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/urfave/cli"
 )
@@ -151,7 +152,8 @@ func pull(ctx context.Context, client *containerd.Client, ref string, config *rP
 		containerd.WithPullUnpack,
 		containerd.WithPlatform(config.platform),
 		containerd.WithPullSnapshotter(config.snapshotter),
-		containerd.WithImageHandlerWrapper(source.AppendDefaultLabelsHandlerWrapper(ref, config.indexDigest)),
+		containerd.WithImageHandlerWrapper(source.AppendDefaultLabelsHandlerWrapper(
+			config.indexDigest, ctdsnapshotters.AppendInfoHandlerWrapper(ref))),
 	}...); err != nil {
 		return err
 	}

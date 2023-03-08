@@ -63,6 +63,7 @@ import (
 	"github.com/awslabs/soci-snapshotter/soci"
 	"github.com/containerd/containerd/log"
 	"github.com/containerd/containerd/mount"
+	ctdsnapshotters "github.com/containerd/containerd/pkg/snapshotters"
 	"github.com/containerd/containerd/reference"
 	"github.com/containerd/containerd/remotes/docker"
 	metrics "github.com/docker/go-metrics"
@@ -373,7 +374,7 @@ type filesystem struct {
 }
 
 func (fs *filesystem) MountLocal(ctx context.Context, mountpoint string, labels map[string]string, mounts []mount.Mount) error {
-	imageRef, ok := labels[source.TargetRefLabel]
+	imageRef, ok := labels[ctdsnapshotters.TargetRefLabel]
 	if !ok {
 		return fmt.Errorf("unable to get image ref from labels")
 	}
@@ -428,11 +429,11 @@ func (fs *filesystem) Mount(ctx context.Context, mountpoint string, labels map[s
 	if !ok {
 		return fmt.Errorf("unable to get soci index digest from labels")
 	}
-	imageRef, ok := labels[source.TargetRefLabel]
+	imageRef, ok := labels[ctdsnapshotters.TargetRefLabel]
 	if !ok {
 		return fmt.Errorf("unable to get image ref from labels")
 	}
-	imgDigest, ok := labels[source.TargetImgManifestDigestLabel]
+	imgDigest, ok := labels[ctdsnapshotters.TargetManifestDigestLabel]
 	if !ok {
 		return fmt.Errorf("unable to get image digest from labels")
 	}
@@ -512,9 +513,9 @@ func (fs *filesystem) Mount(ctx context.Context, mountpoint string, labels map[s
 	case <-time.After(fs.mountTimeout):
 		log.G(ctx).WithFields(logrus.Fields{
 			"timeout":     fs.mountTimeout.String(),
-			"layerDigest": labels[source.TargetDigestLabel],
+			"layerDigest": labels[ctdsnapshotters.TargetLayerDigestLabel],
 		}).Info("timeout waiting for layer to resolve")
-		retErr = fmt.Errorf("timeout waiting for layer %s to resolve", labels[source.TargetDigestLabel])
+		retErr = fmt.Errorf("timeout waiting for layer %s to resolve", labels[ctdsnapshotters.TargetLayerDigestLabel])
 		return
 	}
 	defer func() {

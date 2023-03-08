@@ -29,6 +29,7 @@ import (
 	"github.com/awslabs/soci-snapshotter/benchmark/framework"
 	"github.com/awslabs/soci-snapshotter/fs/source"
 	"github.com/containerd/containerd"
+	ctdsnapshotters "github.com/containerd/containerd/pkg/snapshotters"
 )
 
 var (
@@ -90,7 +91,7 @@ func StartSoci(
 			loopExit = true
 		}
 		if sleepCount > 15 {
-			return nil, errors.New("Could not create .sock in time")
+			return nil, errors.New("could not create .sock in time")
 		}
 	}
 
@@ -144,8 +145,7 @@ func (proc *SociContainerdProcess) SociRPullImageFromECR(
 		containerd.WithPullUnpack,
 		containerd.WithPullSnapshotter("soci"),
 		containerd.WithImageHandlerWrapper(source.AppendDefaultLabelsHandlerWrapper(
-			imageRef,
-			sociIndexDigest)),
+			sociIndexDigest, ctdsnapshotters.AppendInfoHandlerWrapper(imageRef))),
 	}...)
 	if err != nil {
 		fmt.Printf("Soci Pull Failed %v\n", err)

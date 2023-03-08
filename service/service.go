@@ -44,7 +44,6 @@ import (
 	"github.com/containerd/containerd/log"
 	"github.com/containerd/containerd/snapshots"
 	"github.com/containerd/containerd/snapshots/overlay/overlayutils"
-	"github.com/hashicorp/go-multierror"
 )
 
 type Option func(*options)
@@ -97,10 +96,9 @@ func NewSociSnapshotterService(ctx context.Context, root string, config *Config,
 		opq = layer.OverlayOpaqueUser
 	}
 	// Configure filesystem and snapshotter
-	fsOpts := append(sOpts.fsOpts, socifs.WithGetSources(sources(
-		sourceFromCRILabels(hosts),      // provides source info based on CRI labels
+	fsOpts := append(sOpts.fsOpts, socifs.WithGetSources(
 		source.FromDefaultLabels(hosts), // provides source info based on default labels
-	)), socifs.WithOverlayOpaqueType(opq))
+	), socifs.WithOverlayOpaqueType(opq))
 	fs, err := socifs.NewFilesystem(ctx, fsRoot(root), config.Config, fsOpts...)
 	if err != nil {
 		log.G(ctx).WithError(err).Fatalf("failed to configure filesystem")
@@ -130,19 +128,6 @@ func snapshotterRoot(root string) string {
 
 func fsRoot(root string) string {
 	return filepath.Join(root, "soci")
-}
-
-func sources(ps ...source.GetSources) source.GetSources {
-	return func(labels map[string]string) (source []source.Source, allErr error) {
-		for _, p := range ps {
-			src, err := p(labels)
-			if err == nil {
-				return src, nil
-			}
-			allErr = multierror.Append(allErr, err)
-		}
-		return
-	}
 }
 
 // Supported returns nil when the remote snapshotter is functional on the system with the root directory.

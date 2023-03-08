@@ -40,6 +40,7 @@ import (
 
 	"github.com/containerd/containerd/images"
 	"github.com/containerd/containerd/labels"
+	ctdsnapshotters "github.com/containerd/containerd/pkg/snapshotters"
 	"github.com/containerd/containerd/reference"
 	"github.com/containerd/containerd/remotes/docker"
 	digest "github.com/opencontainers/go-digest"
@@ -77,34 +78,14 @@ type Source struct {
 }
 
 const (
-	// targetRefLabel is a label which contains image reference.
-	TargetRefLabel = "containerd.io/snapshot/remote/soci.reference"
-
-	// TargetDigestLabel is a label which contains layer digest.
-	TargetDigestLabel = "containerd.io/snapshot/remote/soci.digest"
-
 	// TargetSizeLabel is a label which contains layer size.
 	TargetSizeLabel = "containerd.io/snapshot/remote/soci.size"
-
-	// targetImageLayersDigestLabel is a label which contains layer digests contained in
-	// the target image.
-	targetImageLayersDigestLabel = "containerd.io/snapshot/remote/image.layers.digest"
 
 	// targetImageLayersSizeLabel is a label which contains layer digests contained in
 	// the target image.
 	targetImageLayersSizeLabel = "containerd.io/snapshot/remote/image.layers.size"
 
-	// targetImageURLsLabelPrefix is a label prefix which constructs a map from the layer index to
-	// urls of the layer descriptor.
-	targetImageURLsLabelPrefix = "containerd.io/snapshot/remote/urls."
-
-	// targetURsLLabel is a label which contains layer URL. This is only used to pass URL from containerd
-	// to snapshotter.
-	targetURLsLabel = "containerd.io/snapshot/remote/urls"
-
-	// targetImgManifestDigestLabel is a label which contains image manifest digest.
-	TargetImgManifestDigestLabel = "containerd.io/snapshot/remote/image.manifest.digest"
-
+	// TargetSociIndexDigestLabel is a label which contains the digest of the soci index.
 	TargetSociIndexDigestLabel = "containerd.io/snapshot/remote/soci.index.digest"
 )
 
@@ -112,7 +93,7 @@ const (
 // source information based on labels.
 func FromDefaultLabels(hosts RegistryHosts) GetSources {
 	return func(labels map[string]string) ([]Source, error) {
-		refStr, ok := labels[TargetRefLabel]
+		refStr, ok := labels[ctdsnapshotters.TargetRefLabel]
 		if !ok {
 			return nil, fmt.Errorf("reference hasn't been passed")
 		}
@@ -121,7 +102,7 @@ func FromDefaultLabels(hosts RegistryHosts) GetSources {
 			return nil, err
 		}
 
-		digestStr, ok := labels[TargetDigestLabel]
+		digestStr, ok := labels[ctdsnapshotters.TargetLayerDigestLabel]
 		if !ok {
 			return nil, fmt.Errorf("digest hasn't been passed")
 		}
@@ -140,7 +121,7 @@ func FromDefaultLabels(hosts RegistryHosts) GetSources {
 		}
 
 		var neighboringLayers []ocispec.Descriptor
-		if l, ok := labels[targetImageLayersDigestLabel]; ok {
+		if l, ok := labels[ctdsnapshotters.TargetImageLayersLabel]; ok {
 			layerDigestsStr := strings.Split(l, ",")
 			layerSizes := strings.Split(labels[targetImageLayersSizeLabel], ",")
 			if len(layerDigestsStr) != len(layerSizes) {
@@ -159,21 +140,14 @@ func FromDefaultLabels(hosts RegistryHosts) GetSources {
 						return nil, err
 					}
 					desc := ocispec.Descriptor{Digest: d, Size: size}
-					if urls, ok := labels[targetImageURLsLabelPrefix+fmt.Sprintf("%d", i)]; ok {
-						desc.URLs = strings.Split(urls, ",")
-					}
 					neighboringLayers = append(neighboringLayers, desc)
 				}
 			}
 		}
-
 		targetDesc := ocispec.Descriptor{
 			Digest:      target,
 			Size:        targetSize,
 			Annotations: labels,
-		}
-		if targetURLs, ok := labels[targetURLsLabel]; ok {
-			targetDesc.URLs = append(targetDesc.URLs, strings.Split(targetURLs, ",")...)
 		}
 
 		return []Source{
@@ -191,10 +165,10 @@ func FromDefaultLabels(hosts RegistryHosts) GetSources {
 // information to each layer descriptor as annotations during unpack. These
 // annotations will be passed to this remote snapshotter as labels and used to
 // construct source information.
-func AppendDefaultLabelsHandlerWrapper(ref, indexDigest string) func(f images.Handler) images.Handler {
+func AppendDefaultLabelsHandlerWrapper(indexDigest string, wrapper func(images.Handler) images.Handler) func(f images.Handler) images.Handler {
 	return func(f images.Handler) images.Handler {
 		return images.HandlerFunc(func(ctx context.Context, desc ocispec.Descriptor) ([]ocispec.Descriptor, error) {
-			children, err := f.Handle(ctx, desc)
+			children, err := wrapper(f).Handle(ctx, desc)
 			if err != nil {
 				return nil, err
 			}
@@ -206,54 +180,27 @@ func AppendDefaultLabelsHandlerWrapper(ref, indexDigest string) func(f images.Ha
 						if c.Annotations == nil {
 							c.Annotations = make(map[string]string)
 						}
-						c.Annotations[TargetImgManifestDigestLabel] = desc.Digest.String()
-						c.Annotations[TargetRefLabel] = ref
-						c.Annotations[TargetDigestLabel] = c.Digest.String()
+
 						c.Annotations[TargetSizeLabel] = fmt.Sprintf("%d", c.Size)
 						c.Annotations[TargetSociIndexDigestLabel] = indexDigest
-						var layerDigests string
+
 						var layerSizes string
-						for i, l := range children[i:] {
+						for _, l := range children[i:] {
 							if images.IsLayerType(l.MediaType) {
-								ld := fmt.Sprintf("%s,", l.Digest.String())
 								ls := fmt.Sprintf("%d,", l.Size)
 								// This avoids the label hits the size limitation.
 								// Skipping layers is allowed here and only affects performance.
-								if err := labels.Validate(targetImageLayersDigestLabel, layerDigests+ld); err != nil {
-									break
-								}
 								if err := labels.Validate(targetImageLayersSizeLabel, layerSizes+ls); err != nil {
 									break
 								}
-								layerDigests += ld
 								layerSizes += ls
-
-								// Store URLs of the neighbouring layer as well.
-								urlsKey := targetImageURLsLabelPrefix + fmt.Sprintf("%d", i)
-								c.Annotations[urlsKey] = appendWithValidation(urlsKey, l.URLs)
 							}
 						}
-						c.Annotations[targetImageLayersDigestLabel] = strings.TrimSuffix(layerDigests, ",")
 						c.Annotations[targetImageLayersSizeLabel] = strings.TrimSuffix(layerSizes, ",")
-
-						// store URL in annotation to let containerd to pass it to the snapshotter
-						c.Annotations[targetURLsLabel] = appendWithValidation(targetURLsLabel, c.URLs)
 					}
 				}
 			}
 			return children, nil
 		})
 	}
-}
-
-func appendWithValidation(key string, values []string) string {
-	var v string
-	for _, u := range values {
-		s := fmt.Sprintf("%s,", u)
-		if err := labels.Validate(key, v+s); err != nil {
-			break
-		}
-		v += s
-	}
-	return strings.TrimSuffix(v, ",")
 }
