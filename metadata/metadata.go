@@ -37,8 +37,8 @@ import (
 	"os"
 	"time"
 
-	"github.com/awslabs/soci-snapshotter/compression"
 	"github.com/awslabs/soci-snapshotter/ztoc"
+	"github.com/awslabs/soci-snapshotter/ztoc/compression"
 )
 
 // Attr reprensents the attributes of a node.

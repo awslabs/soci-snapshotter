@@ -25,8 +25,8 @@ import (
 	"runtime"
 
 	"github.com/awslabs/soci-snapshotter/cache"
-	"github.com/awslabs/soci-snapshotter/compression"
 	"github.com/awslabs/soci-snapshotter/ztoc"
+	"github.com/awslabs/soci-snapshotter/ztoc/compression"
 	"github.com/opencontainers/go-digest"
 	"golang.org/x/sync/errgroup"
 )

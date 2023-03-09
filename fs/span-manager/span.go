@@ -22,7 +22,7 @@ import (
 	"sync"
 	"sync/atomic"
 
-	"github.com/awslabs/soci-snapshotter/compression"
+	"github.com/awslabs/soci-snapshotter/ztoc/compression"
 )
 
 type spanState int

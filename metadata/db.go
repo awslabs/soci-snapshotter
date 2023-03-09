@@ -37,8 +37,8 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/awslabs/soci-snapshotter/compression"
 	"github.com/awslabs/soci-snapshotter/util/dbutil"
+	"github.com/awslabs/soci-snapshotter/ztoc/compression"
 	bolt "go.etcd.io/bbolt"
 )
 

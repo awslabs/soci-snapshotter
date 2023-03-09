@@ -25,7 +25,7 @@ import (
 	"github.com/opencontainers/go-digest"
 	"golang.org/x/sync/errgroup"
 
-	"github.com/awslabs/soci-snapshotter/compression"
+	"github.com/awslabs/soci-snapshotter/ztoc/compression"
 )
 
 type Version string

@@ -23,7 +23,7 @@ import (
 	"sort"
 	"time"
 
-	"github.com/awslabs/soci-snapshotter/compression"
+	"github.com/awslabs/soci-snapshotter/ztoc/compression"
 	ztoc_flatbuffers "github.com/awslabs/soci-snapshotter/ztoc/fbs/ztoc"
 	flatbuffers "github.com/google/flatbuffers/go"
 	"github.com/opencontainers/go-digest"
