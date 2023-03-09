@@ -68,7 +68,7 @@ func flatbufToZtoc(flatbuffer []byte) (z *Ztoc, err error) {
 
 	ztoc := new(Ztoc)
 	ztocFlatbuf := ztoc_flatbuffers.GetRootAsZtoc(flatbuffer, 0)
-	ztoc.Version = string(ztocFlatbuf.Version())
+	ztoc.Version = Version(ztocFlatbuf.Version())
 	ztoc.BuildToolIdentifier = string(ztocFlatbuf.BuildToolIdentifier())
 	ztoc.CompressedArchiveSize = compression.Offset(ztocFlatbuf.CompressedArchiveSize())
 	ztoc.UncompressedArchiveSize = compression.Offset(ztocFlatbuf.UncompressedArchiveSize())
@@ -133,7 +133,7 @@ func ztocToFlatbuffer(ztoc *Ztoc) (fb []byte, err error) {
 	}()
 
 	builder := flatbuffers.NewBuilder(0)
-	version := builder.CreateString(ztoc.Version)
+	version := builder.CreateString(string(ztoc.Version))
 	buildToolIdentifier := builder.CreateString(ztoc.BuildToolIdentifier)
 
 	metadataOffsetList := make([]flatbuffers.UOffsetT, len(ztoc.TOC.Metadata))

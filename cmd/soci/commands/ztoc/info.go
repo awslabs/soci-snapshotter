@@ -93,7 +93,7 @@ var infoCommand = cli.Command{
 
 		multiSpanFiles := 0
 		zinfo := Info{
-			Version:   ztoc.Version,
+			Version:   string(ztoc.Version),
 			BuildTool: ztoc.BuildToolIdentifier,
 			Size:      entry.Size,
 			SpanSize:  gzInfo.SpanSize(),
