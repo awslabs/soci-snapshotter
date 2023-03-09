@@ -30,7 +30,6 @@ import (
 	"github.com/awslabs/soci-snapshotter/fs/layer"
 	"github.com/awslabs/soci-snapshotter/fs/source"
 	"github.com/awslabs/soci-snapshotter/metadata"
-	metadatadb "github.com/awslabs/soci-snapshotter/metadata/db"
 	"github.com/awslabs/soci-snapshotter/service"
 	"github.com/awslabs/soci-snapshotter/service/keychain/dockerconfig"
 	"github.com/awslabs/soci-snapshotter/service/keychain/kubeconfig"
@@ -209,6 +208,6 @@ func getMetadataStore(rootDir string, config Config) (metadata.Store, error) {
 		return nil, err
 	}
 	return func(sr *io.SectionReader, ztoc *ztoc.Ztoc, opts ...metadata.Option) (metadata.Reader, error) {
-		return metadatadb.NewReader(db, sr, ztoc, opts...)
+		return metadata.NewReader(db, sr, ztoc, opts...)
 	}, nil
 }
