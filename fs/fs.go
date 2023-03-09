@@ -371,6 +371,14 @@ type filesystem struct {
 	fuseMetricsEmitWaitDuration time.Duration
 }
 
+func (fs *filesystem) GetZtocForLayer(ctx context.Context, imageRef, indexDigest, imageManifestDigest, layerDigest string) (ocispec.Descriptor, error) {
+	sociContext, err := fs.getSociContext(ctx, imageRef, indexDigest, imageManifestDigest)
+	if err != nil {
+		return ocispec.Descriptor{}, err
+	}
+	return sociContext.imageLayerToSociDesc[layerDigest], nil
+}
+
 func (fs *filesystem) MountLocal(ctx context.Context, mountpoint string, labels map[string]string, mounts []mount.Mount) error {
 	imageRef, ok := labels[ctdsnapshotters.TargetRefLabel]
 	if !ok {
