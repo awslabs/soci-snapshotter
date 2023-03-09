@@ -401,7 +401,7 @@ func ztocExistChecker(t *testing.T, listOutputLines []string, img testImageIndex
 }
 
 func verifyInfoOutput(zinfo Info, ztoc *ztoc.Ztoc) error {
-	if zinfo.Version != ztoc.Version {
+	if zinfo.Version != string(ztoc.Version) {
 		return fmt.Errorf("different versions: expected %s got %s", ztoc.Version, zinfo.Version)
 	}
 	if zinfo.BuildTool != ztoc.BuildToolIdentifier {

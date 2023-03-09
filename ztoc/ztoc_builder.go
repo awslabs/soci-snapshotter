@@ -99,7 +99,7 @@ func (b *Builder) BuildZtoc(filename string, span int64, options ...BuildOption)
 	}
 
 	return &Ztoc{
-		Version:                 "0.9",
+		Version:                 Version09,
 		TOC:                     toc,
 		CompressedArchiveSize:   fs,
 		UncompressedArchiveSize: uncompressedArchiveSize,

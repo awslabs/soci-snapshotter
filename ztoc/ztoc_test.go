@@ -615,7 +615,7 @@ func TestZtocSerialization(t *testing.T) {
 func TestWriteZtoc(t *testing.T) {
 	testCases := []struct {
 		name                    string
-		version                 string
+		version                 Version
 		checkpoints             []byte
 		metadata                []FileMetadata
 		compressedArchiveSize   compression.Offset
@@ -626,15 +626,15 @@ func TestWriteZtoc(t *testing.T) {
 		expSize                 int64
 	}{
 		{
-			name:                    "success write succeeds - same digest and size",
-			version:                 "0.1",
+			name:                    "success write succeeds - same digest and size " + string(Version09),
+			version:                 Version09,
 			checkpoints:             make([]byte, 1<<16),
 			metadata:                make([]FileMetadata, 2),
 			compressedArchiveSize:   2000000,
 			uncompressedArchiveSize: 2500000,
 			maxSpanID:               3,
 			buildTool:               "AWS SOCI CLI",
-			expDigest:               "sha256:9c8effca78ecc82fad49a4d591dd81615555b05eaaae605a621c927ecf6fc1e7",
+			expDigest:               "sha256:eba28fdf50b1b57543f57dd051b2468c1d4f57b64d2006c75aa4de1d03e6c7ec",
 			expSize:                 65928,
 		},
 	}

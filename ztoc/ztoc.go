@@ -28,6 +28,12 @@ import (
 	"github.com/awslabs/soci-snapshotter/compression"
 )
 
+type Version string
+
+const (
+	Version09 Version = "0.9"
+)
+
 // Ztoc is a table of contents for compressed data which consists 2 parts:
 //
 // (1). toc (`TOC`): a table of contents containing file metadata and its
@@ -35,7 +41,7 @@ import (
 // (2). zinfo (`CompressionInfo`): a collection of "checkpoints" of the
 // state of the compression engine at various points in the layer.
 type Ztoc struct {
-	Version                 string
+	Version                 Version
 	BuildToolIdentifier     string
 	CompressedArchiveSize   compression.Offset
 	UncompressedArchiveSize compression.Offset
