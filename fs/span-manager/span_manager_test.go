@@ -26,9 +26,9 @@ import (
 	"testing"
 
 	"github.com/awslabs/soci-snapshotter/cache"
-	"github.com/awslabs/soci-snapshotter/compression"
 	"github.com/awslabs/soci-snapshotter/util/testutil"
 	"github.com/awslabs/soci-snapshotter/ztoc"
+	"github.com/awslabs/soci-snapshotter/ztoc/compression"
 )
 
 func init() {

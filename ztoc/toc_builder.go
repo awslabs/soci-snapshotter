@@ -23,7 +23,7 @@ import (
 	"io"
 	"os"
 
-	"github.com/awslabs/soci-snapshotter/compression"
+	"github.com/awslabs/soci-snapshotter/ztoc/compression"
 	"github.com/klauspost/compress/zstd"
 )
 

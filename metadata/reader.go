@@ -47,8 +47,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/awslabs/soci-snapshotter/compression"
 	"github.com/awslabs/soci-snapshotter/ztoc"
+	"github.com/awslabs/soci-snapshotter/ztoc/compression"
 	"github.com/rs/xid"
 	bolt "go.etcd.io/bbolt"
 	"golang.org/x/sync/errgroup"

@@ -46,10 +46,10 @@ import (
 	"time"
 
 	"github.com/awslabs/soci-snapshotter/cache"
-	"github.com/awslabs/soci-snapshotter/compression"
 	commonmetrics "github.com/awslabs/soci-snapshotter/fs/metrics/common"
 	spanmanager "github.com/awslabs/soci-snapshotter/fs/span-manager"
 	"github.com/awslabs/soci-snapshotter/metadata"
+	"github.com/awslabs/soci-snapshotter/ztoc/compression"
 	"github.com/hashicorp/go-multierror"
 	digest "github.com/opencontainers/go-digest"
 )

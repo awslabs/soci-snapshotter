@@ -21,7 +21,7 @@ import (
 	"io"
 	"os"
 
-	"github.com/awslabs/soci-snapshotter/compression"
+	"github.com/awslabs/soci-snapshotter/ztoc/compression"
 	"github.com/opencontainers/go-digest"
 )
 

@@ -19,7 +19,7 @@ package ztoc
 import (
 	"fmt"
 
-	"github.com/awslabs/soci-snapshotter/compression"
+	"github.com/awslabs/soci-snapshotter/ztoc/compression"
 )
 
 // Builder holds a single `TocBuilder` that builds toc, and one `ZinfoBuilder`
