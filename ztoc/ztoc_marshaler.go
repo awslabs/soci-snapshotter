@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"io"
 	"sort"
+	"strings"
 	"time"
 
 	"github.com/awslabs/soci-snapshotter/ztoc/compression"
@@ -66,6 +67,7 @@ func flatbufToZtoc(flatbuffer []byte) (z *Ztoc, err error) {
 		}
 	}()
 
+	// ztoc - metadata
 	ztoc := new(Ztoc)
 	ztocFlatbuf := ztoc_flatbuffers.GetRootAsZtoc(flatbuffer, 0)
 	ztoc.Version = Version(ztocFlatbuf.Version())
@@ -73,12 +75,13 @@ func flatbufToZtoc(flatbuffer []byte) (z *Ztoc, err error) {
 	ztoc.CompressedArchiveSize = compression.Offset(ztocFlatbuf.CompressedArchiveSize())
 	ztoc.UncompressedArchiveSize = compression.Offset(ztocFlatbuf.UncompressedArchiveSize())
 
+	// ztoc - toc
 	toc := new(ztoc_flatbuffers.TOC)
 	ztocFlatbuf.Toc(toc)
 
 	metadata := make([]FileMetadata, toc.MetadataLength())
 	ztoc.TOC = TOC{
-		Metadata: metadata,
+		FileMetadata: metadata,
 	}
 
 	for i := 0; i < toc.MetadataLength(); i++ {
@@ -109,18 +112,20 @@ func flatbufToZtoc(flatbuffer []byte) (z *Ztoc, err error) {
 			me.Xattrs[key] = value
 		}
 
-		ztoc.TOC.Metadata[i] = me
+		ztoc.FileMetadata[i] = me
 	}
 
+	// ztoc - zinfo
 	compressionInfo := new(ztoc_flatbuffers.CompressionInfo)
 	ztocFlatbuf.CompressionInfo(compressionInfo)
-	ztoc.CompressionInfo.MaxSpanID = compression.SpanID(compressionInfo.MaxSpanId())
-	ztoc.CompressionInfo.SpanDigests = make([]digest.Digest, compressionInfo.SpanDigestsLength())
+	ztoc.MaxSpanID = compression.SpanID(compressionInfo.MaxSpanId())
+	ztoc.SpanDigests = make([]digest.Digest, compressionInfo.SpanDigestsLength())
 	for i := 0; i < compressionInfo.SpanDigestsLength(); i++ {
 		dgst, _ := digest.Parse(string(compressionInfo.SpanDigests(i)))
-		ztoc.CompressionInfo.SpanDigests[i] = dgst
+		ztoc.SpanDigests[i] = dgst
 	}
-	ztoc.CompressionInfo.Checkpoints = compressionInfo.CheckpointsBytes()
+	ztoc.Checkpoints = compressionInfo.CheckpointsBytes()
+	ztoc.CompressionAlgorithm = strings.ToLower(compressionInfo.CompressionAlgorithm().String())
 	return ztoc, nil
 }
 
@@ -132,30 +137,32 @@ func ztocToFlatbuffer(ztoc *Ztoc) (fb []byte, err error) {
 		}
 	}()
 
+	// ztoc - metadata
 	builder := flatbuffers.NewBuilder(0)
 	version := builder.CreateString(string(ztoc.Version))
 	buildToolIdentifier := builder.CreateString(ztoc.BuildToolIdentifier)
 
-	metadataOffsetList := make([]flatbuffers.UOffsetT, len(ztoc.TOC.Metadata))
-	for i := len(ztoc.TOC.Metadata) - 1; i >= 0; i-- {
-		me := ztoc.TOC.Metadata[i]
+	// ztoc - toc
+	metadataOffsetList := make([]flatbuffers.UOffsetT, len(ztoc.FileMetadata))
+	for i := len(ztoc.FileMetadata) - 1; i >= 0; i-- {
+		me := ztoc.FileMetadata[i]
 		// preparing the individual file medatada element
 		metadataOffsetList[i] = prepareMetadataOffset(builder, me)
 	}
-	ztoc_flatbuffers.TOCStartMetadataVector(builder, len(ztoc.TOC.Metadata))
+	ztoc_flatbuffers.TOCStartMetadataVector(builder, len(ztoc.FileMetadata))
 	for i := len(metadataOffsetList) - 1; i >= 0; i-- {
 		builder.PrependUOffsetT(metadataOffsetList[i])
 	}
-	metadata := builder.EndVector(len(ztoc.TOC.Metadata))
+	metadata := builder.EndVector(len(ztoc.FileMetadata))
 
 	ztoc_flatbuffers.TOCStart(builder)
 	ztoc_flatbuffers.TOCAddMetadata(builder, metadata)
 	toc := ztoc_flatbuffers.TOCEnd(builder)
 
-	// CompressionInfo
-	checkpointsVector := builder.CreateByteVector(ztoc.CompressionInfo.Checkpoints)
-	spanDigestsOffsets := make([]flatbuffers.UOffsetT, 0, len(ztoc.CompressionInfo.SpanDigests))
-	for _, spanDigest := range ztoc.CompressionInfo.SpanDigests {
+	// ztoc - zinfo
+	checkpointsVector := builder.CreateByteVector(ztoc.Checkpoints)
+	spanDigestsOffsets := make([]flatbuffers.UOffsetT, 0, len(ztoc.SpanDigests))
+	for _, spanDigest := range ztoc.SpanDigests {
 		off := builder.CreateString(spanDigest.String())
 		spanDigestsOffsets = append(spanDigestsOffsets, off)
 	}
@@ -164,10 +171,21 @@ func ztocToFlatbuffer(ztoc *Ztoc) (fb []byte, err error) {
 		builder.PrependUOffsetT(spanDigestsOffsets[i])
 	}
 	spanDigests := builder.EndVector(len(spanDigestsOffsets))
+
 	ztoc_flatbuffers.CompressionInfoStart(builder)
-	ztoc_flatbuffers.CompressionInfoAddMaxSpanId(builder, int32(ztoc.CompressionInfo.MaxSpanID))
+	ztoc_flatbuffers.CompressionInfoAddMaxSpanId(builder, int32(ztoc.MaxSpanID))
 	ztoc_flatbuffers.CompressionInfoAddSpanDigests(builder, spanDigests)
 	ztoc_flatbuffers.CompressionInfoAddCheckpoints(builder, checkpointsVector)
+
+	// only add (and check) compression algorithm if not empty;
+	// if empty, use Gzip as defined in ztoc flatbuf.
+	if ztoc.CompressionAlgorithm != "" {
+		compressionAlgorithm, err := compressionAlgorithmToFlatbuf(ztoc.CompressionAlgorithm)
+		if err != nil {
+			return nil, err
+		}
+		ztoc_flatbuffers.CompressionInfoAddCompressionAlgorithm(builder, compressionAlgorithm)
+	}
 	ztocInfo := ztoc_flatbuffers.CompressionInfoEnd(builder)
 
 	ztoc_flatbuffers.ZtocStart(builder)
@@ -237,4 +255,17 @@ func prepareXattrsOffset(me FileMetadata, builder *flatbuffers.Builder) flatbuff
 	}
 	xattrs := builder.EndVector(len(me.Xattrs))
 	return xattrs
+}
+
+// compressionAlgorithmToFlatbuf helps convert compression algorithm into flatbuf
+// enum. SOCI/containerd uses lower-case for compression, but our flatbuf capitalizes
+// the first letter. When converting back, we can just `strings.ToLower` so a helper
+// func is not needed in that case.
+func compressionAlgorithmToFlatbuf(algo string) (ztoc_flatbuffers.CompressionAlgorithm, error) {
+	for k, v := range ztoc_flatbuffers.EnumValuesCompressionAlgorithm {
+		if strings.ToLower(k) == algo {
+			return v, nil
+		}
+	}
+	return 0, fmt.Errorf("compression algorithm not defined in flatbuf: %s", algo)
 }

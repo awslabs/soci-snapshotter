@@ -407,15 +407,15 @@ func verifyInfoOutput(zinfo Info, ztoc *ztoc.Ztoc) error {
 	if zinfo.BuildTool != ztoc.BuildToolIdentifier {
 		return fmt.Errorf("different buildtool: expected %s got %s", ztoc.BuildToolIdentifier, zinfo.BuildTool)
 	}
-	if zinfo.NumFiles != len(ztoc.TOC.Metadata) {
-		return fmt.Errorf("different file counts: expected %v got %v", len(ztoc.TOC.Metadata), zinfo.NumFiles)
+	if zinfo.NumFiles != len(ztoc.FileMetadata) {
+		return fmt.Errorf("different file counts: expected %v got %v", len(ztoc.FileMetadata), zinfo.NumFiles)
 	}
-	if zinfo.NumSpans != ztoc.CompressionInfo.MaxSpanID+1 {
-		return fmt.Errorf("different number of spans: expected %v got %v", ztoc.CompressionInfo.MaxSpanID+1, zinfo.NumSpans)
+	if zinfo.NumSpans != ztoc.MaxSpanID+1 {
+		return fmt.Errorf("different number of spans: expected %v got %v", ztoc.MaxSpanID+1, zinfo.NumSpans)
 	}
 	for i := 0; i < len(zinfo.Files); i++ {
 		zinfoFile := zinfo.Files[i]
-		ztocFile := ztoc.TOC.Metadata[i]
+		ztocFile := ztoc.FileMetadata[i]
 
 		if zinfoFile.Filename != ztocFile.Name {
 			return fmt.Errorf("different filename: expected %s got %s", ztocFile.Name, zinfoFile.Filename)

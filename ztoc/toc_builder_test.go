@@ -103,8 +103,8 @@ func TestTocBuilder(t *testing.T) {
 					t.Fatalf("unexpected error: %v", err)
 				}
 			} else {
-				if len(toc.Metadata) != len(tt.tarEntries) {
-					t.Fatalf("count of file metadata mismatch, expect: %d, actual: %d", len(tt.tarEntries), len(toc.Metadata))
+				if len(toc.FileMetadata) != len(tt.tarEntries) {
+					t.Fatalf("count of file metadata mismatch, expect: %d, actual: %d", len(tt.tarEntries), len(toc.FileMetadata))
 				}
 			}
 		})

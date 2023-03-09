@@ -41,26 +41,28 @@ const (
 // (2). zinfo (`CompressionInfo`): a collection of "checkpoints" of the
 // state of the compression engine at various points in the layer.
 type Ztoc struct {
+	TOC
+	CompressionInfo
+
 	Version                 Version
 	BuildToolIdentifier     string
 	CompressedArchiveSize   compression.Offset
 	UncompressedArchiveSize compression.Offset
-	TOC                     TOC
-	CompressionInfo         CompressionInfo
 }
 
 // CompressionInfo is the "zinfo" part of ztoc including the `Checkpoints` data
 // and other metadata such as all span digests.
 type CompressionInfo struct {
-	MaxSpanID   compression.SpanID //The total number of spans in Ztoc - 1
-	SpanDigests []digest.Digest
-	Checkpoints []byte
+	MaxSpanID            compression.SpanID //The total number of spans in Ztoc - 1
+	SpanDigests          []digest.Digest
+	Checkpoints          []byte
+	CompressionAlgorithm string
 }
 
 // TOC is the "ztoc" part of ztoc including metadata of all files in the compressed
 // data (e.g., a gzip tar file).
 type TOC struct {
-	Metadata []FileMetadata
+	FileMetadata []FileMetadata
 }
 
 // FileMetadata contains metadata of a file in the compressed data.
@@ -165,7 +167,7 @@ func NewGzipZinfo(b []byte) {
 
 // GetMetadataEntry gets MetadataEntry from `ztoc` given a filename.
 func GetMetadataEntry(ztoc *Ztoc, filename string) (*MetadataEntry, error) {
-	for _, v := range ztoc.TOC.Metadata {
+	for _, v := range ztoc.FileMetadata {
 		if v.Name == filename {
 			if v.Linkname != "" {
 				return GetMetadataEntry(ztoc, v.Linkname)
@@ -191,7 +193,7 @@ func ExtractFromTarGz(gz string, ztoc *Ztoc, text string) (string, error) {
 		return "", nil
 	}
 
-	gzipZinfo, err := compression.NewZinfo(compression.Gzip, ztoc.CompressionInfo.Checkpoints)
+	gzipZinfo, err := compression.NewZinfo(compression.Gzip, ztoc.Checkpoints)
 	if err != nil {
 		return "", err
 	}

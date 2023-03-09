@@ -65,11 +65,11 @@ type spanInfo struct {
 // New creates a SpanManager with given ztoc and content reader, and builds all
 // spans based on the ztoc.
 func New(ztoc *ztoc.Ztoc, r *io.SectionReader, cache cache.BlobCache, retries int, cacheOpt ...cache.Option) *SpanManager {
-	index, err := compression.NewZinfo(compression.Gzip, ztoc.CompressionInfo.Checkpoints)
+	index, err := compression.NewZinfo(compression.Gzip, ztoc.Checkpoints)
 	if err != nil {
 		return nil
 	}
-	spans := make([]*span, ztoc.CompressionInfo.MaxSpanID+1)
+	spans := make([]*span, ztoc.MaxSpanID+1)
 	m := &SpanManager{
 		cache:                             cache,
 		cacheOpt:                          cacheOpt,
@@ -92,7 +92,7 @@ func New(ztoc *ztoc.Ztoc, r *io.SectionReader, cache cache.BlobCache, retries in
 
 func (m *SpanManager) buildAllSpans() {
 	var i compression.SpanID
-	for i = 0; i <= m.ztoc.CompressionInfo.MaxSpanID; i++ {
+	for i = 0; i <= m.ztoc.MaxSpanID; i++ {
 		s := span{
 			id:                i,
 			startCompOffset:   m.zinfo.StartCompressedOffset(i),
@@ -110,7 +110,7 @@ func (m *SpanManager) buildAllSpans() {
 // the span without uncompressing. It is invoked by the BackgroundFetcher.
 // span state change: unrequested -> requested -> fetched.
 func (m *SpanManager) FetchSingleSpan(spanID compression.SpanID) error {
-	if spanID > m.ztoc.CompressionInfo.MaxSpanID {
+	if spanID > m.ztoc.MaxSpanID {
 		return ErrExceedMaxSpan
 	}
 
@@ -134,7 +134,7 @@ func (m *SpanManager) FetchSingleSpan(spanID compression.SpanID) error {
 // resolveSpan ensures the span exists in cache and is uncompressed by calling
 // `getSpanContent`. Only for testing.
 func (m *SpanManager) resolveSpan(spanID compression.SpanID) error {
-	if spanID > m.ztoc.CompressionInfo.MaxSpanID {
+	if spanID > m.ztoc.MaxSpanID {
 		return ErrExceedMaxSpan
 	}
 
@@ -408,7 +408,7 @@ func (m *SpanManager) getSpanFromCache(spanID compression.SpanID, offset, size c
 // with the digest stored in ztoc.
 func (m *SpanManager) verifySpanContents(compressedData []byte, spanID compression.SpanID) error {
 	actual := digest.FromBytes(compressedData)
-	expected := m.ztoc.CompressionInfo.SpanDigests[spanID]
+	expected := m.ztoc.SpanDigests[spanID]
 	if actual != expected {
 		return fmt.Errorf("expected %v but got %v: %w", expected, actual, ErrIncorrectSpanDigest)
 	}
