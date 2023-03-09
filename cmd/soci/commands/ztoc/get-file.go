@@ -79,9 +79,9 @@ var getFileCommand = cli.Command{
 		extractConfig := ztoc.FileExtractConfig{
 			UncompressedSize:      fileMetadata.UncompressedSize,
 			UncompressedOffset:    fileMetadata.UncompressedOffset,
-			Checkpoints:           toc.CompressionInfo.Checkpoints,
+			Checkpoints:           toc.Checkpoints,
 			CompressedArchiveSize: toc.CompressedArchiveSize,
-			MaxSpanID:             toc.CompressionInfo.MaxSpanID,
+			MaxSpanID:             toc.MaxSpanID,
 		}
 
 		data, err := ztoc.ExtractFile(io.NewSectionReader(layerReader, 0, int64(toc.CompressedArchiveSize)), &extractConfig)

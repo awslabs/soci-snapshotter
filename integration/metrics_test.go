@@ -150,11 +150,11 @@ log_fuse_operations = true
 	defer done()
 
 	manipulateZtocMetadata := func(zt *ztoc.Ztoc) {
-		for i, md := range zt.TOC.Metadata {
+		for i, md := range zt.FileMetadata {
 			md.UncompressedOffset += 2
 			md.UncompressedSize = math.MaxInt64
 			md.Xattrs = map[string]string{"foo": "bar"}
-			zt.TOC.Metadata[i] = md
+			zt.FileMetadata[i] = md
 		}
 	}
 

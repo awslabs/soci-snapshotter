@@ -86,7 +86,7 @@ var infoCommand = cli.Command{
 		if err != nil {
 			return err
 		}
-		gzInfo, err := compression.NewZinfo(compression.Gzip, ztoc.CompressionInfo.Checkpoints)
+		gzInfo, err := compression.NewZinfo(compression.Gzip, ztoc.Checkpoints)
 		if err != nil {
 			return err
 		}
@@ -97,10 +97,10 @@ var infoCommand = cli.Command{
 			BuildTool: ztoc.BuildToolIdentifier,
 			Size:      entry.Size,
 			SpanSize:  gzInfo.SpanSize(),
-			NumSpans:  ztoc.CompressionInfo.MaxSpanID + 1,
-			NumFiles:  len(ztoc.TOC.Metadata),
+			NumSpans:  ztoc.MaxSpanID + 1,
+			NumFiles:  len(ztoc.FileMetadata),
 		}
-		for _, v := range ztoc.TOC.Metadata {
+		for _, v := range ztoc.FileMetadata {
 			startSpan := gzInfo.UncompressedOffsetToSpanID(v.UncompressedOffset)
 			endSpan := gzInfo.UncompressedOffsetToSpanID(v.UncompressedOffset + v.UncompressedSize)
 			if startSpan != endSpan {

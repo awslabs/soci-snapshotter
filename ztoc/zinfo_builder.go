@@ -59,9 +59,10 @@ func (gzb gzipZinfoBuilder) ZinfoFromFile(filename string, spanSize int64) (zinf
 	}
 
 	return CompressionInfo{
-		MaxSpanID:   index.MaxSpanID(),
-		SpanDigests: digests,
-		Checkpoints: checkpoints,
+		MaxSpanID:            index.MaxSpanID(),
+		SpanDigests:          digests,
+		Checkpoints:          checkpoints,
+		CompressionAlgorithm: compression.Gzip,
 	}, fs, nil
 }
 
