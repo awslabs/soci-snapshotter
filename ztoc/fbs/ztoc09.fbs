@@ -1,4 +1,4 @@
-namespace ztoc;
+namespace v09;
 
 table Xattr {
 	key : string;
@@ -40,6 +40,7 @@ table TOC {
 
 table Ztoc {
 	version : string;			// The version of the Ztoc in format <major_version>.<minor_version>, e.g. 1.0
+	build_tool_identifier : string;
 	compressed_archive_size : long;
 	uncompressed_archive_size : long;
 	toc : TOC;

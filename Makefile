@@ -23,7 +23,7 @@ REVISION=$(shell git rev-parse HEAD)$(shell if ! git diff --no-ext-diff --quiet 
 GO_LD_FLAGS=-ldflags '-s -w -X $(PKG)/version.Version=$(VERSION) -X $(PKG)/version.Revision=$(REVISION) $(GO_EXTRA_LDFLAGS)'
 SOCI_SNAPSHOTTER_PROJECT_ROOT ?= $(shell pwd)
 LTAG_TEMPLATE_FLAG=-t ./.headers
-FBS_FILE_PATH=$(CURDIR)/ztoc/fbs/ztoc.fbs
+FBS_FILE_PATH=$(CURDIR)/ztoc/fbs/*.fbs
 COMMIT=$(shell git rev-parse HEAD)
 STARGZ_BINARY?=/usr/local/bin/containerd-stargz-grpc
 
