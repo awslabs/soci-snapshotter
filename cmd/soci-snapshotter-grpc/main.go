@@ -136,6 +136,10 @@ func main() {
 	// Snapshotter should use "github.com/containerd/containerd/log" otherwize
 	// logs are always printed as "debug" mode.
 	golog.SetOutput(log.G(ctx).WriterLevel(logrus.DebugLevel))
+	log.G(ctx).WithFields(logrus.Fields{
+		"version":  version.Version,
+		"revision": version.Revision,
+	}).Info("starting soci-snapshotter-grpc")
 
 	// Get configuration from specified file
 	tree, err := toml.LoadFile(*configPath)
