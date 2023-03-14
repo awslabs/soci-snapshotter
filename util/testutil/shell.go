@@ -97,8 +97,8 @@ type LogMonitor struct {
 func NewLogMonitor(r shell.Reporter, stdout, stderr io.Reader) *LogMonitor {
 	m := &LogMonitor{}
 	m.monitorFuncs = make(map[string]func(string))
-	go m.ScanLog(io.TeeReader(stdout, r.Stdout()))
-	go m.ScanLog(io.TeeReader(stderr, r.Stderr()))
+	go m.scanLog(io.TeeReader(stdout, r.Stdout()))
+	go m.scanLog(io.TeeReader(stderr, r.Stderr()))
 	return m
 }
 
@@ -120,8 +120,8 @@ func (m *LogMonitor) Remove(name string) error {
 	return fmt.Errorf("attempted to remove nonexistent log monitor: %s", name)
 }
 
-// ScanLog calls each registered log monitor function for each new line of the Reader
-func (m *LogMonitor) ScanLog(inputR io.Reader) {
+// scanLog calls each registered log monitor function for each new line of the Reader
+func (m *LogMonitor) scanLog(inputR io.Reader) {
 	scanner := bufio.NewScanner(inputR)
 	for scanner.Scan() {
 		rawL := scanner.Text()
