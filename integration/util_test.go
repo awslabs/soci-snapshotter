@@ -666,8 +666,7 @@ func rebootContainerd(t *testing.T, sh *shell.Shell, customContainerdConfig, cus
 	reporter := testutil.NewTestingReporter(t)
 	var m *testutil.LogMonitor = testutil.NewLogMonitor(reporter, outR, errR)
 
-	err = testutil.LogConfirmStartup(m)
-	if err != nil {
+	if err = testutil.LogConfirmStartup(m); err != nil {
 		t.Fatalf("snapshotter startup failed: %v", err)
 	}
 
