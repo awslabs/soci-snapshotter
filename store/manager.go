@@ -19,7 +19,6 @@ package store
 import (
 	"context"
 	"fmt"
-	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -389,21 +388,11 @@ func genLayerInfo(ctx context.Context, dgst digest.Digest, manifest ocispec.Mani
 		return Layer{}, fmt.Errorf("layer %q not found in the manifest", dgst.String())
 	}
 
-	var uncompressedSize int64
-	var err error
-	if uncompressedSizeStr, ok := manifest.Layers[layerIndex].Annotations["io.containers.estargz.uncompressed-size"]; ok {
-		uncompressedSize, err = strconv.ParseInt(uncompressedSizeStr, 10, 64)
-		if err != nil {
-			log.G(ctx).WithError(err).Warnf("layer %q has invalid uncompressed size; exposing incomplete layer info", dgst.String())
-		}
-	} else {
-		log.G(ctx).Warnf("layer %q doesn't have uncompressed size; exposing incomplete layer info", dgst.String())
-	}
 	return Layer{
 		CompressedDigest:   manifest.Layers[layerIndex].Digest,
 		CompressedSize:     manifest.Layers[layerIndex].Size,
 		UncompressedDigest: config.RootFS.DiffIDs[layerIndex],
-		UncompressedSize:   uncompressedSize,
+		UncompressedSize:   0,
 		CompressionType:    gzipTypeMagicNum,
 		ReadOnly:           true,
 	}, nil

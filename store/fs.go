@@ -49,6 +49,7 @@ const (
 
 	poolLink      = "pool"
 	layerLink     = "diff"
+	diff1File     = "diff1" // Podman reads this file a bunch, doesn't seem to matter if it's not there.
 	blobLink      = "blob"
 	layerInfoLink = "info"
 	layerUseFile  = "use"
@@ -65,8 +66,8 @@ func Mount(ctx context.Context, mountpoint string, layerManager *LayerManager, d
 			layerMap:     new(idMap),
 		},
 	}, &fusefs.Options{
-		AttrTimeout:  &timeSec,
-		EntryTimeout: &timeSec,
+		AttrTimeout:     &timeSec,
+		EntryTimeout:    &timeSec,
 		NullPermissions: true,
 	})
 	mountOpts := &fuse.MountOptions{
@@ -384,9 +385,9 @@ func (n *layernode) Lookup(ctx context.Context, name string, out *fuse.EntryOut)
 				return nil, syscall.EIO
 			}
 			log.G(ctx).WithField(remoteSnapshotLogKey, prepareFailed).
-					WithField("layerdigest", n.digest).
-					WithError(err).
-					Debugf("error resolving layer (context error: %v)", cErr)
+				WithField("layerdigest", n.digest).
+				WithError(err).
+				Debugf("error resolving layer (context error: %v)", cErr)
 			log.G(ctx).WithError(err).Warnf("failed to mount layer %q: %q", name, n.digest)
 			return nil, syscall.EIO
 		}
@@ -436,10 +437,10 @@ func (n *layernode) Lookup(ctx context.Context, name string, out *fuse.EntryOut)
 		})
 		if err != nil || errno != 0 {
 			log.G(ctx).WithField(remoteSnapshotLogKey, prepareFailed).
-					WithField("layerdigest", n.digest).
-					WithError(err).
-					WithField("errno", errno).
-					Debugf("failed to get root node 2")
+				WithField("layerdigest", n.digest).
+				WithError(err).
+				WithField("errno", errno).
+				Debugf("failed to get root node 2")
 			if errno == 0 {
 				errno = syscall.EIO
 			}
@@ -448,6 +449,9 @@ func (n *layernode) Lookup(ctx context.Context, name string, out *fuse.EntryOut)
 		return cn, 0
 	case layerUseFile:
 		log.G(ctx).Debugf("\"use\" file is referred but return ENOENT for reference management")
+		return nil, syscall.ENOENT
+	case diff1File:
+		// Don't log unknown reads of "diff1"
 		return nil, syscall.ENOENT
 	default:
 		log.G(ctx).Warnf("unknown filename %q", name)
