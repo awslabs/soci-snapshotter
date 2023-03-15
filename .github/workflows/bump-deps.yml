@@ -1,0 +1,36 @@
+# adapted based on
+# https://github.com/google/go-containerregistry/blob/main/.github/workflows/bump-deps.yaml
+name: Bump Deps
+
+on:
+  schedule:
+  - cron: '0 10 * * 2' # weekly at 10AM Tuesday
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  bump-deps:
+    name: Bump Deps
+
+    # Don't bother bumping deps on forks.
+    if: ${{ github.repository == 'awslabs/soci-snapshotter' }}
+    runs-on: ubuntu-20.04
+
+    steps:
+    - uses: actions/checkout@v3
+    - uses: actions/setup-go@v4
+      with:
+        go-version: '1.18.10'
+
+    - run: ./scripts/bump-deps.sh
+    - name: Create Pull Request
+      uses: peter-evans/create-pull-request@v5
+      with:
+        title: "Bump dependencies using scripts/bump-deps.sh"
+        commit-message: "Bump dependencies using scripts/bump-deps.sh"
+        labels: dependencies
+        delete-branch: true
+        signoff: true
