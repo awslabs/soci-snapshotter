@@ -669,6 +669,8 @@ func rebootContainerd(t *testing.T, sh *shell.Shell, customContainerdConfig, cus
 	sh.Retry(100, "ctr", "snapshots", "--snapshotter", "soci",
 		"prepare", "connectiontest-dummy-"+xid.New().String(), "")
 
+	sh.XLog("containerd", "--version")
+
 	return m
 }
 
