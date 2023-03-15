@@ -38,6 +38,14 @@ jobs:
       - run: make test
   integration:
     runs-on: ubuntu-20.04
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - containerd: "1.6.19"
+          - containerd: "1.7.0"
+    env:
+      DOCKER_BUILD_ARGS: "CONTAINERD_VERSION=${{ matrix.containerd }}"
     steps:
       - uses: actions/checkout@v3
       - uses: actions/setup-go@v4
