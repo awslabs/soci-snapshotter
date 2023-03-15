@@ -63,6 +63,7 @@ import (
 	"github.com/containerd/containerd/log"
 	"github.com/containerd/containerd/pkg/dialer"
 	"github.com/containerd/containerd/snapshots"
+	runtime_alpha "github.com/containerd/containerd/third_party/k8s.io/cri-api/pkg/apis/runtime/v1alpha2"
 	sddaemon "github.com/coreos/go-systemd/v22/daemon"
 	metrics "github.com/docker/go-metrics"
 	"github.com/pelletier/go-toml"
@@ -72,7 +73,6 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/backoff"
 	"google.golang.org/grpc/credentials/insecure"
-	runtime "k8s.io/cri-api/pkg/apis/runtime/v1alpha2"
 )
 
 const (
@@ -172,7 +172,7 @@ func main() {
 		if cp := config.CRIKeychainConfig.ImageServicePath; cp != "" {
 			criAddr = cp
 		}
-		connectCRI := func() (runtime.ImageServiceClient, error) {
+		connectCRI := func() (runtime_alpha.ImageServiceClient, error) {
 			// TODO: make gRPC options configurable from config.toml
 			backoffConfig := backoff.DefaultConfig
 			backoffConfig.MaxDelay = 3 * time.Second
@@ -190,10 +190,10 @@ func main() {
 			if err != nil {
 				return nil, err
 			}
-			return runtime.NewImageServiceClient(conn), nil
+			return runtime_alpha.NewImageServiceClient(conn), nil
 		}
 		f, criServer := cri.NewCRIKeychain(ctx, connectCRI)
-		runtime.RegisterImageServiceServer(rpc, criServer)
+		runtime_alpha.RegisterImageServiceServer(rpc, criServer)
 		credsFuncs = append(credsFuncs, f)
 	}
 	var fsOpts []fs.Option

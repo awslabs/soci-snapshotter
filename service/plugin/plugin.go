@@ -50,10 +50,10 @@ import (
 	"github.com/containerd/containerd/pkg/dialer"
 	"github.com/containerd/containerd/platforms"
 	ctdplugin "github.com/containerd/containerd/plugin"
+	runtime_alpha "github.com/containerd/containerd/third_party/k8s.io/cri-api/pkg/apis/runtime/v1alpha2"
 	grpc "google.golang.org/grpc"
 	"google.golang.org/grpc/backoff"
 	"google.golang.org/grpc/credentials/insecure"
-	runtime "k8s.io/cri-api/pkg/apis/runtime/v1alpha2"
 )
 
 // Config represents configuration for the soci snapshotter plugin.
@@ -108,7 +108,7 @@ func init() {
 				if criAddr == "" {
 					return nil, errors.New("backend CRI service address is not specified")
 				}
-				connectCRI := func() (runtime.ImageServiceClient, error) {
+				connectCRI := func() (runtime_alpha.ImageServiceClient, error) {
 					// TODO: make gRPC options configurable from config.toml
 					backoffConfig := backoff.DefaultConfig
 					backoffConfig.MaxDelay = 3 * time.Second
@@ -126,12 +126,12 @@ func init() {
 					if err != nil {
 						return nil, err
 					}
-					return runtime.NewImageServiceClient(conn), nil
+					return runtime_alpha.NewImageServiceClient(conn), nil
 				}
 				criCreds, criServer := cri.NewCRIKeychain(ctx, connectCRI)
 				// Create a gRPC server
 				rpc := grpc.NewServer()
-				runtime.RegisterImageServiceServer(rpc, criServer)
+				runtime_alpha.RegisterImageServiceServer(rpc, criServer)
 				// Prepare the directory for the socket
 				if err := os.MkdirAll(filepath.Dir(addr), 0700); err != nil {
 					return nil, fmt.Errorf("failed to create directory %q: %w", filepath.Dir(addr), err)
