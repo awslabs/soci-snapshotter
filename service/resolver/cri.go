@@ -57,8 +57,8 @@ import (
 	"github.com/containerd/containerd/reference"
 	"github.com/containerd/containerd/remotes/docker"
 	dconfig "github.com/containerd/containerd/remotes/docker/config"
+	runtime_alpha "github.com/containerd/containerd/third_party/k8s.io/cri-api/pkg/apis/runtime/v1alpha2"
 	rhttp "github.com/hashicorp/go-retryablehttp"
-	runtime "k8s.io/cri-api/pkg/apis/runtime/v1alpha2"
 )
 
 // Registry is registry settings configured
@@ -213,8 +213,8 @@ func hostDirFromRoots(roots []string) func(string) (string, error) {
 // toRuntimeAuthConfig converts cri plugin auth config to runtime auth config.
 // Ported from https://github.com/containerd/containerd/blob/v1.5.2/pkg/cri/server/helpers.go#L295-L303
 // TODO: import this from CRI package once we drop support to continerd v1.4.x
-func toRuntimeAuthConfig(a AuthConfig) *runtime.AuthConfig {
-	return &runtime.AuthConfig{
+func toRuntimeAuthConfig(a AuthConfig) *runtime_alpha.AuthConfig {
+	return &runtime_alpha.AuthConfig{
 		Username:      a.Username,
 		Password:      a.Password,
 		Auth:          a.Auth,
@@ -333,7 +333,7 @@ func registryEndpoints(config Registry, host string) ([]string, error) {
 // ParseAuth parses AuthConfig and returns username and password/secret required by containerd.
 // Ported from https://github.com/containerd/containerd/blob/v1.5.2/pkg/cri/server/image_pull.go#L176-L214
 // TODO: import this from CRI package once we drop support to continerd v1.4.x
-func ParseAuth(auth *runtime.AuthConfig, host string) (string, string, error) {
+func ParseAuth(auth *runtime_alpha.AuthConfig, host string) (string, string, error) {
 	if auth == nil {
 		return "", "", nil
 	}

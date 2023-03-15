@@ -44,12 +44,15 @@ import (
 	"github.com/containerd/containerd/cmd/ctr/commands/run"
 	"github.com/containerd/containerd/defaults"
 	"github.com/containerd/containerd/namespaces"
+
+	//nolint:staticcheck
 	"github.com/containerd/containerd/pkg/seed"
 	"github.com/urfave/cli"
 )
 
 func init() {
-	seed.WithTimeAndRand()
+	//nolint:staticcheck
+	seed.WithTimeAndRand() //lint:ignore SA1019, WithTimeAndRand is deprecated and we should remove it.
 }
 
 func main() {

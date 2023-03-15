@@ -148,7 +148,8 @@ func pull(ctx context.Context, client *containerd.Client, ref string, config *rP
 		containerd.WithPullLabels(labels),
 		containerd.WithResolver(config.Resolver),
 		containerd.WithImageHandler(h),
-		containerd.WithSchema1Conversion,
+		//nolint:staticcheck
+		containerd.WithSchema1Conversion, //lint:ignore SA1019
 		containerd.WithPullUnpack,
 		containerd.WithPlatform(config.platform),
 		containerd.WithPullSnapshotter(config.snapshotter),
