@@ -72,19 +72,7 @@ var getFileCommand = cli.Command{
 		}
 		defer layerReader.Close()
 
-		fileMetadata, err := ztoc.GetMetadataEntry(toc, file)
-		if err != nil {
-			return err
-		}
-		extractConfig := ztoc.FileExtractConfig{
-			UncompressedSize:      fileMetadata.UncompressedSize,
-			UncompressedOffset:    fileMetadata.UncompressedOffset,
-			Checkpoints:           toc.Checkpoints,
-			CompressedArchiveSize: toc.CompressedArchiveSize,
-			MaxSpanID:             toc.MaxSpanID,
-		}
-
-		data, err := ztoc.ExtractFile(io.NewSectionReader(layerReader, 0, int64(toc.CompressedArchiveSize)), &extractConfig)
+		data, err := toc.ExtractFile(io.NewSectionReader(layerReader, 0, int64(toc.CompressedArchiveSize)), file)
 		if err != nil {
 			return err
 		}

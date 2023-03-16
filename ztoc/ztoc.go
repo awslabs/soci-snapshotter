@@ -17,9 +17,11 @@
 package ztoc
 
 import (
+	"archive/tar"
 	"context"
 	"fmt"
 	"io"
+	"os"
 	"time"
 
 	"github.com/opencontainers/go-digest"
@@ -28,8 +30,10 @@ import (
 	"github.com/awslabs/soci-snapshotter/ztoc/compression"
 )
 
+// Version defines the version of a Ztoc.
 type Version string
 
+// Ztoc versions available.
 const (
 	Version09 Version = "0.9"
 )
@@ -85,13 +89,24 @@ type FileMetadata struct {
 	Xattrs map[string]string
 }
 
-// FileExtractConfig contains information used to extract a file from compressed data.
-type FileExtractConfig struct {
-	UncompressedSize      compression.Offset
-	UncompressedOffset    compression.Offset
-	Checkpoints           []byte
-	CompressedArchiveSize compression.Offset
-	MaxSpanID             compression.SpanID
+// FileMode gets file mode for the file metadata
+func (src FileMetadata) FileMode() (m os.FileMode) {
+	// FileMetadata.Mode is tar.Header.Mode so we can understand the these bits using `tar` pkg.
+	m = (&tar.Header{Mode: src.Mode}).FileInfo().Mode() &
+		(os.ModePerm | os.ModeSetuid | os.ModeSetgid | os.ModeSticky)
+	switch src.Type {
+	case "dir":
+		m |= os.ModeDir
+	case "symlink":
+		m |= os.ModeSymlink
+	case "char":
+		m |= os.ModeDevice | os.ModeCharDevice
+	case "block":
+		m |= os.ModeDevice
+	case "fifo":
+		m |= os.ModeNamedPipe
+	}
+	return m
 }
 
 // MetadataEntry is used to locate a file based on its metadata.
@@ -100,21 +115,41 @@ type MetadataEntry struct {
 	UncompressedOffset compression.Offset
 }
 
+// GetMetadataEntry gets MetadataEntry given a filename.
+func (toc TOC) GetMetadataEntry(filename string) (MetadataEntry, error) {
+	for _, v := range toc.FileMetadata {
+		if v.Name == filename {
+			if v.Linkname != "" {
+				return toc.GetMetadataEntry(v.Linkname)
+			}
+			return MetadataEntry{
+				UncompressedSize:   v.UncompressedSize,
+				UncompressedOffset: v.UncompressedOffset,
+			}, nil
+		}
+	}
+	return MetadataEntry{}, fmt.Errorf("file %s does not exist in metadata", filename)
+}
+
 // ExtractFile extracts a file from compressed data (as a reader) and returns the
 // byte data.
-func ExtractFile(r *io.SectionReader, config *FileExtractConfig) ([]byte, error) {
-	if config.UncompressedSize == 0 {
+func (zt Ztoc) ExtractFile(r *io.SectionReader, filename string) ([]byte, error) {
+	entry, err := zt.GetMetadataEntry(filename)
+	if err != nil {
+		return nil, err
+	}
+	if entry.UncompressedSize == 0 {
 		return []byte{}, nil
 	}
 
-	gzipZinfo, err := compression.NewZinfo(compression.Gzip, config.Checkpoints)
+	gzipZinfo, err := compression.NewZinfo(compression.Gzip, zt.Checkpoints)
 	if err != nil {
 		return nil, nil
 	}
 	defer gzipZinfo.Close()
 
-	spanStart := gzipZinfo.UncompressedOffsetToSpanID(config.UncompressedOffset)
-	spanEnd := gzipZinfo.UncompressedOffsetToSpanID(config.UncompressedOffset + config.UncompressedSize)
+	spanStart := gzipZinfo.UncompressedOffsetToSpanID(entry.UncompressedOffset)
+	spanEnd := gzipZinfo.UncompressedOffsetToSpanID(entry.UncompressedOffset + entry.UncompressedSize)
 	numSpans := spanEnd - spanStart + 1
 
 	checkpoints := make([]compression.Offset, numSpans+1)
@@ -122,7 +157,7 @@ func ExtractFile(r *io.SectionReader, config *FileExtractConfig) ([]byte, error)
 
 	var i compression.SpanID
 	for i = 0; i < numSpans; i++ {
-		checkpoints[i+1] = gzipZinfo.EndCompressedOffset(spanStart+i, config.CompressedArchiveSize)
+		checkpoints[i+1] = gzipZinfo.EndCompressedOffset(spanStart+i, zt.CompressedArchiveSize)
 	}
 
 	bufSize := checkpoints[len(checkpoints)-1] - checkpoints[0]
@@ -152,7 +187,7 @@ func ExtractFile(r *io.SectionReader, config *FileExtractConfig) ([]byte, error)
 		return nil, err
 	}
 
-	bytes, err := gzipZinfo.ExtractDataFromBuffer(buf, config.UncompressedSize, config.UncompressedOffset, spanStart)
+	bytes, err := gzipZinfo.ExtractDataFromBuffer(buf, entry.UncompressedSize, entry.UncompressedOffset, spanStart)
 	if err != nil {
 		return nil, err
 	}
@@ -160,31 +195,9 @@ func ExtractFile(r *io.SectionReader, config *FileExtractConfig) ([]byte, error)
 	return bytes, nil
 }
 
-// NewGzipZinfo is the go implementation of getting "checkpoints" from compressed data.
-func NewGzipZinfo(b []byte) {
-	panic("unimplemented")
-}
-
-// GetMetadataEntry gets MetadataEntry from `ztoc` given a filename.
-func GetMetadataEntry(ztoc *Ztoc, filename string) (*MetadataEntry, error) {
-	for _, v := range ztoc.FileMetadata {
-		if v.Name == filename {
-			if v.Linkname != "" {
-				return GetMetadataEntry(ztoc, v.Linkname)
-			}
-			return &MetadataEntry{
-				UncompressedSize:   v.UncompressedSize,
-				UncompressedOffset: v.UncompressedOffset,
-			}, nil
-		}
-	}
-	return nil, fmt.Errorf("file %s does not exist in metadata", filename)
-}
-
 // ExtractFromTarGz extracts data given a gzip tar file (`gz`) and its `ztoc`.
-func ExtractFromTarGz(gz string, ztoc *Ztoc, text string) (string, error) {
-	entry, err := GetMetadataEntry(ztoc, text)
-
+func (zt Ztoc) ExtractFromTarGz(gz string, filename string) (string, error) {
+	entry, err := zt.GetMetadataEntry(filename)
 	if err != nil {
 		return "", err
 	}
@@ -193,7 +206,7 @@ func ExtractFromTarGz(gz string, ztoc *Ztoc, text string) (string, error) {
 		return "", nil
 	}
 
-	gzipZinfo, err := compression.NewZinfo(compression.Gzip, ztoc.Checkpoints)
+	gzipZinfo, err := compression.NewZinfo(compression.Gzip, zt.Checkpoints)
 	if err != nil {
 		return "", err
 	}

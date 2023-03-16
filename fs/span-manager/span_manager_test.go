@@ -401,7 +401,7 @@ func (r *retryableReaderAt) ReadAt(buf []byte, off int64) (int, error) {
 }
 
 func getFileContentFromSpans(m *SpanManager, toc *ztoc.Ztoc, fileName string) ([]byte, error) {
-	metadata, err := ztoc.GetMetadataEntry(toc, fileName)
+	metadata, err := toc.GetMetadataEntry(fileName)
 	if err != nil {
 		return nil, err
 	}

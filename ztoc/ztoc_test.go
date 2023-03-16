@@ -95,37 +95,19 @@ func TestDecompress(t *testing.T) {
 			t.Fatalf("%s: ztoc should not be nil", tc.name)
 		}
 
-		extractConfigs := func() map[string](*FileExtractConfig) {
-			configs := make(map[string](*FileExtractConfig))
-			for _, m := range ztoc.FileMetadata {
-				extractConfig := &FileExtractConfig{
-					UncompressedSize:      m.UncompressedSize,
-					UncompressedOffset:    m.UncompressedOffset,
-					Checkpoints:           ztoc.Checkpoints,
-					CompressedArchiveSize: ztoc.CompressedArchiveSize,
-					MaxSpanID:             ztoc.MaxSpanID,
-				}
-				configs[m.Name] = extractConfig
-			}
-			return configs
-		}()
-
 		for _, f := range fileNames {
 			file, err := os.Open(tarGzFilePath)
 			if err != nil {
 				t.Fatalf("%s: could not open open the .tar.gz file", tc.name)
 			}
 			defer file.Close()
-			var extractConfig *FileExtractConfig
-			if extractConfig = extractConfigs[f]; extractConfig == nil {
-				t.Fatalf("%s: could not find the metadata entry for the file %s", tc.name, f)
-			}
+
 			fi, err := file.Stat()
 			if err != nil {
 				t.Fatalf("%s: could not get the stat for the file %s", tc.name, tarGzFilePath)
 			}
-			sr := io.NewSectionReader(file, 0, fi.Size())
-			extracted, err := ExtractFile(sr, extractConfig)
+
+			extracted, err := ztoc.ExtractFile(io.NewSectionReader(file, 0, fi.Size()), f)
 			if err != nil {
 				t.Fatalf("%s: could not extract from tar gz", tc.name)
 			}
@@ -186,15 +168,7 @@ func TestDecompressWithGzipHeaders(t *testing.T) {
 			if err != nil {
 				t.Fatalf("failed to create ztoc: %v", err)
 			}
-			metadata := ztoc.FileMetadata[0]
-			config := FileExtractConfig{
-				UncompressedSize:      metadata.UncompressedSize,
-				UncompressedOffset:    metadata.UncompressedOffset,
-				Checkpoints:           ztoc.Checkpoints,
-				CompressedArchiveSize: ztoc.CompressedArchiveSize,
-				MaxSpanID:             ztoc.MaxSpanID,
-			}
-			b, err := ExtractFile(sr, &config)
+			b, err := ztoc.ExtractFile(sr, ztoc.FileMetadata[0].Name)
 			if err != nil {
 				t.Fatalf("failed to extract from ztoc: %v", err)
 			}
@@ -401,7 +375,7 @@ func TestZtocGeneration(t *testing.T) {
 						i, len(m[fileNames[i]]), int(ztoc.FileMetadata[i].UncompressedSize))
 				}
 
-				extractedBytes, err := ExtractFromTarGz(tarGzFilePath, ztoc, compressedFileName)
+				extractedBytes, err := ztoc.ExtractFromTarGz(tarGzFilePath, compressedFileName)
 				if err != nil {
 					t.Fatalf("could not extract file %s from %s using generated ztoc: %v", compressedFileName, tarGzFilePath, err)
 				}
@@ -507,7 +481,7 @@ func TestZtocSerialization(t *testing.T) {
 						i, len(m[fileNames[i]]), int(createdZtoc.FileMetadata[i].UncompressedSize))
 				}
 
-				extractedBytes, err := ExtractFromTarGz(tarGzFilePath, createdZtoc, compressedFileName)
+				extractedBytes, err := createdZtoc.ExtractFromTarGz(tarGzFilePath, compressedFileName)
 				if err != nil {
 					t.Fatalf("could not extract file %s from %s using generated ztoc: %v", compressedFileName, tarGzFilePath, err)
 				}
@@ -602,7 +576,7 @@ func TestZtocSerialization(t *testing.T) {
 					}
 				}
 
-				extractedBytes, err := ExtractFromTarGz(tarGzFilePath, readZtoc, compressedFileName)
+				extractedBytes, err := readZtoc.ExtractFromTarGz(tarGzFilePath, compressedFileName)
 				if err != nil {
 					t.Fatalf("could not extract file %s from %s using generated ztoc: %v", compressedFileName, tarGzFilePath, err)
 				}
