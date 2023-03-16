@@ -559,7 +559,7 @@ func attrFromZtocEntry(src *ztoc.FileMetadata, dst *Attr) *Attr {
 	dst.Size = int64(src.UncompressedSize)
 	dst.ModTime = src.ModTime
 	dst.LinkName = src.Linkname
-	dst.Mode = ztoc.GetFileMode(src)
+	dst.Mode = src.FileMode()
 	dst.UID = src.UID
 	dst.GID = src.GID
 	dst.DevMajor = int(src.Devmajor)
