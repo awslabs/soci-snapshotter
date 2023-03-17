@@ -16,7 +16,7 @@ require (
 	golang.org/x/sys v0.6.0
 	google.golang.org/grpc v1.53.0
 	k8s.io/cri-api v0.25.7
-	oras.land/oras-go/v2 v2.0.1
+	oras.land/oras-go/v2 v2.0.2
 )
 
 require (
