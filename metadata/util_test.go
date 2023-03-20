@@ -58,7 +58,7 @@ var srcCompressions = map[string]int{
 	"gzip-huffmanonly":        gzip.HuffmanOnly,
 }
 
-type readerFactory func(sr *io.SectionReader, ztoc *ztoc.Ztoc, opts ...Option) (r testableReader, err error)
+type readerFactory func(sr *io.SectionReader, toc ztoc.TOC, opts ...Option) (r testableReader, err error)
 
 type testableReader interface {
 	Reader
@@ -189,7 +189,7 @@ func testReader(t *testing.T, factory readerFactory) {
 					telemetry, checkCalled := newCalledTelemetry()
 
 					// create a metadata reader
-					r, err := factory(sr, ztoc, WithTelemetry(telemetry))
+					r, err := factory(sr, ztoc.TOC, WithTelemetry(telemetry))
 					if err != nil {
 						t.Fatalf("failed to create new reader: %v", err)
 					}

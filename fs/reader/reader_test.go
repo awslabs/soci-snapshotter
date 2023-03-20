@@ -151,7 +151,7 @@ func makeFile(t *testing.T, contents []byte, factory metadata.Store, spanSize in
 		t.Fatalf("failed to build sample ztoc: %v", err)
 	}
 
-	mr, err := factory(sr, ztoc)
+	mr, err := factory(sr, ztoc.TOC)
 	if err != nil {
 		t.Fatalf("failed to create reader: %v", err)
 	}
@@ -193,7 +193,7 @@ func testFailReader(t *testing.T, factory metadata.Store) {
 			}
 
 			// build a metadata reader
-			mr, err := factory(sr, ztoc)
+			mr, err := factory(sr, ztoc.TOC)
 			if err != nil {
 				t.Fatalf("failed to prepare metadata reader")
 			}

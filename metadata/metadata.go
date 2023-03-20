@@ -75,7 +75,7 @@ type Attr struct {
 }
 
 // Store reads the provided blob and creates a metadata reader.
-type Store func(sr *io.SectionReader, ztoc *ztoc.Ztoc, opts ...Option) (Reader, error)
+type Store func(sr *io.SectionReader, toc ztoc.TOC, opts ...Option) (Reader, error)
 
 // Reader provides access to file metadata of a blob.
 type Reader interface {

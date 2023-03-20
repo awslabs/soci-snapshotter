@@ -164,7 +164,7 @@ func makeNodeReader(t *testing.T, contents []byte, spanSize int64, factory metad
 	if err != nil {
 		t.Fatalf("failed to build ztoc: %v", err)
 	}
-	mr, err := factory(sr, ztoc)
+	mr, err := factory(sr, ztoc.TOC)
 	if err != nil {
 		t.Fatalf("failed to create reader: %v", err)
 	}
@@ -325,7 +325,7 @@ func testExistenceWithOpaque(t *testing.T, factory metadata.Store, opaque Overla
 					t.Fatalf("failed to build sample ztoc: %v", err)
 				}
 
-				mr, err := factory(sr, ztoc)
+				mr, err := factory(sr, ztoc.TOC)
 				if err != nil {
 					t.Fatalf("failed to create reader: %v", err)
 				}
