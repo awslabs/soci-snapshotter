@@ -26,7 +26,7 @@ import (
 
 // NewTempDbStore returns a Reader by creating a temp bolt db, which will
 // be removed when `Reader.Close()` is called.
-func NewTempDbStore(sr *io.SectionReader, ztoc *ztoc.Ztoc, opts ...Option) (Reader, error) {
+func NewTempDbStore(sr *io.SectionReader, toc ztoc.TOC, opts ...Option) (Reader, error) {
 	f, err := os.CreateTemp("", "readertestdb")
 	if err != nil {
 		return nil, err
@@ -36,7 +36,7 @@ func NewTempDbStore(sr *io.SectionReader, ztoc *ztoc.Ztoc, opts ...Option) (Read
 	if err != nil {
 		return nil, err
 	}
-	r, err := NewReader(db, sr, ztoc, opts...)
+	r, err := NewReader(db, sr, toc, opts...)
 	if err != nil {
 		return nil, err
 	}

@@ -45,7 +45,7 @@ func TestMetadataReader(t *testing.T) {
 	testReader(t, newTestableReader)
 }
 
-func newTestableReader(sr *io.SectionReader, ztoc *ztoc.Ztoc, opts ...Option) (testableReader, error) {
+func newTestableReader(sr *io.SectionReader, toc ztoc.TOC, opts ...Option) (testableReader, error) {
 	f, err := os.CreateTemp("", "readertestdb")
 	if err != nil {
 		return nil, err
@@ -55,7 +55,7 @@ func newTestableReader(sr *io.SectionReader, ztoc *ztoc.Ztoc, opts ...Option) (t
 	if err != nil {
 		return nil, err
 	}
-	r, err := NewReader(db, sr, ztoc, opts...)
+	r, err := NewReader(db, sr, toc, opts...)
 	if err != nil {
 		return nil, err
 	}

@@ -328,7 +328,7 @@ func getMetadataStore(rootDir string, config snapshotterConfig) (metadata.Store,
 		if err != nil {
 			return nil, err
 		}
-		return func(sr *io.SectionReader, toc *ztoc.Ztoc, opts ...metadata.Option) (metadata.Reader, error) {
+		return func(sr *io.SectionReader, toc ztoc.TOC, opts ...metadata.Option) (metadata.Reader, error) {
 			return metadata.NewReader(db, sr, toc, opts...)
 		}, nil
 	default:

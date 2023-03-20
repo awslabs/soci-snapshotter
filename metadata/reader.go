@@ -78,7 +78,7 @@ func (r *reader) nextID() (uint32, error) {
 }
 
 // NewReader parses ztoc and stores filesystem metadata to the provided DB.
-func NewReader(db *bolt.DB, sr *io.SectionReader, ztoc *ztoc.Ztoc, opts ...Option) (Reader, error) {
+func NewReader(db *bolt.DB, sr *io.SectionReader, toc ztoc.TOC, opts ...Option) (Reader, error) {
 	var rOpts Options
 	for _, o := range opts {
 		if err := o(&rOpts); err != nil {
@@ -92,7 +92,7 @@ func NewReader(db *bolt.DB, sr *io.SectionReader, ztoc *ztoc.Ztoc, opts ...Optio
 		rOpts.Telemetry.InitMetadataStoreLatency(start)
 	}
 
-	if err := r.init(ztoc, rOpts); err != nil {
+	if err := r.init(toc, rOpts); err != nil {
 		return nil, fmt.Errorf("failed to initialize metadata: %w", err)
 	}
 	return r, nil
@@ -118,7 +118,7 @@ func (r *reader) Clone(sr *io.SectionReader) (Reader, error) {
 	}, nil
 }
 
-func (r *reader) init(ztoc *ztoc.Ztoc, rOpts Options) (retErr error) {
+func (r *reader) init(toc ztoc.TOC, rOpts Options) (retErr error) {
 	// Initialize root node
 	var ok bool
 	for i := 0; i < 100; i++ {
@@ -136,7 +136,7 @@ func (r *reader) init(ztoc *ztoc.Ztoc, rOpts Options) (retErr error) {
 		return fmt.Errorf("failed to get a unique id for metadata reader")
 	}
 
-	if err := r.initNodes(ztoc); err != nil {
+	if err := r.initNodes(toc); err != nil {
 		return err
 	}
 	return nil
@@ -179,7 +179,7 @@ func (r *reader) initRootNode(fsID string) error {
 	})
 }
 
-func (r *reader) initNodes(ztoc *ztoc.Ztoc) error {
+func (r *reader) initNodes(toc ztoc.TOC) error {
 	md := make(map[uint32]*metadataEntry)
 	if err := r.db.Batch(func(tx *bolt.Tx) (err error) {
 		nodes, err := getNodes(tx, r.fsID)
@@ -188,7 +188,7 @@ func (r *reader) initNodes(ztoc *ztoc.Ztoc) error {
 		}
 		nodes.FillPercent = 1.0 // we only do sequential write to this bucket
 		var attr Attr
-		for _, ent := range ztoc.FileMetadata {
+		for _, ent := range toc.FileMetadata {
 			var id uint32
 			var b *bolt.Bucket
 			ent.Name = cleanEntryName(ent.Name)

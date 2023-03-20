@@ -322,7 +322,7 @@ func (r *Resolver) Resolve(ctx context.Context, hosts source.RegistryHosts, refs
 			commonmetrics.MeasureLatencyInMilliseconds(commonmetrics.InitMetadataStore, desc.Digest, start)
 		},
 	}
-	meta, err := r.metadataStore(sr, ztoc, append(metadataOpts, metadata.WithTelemetry(&telemetry))...)
+	meta, err := r.metadataStore(sr, ztoc.TOC, append(metadataOpts, metadata.WithTelemetry(&telemetry))...)
 	if err != nil {
 		return nil, err
 	}
