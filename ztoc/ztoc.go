@@ -142,22 +142,22 @@ func (zt Ztoc) ExtractFile(r *io.SectionReader, filename string) ([]byte, error)
 		return []byte{}, nil
 	}
 
-	gzipZinfo, err := compression.NewZinfo(compression.Gzip, zt.Checkpoints)
+	zinfo, err := zt.Zinfo()
 	if err != nil {
 		return nil, nil
 	}
-	defer gzipZinfo.Close()
+	defer zinfo.Close()
 
-	spanStart := gzipZinfo.UncompressedOffsetToSpanID(entry.UncompressedOffset)
-	spanEnd := gzipZinfo.UncompressedOffsetToSpanID(entry.UncompressedOffset + entry.UncompressedSize)
+	spanStart := zinfo.UncompressedOffsetToSpanID(entry.UncompressedOffset)
+	spanEnd := zinfo.UncompressedOffsetToSpanID(entry.UncompressedOffset + entry.UncompressedSize)
 	numSpans := spanEnd - spanStart + 1
 
 	checkpoints := make([]compression.Offset, numSpans+1)
-	checkpoints[0] = gzipZinfo.StartCompressedOffset(spanStart)
+	checkpoints[0] = zinfo.StartCompressedOffset(spanStart)
 
 	var i compression.SpanID
 	for i = 0; i < numSpans; i++ {
-		checkpoints[i+1] = gzipZinfo.EndCompressedOffset(spanStart+i, zt.CompressedArchiveSize)
+		checkpoints[i+1] = zinfo.EndCompressedOffset(spanStart+i, zt.CompressedArchiveSize)
 	}
 
 	bufSize := checkpoints[len(checkpoints)-1] - checkpoints[0]
@@ -187,7 +187,7 @@ func (zt Ztoc) ExtractFile(r *io.SectionReader, filename string) ([]byte, error)
 		return nil, err
 	}
 
-	bytes, err := gzipZinfo.ExtractDataFromBuffer(buf, entry.UncompressedSize, entry.UncompressedOffset, spanStart)
+	bytes, err := zinfo.ExtractDataFromBuffer(buf, entry.UncompressedSize, entry.UncompressedOffset, spanStart)
 	if err != nil {
 		return nil, err
 	}
@@ -206,16 +206,22 @@ func (zt Ztoc) ExtractFromTarGz(gz string, filename string) (string, error) {
 		return "", nil
 	}
 
-	gzipZinfo, err := compression.NewZinfo(compression.Gzip, zt.Checkpoints)
+	zinfo, err := zt.Zinfo()
 	if err != nil {
 		return "", err
 	}
-	defer gzipZinfo.Close()
+	defer zinfo.Close()
 
-	bytes, err := gzipZinfo.ExtractDataFromFile(gz, entry.UncompressedSize, entry.UncompressedOffset)
+	bytes, err := zinfo.ExtractDataFromFile(gz, entry.UncompressedSize, entry.UncompressedOffset)
 	if err != nil {
 		return "", err
 	}
 
 	return string(bytes), nil
+}
+
+// Zinfo deserilizes and returns a Zinfo based on the zinfo bytes and compression
+// algorithm in the ztoc.
+func (zt Ztoc) Zinfo() (compression.Zinfo, error) {
+	return compression.NewZinfo(zt.CompressionAlgorithm, zt.Checkpoints)
 }
