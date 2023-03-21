@@ -362,10 +362,9 @@ func (b *IndexBuilder) Build(ctx context.Context, img images.Image) (*IndexWithM
 	}
 
 	refers := &ocispec.Descriptor{
-		MediaType:   imgManifestDesc.MediaType,
-		Digest:      imgManifestDesc.Digest,
-		Size:        imgManifestDesc.Size,
-		Annotations: imgManifestDesc.Annotations,
+		MediaType: imgManifestDesc.MediaType,
+		Digest:    imgManifestDesc.Digest,
+		Size:      imgManifestDesc.Size,
 	}
 	var indexOpts []IndexOption
 	if b.config.artifactRegistry {
