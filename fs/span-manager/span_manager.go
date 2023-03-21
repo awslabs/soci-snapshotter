@@ -65,7 +65,7 @@ type spanInfo struct {
 // New creates a SpanManager with given ztoc and content reader, and builds all
 // spans based on the ztoc.
 func New(ztoc *ztoc.Ztoc, r *io.SectionReader, cache cache.BlobCache, retries int, cacheOpt ...cache.Option) *SpanManager {
-	index, err := compression.NewZinfo(compression.Gzip, ztoc.Checkpoints)
+	index, err := ztoc.Zinfo()
 	if err != nil {
 		return nil
 	}
