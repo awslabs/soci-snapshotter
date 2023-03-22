@@ -648,7 +648,6 @@ func rebootContainerd(t *testing.T, sh *shell.Shell, customContainerdConfig, cus
 	removeDirContents(sh, snapshotterRoot)
 
 	// run containerd and snapshotter
-	var m *testutil.RemoteSnapshotMonitor
 	containerdCmds := shell.C("containerd", "--log-level", containerdLogLevel)
 	if customContainerdConfig != "" {
 		containerdCmds = addConfig(t, sh, customContainerdConfig, containerdCmds...)
@@ -663,7 +662,9 @@ func rebootContainerd(t *testing.T, sh *shell.Shell, customContainerdConfig, cus
 	if err != nil {
 		t.Fatalf("failed to create pipe: %v", err)
 	}
-	m = testutil.NewRemoteSnapshotMonitor(testutil.NewTestingReporter(t), outR, errR)
+	reporter := testutil.NewTestingReporter(t)
+	testutil.FatalMonitor(reporter, outR, errR)
+	var m *testutil.RemoteSnapshotMonitor = testutil.NewRemoteSnapshotMonitor(reporter, outR, errR)
 
 	// make sure containerd and soci-snapshotter-grpc are up-and-running
 	sh.Retry(100, "ctr", "snapshots", "--snapshotter", "soci",
