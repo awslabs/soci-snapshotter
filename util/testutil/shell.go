@@ -38,6 +38,7 @@ import (
 	"bufio"
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"os/exec"
@@ -47,6 +48,7 @@ import (
 	"strings"
 	"sync/atomic"
 	"testing"
+	"time"
 
 	shell "github.com/awslabs/soci-snapshotter/util/dockershell"
 	"github.com/hashicorp/go-multierror"
@@ -138,6 +140,46 @@ func (m *RemoteSnapshotMonitor) CheckAllRemoteSnapshots(t *testing.T) {
 		return
 	} else {
 		t.Fatalf("no log for checking remote snapshot was provided; Is the log-level = debug?")
+	}
+}
+
+// FatalMonitor scans logs streamed from the specified io.Reader for fatal errors during startup
+func FatalMonitor(r shell.Reporter, stdout, stderr io.Reader) {
+	errs := make(chan error, 1)
+	go scanFatalLog(io.TeeReader(stdout, r.Stdout()), errs)
+	go scanFatalLog(io.TeeReader(stderr, r.Stderr()), errs)
+	select {
+	case err := <-errs:
+		if err != nil {
+			r.Errorf(err.Error())
+		}
+	case <-time.After(10 * time.Second): // timeout
+		r.Errorf("log did not produce success or fatal error within 10 seconds")
+	}
+}
+
+type LevelLogLine struct {
+	Level string `json:"level"`
+	Msg   string `json:"msg"`
+}
+
+// scanFatalLog scans the log streamed from the specified io.Reader for fatal errors during startup
+func scanFatalLog(inputR io.Reader, errs chan error) {
+	scanner := bufio.NewScanner(inputR)
+	var logline LevelLogLine
+	for scanner.Scan() {
+		rawL := scanner.Text()
+		if i := strings.Index(rawL, "{"); i > 0 {
+			rawL = rawL[i:] // trim garbage chars; expects "{...}"-styled JSON log
+		}
+		if err := json.Unmarshal([]byte(rawL), &logline); err == nil {
+			if logline.Level == "fatal" {
+				errs <- errors.New("aborting test: fatal snapshotter log entry encountered")
+			}
+			if strings.Contains(logline.Msg, "background") {
+				errs <- nil
+			}
+		}
 	}
 }
 
