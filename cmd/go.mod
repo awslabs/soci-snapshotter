@@ -14,7 +14,7 @@ require (
 	github.com/urfave/cli v1.22.12
 	go.etcd.io/bbolt v1.3.7
 	golang.org/x/sys v0.6.0
-	google.golang.org/grpc v1.53.0
+	google.golang.org/grpc v1.54.0
 	oras.land/oras-go/v2 v2.0.2
 )
 
