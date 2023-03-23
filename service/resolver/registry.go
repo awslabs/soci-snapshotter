@@ -41,7 +41,7 @@ import (
 	rhttp "github.com/hashicorp/go-retryablehttp"
 )
 
-const defaultRequestTimeoutSec int64 = 30
+const defaultRequestTimeoutSec int64 = 1
 
 // Config is config for resolving registries.
 type Config struct {
@@ -77,14 +77,14 @@ func RegistryHostsFromConfig(cfg Config, credsFuncs ...Credential) source.Regist
 		}) {
 			client := rhttp.NewClient()
 			client.Logger = nil // disable logging every request
-			tr := client.StandardClient()
 			if h.RequestTimeoutSec >= 0 {
 				if h.RequestTimeoutSec == 0 {
-					tr.Timeout = time.Duration(defaultRequestTimeoutSec) * time.Second
+					client.HTTPClient.Timeout = time.Duration(defaultRequestTimeoutSec) * time.Second
 				} else {
-					tr.Timeout = time.Duration(h.RequestTimeoutSec) * time.Second
+					client.HTTPClient.Timeout = time.Duration(h.RequestTimeoutSec) * time.Second
 				}
 			} // h.RequestTimeoutSec < 0 means "no timeout"
+			tr := client.StandardClient()
 			config := docker.RegistryHost{
 				Client:       tr,
 				Host:         h.Host,
