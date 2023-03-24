@@ -86,7 +86,7 @@ type Cmd struct {
 	// Path is the path of the command to run.
 	Path string
 
-	// Args holds the command line arguents.
+	// Args holds the command line arguments.
 	Args []string
 
 	// Env holds the environment variables for the command.

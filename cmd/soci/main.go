@@ -90,6 +90,7 @@ func main() {
 		commands.CreateCommand,
 		commands.PushCommand,
 		run.Command,
+		commands.RebuildDBCommand,
 	}
 
 	if err := app.Run(os.Args); err != nil {
