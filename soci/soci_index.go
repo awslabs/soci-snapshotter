@@ -139,7 +139,7 @@ func UnmarshalIndex(b []byte, index *Index) error {
 	return err
 }
 
-// fromManifest converts and OCI 1.0 Manifest to a SOCI Index
+// fromManifest converts an OCI 1.0 Manifest to a SOCI Index
 func fromManifest(manifest ocispec.Manifest, index *Index) {
 	index.MediaType = manifest.MediaType
 	index.ArtifactType = SociIndexArtifactType

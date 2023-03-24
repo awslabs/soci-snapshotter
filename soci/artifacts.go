@@ -18,18 +18,26 @@ package soci
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"io/fs"
 	"os"
 	"path"
+	"path/filepath"
 	"sync"
 	"time"
 
 	"github.com/awslabs/soci-snapshotter/fs/config"
 	"github.com/awslabs/soci-snapshotter/util/dbutil"
+	"github.com/containerd/containerd/content"
 	"github.com/containerd/containerd/errdefs"
+	"github.com/containerd/containerd/images"
 	"github.com/containerd/containerd/log"
+	"github.com/containerd/containerd/platforms"
+	"github.com/opencontainers/go-digest"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	bolt "go.etcd.io/bbolt"
+	"oras.land/oras-go/v2/content/oci"
 )
 
 // Artifacts package stores SOCI artifacts info in the following schema.
@@ -75,6 +83,10 @@ var (
 	once sync.Once
 )
 
+var (
+	ErrArtifactBucketNotFound = errors.New("soci_artifacts not found")
+)
+
 // Get the default artifacts db path
 func ArtifactsDbPath() string {
 	return path.Join(config.SociSnapshotterRootPath, artifactsDbName)
@@ -88,7 +100,7 @@ type ArtifactEntry struct {
 	Digest string
 	// OriginalDigest is the digest of the content for which the SOCI artifact was created.
 	OriginalDigest string
-	// ImageDigest is the digest of the container image that was used to generat the artifact
+	// ImageDigest is the digest of the container image that was used to generate the artifact
 	// ImageDigest refers to the image, OriginalDigest refers to the specific content within that
 	// image that was used to generate the Artifact.
 	ImageDigest string
@@ -148,11 +160,7 @@ func (db *ArtifactsDb) Walk(f func(*ArtifactEntry) error) error {
 		if err != nil {
 			return nil
 		}
-		bucket.ForEach(func(k, v []byte) error {
-			// Skip non-buckets
-			if v != nil {
-				return nil
-			}
+		bucket.ForEachBucket(func(k []byte) error {
 			artifactBkt := bucket.Bucket(k)
 			ae, err := loadArtifact(artifactBkt, string(k))
 			if err != nil {
@@ -163,6 +171,136 @@ func (db *ArtifactsDb) Walk(f func(*ArtifactEntry) error) error {
 		return nil
 	})
 	return err
+}
+
+// SyncWithLocalStore will sync the artifacts databse with SOCIs local content store, either adding new or removing old artifacts.
+func (db *ArtifactsDb) SyncWithLocalStore(ctx context.Context, blobStore *oci.Store, blobStorePath string, cs content.Store) error {
+	if err := db.removeOldArtifacts(blobStore); err != nil {
+		return fmt.Errorf("failed to remove old artifacts from db: %w", err)
+	}
+	if err := db.addNewArtifacts(ctx, blobStorePath, cs); err != nil {
+		return fmt.Errorf("failed to add new artifacts to db: %w", err)
+	}
+	return nil
+}
+
+// removeOldArtifacts will remove any artifacts from the artifacts database that
+// no longer exist in SOCIs local content store. NOTE: Removing buckets while iterating
+// (bucket.ForEach) causes unexpected behavior (see: https://github.com/boltdb/bolt/issues/426).
+// This implementation works around this issue by appending buckets to a slice when
+// iterating and removing them after.
+func (db *ArtifactsDb) removeOldArtifacts(blobStore *oci.Store) error {
+	err := db.db.Update(func(tx *bolt.Tx) error {
+		bucket, err := getArtifactsBucket(tx)
+		if err != nil {
+			return nil
+		}
+		var bucketsToRemove [][]byte
+		bucket.ForEachBucket(func(k []byte) error {
+			artifactBucket := bucket.Bucket(k)
+			ae, err := loadArtifact(artifactBucket, string(k))
+			if err != nil {
+				return err
+			}
+			existsInContentStore, err := blobStore.Exists(context.Background(),
+				ocispec.Descriptor{MediaType: ae.MediaType, Digest: digest.Digest(ae.Digest)})
+			if err != nil {
+				return err
+			}
+			if !existsInContentStore {
+				bucketsToRemove = append(bucketsToRemove, k)
+			}
+			return nil
+		})
+		// remove the buckets
+		for _, k := range bucketsToRemove {
+			if err := bucket.DeleteBucket(k); err != nil {
+				return err
+			}
+		}
+		return nil
+	})
+	return err
+}
+
+// addNewArtifacts will add any new artifacts discovered in SOCIs local content store to the artifacts database.
+func (db *ArtifactsDb) addNewArtifacts(ctx context.Context, blobStorePath string, cs content.Store) error {
+	addHashPrefix := func(name string) string {
+		if len(name) == 64 {
+			return fmt.Sprintf("sha256:%s", name)
+		}
+		return fmt.Sprintf("sha512:%s", name)
+	}
+	return filepath.WalkDir(blobStorePath, func(path string, d fs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		if d.IsDir() {
+			return nil
+		}
+		info, err := d.Info()
+		if err != nil {
+			return err
+		}
+		// skip: entry is an empty config
+		if info.Size() < 10 {
+			return nil
+		}
+		f, err := os.Open(path)
+		if err != nil {
+			return err
+		}
+		defer f.Close()
+		var sociIndex Index
+		if err = DecodeIndex(f, &sociIndex); err != nil {
+			// skip: entry is a ztoc
+			return nil
+		}
+		indexDigest := addHashPrefix(d.Name())
+		ae, err := db.GetArtifactEntry(indexDigest)
+		if err != nil && !errors.Is(err, ErrArtifactBucketNotFound) && !errors.Is(err, errdefs.ErrNotFound) {
+			return err
+		}
+		if ae == nil {
+			manifestDigest := sociIndex.Subject.Digest.String()
+			platform, err := images.Platforms(ctx, cs, ocispec.Descriptor{
+				MediaType: ocispec.MediaTypeImageManifest,
+				Digest:    digest.Digest(manifestDigest)})
+			if err != nil {
+				return err
+			}
+
+			indexEntry := &ArtifactEntry{
+				Size:           info.Size(),
+				Digest:         indexDigest,
+				OriginalDigest: manifestDigest,
+				ImageDigest:    manifestDigest,
+				Platform:       platforms.Format(platform[0]),
+				Type:           ArtifactEntryTypeIndex,
+				Location:       manifestDigest,
+				MediaType:      sociIndex.MediaType,
+				CreatedAt:      time.Now(),
+			}
+			if err = db.WriteArtifactEntry(indexEntry); err != nil {
+				return err
+			}
+			for _, zt := range sociIndex.Blobs {
+				ztocEntry := &ArtifactEntry{
+					Size:           zt.Size,
+					Digest:         zt.Digest.String(),
+					OriginalDigest: zt.Annotations[IndexAnnotationImageLayerDigest],
+					Type:           ArtifactEntryTypeLayer,
+					Location:       zt.Annotations[IndexAnnotationImageLayerDigest],
+					MediaType:      SociLayerMediaType,
+					CreatedAt:      time.Now(),
+				}
+				if err := db.WriteArtifactEntry(ztocEntry); err != nil {
+					return err
+				}
+			}
+		}
+		return nil
+	})
 }
 
 // GetArtifactEntry loads a single ArtifactEntry from the ArtifactsDB by digest
@@ -268,7 +406,7 @@ func (db *ArtifactsDb) WriteArtifactEntry(entry *ArtifactEntry) error {
 func getArtifactsBucket(tx *bolt.Tx) (*bolt.Bucket, error) {
 	artifacts := tx.Bucket(bucketKeySociArtifacts)
 	if artifacts == nil {
-		return nil, fmt.Errorf("soci_artifacts not found")
+		return nil, ErrArtifactBucketNotFound
 	}
 
 	return artifacts, nil
