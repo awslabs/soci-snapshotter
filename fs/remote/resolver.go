@@ -234,15 +234,16 @@ func newHTTPFetcher(ctx context.Context, fc *fetcherConfig) (*httpFetcher, error
 		// Prepare transport with authorization functionality
 		tr := host.Client.Transport
 
+		timeout := host.Client.Timeout
 		if rt, ok := tr.(*rhttp.RoundTripper); ok {
 			rt.Client.RetryMax = fc.maxRetries
 			rt.Client.RetryWaitMin = fc.minWait
 			rt.Client.RetryWaitMax = fc.maxWait
 			rt.Client.Backoff = backoffStrategy
 			rt.Client.CheckRetry = retryStrategy
+			timeout = rt.Client.HTTPClient.Timeout
 		}
 
-		timeout := host.Client.Timeout
 		if host.Authorizer != nil {
 			tr = &transport{
 				inner: tr,
