@@ -43,7 +43,6 @@ import (
 	"crypto/sha256"
 	"fmt"
 	"io"
-	"math/rand"
 	"mime"
 	"mime/multipart"
 	"net/http"
@@ -58,6 +57,7 @@ import (
 	"github.com/awslabs/soci-snapshotter/fs/config"
 	commonmetrics "github.com/awslabs/soci-snapshotter/fs/metrics/common"
 	"github.com/awslabs/soci-snapshotter/fs/source"
+	socihttp "github.com/awslabs/soci-snapshotter/util/http"
 	"github.com/containerd/containerd/errdefs"
 	"github.com/containerd/containerd/log"
 	"github.com/containerd/containerd/reference"
@@ -66,17 +66,11 @@ import (
 	rhttp "github.com/hashicorp/go-retryablehttp"
 	digest "github.com/opencontainers/go-digest"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
-	"github.com/sirupsen/logrus"
 )
 
 const (
 	defaultValidIntervalSec int64 = 60
 	defaultFetchTimeoutSec  int64 = 300
-
-	// defaults based on a target total retry time of at least 5s. 30*((2^8)-1)>5000
-	defaultMaxRetries        = 8
-	defaultMinWaitMsec int64 = 30
-	defaultMaxWaitMsec int64 = 300000
 )
 
 func NewResolver(cfg config.BlobConfig, handlers map[string]Handler) *Resolver {
@@ -90,13 +84,13 @@ func NewResolver(cfg config.BlobConfig, handlers map[string]Handler) *Resolver {
 		cfg.FetchTimeoutSec = defaultFetchTimeoutSec
 	}
 	if cfg.MaxRetries == 0 {
-		cfg.MaxRetries = defaultMaxRetries
+		cfg.MaxRetries = socihttp.DefaultMaxRetries
 	}
 	if cfg.MinWaitMsec == 0 {
-		cfg.MinWaitMsec = defaultMinWaitMsec
+		cfg.MinWaitMsec = socihttp.DefaultMinWaitMsec
 	}
 	if cfg.MaxWaitMsec == 0 {
-		cfg.MaxWaitMsec = defaultMaxWaitMsec
+		cfg.MaxWaitMsec = socihttp.DefaultMaxRetries
 	}
 
 	return &Resolver{
@@ -178,34 +172,6 @@ type fetcherConfig struct {
 	maxWait    time.Duration
 }
 
-// jitter returns a number in the range duration to duration+(duration/divisor)-1, inclusive
-func jitter(duration time.Duration, divisor int64) time.Duration {
-	return time.Duration(rand.Int63n(int64(duration)/divisor) + int64(duration))
-}
-
-// backoffStrategy extends retryablehttp's DefaultBackoff to add a random jitter to avoid
-// overwhelming the repository when it comes back online
-// DefaultBackoff either tries to parse the 'Retry-After' header of the response; or, it uses an
-// exponential backoff 2 ^ numAttempts, limited by max
-func backoffStrategy(min, max time.Duration, attemptNum int, resp *http.Response) time.Duration {
-	delayTime := rhttp.DefaultBackoff(min, max, attemptNum, resp)
-	return jitter(delayTime, 8)
-}
-
-// retryStrategy extends retryablehttp's DefaultRetryPolicy to log the error and response when retrying
-// DefaultRetryPolicy retries whenever err is non-nil (except for some url errors) or if returned
-// status code is 429 or 5xx (except 501)
-func retryStrategy(ctx context.Context, resp *http.Response, err error) (bool, error) {
-	retry, err2 := rhttp.DefaultRetryPolicy(ctx, resp, err)
-	if retry {
-		log.G(ctx).WithFields(logrus.Fields{
-			"error":    err,
-			"response": resp,
-		}).Infof("Retrying request")
-	}
-	return retry, err2
-}
-
 func newHTTPFetcher(ctx context.Context, fc *fetcherConfig) (*httpFetcher, error) {
 	reghosts, err := fc.hosts(fc.refspec)
 	if err != nil {
@@ -239,8 +205,8 @@ func newHTTPFetcher(ctx context.Context, fc *fetcherConfig) (*httpFetcher, error
 			rt.Client.RetryMax = fc.maxRetries
 			rt.Client.RetryWaitMin = fc.minWait
 			rt.Client.RetryWaitMax = fc.maxWait
-			rt.Client.Backoff = backoffStrategy
-			rt.Client.CheckRetry = retryStrategy
+			rt.Client.Backoff = socihttp.BackoffStrategy
+			rt.Client.CheckRetry = socihttp.RetryStrategy
 			timeout = rt.Client.HTTPClient.Timeout
 		}
 

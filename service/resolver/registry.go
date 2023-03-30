@@ -33,6 +33,8 @@
 package resolver
 
 import (
+	"net"
+	"net/http"
 	"time"
 
 	"github.com/awslabs/soci-snapshotter/fs/source"
@@ -40,8 +42,6 @@ import (
 	"github.com/containerd/containerd/remotes/docker"
 	rhttp "github.com/hashicorp/go-retryablehttp"
 )
-
-const defaultRequestTimeoutSec int64 = 1
 
 // Config is config for resolving registries.
 type Config struct {
@@ -76,14 +76,20 @@ func RegistryHostsFromConfig(cfg Config, credsFuncs ...Credential) source.Regist
 			Host: host,
 		}) {
 			client := rhttp.NewClient()
+
+			// set the dial timeout and response header timeout to 1 second
+			innerTransport := client.HTTPClient.Transport
+			if t, ok := innerTransport.(*http.Transport); ok {
+				t.DialContext = (&net.Dialer{
+					Timeout: 1 * time.Second,
+				}).DialContext
+				t.ResponseHeaderTimeout = 1 * time.Second
+			}
 			client.Logger = nil // disable logging every request
-			if h.RequestTimeoutSec >= 0 {
-				if h.RequestTimeoutSec == 0 {
-					client.HTTPClient.Timeout = time.Duration(defaultRequestTimeoutSec) * time.Second
-				} else {
-					client.HTTPClient.Timeout = time.Duration(h.RequestTimeoutSec) * time.Second
-				}
-			} // h.RequestTimeoutSec < 0 means "no timeout"
+			// if RequestTimeoutSec is set to something other than 0(default) honor it, otherwise do not set a HTTPClient.Timeout
+			if h.RequestTimeoutSec > 0 {
+				client.HTTPClient.Timeout = time.Duration(h.RequestTimeoutSec) * time.Second
+			}
 			tr := client.StandardClient()
 			config := docker.RegistryHost{
 				Client:       tr,
