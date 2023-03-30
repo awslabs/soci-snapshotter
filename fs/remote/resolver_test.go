@@ -49,6 +49,7 @@ import (
 	"strings"
 	"testing"
 
+	socihttp "github.com/awslabs/soci-snapshotter/util/http"
 	"github.com/containerd/containerd/reference"
 	"github.com/containerd/containerd/remotes/docker"
 	rhttp "github.com/hashicorp/go-retryablehttp"
@@ -280,7 +281,7 @@ func TestRetry(t *testing.T) {
 	tr := &retryRoundTripper{}
 	rclient := rhttp.NewClient()
 	rclient.HTTPClient.Transport = tr
-	rclient.Backoff = backoffStrategy
+	rclient.Backoff = socihttp.BackoffStrategy
 	f := &httpFetcher{
 		url: "test",
 		tr:  &rhttp.RoundTripper{Client: rclient},

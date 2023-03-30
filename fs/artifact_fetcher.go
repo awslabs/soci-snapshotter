@@ -22,15 +22,20 @@ import (
 	"crypto/tls"
 	"fmt"
 	"io"
+	"net"
+	"net/http"
+	"time"
 
 	"github.com/awslabs/soci-snapshotter/service/keychain/dockerconfig"
 	"github.com/awslabs/soci-snapshotter/soci"
+	socihttp "github.com/awslabs/soci-snapshotter/util/http"
 	"github.com/awslabs/soci-snapshotter/util/ioutils"
 	"github.com/containerd/containerd/log"
 	"github.com/containerd/containerd/reference"
 	"github.com/containerd/containerd/remotes"
 	"github.com/containerd/containerd/remotes/docker"
 	ctrdockerconfig "github.com/containerd/containerd/remotes/docker/config"
+	rhttp "github.com/hashicorp/go-retryablehttp"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"golang.org/x/sync/errgroup"
 	"oras.land/oras-go/v2/content"
@@ -72,26 +77,46 @@ func newRemoteStore(refspec reference.Spec) (*remote.Repository, error) {
 		return nil, fmt.Errorf("cannot create repository %s: %w", refspec.Locator, err)
 	}
 
-	authClient := auth.DefaultClient
-	authClient.Cache = auth.DefaultCache
-	authClient.Credential = func(_ context.Context, host string) (auth.Credential, error) {
-		username, secret, err := dockerconfig.DockerCreds(host)
-		if err != nil {
-			return auth.EmptyCredential, err
-		}
-		if username == "" && secret != "" {
-			return auth.Credential{
-				RefreshToken: secret,
-			}, nil
-		}
+	rhttpClient := rhttp.NewClient()
 
-		return auth.Credential{
-			Username: username,
-			Password: secret,
-		}, nil
+	// set the dial timeout and response header timeout to 1 second
+	innerTransport := rhttpClient.HTTPClient.Transport
+	if t, ok := innerTransport.(*http.Transport); ok {
+		t.DialContext = (&net.Dialer{
+			Timeout: 1 * time.Second,
+		}).DialContext
+		t.ResponseHeaderTimeout = 1 * time.Second
 	}
-
-	repo.Client = authClient
+	httpClient := rhttpClient.StandardClient()
+	authClient := auth.Client{
+		Client: httpClient,
+		Cache:  auth.DefaultCache,
+		Credential: func(_ context.Context, host string) (auth.Credential, error) {
+			username, secret, err := dockerconfig.DockerCreds(host)
+			if err != nil {
+				return auth.EmptyCredential, err
+			}
+			if username == "" && secret != "" {
+				return auth.Credential{
+					RefreshToken: secret,
+				}, nil
+			}
+			return auth.Credential{
+				Username: username,
+				Password: secret,
+			}, nil
+		},
+	}
+	// set rhttp retry logic
+	tr := authClient.Client.Transport
+	if rt, ok := tr.(*rhttp.RoundTripper); ok {
+		rt.Client.RetryMax = socihttp.DefaultMaxRetries
+		rt.Client.RetryWaitMin = time.Duration(socihttp.DefaultMinWaitMsec) * time.Millisecond
+		rt.Client.RetryWaitMax = time.Duration(socihttp.DefaultMaxWaitMsec) * time.Millisecond
+		rt.Client.Backoff = socihttp.BackoffStrategy
+		rt.Client.CheckRetry = socihttp.RetryStrategy
+	}
+	repo.Client = &authClient
 	return repo, nil
 }
 
@@ -137,7 +162,6 @@ func (f *artifactFetcher) Fetch(ctx context.Context, desc ocispec.Descriptor) (i
 			return nil, false, fmt.Errorf("size of descriptor is 0; unable to resolve: %w", err)
 		}
 	}
-
 	rc, err = f.remoteStore.Fetch(ctx, desc)
 	if err != nil {
 		return nil, false, fmt.Errorf("unable to fetch descriptor (%v) from remote store: %w", desc.Digest, err)
