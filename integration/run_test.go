@@ -61,7 +61,8 @@ func TestRunMultipleContainers(t *testing.T) {
 					testFunc:       testWebServiceContainer,
 				},
 			},
-		}, {
+		},
+		{
 			name: "Run multiple containers from different images",
 			containers: []containerImageAndTestFunc{
 				{
@@ -70,6 +71,19 @@ func TestRunMultipleContainers(t *testing.T) {
 				},
 				{
 					containerImage: drupalImage,
+					testFunc:       testWebServiceContainer,
+				},
+			},
+		},
+		{
+			name: "Run multiple containers from different images with shared layers",
+			containers: []containerImageAndTestFunc{
+				{
+					containerImage: nginxAlpineImage,
+					testFunc:       testWebServiceContainer,
+				},
+				{
+					containerImage: nginxAlpineImage2,
 					testFunc:       testWebServiceContainer,
 				},
 			},

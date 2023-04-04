@@ -20,6 +20,7 @@ import (
 	"bytes"
 	"context"
 	"crypto/tls"
+	"errors"
 	"fmt"
 	"io"
 
@@ -34,6 +35,7 @@ import (
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"golang.org/x/sync/errgroup"
 	"oras.land/oras-go/v2/content"
+	"oras.land/oras-go/v2/errdef"
 	"oras.land/oras-go/v2/registry/remote"
 	"oras.land/oras-go/v2/registry/remote/auth"
 )
@@ -198,7 +200,7 @@ func FetchSociArtifacts(ctx context.Context, refspec reference.Spec, indexDesc o
 			Size:   cw.Size(),
 		}, bytes.NewReader(b))
 
-		if err != nil {
+		if err != nil && !errors.Is(err, errdef.ErrAlreadyExists) {
 			return nil, fmt.Errorf("unable to store index in local store: %w", err)
 		}
 	}
@@ -215,7 +217,10 @@ func FetchSociArtifacts(ctx context.Context, refspec reference.Spec, indexDesc o
 			if local {
 				return nil
 			}
-			return fetcher.Store(ctx, blob, rc)
+			if err := fetcher.Store(ctx, blob, rc); err != nil && !errors.Is(err, errdef.ErrAlreadyExists) {
+				return fmt.Errorf("unable to store ztoc in local store: %w", err)
+			}
+			return nil
 		})
 	}
 

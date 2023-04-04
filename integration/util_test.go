@@ -83,6 +83,10 @@ const (
 	ubuntuImage   = "ubuntu:23.04"
 	drupalImage   = "drupal:10.0.2"
 	rabbitmqImage = "rabbitmq:3.11.7"
+	// These 2 images enable us to test cases where 2 different images
+	// have shared layers (thus shared ztocs if built with the same parameters).
+	nginxAlpineImage  = "nginx:1.22-alpine3.17"
+	nginxAlpineImage2 = "nginx:1.23-alpine3.17"
 )
 
 const proxySnapshotterConfig = `
