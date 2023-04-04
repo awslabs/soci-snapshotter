@@ -44,7 +44,6 @@ package fs
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"os/exec"
 	"sync"
@@ -74,7 +73,6 @@ import (
 	"github.com/sirupsen/logrus"
 	orascontent "oras.land/oras-go/v2/content"
 	"oras.land/oras-go/v2/content/oci"
-	"oras.land/oras-go/v2/errdef"
 )
 
 const (
@@ -327,7 +325,7 @@ func (c *sociContext) Init(fsCtx context.Context, ctx context.Context, imageRef,
 		log.G(ctx).WithField("digest", indexDesc.Digest.String()).Infof("fetching SOCI artifacts using index descriptor")
 
 		index, err := FetchSociArtifacts(ctx, refspec, indexDesc, store, remoteStore)
-		if err != nil && !errors.Is(err, errdef.ErrAlreadyExists) {
+		if err != nil {
 			retErr = fmt.Errorf("error trying to fetch SOCI artifacts: %w", err)
 			return
 		}
