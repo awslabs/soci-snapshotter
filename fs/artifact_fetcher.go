@@ -22,6 +22,11 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"net"
+	"net/http"
+	"os"
+	"time"
+	"strings"
 
 	"github.com/awslabs/soci-snapshotter/service/keychain/dockerconfig"
 	"github.com/awslabs/soci-snapshotter/soci"
@@ -102,12 +107,35 @@ func (f *artifactFetcher) constructRef(desc ocispec.Descriptor) string {
 	return fmt.Sprintf("%s@%s", f.refspec.Locator, desc.Digest.String())
 }
 
+type nopCloser struct {
+	io.Reader
+}
+
+func (nopCloser) Close() error { return nil }
+
+func NopCloser(r io.Reader) io.ReadCloser {
+	return nopCloser{r}
+}
+
 // Fetches the artifact identified by the descriptor.
 // It first checks the local store for the artifact.
 // If not found, if constructs the ref and fetches it from remote.
 func (f *artifactFetcher) Fetch(ctx context.Context, desc ocispec.Descriptor) (io.ReadCloser, bool, error) {
+	// Try to read the requested artifact from the local filesystem first.
+	// This is faster and lets us bypass all of the container registry interaction when available.
+	// TODO(iain): pass this directory as an argument or parameter.
+	localFilename := "/var/lib/soci-snapshotter-grpc/content/blobs/sha256/" + strings.Replace(desc.Digest.String(), "sha256:", "", -1)
+	if _, err := os.Stat(localFilename); err == nil {
+		file, err := os.Open(localFilename)
+		if err != nil {
+			return nil, false, fmt.Errorf("error reading local file %s: %w", localFilename, err)
+		}
+		return NopCloser(file), true, nil
+	} else {
+		log.G(ctx).WithField("digest", desc.Digest.String()).Infof("failed to locate file on local filesystem, falling back to container storage")
+	}
 
-	// Check local store first
+	// Check local oras store first
 	rc, err := f.localStore.Fetch(ctx, desc)
 	if err == nil {
 		return rc, true, nil
