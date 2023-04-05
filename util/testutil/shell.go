@@ -175,9 +175,11 @@ func scanFatalLog(inputR io.Reader, errs chan error) {
 		if err := json.Unmarshal([]byte(rawL), &logline); err == nil {
 			if logline.Level == "fatal" {
 				errs <- errors.New("aborting test: fatal snapshotter log entry encountered")
+				return
 			}
 			if strings.Contains(logline.Msg, "background") {
 				errs <- nil
+				return
 			}
 		}
 	}
