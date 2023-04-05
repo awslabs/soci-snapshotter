@@ -348,7 +348,7 @@ func copyImage(sh *shell.Shell, src, dst imageInfo) {
 	sh.
 		X(append([]string{"nerdctl", "pull", "-q", "--platform", platforms.Format(src.platform)}, opts[0]...)...).
 		X("ctr", "i", "tag", src.ref, dst.ref).
-		X(append([]string{"nerdctl", "push", "--platform", platforms.Format(src.platform)}, opts[1]...)...)
+		X(append([]string{"nerdctl", "push", "-q", "--platform", platforms.Format(src.platform)}, opts[1]...)...)
 }
 
 type registryConfig struct {
