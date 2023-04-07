@@ -100,7 +100,7 @@ func NewBackgroundFetcher(opts ...Option) (*BackgroundFetcher, error) {
 	bf.rateLimiter = rate.NewLimiter(rate.Every(bf.fetchPeriod), 1)
 	bf.workQueue = make(chan Resolver, bf.maxQueueSize)
 	bf.closeChan = make(chan struct{})
-	bf.pauseChan = make(chan struct{})
+	bf.pauseChan = make(chan struct{}, bf.maxQueueSize)
 
 	if bf.bfPauser == nil {
 		bf.bfPauser = defaultPauser{}
@@ -120,7 +120,7 @@ func (bf *BackgroundFetcher) Close() error {
 	return nil
 }
 
-// Sends a signal to pause the background fetcher for silencePeriod on the next iteration.
+// Pause sends a signal to pause the background fetcher for silencePeriod on the next iteration.
 func (bf *BackgroundFetcher) Pause() {
 	bf.pauseChan <- struct{}{}
 }
