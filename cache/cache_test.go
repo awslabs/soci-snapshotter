@@ -42,7 +42,6 @@ import (
 	"crypto/sha256"
 	"fmt"
 	"io"
-	"os"
 	"testing"
 )
 
@@ -53,11 +52,8 @@ const (
 func TestDirectoryCache(t *testing.T) {
 
 	// with enough memory cache
-	newCache := func() (BlobCache, cleanFunc) {
-		tmp, err := os.MkdirTemp("", "testcache")
-		if err != nil {
-			t.Fatalf("failed to make tempdir: %v", err)
-		}
+	newCache := func(t *testing.T) BlobCache {
+		tmp := t.TempDir()
 		c, err := NewDirectoryCache(tmp, DirectoryCacheConfig{
 			MaxLRUCacheEntry: 10,
 			SyncAdd:          true,
@@ -65,16 +61,13 @@ func TestDirectoryCache(t *testing.T) {
 		if err != nil {
 			t.Fatalf("failed to make cache: %v", err)
 		}
-		return c, func() { os.RemoveAll(tmp) }
+		return c
 	}
 	testCache(t, "dir-with-enough-mem", newCache)
 
 	// with smaller memory cache
-	newCache = func() (BlobCache, cleanFunc) {
-		tmp, err := os.MkdirTemp("", "testcache")
-		if err != nil {
-			t.Fatalf("failed to make tempdir: %v", err)
-		}
+	newCache = func(t *testing.T) BlobCache {
+		tmp := t.TempDir()
 		c, err := NewDirectoryCache(tmp, DirectoryCacheConfig{
 			MaxLRUCacheEntry: 1,
 			SyncAdd:          true,
@@ -82,18 +75,16 @@ func TestDirectoryCache(t *testing.T) {
 		if err != nil {
 			t.Fatalf("failed to make cache: %v", err)
 		}
-		return c, func() { os.RemoveAll(tmp) }
+		return c
 	}
 	testCache(t, "dir-with-small-mem", newCache)
 }
 
 func TestMemoryCache(t *testing.T) {
-	testCache(t, "memory", func() (BlobCache, cleanFunc) { return NewMemoryCache(), func() {} })
+	testCache(t, "memory", func(*testing.T) BlobCache { return NewMemoryCache() })
 }
 
-type cleanFunc func()
-
-func testCache(t *testing.T, name string, newCache func() (BlobCache, cleanFunc)) {
+func testCache(t *testing.T, name string, newCache func(t *testing.T) BlobCache) {
 	tests := []struct {
 		name   string
 		blobs  []string
@@ -144,8 +135,7 @@ func testCache(t *testing.T, name string, newCache func() (BlobCache, cleanFunc)
 
 	for _, tt := range tests {
 		t.Run(fmt.Sprintf("%s-%s", name, tt.name), func(t *testing.T) {
-			c, clean := newCache()
-			defer clean()
+			c := newCache(t)
 			for _, blob := range tt.blobs {
 				d := digestFor(blob)
 				w, err := c.Add(d)

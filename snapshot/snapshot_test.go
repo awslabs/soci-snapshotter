@@ -70,11 +70,7 @@ func prepareWithTarget(t *testing.T, sn snapshots.Snapshotter, target, key, pare
 func TestRemotePrepare(t *testing.T) {
 	testutil.RequiresRoot(t)
 	ctx := context.TODO()
-	root, err := os.MkdirTemp("", "overlay")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(root)
+	root := t.TempDir()
 	sn, err := NewSnapshotter(context.TODO(), root, bindFileSystem(t))
 	if err != nil {
 		t.Fatalf("failed to make new remote snapshotter: %q", err)
@@ -121,11 +117,7 @@ func TestRemotePrepare(t *testing.T) {
 func TestRemoteOverlay(t *testing.T) {
 	testutil.RequiresRoot(t)
 	ctx := context.TODO()
-	root, err := os.MkdirTemp("", "remote")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(root)
+	root := t.TempDir()
 	sn, err := NewSnapshotter(context.TODO(), root, bindFileSystem(t))
 	if err != nil {
 		t.Fatalf("failed to make new remote snapshotter: %q", err)
@@ -180,11 +172,7 @@ func TestRemoteOverlay(t *testing.T) {
 func TestRemoteCommit(t *testing.T) {
 	testutil.RequiresRoot(t)
 	ctx := context.TODO()
-	root, err := os.MkdirTemp("", "remote")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(root)
+	root := t.TempDir()
 	sn, err := NewSnapshotter(context.TODO(), root, bindFileSystem(t))
 	if err != nil {
 		t.Fatalf("failed to make new remote snapshotter: %q", err)
@@ -202,11 +190,7 @@ func TestRemoteCommit(t *testing.T) {
 	}
 
 	// Make a new active snapshot based on the remote snapshot.
-	snapshot, err := os.MkdirTemp("", "snapshot")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(snapshot)
+	snapshot := t.TempDir()
 	m := mounts[0]
 	if err := m.Mount(snapshot); err != nil {
 		t.Fatal(err)
@@ -224,11 +208,7 @@ func TestRemoteCommit(t *testing.T) {
 	}
 
 	// Validate the committed snapshot
-	check, err := os.MkdirTemp("", "check")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(check)
+	check := t.TempDir()
 	mounts, err = sn.Prepare(ctx, "/tmp/test2", cKey)
 	if err != nil {
 		t.Fatal(err)
@@ -322,11 +302,7 @@ func TestFailureDetection(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			ctx := context.TODO()
-			root, err := os.MkdirTemp("", "remote")
-			if err != nil {
-				t.Fatal(err)
-			}
-			defer os.RemoveAll(root)
+			root := t.TempDir()
 			fi := bindFileSystem(t)
 			sn, err := NewSnapshotter(context.TODO(), root, fi)
 			if err != nil {
@@ -390,10 +366,7 @@ func TestFailureDetection(t *testing.T) {
 }
 
 func bindFileSystem(t *testing.T) FileSystem {
-	root, err := os.MkdirTemp("", "remote")
-	if err != nil {
-		t.Fatalf("failed to prepare working-space for bind filesystem: %q", err)
-	}
+	root := t.TempDir()
 	if err := os.WriteFile(filepath.Join(root, remoteSampleFile), []byte(remoteSampleFileContents), 0660); err != nil {
 		t.Fatalf("failed to write sample file of bind filesystem: %q", err)
 	}
@@ -483,11 +456,7 @@ func TestOverlay(t *testing.T) {
 
 func TestOverlayMounts(t *testing.T) {
 	ctx := context.TODO()
-	root, err := os.MkdirTemp("", "overlay")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(root)
+	root := t.TempDir()
 	o, _, err := newSnapshotter(ctx, root)
 	if err != nil {
 		t.Fatal(err)
@@ -517,11 +486,7 @@ func TestOverlayMounts(t *testing.T) {
 
 func TestOverlayCommit(t *testing.T) {
 	ctx := context.TODO()
-	root, err := os.MkdirTemp("", "overlay")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(root)
+	root := t.TempDir()
 	o, _, err := newSnapshotter(ctx, root)
 	if err != nil {
 		t.Fatal(err)
@@ -542,11 +507,7 @@ func TestOverlayCommit(t *testing.T) {
 
 func TestOverlayOverlayMount(t *testing.T) {
 	ctx := context.TODO()
-	root, err := os.MkdirTemp("", "overlay")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(root)
+	root := t.TempDir()
 	o, _, err := newSnapshotter(ctx, root)
 	if err != nil {
 		t.Fatal(err)
@@ -626,11 +587,7 @@ func getParents(ctx context.Context, sn snapshots.Snapshotter, root, key string)
 func TestOverlayOverlayRead(t *testing.T) {
 	testutil.RequiresRoot(t)
 	ctx := context.TODO()
-	root, err := os.MkdirTemp("", "overlay")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(root)
+	root := t.TempDir()
 	o, _, err := newSnapshotter(ctx, root)
 	if err != nil {
 		t.Fatal(err)
@@ -669,11 +626,7 @@ func TestOverlayOverlayRead(t *testing.T) {
 
 func TestOverlayView(t *testing.T) {
 	ctx := context.TODO()
-	root, err := os.MkdirTemp("", "overlay")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(root)
+	root := t.TempDir()
 	o, _, err := newSnapshotter(ctx, root)
 	if err != nil {
 		t.Fatal(err)
