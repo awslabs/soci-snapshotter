@@ -451,10 +451,7 @@ func newShellWithRegistry(t *testing.T, r registryConfig, opts ...registryOpt) (
 	if err != nil {
 		t.Fatalf("failed to generate htpasswd: %v", err)
 	}
-	authDir, err := os.MkdirTemp("", "tmpcontext")
-	if err != nil {
-		t.Fatalf("failed to prepare auth tmpdir")
-	}
+	authDir := t.TempDir()
 	if err := os.WriteFile(filepath.Join(authDir, "domain.key"), key, 0666); err != nil {
 		t.Fatalf("failed to prepare key file")
 	}
@@ -526,7 +523,7 @@ networks:
 				return err
 			}
 		}
-		return os.RemoveAll(authDir)
+		return nil
 	}
 }
 
