@@ -91,7 +91,7 @@ func GetProjectRoot() (string, error) {
 		}
 	}
 	if _, err := os.Stat(filepath.Join(pRoot, "Dockerfile")); err != nil {
-		return "", fmt.Errorf("Dockerfile not found under project root")
+		return "", fmt.Errorf("no Dockerfile was found under project root")
 	}
 	return pRoot, nil
 }

@@ -624,7 +624,7 @@ func getReferrers(sh *dockershell.Shell, regConfig registryConfig, imgName, dige
 	return &index, nil
 }
 
-func rebootContainerd(t *testing.T, sh *shell.Shell, customContainerdConfig, customSnapshotterConfig string) *testutil.RemoteSnapshotMonitor {
+func rebootContainerd(t *testing.T, sh *shell.Shell, customContainerdConfig, customSnapshotterConfig string) *testutil.LogMonitor {
 	var (
 		containerdRoot    = "/var/lib/containerd/"
 		containerdStatus  = "/run/containerd/"
@@ -664,8 +664,12 @@ func rebootContainerd(t *testing.T, sh *shell.Shell, customContainerdConfig, cus
 		t.Fatalf("failed to create pipe: %v", err)
 	}
 	reporter := testutil.NewTestingReporter(t)
-	testutil.FatalMonitor(reporter, outR, errR)
-	var m *testutil.RemoteSnapshotMonitor = testutil.NewRemoteSnapshotMonitor(reporter, outR, errR)
+	var m *testutil.LogMonitor = testutil.NewLogMonitor(reporter, outR, errR)
+
+	err = testutil.LogConfirmStartup(m)
+	if err != nil {
+		t.Fatalf("snapshotter startup failed: %v", err)
+	}
 
 	// make sure containerd and soci-snapshotter-grpc are up-and-running
 	sh.Retry(100, "ctr", "snapshots", "--snapshotter", "soci",

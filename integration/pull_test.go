@@ -289,10 +289,12 @@ func TestLazyPull(t *testing.T) {
 			test: func(t *testing.T, tarExportArgs ...string) {
 				image := regConfig.mirror(optimizedImageName1).ref
 				m := rebootContainerd(t, sh, "", "")
+				rsm, done := testutil.NewRemoteSnapshotMonitor(m)
+				defer done()
 				buildIndex(sh, regConfig.mirror(optimizedImageName1), withMinLayerSize(0))
 				sh.X("ctr", "i", "rm", optimizedImageName1)
 				export(sh, image, tarExportArgs)
-				m.CheckAllRemoteSnapshots(t)
+				rsm.CheckAllRemoteSnapshots(t)
 			},
 		},
 		{
@@ -301,12 +303,14 @@ func TestLazyPull(t *testing.T) {
 			test: func(t *testing.T, tarExportArgs ...string) {
 				image := regConfig.mirror(optimizedImageName1).ref
 				m := rebootContainerd(t, sh, "", "")
+				rsm, done := testutil.NewRemoteSnapshotMonitor(m)
+				defer done()
 				buildIndex(sh, regConfig.mirror(optimizedImageName2), withMinLayerSize(0))
 				sh.X("soci", "image", "rpull", "--user", regConfig.creds(), "--soci-index-digest", indexDigest2, regConfig.mirror(optimizedImageName2).ref)
 				buildIndex(sh, regConfig.mirror(optimizedImageName1), withMinLayerSize(0))
 				sh.X("ctr", "i", "rm", optimizedImageName1)
 				export(sh, image, tarExportArgs)
-				m.CheckAllRemoteSnapshots(t)
+				rsm.CheckAllRemoteSnapshots(t)
 			},
 		},
 	}
@@ -375,9 +379,11 @@ func TestLazyPullNoIndexDigest(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			m := rebootContainerd(t, sh, "", "")
+			rsm, done := testutil.NewRemoteSnapshotMonitor(m)
+			defer done()
 			testSameTarContents(t, sh, tt.want, tt.test)
 			if tt.checkAllRemoteSnapshots {
-				m.CheckAllRemoteSnapshots(t)
+				rsm.CheckAllRemoteSnapshots(t)
 			}
 		})
 	}
@@ -549,10 +555,12 @@ disable = true
 			test: func(t *testing.T, tarExportArgs ...string) {
 				image := regConfig.mirror(optimizedImageName1).ref
 				m := rebootContainerd(t, sh, "", "")
+				rsm, done := testutil.NewRemoteSnapshotMonitor(m)
+				defer done()
 				buildIndex(sh, regConfig.mirror(optimizedImageName1), withMinLayerSize(0))
 				sh.X("ctr", "i", "rm", optimizedImageName1)
 				export(sh, image, tarExportArgs)
-				m.CheckAllRemoteSnapshots(t)
+				rsm.CheckAllRemoteSnapshots(t)
 			},
 		},
 		{
@@ -561,12 +569,14 @@ disable = true
 			test: func(t *testing.T, tarExportArgs ...string) {
 				image := regConfig.mirror(optimizedImageName1).ref
 				m := rebootContainerd(t, sh, "", "")
+				rsm, done := testutil.NewRemoteSnapshotMonitor(m)
+				defer done()
 				buildIndex(sh, regConfig.mirror(optimizedImageName2), withMinLayerSize(0))
 				sh.X("soci", "image", "rpull", "--user", regConfig.creds(), "--soci-index-digest", indexDigest2, regConfig.mirror(optimizedImageName2).ref)
 				buildIndex(sh, regConfig.mirror(optimizedImageName1), withMinLayerSize(0))
 				sh.X("ctr", "i", "rm", optimizedImageName1)
 				export(sh, image, tarExportArgs)
-				m.CheckAllRemoteSnapshots(t)
+				rsm.CheckAllRemoteSnapshots(t)
 			},
 		},
 	}

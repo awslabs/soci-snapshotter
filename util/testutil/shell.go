@@ -88,6 +88,49 @@ func (r *TestingReporter) Stderr() io.Writer {
 	return TestingL.Writer()
 }
 
+// LogMonitor manages a list of functions that should scan lines coming from stdout and stderr Readers
+type LogMonitor struct {
+	monitorFuncs map[string]func(string)
+}
+
+// NewLogMonitor creates a LogMonitor for a given pair of stdout and stderr Readers
+func NewLogMonitor(r shell.Reporter, stdout, stderr io.Reader) *LogMonitor {
+	m := &LogMonitor{}
+	m.monitorFuncs = make(map[string]func(string))
+	go m.ScanLog(io.TeeReader(stdout, r.Stdout()))
+	go m.ScanLog(io.TeeReader(stderr, r.Stderr()))
+	return m
+}
+
+// Add registers a new log monitor function
+func (m *LogMonitor) Add(name string, monitorFunc func(string)) error {
+	if _, ok := m.monitorFuncs[name]; ok {
+		return fmt.Errorf("attempted to add log monitor with already existing name: %s", name)
+	}
+	m.monitorFuncs[name] = monitorFunc
+	return nil
+}
+
+// Remove unregisters a log monitor function
+func (m *LogMonitor) Remove(name string) error {
+	if _, ok := m.monitorFuncs[name]; ok {
+		delete(m.monitorFuncs, name)
+		return nil
+	}
+	return fmt.Errorf("attempted to remove nonexistent log monitor: %s", name)
+}
+
+// ScanLog calls each registered log monitor function for each new line of the Reader
+func (m *LogMonitor) ScanLog(inputR io.Reader) {
+	scanner := bufio.NewScanner(inputR)
+	for scanner.Scan() {
+		rawL := scanner.Text()
+		for _, monitorFunc := range m.monitorFuncs {
+			monitorFunc(rawL)
+		}
+	}
+}
+
 // RemoteSnapshotMonitor scans log of soci snapshotter and provides the way to check
 // if all snapshots are prepared as remote snpashots.
 type RemoteSnapshotMonitor struct {
@@ -95,34 +138,29 @@ type RemoteSnapshotMonitor struct {
 	local  uint64
 }
 
-// NewRemoteSnapshotMonitor creates a new instance of RemoteSnapshotMonitor that scans logs streamed
-// from the specified io.Reader.
-func NewRemoteSnapshotMonitor(r shell.Reporter, stdout, stderr io.Reader) *RemoteSnapshotMonitor {
-	m := &RemoteSnapshotMonitor{}
-	go m.ScanLog(io.TeeReader(stdout, r.Stdout()))
-	go m.ScanLog(io.TeeReader(stderr, r.Stderr()))
-	return m
+// NewRemoteSnapshotMonitor creates a new instance of RemoteSnapshotMonitor and registers it
+// with the LogMonitor
+func NewRemoteSnapshotMonitor(m *LogMonitor) (*RemoteSnapshotMonitor, func()) {
+	rsm := &RemoteSnapshotMonitor{}
+	m.Add("remote snapshot", rsm.MonitorFunc)
+	return rsm, func() { m.Remove("remote snapshot") }
 }
 
 type RemoteSnapshotPreparedLogLine struct {
 	RemoteSnapshotPrepared string `json:"remote-snapshot-prepared"`
 }
 
-// ScanLog scans the log streamed from the specified io.Reader.
-func (m *RemoteSnapshotMonitor) ScanLog(inputR io.Reader) {
-	scanner := bufio.NewScanner(inputR)
+// MonitorFunc counts remote/local snapshot preparation totals
+func (m *RemoteSnapshotMonitor) MonitorFunc(rawL string) {
 	var logline RemoteSnapshotPreparedLogLine
-	for scanner.Scan() {
-		rawL := scanner.Text()
-		if i := strings.Index(rawL, "{"); i > 0 {
-			rawL = rawL[i:] // trim garbage chars; expects "{...}"-styled JSON log
-		}
-		if err := json.Unmarshal([]byte(rawL), &logline); err == nil {
-			if logline.RemoteSnapshotPrepared == "true" {
-				atomic.AddUint64(&m.remote, 1)
-			} else if logline.RemoteSnapshotPrepared == "false" {
-				atomic.AddUint64(&m.local, 1)
-			}
+	if i := strings.Index(rawL, "{"); i > 0 {
+		rawL = rawL[i:] // trim garbage chars; expects "{...}"-styled JSON log
+	}
+	if err := json.Unmarshal([]byte(rawL), &logline); err == nil {
+		if logline.RemoteSnapshotPrepared == "true" {
+			atomic.AddUint64(&m.remote, 1)
+		} else if logline.RemoteSnapshotPrepared == "false" {
+			atomic.AddUint64(&m.local, 1)
 		}
 	}
 }
@@ -143,19 +181,20 @@ func (m *RemoteSnapshotMonitor) CheckAllRemoteSnapshots(t *testing.T) {
 	}
 }
 
-// FatalMonitor scans logs streamed from the specified io.Reader for fatal errors during startup
-func FatalMonitor(r shell.Reporter, stdout, stderr io.Reader) {
+// LogConfirmStartup registers a LogMonitor function to scan until startup succeeds or fails
+func LogConfirmStartup(m *LogMonitor) error {
 	errs := make(chan error, 1)
-	go scanFatalLog(io.TeeReader(stdout, r.Stdout()), errs)
-	go scanFatalLog(io.TeeReader(stderr, r.Stderr()), errs)
+	m.Add("startup", monitorStartup(errs))
+	defer m.Remove("startup")
 	select {
 	case err := <-errs:
 		if err != nil {
-			r.Errorf(err.Error())
+			return err
 		}
 	case <-time.After(10 * time.Second): // timeout
-		r.Errorf("log did not produce success or fatal error within 10 seconds")
+		return fmt.Errorf("log did not produce success or fatal error within 10 seconds")
 	}
+	return nil
 }
 
 type LevelLogLine struct {
@@ -163,18 +202,16 @@ type LevelLogLine struct {
 	Msg   string `json:"msg"`
 }
 
-// scanFatalLog scans the log streamed from the specified io.Reader for fatal errors during startup
-func scanFatalLog(inputR io.Reader, errs chan error) {
-	scanner := bufio.NewScanner(inputR)
-	var logline LevelLogLine
-	for scanner.Scan() {
-		rawL := scanner.Text()
+// monitorStartup creates a LogMonitor function to pass success or failure back through the given channel
+func monitorStartup(errs chan error) func(string) {
+	return func(rawL string) {
 		if i := strings.Index(rawL, "{"); i > 0 {
 			rawL = rawL[i:] // trim garbage chars; expects "{...}"-styled JSON log
 		}
+		var logline LevelLogLine
 		if err := json.Unmarshal([]byte(rawL), &logline); err == nil {
 			if logline.Level == "fatal" {
-				errs <- errors.New("aborting test: fatal snapshotter log entry encountered")
+				errs <- errors.New("fatal snapshotter log entry encountered, snapshotter failed to start")
 				return
 			}
 			if strings.Contains(logline.Msg, "background") {
