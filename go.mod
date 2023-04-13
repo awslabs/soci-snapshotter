@@ -1,4 +1,4 @@
-module github.com/iain-macdonald/soci-snapshotter
+module github.com/awslabs/soci-snapshotter
 
 go 1.18
 
