@@ -271,5 +271,5 @@ use the `--net-host` binary flag.  Then we pass in the two main arguments, our
 image registry and the id of the container:
 
 ```shell
-sudo ctr run --user $REGISTRY_USER:$REGISTRY_PASSWORD --snapshotter soci --net-host $REGISTRY/rabbitmq:latest sociExample
+sudo ctr run --snapshotter soci --net-host $REGISTRY/rabbitmq:latest sociExample
 ```

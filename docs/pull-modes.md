@@ -2,8 +2,8 @@
 
 soci-snapshotter is a remote snapshotter. It is able to lazily load the contents
 of a container image when a *SOCI index* is present in the remote registry. If
-a SOCI index is not found, it will download and uncompress the layers at launch
-time, just like the default snapshotter does.
+a SOCI index is not found, it will download and uncompress the image layers at
+launch time, just like the default snapshotter does.
 
 SOCI indices can also be "sparse", meaning that any individual layer may not be
 indexed. In that case, that layer will be downloaded at launch time, while the
@@ -12,24 +12,54 @@ indexed layers will be lazily loaded.
 A layer will be mounted as a fuse mountpoint if it's being lazily loaded, or as
 a normal overlay layer if it's not.
 
-When you pull an image, there can be the following cases:
+Overall, lazily pulling a container image with soci-snapshotter
+(via the `soci image rpull` command) involves the following steps:
 
-1. For lazy loading the snapshotter accepts an optional flag `--soci-index-digest`,
-which is the sha256 of the SOCI index manifest. If
-not provided, the snapshotter will use the OCI distribution-spec's
+## Step 1: specify SOCI index digest
+
+To enable lazy pulling and loading an image with soci-snapshotter, first you need
+to `rpull` the image via the [`soci` CLI](./getting-started.md#install-soci-snapshotter).
+The CLI accepts an optional flag `--soci-index-digest`, which is the sha256 of the
+SOCI index manifest and will be passed to the snapshotter.
+
+If not provided, the snapshotter will use the OCI distribution-spec's
 [Referrers API](https://github.com/opencontainers/distribution-spec/blob/main/spec.md#listing-referrers)
 (if available, otherwise the spec's
 [fallback mechanism](https://github.com/opencontainers/distribution-spec/blob/main/spec.md#unavailable-referrers-api))
 to fetch a list of available indices. An index will be chosen from the list of available indices,
 but the selection process is undefined and it may not choose the same index every time.
-2. If 1 goes well, the launch is a SOCI use case. On the first layer mount, there
-will be an attempt to download and parse the SOCI manifest. If this doesn’t go well,
-there will be the following error in the log: `unable to fetch SOCI artifacts:`,
-which will indicate that the container image will not be lazily loaded.
-3. If 1 and 2 go well. There can be a case, where there’s no zTOC for a specific
-layer. In this case, there will be an error with the text `{"error":"failed to resolve layer`
-which will indicate that the specific layer will be synchronously downloaded at launch time.
-4. With debug logging enabled, you can see an entry in the logs for each layer.
+
+> Check out [this doc](./getting-started.md#lazily-pull-image) for how to
+> validate if this step is successful or not, and [the debug doc](./debug.md#common-scenarios)
+> for the common scenarios where `rpull` might fail and how to debug/fix them.
+
+## Step 2: fetch SOCI artifacts
+
+During `rpull`, on the first layer mount there will be an attempt to download
+and parse the SOCI manifest. If this doesn’t go well, there will be the following
+error in the log: `unable to fetch SOCI artifacts:`, indicating that the
+container image will not be lazily loaded. In this case, the snapshotter will
+fallback to default snapshotter configured (eg: overlayfs) entirely.
+
+> Check out [the debug doc](./debug.md#common-scenarios) for how to debug/fix it.
+
+## Step 3: fetch image layers
+
+The SOCI index will instruct containerd and soci-snapshotter when to fetch/pull
+image layers. There can be two cases:
+
+1. There’s no zTOC for a specific layer. In this case, there will be an error log:
+`{"error":"failed to resolve layer`, indicating that this layer will be
+synchronously downloaded at launch time.
+2. There's a zTOC for a specific layer. In this case, the layer will be mounted
+as a fuse mountpoint, and will be lazily loaded while a container is running.
+
+> Whether a layer belongs to 1 or 2 depends on its size. When creating a SOCI
+> index, SOCI only creates zTOC for layers larger than a given size which is
+> specificed by the `--min-layer-size` flag of
+[`soci create` command](https://github.com/awslabs/soci-snapshotter/blob/9ff88817f3f2635b926f9fd32f6f05f389f7ecee/cmd/soci/commands/create.go#L56).
+
+With debug logging enabled, you can see an entry in logs for each layer.
 `checking mount point` indicates that the layer will be lazily loaded.
 `layer is normal snapshot(overlayfs)` indicates that it will not be lazily loaded.
 
