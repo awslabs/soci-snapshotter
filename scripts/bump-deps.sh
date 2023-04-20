@@ -21,11 +21,16 @@ SOCI_SNAPSHOTTER_PROJECT_ROOT="${CUR_DIR}/.."
 
 pushd ${SOCI_SNAPSHOTTER_PROJECT_ROOT}
 
-go get -u $(go list -m -f '{{if not (or .Indirect .Main)}}{{.Path}}{{end}}' all)
+# skip k8s deps since they use the latest go version/features that may not be in the go version soci uses
+go get -u $(go list -m -f '{{if not (or .Indirect .Main)}}{{.Path}}{{end}}' all | \
+    grep -v "k8s.io")
 make vendor
 
 pushd ./cmd
-go get -u $(go list -m -f '{{if not (or .Indirect .Main)}}{{.Path}}{{end}}' all | grep -v "github.com/awslabs/soci-snapshotter")
+# skip k8s deps and soci-snapshotter itself
+go get -u $(go list -m -f '{{if not (or .Indirect .Main)}}{{.Path}}{{end}}' all | \
+    grep -v "github.com/awslabs/soci-snapshotter" | \
+    grep -v "k8s.io")
 popd
 make vendor
 
