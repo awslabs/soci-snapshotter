@@ -26,6 +26,7 @@ type SpanID int32
 // with the return of `DiffCompression` from containerd.
 // https://github.com/containerd/containerd/blob/v1.7.0-beta.3/images/mediatypes.go#L66
 const (
-	Gzip = "gzip"
-	Zstd = "zstd"
+	Gzip         = "gzip"
+	Zstd         = "zstd"
+	Uncompressed = "uncompressed"
 )

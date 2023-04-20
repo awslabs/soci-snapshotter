@@ -66,6 +66,38 @@ func (gzb gzipZinfoBuilder) ZinfoFromFile(filename string, spanSize int64) (zinf
 	}, fs, nil
 }
 
+type tarZinfoBuilder struct{}
+
+func (tzb tarZinfoBuilder) ZinfoFromFile(filename string, spanSize int64) (zinfo CompressionInfo, fs compression.Offset, err error) {
+	index, err := compression.NewZinfoFromFile(compression.Uncompressed, filename, spanSize)
+	if err != nil {
+		return
+	}
+	defer index.Close()
+
+	fs, err = getFileSize(filename)
+	if err != nil {
+		return
+	}
+
+	digests, err := getPerSpanDigests(filename, int64(fs), index)
+	if err != nil {
+		return
+	}
+
+	checkpoints, err := index.Bytes()
+	if err != nil {
+		return
+	}
+
+	return CompressionInfo{
+		MaxSpanID:            index.MaxSpanID(),
+		SpanDigests:          digests,
+		Checkpoints:          checkpoints,
+		CompressionAlgorithm: compression.Uncompressed,
+	}, fs, nil
+}
+
 func getPerSpanDigests(filename string, fileSize int64, index compression.Zinfo) ([]digest.Digest, error) {
 	file, err := os.Open(filename)
 	if err != nil {
@@ -91,12 +123,7 @@ func getPerSpanDigests(filename string, fileSize int64, index compression.Zinfo)
 }
 
 func getFileSize(file string) (compression.Offset, error) {
-	f, err := os.Open(file)
-	if err != nil {
-		return 0, err
-	}
-	defer f.Close()
-	st, err := f.Stat()
+	st, err := os.Stat(file)
 	if err != nil {
 		return 0, err
 	}
