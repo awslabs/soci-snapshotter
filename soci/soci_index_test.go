@@ -113,12 +113,10 @@ func TestBuildSociIndexNotLayer(t *testing.T) {
 		{
 			name:      "layer as tar",
 			mediaType: "application/vnd.oci.image.layer.v1.tar",
-			err:       errUnsupportedLayerFormat,
 		},
 		{
 			name:      "docker",
 			mediaType: images.MediaTypeDockerSchema2Layer,
-			err:       errUnsupportedLayerFormat,
 		},
 		{
 			name:      "layer as tar+gzip",
@@ -138,7 +136,11 @@ func TestBuildSociIndexNotLayer(t *testing.T) {
 	ctx := context.Background()
 	cs := newFakeContentStore()
 	blobStore := memory.New()
-	artifactsDb, _ := NewDB(ArtifactsDbPath())
+
+	artifactsDb, err := newTestableDb()
+	if err != nil {
+		t.Fatalf("can't create a test db")
+	}
 	builder, err := NewIndexBuilder(cs, blobStore, artifactsDb, WithSpanSize(spanSize), WithMinLayerSize(0))
 
 	if err != nil {
@@ -207,7 +209,10 @@ func TestBuildSociIndexWithLimits(t *testing.T) {
 			}
 			spanSize := int64(65535)
 			blobStore := memory.New()
-			artifactsDb, _ := NewDB(ArtifactsDbPath())
+			artifactsDb, err := newTestableDb()
+			if err != nil {
+				t.Fatalf("can't create a test db")
+			}
 			builder, _ := NewIndexBuilder(cs, blobStore, artifactsDb, WithSpanSize(spanSize), WithMinLayerSize(tc.minLayerSize))
 			ztoc, err := builder.buildSociLayer(ctx, desc)
 			if tc.ztocGenerated {

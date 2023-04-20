@@ -25,7 +25,7 @@ table FileMetadata {
 	xattrs : [Xattr];
 }
 
-enum CompressionAlgorithm : byte { Gzip = 1 }
+enum CompressionAlgorithm : byte { Gzip = 1, Uncompressed }
 
 table CompressionInfo {
 	compression_algorithm : CompressionAlgorithm = Gzip;

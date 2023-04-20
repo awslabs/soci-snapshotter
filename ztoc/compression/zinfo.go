@@ -85,6 +85,8 @@ func NewZinfo(compressionAlgo string, zinfoBytes []byte) (Zinfo, error) {
 		return newGzipZinfo(zinfoBytes)
 	case Zstd:
 		return nil, fmt.Errorf("not implemented: %s", Zstd)
+	case Uncompressed:
+		return newTarZinfo(zinfoBytes)
 	default:
 		return nil, fmt.Errorf("unexpected compression algorithm: %s", compressionAlgo)
 	}
@@ -99,6 +101,8 @@ func NewZinfoFromFile(compressionAlgo string, filename string, spanSize int64) (
 		return newGzipZinfoFromFile(filename, spanSize)
 	case Zstd:
 		return nil, fmt.Errorf("not implemented: %s", Zstd)
+	case Uncompressed:
+		return newTarZinfoFromFile(filename, spanSize)
 	default:
 		return nil, fmt.Errorf("unexpected compression algorithm: %s", compressionAlgo)
 	}

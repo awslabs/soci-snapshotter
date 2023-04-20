@@ -41,6 +41,12 @@ func TarProviderZstd(compressedReader *os.File) (io.Reader, error) {
 	return zstd.NewReader(compressedReader)
 }
 
+// TarProviderTar return the tar file directly as the input to
+// `tar.NewReader`.
+func TarProviderTar(compressedReader *os.File) (io.Reader, error) {
+	return compressedReader, nil
+}
+
 // TocBuilder builds the `TOC` part of a ztoc and works with different
 // compression algorithms (e.g., gzip, zstd) with a registered `TarProvider`.
 type TocBuilder struct {
@@ -178,9 +184,6 @@ type positionTrackerReader struct {
 
 func (p *positionTrackerReader) Read(b []byte) (int, error) {
 	n, err := p.r.Read(b)
-	if err == io.EOF {
-		err = nil
-	}
 	if err == nil {
 		p.pos += compression.Offset(n)
 	}

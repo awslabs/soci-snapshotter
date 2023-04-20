@@ -42,7 +42,7 @@ func NewBuilder(buildToolIdentifier string) *Builder {
 		buildToolIdentifier: buildToolIdentifier,
 	}
 	builder.RegisterCompressionAlgorithm(compression.Gzip, TarProviderGzip, gzipZinfoBuilder{})
-
+	builder.RegisterCompressionAlgorithm(compression.Uncompressed, TarProviderTar, tarZinfoBuilder{})
 	return &builder
 }
 

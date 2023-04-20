@@ -7,15 +7,18 @@ import "strconv"
 type CompressionAlgorithm int8
 
 const (
-	CompressionAlgorithmGzip CompressionAlgorithm = 1
+	CompressionAlgorithmGzip         CompressionAlgorithm = 1
+	CompressionAlgorithmUncompressed CompressionAlgorithm = 2
 )
 
 var EnumNamesCompressionAlgorithm = map[CompressionAlgorithm]string{
-	CompressionAlgorithmGzip: "Gzip",
+	CompressionAlgorithmGzip:         "Gzip",
+	CompressionAlgorithmUncompressed: "Uncompressed",
 }
 
 var EnumValuesCompressionAlgorithm = map[string]CompressionAlgorithm{
-	"Gzip": CompressionAlgorithmGzip,
+	"Gzip":         CompressionAlgorithmGzip,
+	"Uncompressed": CompressionAlgorithmUncompressed,
 }
 
 func (v CompressionAlgorithm) String() string {

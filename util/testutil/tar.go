@@ -209,18 +209,35 @@ func WriteTarToTempFile(tarNamePattern string, tarReader io.Reader) (string, []b
 
 // GetFilesAndContentsWithinTarGz takes a path to a targz archive and returns a list of its files and their contents
 func GetFilesAndContentsWithinTarGz(tarGz string) (map[string][]byte, []string, error) {
-	var files []string
 	f, err := os.Open(tarGz)
 	if err != nil {
 		return nil, nil, err
 	}
+	defer f.Close()
+
 	gr, err := gzip.NewReader(f)
 	if err != nil {
 		return nil, nil, err
 	}
 	tr := tar.NewReader(gr)
+	return getFilesAndContentsFromTarReader(tr)
+}
 
+// GetFilesAndContentsWithinTar takes a path to a tar archive and returns a list of its files and their contents
+func GetFilesAndContentsWithinTar(tarFile string) (map[string][]byte, []string, error) {
+	f, err := os.Open(tarFile)
+	if err != nil {
+		return nil, nil, err
+	}
+	defer f.Close()
+
+	tr := tar.NewReader(f)
+	return getFilesAndContentsFromTarReader(tr)
+}
+
+func getFilesAndContentsFromTarReader(tr *tar.Reader) (map[string][]byte, []string, error) {
 	m := make(map[string][]byte)
+	var files []string
 
 	for {
 		header, err := tr.Next()

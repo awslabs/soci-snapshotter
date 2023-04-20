@@ -69,6 +69,13 @@ func TestTocBuilder(t *testing.T) {
 			expectErr:     false,
 		},
 		{
+			name:          "TocBuilder supports uncompressed layer (tar)",
+			algorithm:     compression.Uncompressed,
+			tarEntries:    tarEntries,
+			makeTarReader: tarReader,
+			expectErr:     false,
+		},
+		{
 			name:          "TocBuilder doesn't support foobar",
 			algorithm:     "foobar",
 			tarEntries:    tarEntries,
@@ -87,6 +94,7 @@ func TestTocBuilder(t *testing.T) {
 	builder := NewTocBuilder()
 	builder.RegisterTarProvider(compression.Gzip, TarProviderGzip)
 	builder.RegisterTarProvider(compression.Zstd, TarProviderZstd)
+	builder.RegisterTarProvider(compression.Uncompressed, TarProviderTar)
 
 	for _, tt := range testCases {
 		tt := tt

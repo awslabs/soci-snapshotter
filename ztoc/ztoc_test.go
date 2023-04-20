@@ -19,6 +19,7 @@ package ztoc
 import (
 	"bytes"
 	"compress/gzip"
+	"fmt"
 	"io"
 	"math/rand"
 	"os"
@@ -34,23 +35,72 @@ func init() {
 	rand.Seed(100)
 }
 
-func TestDecompress(t *testing.T) {
-	testTag := "soci_test_data"
-	tarEntries := []testutil.TarEntry{
-		testutil.File("smallfile", string(testutil.RandomByteDataRange(1, 100))),
-		testutil.File("mediumfile", string(testutil.RandomByteDataRange(10000, 128000))),
-		testutil.File("largefile", string(testutil.RandomByteDataRange(350000, 500000))),
-		testutil.File("jumbofile", string(testutil.RandomByteDataRange(3000000, 5000000))),
-	}
-
+// buildTarGZ creates a temp tar gz file with the given `tarEntries`.
+// It returns the created tar gz filename, entry->content map, and the name of
+// each entry in the tar gz file.
+func buildTarGZ(t *testing.T, tarName string, tarEntries []testutil.TarEntry) (string, map[string][]byte, []string) {
 	tarReader := testutil.BuildTarGz(tarEntries, gzip.DefaultCompression)
-	tarGzFilePath, _, err := testutil.WriteTarToTempFile(testTag+".tar.gz", tarReader)
+	tarGzFilePath, _, err := testutil.WriteTarToTempFile(tarName+".tar.gz", tarReader)
 	if err != nil {
 		t.Fatalf("cannot prepare the .tar.gz file for testing")
 	}
 	m, fileNames, err := testutil.GetFilesAndContentsWithinTarGz(tarGzFilePath)
 	if err != nil {
+		os.Remove(tarGzFilePath)
 		t.Fatalf("failed to get targz files and their contents: %v", err)
+	}
+	return tarGzFilePath, m, fileNames
+}
+
+func buildTar(t *testing.T, tarName string, tarEntries []testutil.TarEntry) (string, map[string][]byte, []string) {
+	tarReader := testutil.BuildTar(tarEntries)
+	tarFilePath, _, err := testutil.WriteTarToTempFile(tarName+".tar", tarReader)
+	if err != nil {
+		t.Fatalf("cannot prepare the .tar file for testing")
+	}
+	m, fileNames, err := testutil.GetFilesAndContentsWithinTar(tarFilePath)
+	if err != nil {
+		os.Remove(tarFilePath)
+		t.Fatalf("failed to get tar files and their contents: %v", err)
+	}
+	return tarFilePath, m, fileNames
+}
+
+// tarGenerator represents a function that receives a tar filename pattern and a list of
+// tar entries, creates a temp tar file (e.g., .tar, .tar.gz) and
+// returns the created tar filename, a map that maps each filename within
+// the tar to its content, and a list of filenames within the tarfile.
+type tarGenerator func(*testing.T, string, []testutil.TarEntry) (string, map[string][]byte, []string)
+
+var testZtocs = []struct {
+	name            string
+	compressionAlgo string
+	tarGenerator    tarGenerator
+}{
+	{
+		name:            "gzip",
+		compressionAlgo: compression.Gzip,
+		tarGenerator:    buildTarGZ,
+	},
+	{
+		name:            "uncompressed",
+		compressionAlgo: compression.Uncompressed,
+		tarGenerator:    buildTar,
+	},
+}
+
+func TestDecompress(t *testing.T) {
+	for _, tc := range testZtocs {
+		testDecompress(t, tc.compressionAlgo, tc.tarGenerator)
+	}
+}
+
+func testDecompress(t *testing.T, compressionAlgo string, generator tarGenerator) {
+	tarEntries := []testutil.TarEntry{
+		testutil.File("smallfile", string(testutil.RandomByteDataRange(1, 100))),
+		testutil.File("mediumfile", string(testutil.RandomByteDataRange(10000, 128000))),
+		testutil.File("largefile", string(testutil.RandomByteDataRange(350000, 500000))),
+		testutil.File("jumbofile", string(testutil.RandomByteDataRange(3000000, 5000000))),
 	}
 
 	tests := []struct {
@@ -85,9 +135,12 @@ func TestDecompress(t *testing.T) {
 
 	ztocBuilder := NewBuilder("test")
 
+	tarFilePath, m, fileNames := generator(t, "decompress", tarEntries)
+	defer os.Remove(tarFilePath)
+
 	for _, tc := range tests {
-		spansize := tc.spanSize
-		ztoc, err := ztocBuilder.BuildZtoc(tarGzFilePath, spansize)
+		tc := tc
+		ztoc, err := ztocBuilder.BuildZtoc(tarFilePath, tc.spanSize, WithCompression(compressionAlgo))
 		if err != nil {
 			t.Fatalf("%s: can't build ztoc: %v", tc.name, err)
 		}
@@ -96,7 +149,7 @@ func TestDecompress(t *testing.T) {
 		}
 
 		for _, f := range fileNames {
-			file, err := os.Open(tarGzFilePath)
+			file, err := os.Open(tarFilePath)
 			if err != nil {
 				t.Fatalf("%s: could not open open the .tar.gz file", tc.name)
 			}
@@ -104,7 +157,7 @@ func TestDecompress(t *testing.T) {
 
 			fi, err := file.Stat()
 			if err != nil {
-				t.Fatalf("%s: could not get the stat for the file %s", tc.name, tarGzFilePath)
+				t.Fatalf("%s: could not get the stat for the file %s", tc.name, tarFilePath)
 			}
 
 			extracted, err := ztoc.ExtractFile(io.NewSectionReader(file, 0, fi.Size()), f)
@@ -118,7 +171,6 @@ func TestDecompress(t *testing.T) {
 					tc.name, tc.spanSize, f, diffIdx)
 			}
 		}
-
 	}
 }
 
@@ -181,11 +233,17 @@ func TestDecompressWithGzipHeaders(t *testing.T) {
 }
 
 func TestZtocGenerationConsistency(t *testing.T) {
+	for _, tc := range testZtocs {
+		testZtocGenerationConsistency(t, tc.compressionAlgo, tc.tarGenerator)
+	}
+}
+
+func testZtocGenerationConsistency(t *testing.T, compressionAlgo string, generator tarGenerator) {
 	testcases := []struct {
 		name       string
 		tarEntries []testutil.TarEntry
 		spanSize   int64
-		targzName  string
+		tarName    string
 	}{
 		{
 			name: "success generate consistent ztocs, two small files, span_size=64",
@@ -193,8 +251,8 @@ func TestZtocGenerationConsistency(t *testing.T) {
 				testutil.File("file1", string(testutil.RandomByteData(10))),
 				testutil.File("file2", string(testutil.RandomByteData(15))),
 			},
-			spanSize:  64,
-			targzName: "testcase0.tar.gz",
+			spanSize: 64,
+			tarName:  "testcase0",
 		},
 		{
 			name: "success generate consistent ztocs, mixed files, span_size=64",
@@ -204,27 +262,20 @@ func TestZtocGenerationConsistency(t *testing.T) {
 				testutil.File("file3", string(testutil.RandomByteData(25))),
 				testutil.File("file4", string(testutil.RandomByteData(88888))),
 			},
-			spanSize:  64,
-			targzName: "testcase1.tar.gz",
+			spanSize: 64,
+			tarName:  "testcase1",
 		},
 	}
 
 	ztocBuilder := NewBuilder("test")
 
 	for _, tc := range testcases {
-		t.Run(tc.name, func(t *testing.T) {
-			tarReader := testutil.BuildTarGz(tc.tarEntries, gzip.DefaultCompression)
-			tarGzFilePath, _, err := testutil.WriteTarToTempFile(tc.targzName, tarReader)
-			if err != nil {
-				t.Fatalf("cannot prepare the .tar.gz file for testing")
-			}
-			defer os.Remove(tarGzFilePath)
-			_, fileNames, err := testutil.GetFilesAndContentsWithinTarGz(tarGzFilePath)
-			if err != nil {
-				t.Fatalf("failed to get targz files and their contents: %v", err)
-			}
-			spansize := tc.spanSize
-			ztoc1, err := ztocBuilder.BuildZtoc(tarGzFilePath, spansize)
+		tc := tc
+		t.Run(fmt.Sprintf("%s-%s", compressionAlgo, tc.name), func(t *testing.T) {
+			tarFilePath, _, fileNames := generator(t, tc.tarName, tc.tarEntries)
+			defer os.Remove(tarFilePath)
+
+			ztoc1, err := ztocBuilder.BuildZtoc(tarFilePath, tc.spanSize, WithCompression(compressionAlgo))
 			if err != nil {
 				t.Fatalf("can't build ztoc1: %v", err)
 			}
@@ -235,7 +286,7 @@ func TestZtocGenerationConsistency(t *testing.T) {
 				t.Fatalf("ztoc1 metadata file count mismatch. expected: %d, actual: %d", len(fileNames), len(ztoc1.FileMetadata))
 			}
 
-			ztoc2, err := ztocBuilder.BuildZtoc(tarGzFilePath, spansize)
+			ztoc2, err := ztocBuilder.BuildZtoc(tarFilePath, tc.spanSize, WithCompression(compressionAlgo))
 			if err != nil {
 				t.Fatalf("can't build ztoc2: %v", err)
 			}
@@ -269,18 +320,23 @@ func TestZtocGenerationConsistency(t *testing.T) {
 				diffIdx := getPositionOfFirstDiffInByteSlice(ztoc1.Checkpoints, ztoc2.Checkpoints)
 				t.Fatalf("ztoc1.Checkpoints differ ztoc2.Checkpoints starting from position %d", diffIdx)
 			}
-
 		})
 	}
 
 }
 
 func TestZtocGeneration(t *testing.T) {
+	for _, tc := range testZtocs {
+		testZtocGeneration(t, tc.compressionAlgo, tc.tarGenerator)
+	}
+}
+
+func testZtocGeneration(t *testing.T, compressionAlgo string, generator tarGenerator) {
 	testcases := []struct {
 		name       string
 		tarEntries []testutil.TarEntry
 		spanSize   int64
-		targzName  string
+		tarName    string
 		buildTool  string
 	}{
 		{
@@ -302,7 +358,7 @@ func TestZtocGeneration(t *testing.T) {
 				testutil.File("filee", string(testutil.RandomByteData(989993))),
 			},
 			spanSize:  65535,
-			targzName: "testcase0.tar.gz",
+			tarName:   "testcase0",
 			buildTool: "AWS SOCI CLI",
 		},
 		{
@@ -312,7 +368,7 @@ func TestZtocGeneration(t *testing.T) {
 				testutil.File("file2", string(testutil.RandomByteData(10))),
 			},
 			spanSize:  10000,
-			targzName: "testcase1.tar.gz",
+			tarName:   "testcase1",
 			buildTool: "foo",
 		},
 		{
@@ -322,7 +378,7 @@ func TestZtocGeneration(t *testing.T) {
 				testutil.File("file2", string(testutil.RandomByteData(800333))),
 			},
 			spanSize:  1 << 20,
-			targzName: "testcase2.tar.gz",
+			tarName:   "testcase2",
 			buildTool: "bar",
 		},
 		{
@@ -330,25 +386,18 @@ func TestZtocGeneration(t *testing.T) {
 			tarEntries: []testutil.TarEntry{
 				testutil.File("file1", string(testutil.RandomByteData(5108033))),
 			},
-			spanSize:  256000,
-			targzName: "testcase3.tar.gz",
+			spanSize: 256000,
+			tarName:  "testcase3",
 		},
 	}
 
 	for _, tc := range testcases {
-		t.Run(tc.name, func(t *testing.T) {
-			tarReader := testutil.BuildTarGz(tc.tarEntries, gzip.DefaultCompression)
-			tarGzFilePath, _, err := testutil.WriteTarToTempFile(tc.targzName, tarReader)
-			if err != nil {
-				t.Fatalf("cannot prepare the .tar.gz file for testing")
-			}
-			defer os.Remove(tarGzFilePath)
-			m, fileNames, err := testutil.GetFilesAndContentsWithinTarGz(tarGzFilePath)
-			if err != nil {
-				t.Fatalf("failed to get targz files and their contents: %v", err)
-			}
-			spansize := tc.spanSize
-			ztoc, err := NewBuilder(tc.buildTool).BuildZtoc(tarGzFilePath, spansize)
+		tc := tc
+		t.Run(fmt.Sprintf("%s-%s", compressionAlgo, tc.name), func(t *testing.T) {
+			tarFilePath, m, fileNames := generator(t, tc.tarName, tc.tarEntries)
+			defer os.Remove(tarFilePath)
+
+			ztoc, err := NewBuilder(tc.buildTool).BuildZtoc(tarFilePath, tc.spanSize, WithCompression(compressionAlgo))
 			if err != nil {
 				t.Fatalf("can't build ztoc: error=%v", err)
 			}
@@ -375,9 +424,9 @@ func TestZtocGeneration(t *testing.T) {
 						i, len(m[fileNames[i]]), int(ztoc.FileMetadata[i].UncompressedSize))
 				}
 
-				extractedBytes, err := ztoc.ExtractFromTarGz(tarGzFilePath, compressedFileName)
+				extractedBytes, err := ztoc.ExtractFromTarGz(tarFilePath, compressedFileName)
 				if err != nil {
-					t.Fatalf("could not extract file %s from %s using generated ztoc: %v", compressedFileName, tarGzFilePath, err)
+					t.Fatalf("could not extract file %s from %s using generated ztoc: %v", compressedFileName, tarFilePath, err)
 				}
 
 				if extractedBytes != string(m[fileNames[i]]) {
@@ -391,15 +440,20 @@ func TestZtocGeneration(t *testing.T) {
 }
 
 func TestZtocSerialization(t *testing.T) {
+	for _, tc := range testZtocs {
+		testZtocSerialization(t, tc.compressionAlgo, tc.tarGenerator)
+	}
+}
+
+func testZtocSerialization(t *testing.T, compressionAlgo string, generator tarGenerator) {
 	testcases := []struct {
-		name            string
-		tarEntries      []testutil.TarEntry
-		spanSize        int64
-		targzName       string
-		buildTool       string
-		version         string
-		xattrs          map[string]string
-		compressionAlgo string
+		name       string
+		tarEntries []testutil.TarEntry
+		spanSize   int64
+		tarName    string
+		buildTool  string
+		version    string
+		xattrs     map[string]string
 	}{
 		{
 			name: "success serialize ztoc with multiple files, span_size=64KiB",
@@ -419,29 +473,20 @@ func TestZtocSerialization(t *testing.T) {
 				testutil.File("filed", string(testutil.RandomByteData(100))),
 				testutil.File("filee", string(testutil.RandomByteData(989993))),
 			},
-			spanSize:        65535,
-			targzName:       "testcase0.tar.gz",
-			buildTool:       "AWS SOCI CLI",
-			xattrs:          map[string]string{"testKey": "testValue"},
-			compressionAlgo: compression.Gzip,
+			spanSize:  65535,
+			tarName:   "testcase0",
+			buildTool: "AWS SOCI CLI",
+			xattrs:    map[string]string{"testKey": "testValue"},
 		},
 	}
 
 	for _, tc := range testcases {
-		t.Run(tc.name, func(t *testing.T) {
-			tarReader := testutil.BuildTarGz(tc.tarEntries, gzip.DefaultCompression)
-			tarGzFilePath, _, err := testutil.WriteTarToTempFile(tc.targzName, tarReader)
-			if err != nil {
-				t.Fatalf("cannot prepare the .tar.gz file for testing")
-			}
-			defer os.Remove(tarGzFilePath)
+		tc := tc
+		t.Run(fmt.Sprintf("%s-%s", compressionAlgo, tc.name), func(t *testing.T) {
+			tarFilePath, m, fileNames := generator(t, tc.tarName, tc.tarEntries)
+			defer os.Remove(tarFilePath)
 
-			m, fileNames, err := testutil.GetFilesAndContentsWithinTarGz(tarGzFilePath)
-			if err != nil {
-				t.Fatalf("failed to get targz files and their contents: %v", err)
-			}
-			spansize := tc.spanSize
-			createdZtoc, err := NewBuilder(tc.buildTool).BuildZtoc(tarGzFilePath, spansize, WithCompression(tc.compressionAlgo))
+			createdZtoc, err := NewBuilder(tc.buildTool).BuildZtoc(tarFilePath, tc.spanSize, WithCompression(compressionAlgo))
 			if err != nil {
 				t.Fatalf("can't build ztoc: error=%v", err)
 			}
@@ -466,8 +511,8 @@ func TestZtocSerialization(t *testing.T) {
 				t.Fatalf("ztoc metadata count mismatch. expected: %d, actual: %d", len(fileNames), len(createdZtoc.FileMetadata))
 			}
 
-			if createdZtoc.CompressionAlgorithm != tc.compressionAlgo {
-				t.Fatalf("ztoc compression algorithm mismatch. expected: %s, actual: %s", tc.compressionAlgo, createdZtoc.CompressionAlgorithm)
+			if createdZtoc.CompressionAlgorithm != compressionAlgo {
+				t.Fatalf("ztoc compression algorithm mismatch. expected: %s, actual: %s", compressionAlgo, createdZtoc.CompressionAlgorithm)
 			}
 
 			for i := 0; i < len(createdZtoc.FileMetadata); i++ {
@@ -481,9 +526,9 @@ func TestZtocSerialization(t *testing.T) {
 						i, len(m[fileNames[i]]), int(createdZtoc.FileMetadata[i].UncompressedSize))
 				}
 
-				extractedBytes, err := createdZtoc.ExtractFromTarGz(tarGzFilePath, compressedFileName)
+				extractedBytes, err := createdZtoc.ExtractFromTarGz(tarFilePath, compressedFileName)
 				if err != nil {
-					t.Fatalf("could not extract file %s from %s using generated ztoc: %v", compressedFileName, tarGzFilePath, err)
+					t.Fatalf("could not extract file %s from %s using generated ztoc: %v", compressedFileName, tarFilePath, err)
 				}
 
 				if extractedBytes != string(m[fileNames[i]]) {
@@ -576,9 +621,9 @@ func TestZtocSerialization(t *testing.T) {
 					}
 				}
 
-				extractedBytes, err := readZtoc.ExtractFromTarGz(tarGzFilePath, compressedFileName)
+				extractedBytes, err := readZtoc.ExtractFromTarGz(tarFilePath, compressedFileName)
 				if err != nil {
-					t.Fatalf("could not extract file %s from %s using generated ztoc: %v", compressedFileName, tarGzFilePath, err)
+					t.Fatalf("could not extract file %s from %s using generated ztoc: %v", compressedFileName, tarFilePath, err)
 				}
 
 				if extractedBytes != string(m[fileNames[i]]) {
