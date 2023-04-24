@@ -36,7 +36,7 @@ required to run soci-snapshotter; to confirm please check with `sudo ctr version
 - **[ctr](https://github.com/containerd/containerd/blob/main/docs/getting-started.md)** -
 required for this doc to interact with containerd/registry.
 - **fuse** - used for mounting without root access (`sudo yum install fuse` or
-other Linux package manager like `apt-get`, dpending on your Linux distro).
+other Linux package manager like `apt-get`, depending on your Linux distro).
 
 ## Install soci-snapshotter
 
@@ -54,8 +54,8 @@ directory (`/usr/local/bin`):
 > You can find other download link in the release page that matches your machine.
 
 ```shell
-wget -O https://github.com/awslabs/soci-snapshotter/releases/download/v0.1.0/soci-snapshotter-0.1.0-linux-amd64.tar.gz
-sudo tar -C /usr/local/bin -xvf soci-snapshotter-0.1.0-linux-amd64.tar.gz soci soci-snapshotter-grpc
+wget https://github.com/awslabs/soci-snapshotter/releases/download/v0.1.0/soci-snapshotter-0.1.0-linux-amd64.tar.gz
+sudo tar -C /usr/local/bin -xvf soci-snapshotter-0.1.0-linux-amd64.tar.gz ./soci ./soci-snapshotter-grpc
 ```
 
 Now you should be able to use the `soci` CLI (and `soci-snapshotter-grpc` containerd plugin shortly):
@@ -97,14 +97,14 @@ sudo ctr i tag docker.io/library/rabbitmq:latest $REGISTRY/rabbitmq:latest
 sudo ctr i push --user $REGISTRY_USER:$REGISTRY_PASSWORD --platform linux/amd64 $REGISTRY/rabbitmq:latest
 ```
 
-After this step, please check your registry to confirm the image is pushed to it.
+After this step, please check your registry to confirm the image is present.
 You can go to your registry console or use your registry's CLI (e.g. for ECR, you
 can use `aws ecr describe-images --repository-name rabbitmq --region $AWS_REGION`).
 
 ## Create and push SOCI index
 
 Instead of converting the image format, soci-snapshotter uses the SOCI index
-associated with an image to implement its lazy loading. For more detail
+associated with an image to implement its lazy loading. For more details
 please see [README](../README.md#no-image-conversion).
 
 ### Create SOCI index
@@ -141,7 +141,7 @@ From the above output, we can see that SOCI creates ztocs for 3 layers and skips
 
 ### (Optional) Inspect SOCI index and ztoc
 
-We can inspect one of these ztoc's from the output of previous command (replace
+We can inspect one of these ztocs from the output of previous command (replace
 the digest with one in your command output). This command will print the ztoc,
 which contains all of the information that SOCI needs to find a given file in the layer:
 
@@ -207,8 +207,7 @@ sudo ctr plugin ls id==soci
 
 ### Start soci-snapshotter
 
-First we need to start the snapshotter grpc service binary (`soci-snapshotter-grpc`).
-Here we start the binary in background and simply redirect logs to an arbitrary file:
+First we need to start the snapshotter grpc service by running the `soci-snapshotter-grpc` binary in background and simply redirecting logs to an arbitrary file:
 
 ```shell
 sudo soci-snapshotter-grpc &> ~/soci-snapshotter-logs &
@@ -223,7 +222,7 @@ sudo soci-snapshotter-grpc 2> ~/soci-snapshotter-errors 1> ~/soci-snapshotter-lo
 ### Lazily pull image
 
 Once the snapshotter is running we can call the `rpull` command from SOCI CLI.
-This command reads the manfiest from the registry and mounts FUSE filesystems
+This command reads the manifest from the registry and mounts FUSE filesystems
 for each layer.
 
 > The optional flag `--soci-index-digest` needs to be the digest of the SOCI index manifest.
