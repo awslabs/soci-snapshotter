@@ -310,9 +310,9 @@ func (c *sociContext) Init(fsCtx context.Context, ctx context.Context, imageRef,
 		}
 
 		if indexDigest == "" {
-			log.G(ctx).Info("index digest not provided, searching for it locally")
+			log.G(ctx).Info("index digest not provided, searching for it locally: /var/lib/soci-snapshotter-grpc/indexes/" + strings.ReplaceAll(imageManifestDigest, "sha256:", ""))
 			// TODO(iain): pass this directory as an argument or parameter.
-			index, err := os.ReadFile("/var/lib/soci-snapshotter-grpc/indexes/" + strings.Replace(imageManifestDigest, "sha256:", "", -1))
+			index, err := os.ReadFile("/var/lib/soci-snapshotter-grpc/indexes/" + strings.ReplaceAll(imageManifestDigest, "sha256:", ""))
 			if err == nil {
 				indexDigest = strings.TrimSpace(string(index))
 				indexDesc.Digest = digest.Digest(indexDigest)
