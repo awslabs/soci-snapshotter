@@ -232,9 +232,9 @@ func TestNetworkRetry(t *testing.T) {
 			},
 		},
 		{
-			name: "2s network interruption, ~3-4s retries allowed, success",
+			name: "2s network interruption, ~9-10s retries allowed, success",
 			config: retryConfig{
-				maxRetries:         5,
+				maxRetries:         2,
 				minWaitMsec:        100,
 				maxWaitMsec:        1600,
 				networkDisableMsec: 2000,
@@ -242,12 +242,12 @@ func TestNetworkRetry(t *testing.T) {
 			},
 		},
 		{
-			name: "5s network interruption, ~1-2s retries allowed, failure",
+			name: "10s network interruption, ~6-7s retries allowed, failure",
 			config: retryConfig{
 				maxRetries:         1,
 				minWaitMsec:        100,
 				maxWaitMsec:        1600,
-				networkDisableMsec: 5000,
+				networkDisableMsec: 10000,
 				expectedSuccess:    false,
 			},
 		},
