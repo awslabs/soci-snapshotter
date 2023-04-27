@@ -22,9 +22,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"net"
-	"net/http"
-	"time"
 
 	"github.com/awslabs/soci-snapshotter/service/keychain/dockerconfig"
 	"github.com/awslabs/soci-snapshotter/soci"
@@ -32,7 +29,6 @@ import (
 	"github.com/awslabs/soci-snapshotter/util/ioutils"
 	"github.com/containerd/containerd/log"
 	"github.com/containerd/containerd/reference"
-	rhttp "github.com/hashicorp/go-retryablehttp"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"golang.org/x/sync/errgroup"
 	"oras.land/oras-go/v2/content"
@@ -77,19 +73,8 @@ func newRemoteStore(refspec reference.Spec) (*remote.Repository, error) {
 		return nil, fmt.Errorf("cannot create repository %s: %w", refspec.Locator, err)
 	}
 
-	rhttpClient := rhttp.NewClient()
-
-	// set the dial timeout and response header timeout to 1 second
-	innerTransport := rhttpClient.HTTPClient.Transport
-	if t, ok := innerTransport.(*http.Transport); ok {
-		t.DialContext = (&net.Dialer{
-			Timeout: 1 * time.Second,
-		}).DialContext
-		t.ResponseHeaderTimeout = 1 * time.Second
-	}
-	httpClient := rhttpClient.StandardClient()
 	authClient := auth.Client{
-		Client: httpClient,
+		Client: socihttp.NewRetryableClient(socihttp.NewRetryableClientConfig()),
 		Cache:  auth.DefaultCache,
 		Credential: func(_ context.Context, host string) (auth.Credential, error) {
 			username, secret, err := dockerconfig.DockerCreds(host)
@@ -106,15 +91,6 @@ func newRemoteStore(refspec reference.Spec) (*remote.Repository, error) {
 				Password: secret,
 			}, nil
 		},
-	}
-	// set rhttp retry logic
-	tr := authClient.Client.Transport
-	if rt, ok := tr.(*rhttp.RoundTripper); ok {
-		rt.Client.RetryMax = socihttp.DefaultMaxRetries
-		rt.Client.RetryWaitMin = time.Duration(socihttp.DefaultMinWaitMsec) * time.Millisecond
-		rt.Client.RetryWaitMax = time.Duration(socihttp.DefaultMaxWaitMsec) * time.Millisecond
-		rt.Client.Backoff = socihttp.BackoffStrategy
-		rt.Client.CheckRetry = socihttp.RetryStrategy
 	}
 	repo.Client = &authClient
 	return repo, nil

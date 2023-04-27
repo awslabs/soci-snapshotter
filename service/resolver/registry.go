@@ -33,14 +33,12 @@
 package resolver
 
 import (
-	"net"
-	"net/http"
 	"time"
 
 	"github.com/awslabs/soci-snapshotter/fs/source"
+	socihttp "github.com/awslabs/soci-snapshotter/util/http"
 	"github.com/containerd/containerd/reference"
 	"github.com/containerd/containerd/remotes/docker"
-	rhttp "github.com/hashicorp/go-retryablehttp"
 )
 
 // Config is config for resolving registries.
@@ -75,30 +73,22 @@ func RegistryHostsFromConfig(cfg Config, credsFuncs ...Credential) source.Regist
 		for _, h := range append(cfg.Host[host].Mirrors, MirrorConfig{
 			Host: host,
 		}) {
-			client := rhttp.NewClient()
-
-			// set the dial timeout and response header timeout to 1 second
-			innerTransport := client.HTTPClient.Transport
-			if t, ok := innerTransport.(*http.Transport); ok {
-				t.DialContext = (&net.Dialer{
-					Timeout: 1 * time.Second,
-				}).DialContext
-				t.ResponseHeaderTimeout = 1 * time.Second
+			clientConfig := socihttp.NewRetryableClientConfig()
+			if h.RequestTimeoutSec < 0 {
+				clientConfig.RequestTimeout = 0
 			}
-			client.Logger = nil // disable logging every request
-			// if RequestTimeoutSec is set to something other than 0(default) honor it, otherwise do not set a HTTPClient.Timeout
 			if h.RequestTimeoutSec > 0 {
-				client.HTTPClient.Timeout = time.Duration(h.RequestTimeoutSec) * time.Second
+				clientConfig.RequestTimeout = time.Duration(h.RequestTimeoutSec) * time.Second
 			}
-			tr := client.StandardClient()
+			client := socihttp.NewRetryableClient(clientConfig)
 			config := docker.RegistryHost{
-				Client:       tr,
+				Client:       client,
 				Host:         h.Host,
 				Scheme:       "https",
 				Path:         "/v2",
 				Capabilities: docker.HostCapabilityPull | docker.HostCapabilityResolve,
 				Authorizer: docker.NewDockerAuthorizer(
-					docker.WithAuthClient(tr),
+					docker.WithAuthClient(client),
 					docker.WithAuthCreds(multiCredsFuncs(ref, credsFuncs...))),
 			}
 			if localhost, _ := docker.MatchLocalhost(config.Host); localhost || h.Insecure {
