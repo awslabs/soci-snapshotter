@@ -24,7 +24,6 @@ import (
 	"testing"
 
 	"github.com/containerd/containerd/reference"
-	"github.com/containerd/containerd/remotes"
 	"github.com/google/go-cmp/cmp"
 	"github.com/opencontainers/go-digest"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
@@ -219,12 +218,10 @@ func newFakeArtifactFetcher(ref string, contents []byte) (*artifactFetcher, erro
 	if err != nil {
 		return nil, err
 	}
-	return newArtifactFetcher(refspec, memory.New(), newFakeRemoteStore(contents), &fakeResolver{
-		size: len(contents),
-	})
+	return newArtifactFetcher(refspec, memory.New(), newFakeRemoteStore(contents))
 }
 
-func newFakeRemoteStore(contents []byte) content.Storage {
+func newFakeRemoteStore(contents []byte) resolverStorage {
 	return &fakeRemoteStore{
 		contents: contents,
 	}
@@ -248,22 +245,8 @@ func (f *fakeRemoteStore) Exists(_ context.Context, desc ocispec.Descriptor) (bo
 	return true, nil
 }
 
-type fakeResolver struct {
-	size int
-}
-
-var _ remotes.Resolver = &fakeResolver{}
-
-func (f *fakeResolver) Resolve(_ context.Context, ref string) (string, ocispec.Descriptor, error) {
-	return ref, ocispec.Descriptor{
-		Size: int64(f.size),
+func (f *fakeRemoteStore) Resolve(_ context.Context, ref string) (ocispec.Descriptor, error) {
+	return ocispec.Descriptor{
+		Size: int64(len(f.contents)),
 	}, nil
-}
-
-func (f *fakeResolver) Fetcher(_ context.Context, ref string) (remotes.Fetcher, error) {
-	return nil, nil
-}
-
-func (f *fakeResolver) Pusher(_ context.Context, ref string) (remotes.Pusher, error) {
-	return nil, nil
 }
