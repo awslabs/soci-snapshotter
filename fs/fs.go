@@ -394,7 +394,7 @@ func (fs *filesystem) MountLocal(ctx context.Context, mountpoint string, labels 
 	if err != nil {
 		return fmt.Errorf("cannot create remote store: %w", err)
 	}
-	fetcher, err := newArtifactFetcher(refspec, fs.orasStore, remoteStore, newResolver())
+	fetcher, err := newArtifactFetcher(refspec, fs.orasStore, remoteStore)
 	if err != nil {
 		return fmt.Errorf("cannot create fetcher: %w", err)
 	}

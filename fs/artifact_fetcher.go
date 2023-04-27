@@ -19,7 +19,6 @@ package fs
 import (
 	"bytes"
 	"context"
-	"crypto/tls"
 	"errors"
 	"fmt"
 	"io"
@@ -33,9 +32,6 @@ import (
 	"github.com/awslabs/soci-snapshotter/util/ioutils"
 	"github.com/containerd/containerd/log"
 	"github.com/containerd/containerd/reference"
-	"github.com/containerd/containerd/remotes"
-	"github.com/containerd/containerd/remotes/docker"
-	ctrdockerconfig "github.com/containerd/containerd/remotes/docker/config"
 	rhttp "github.com/hashicorp/go-retryablehttp"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"golang.org/x/sync/errgroup"
@@ -53,20 +49,22 @@ type Fetcher interface {
 	// Store takes in a descriptor and io.Reader and stores it in the local store.
 	Store(ctx context.Context, desc ocispec.Descriptor, reader io.Reader) error
 }
+type resolverStorage interface {
+	content.Resolver
+	content.Storage
+}
 
 // artifactFetcher is responsible for fetching and storing artifacts in the provided artifact store.
 type artifactFetcher struct {
-	resolver    remotes.Resolver
-	remoteStore content.Storage
+	remoteStore resolverStorage
 	localStore  content.Storage
 	refspec     reference.Spec
 }
 
 // Constructs a new artifact fetcher
 // Takes in the image reference, the local store and the resolver
-func newArtifactFetcher(refspec reference.Spec, localStore, remoteStore content.Storage, resolver remotes.Resolver) (*artifactFetcher, error) {
+func newArtifactFetcher(refspec reference.Spec, localStore content.Storage, remoteStore resolverStorage) (*artifactFetcher, error) {
 	return &artifactFetcher{
-		resolver:    resolver,
 		localStore:  localStore,
 		remoteStore: remoteStore,
 		refspec:     refspec,
@@ -122,18 +120,6 @@ func newRemoteStore(refspec reference.Spec) (*remote.Repository, error) {
 	return repo, nil
 }
 
-// Constructs a new resolver for Docker registries
-func newResolver() remotes.Resolver {
-	options := docker.ResolverOptions{
-		Tracker: docker.NewInMemoryTracker(),
-	}
-	hostOptions := ctrdockerconfig.HostOptions{}
-	hostOptions.Credentials = dockerconfig.DockerCreds
-	hostOptions.DefaultTLS = &tls.Config{}
-	options.Hosts = ctrdockerconfig.ConfigureHosts(context.Background(), hostOptions)
-	return docker.NewResolver(options)
-}
-
 // Takes in a descriptor and returns the associated ref to fetch from remote.
 // i.e. <hostname>/<repo>@<digest>
 func (f *artifactFetcher) constructRef(desc ocispec.Descriptor) string {
@@ -174,7 +160,7 @@ func (f *artifactFetcher) Fetch(ctx context.Context, desc ocispec.Descriptor) (i
 
 func (f *artifactFetcher) resolve(ctx context.Context, desc ocispec.Descriptor) (ocispec.Descriptor, error) {
 	ref := f.constructRef(desc)
-	_, desc, err := f.resolver.Resolve(ctx, ref)
+	desc, err := f.remoteStore.Resolve(ctx, ref)
 	if err != nil {
 		return desc, fmt.Errorf("unable to resolve ref (%s): %w", ref, err)
 	}
@@ -190,9 +176,9 @@ func (f *artifactFetcher) Store(ctx context.Context, desc ocispec.Descriptor, re
 	return nil
 }
 
-func FetchSociArtifacts(ctx context.Context, refspec reference.Spec, indexDesc ocispec.Descriptor, localStore, remoteStore content.Storage) (*soci.Index, error) {
+func FetchSociArtifacts(ctx context.Context, refspec reference.Spec, indexDesc ocispec.Descriptor, localStore content.Storage, remoteStore resolverStorage) (*soci.Index, error) {
 
-	fetcher, err := newArtifactFetcher(refspec, localStore, remoteStore, newResolver())
+	fetcher, err := newArtifactFetcher(refspec, localStore, remoteStore)
 	if err != nil {
 		return nil, fmt.Errorf("could not create an artifact fetcher: %w", err)
 	}
