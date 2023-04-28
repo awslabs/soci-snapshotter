@@ -99,31 +99,17 @@ func (tb TocBuilder) getFileMetadata(algorithm, filename string) ([]FileMetadata
 		return nil, 0, err
 	}
 
-	// create uncompress temp tar file and uncompress tar reader.
-	uncompressFile, err := os.CreateTemp("/tmp", "tempfile-ztoc-builder")
+	md, uncompressFileSize, err := metadataFromTarReader(compressTarReader)
 	if err != nil {
 		return nil, 0, err
 	}
-	defer os.Remove(uncompressFile.Name())
-
-	uncompressFileSize, err := io.Copy(uncompressFile, compressTarReader)
-	if err != nil {
-		return nil, 0, err
-	}
-
-	// create toc from tar reader.
-	tarSectionReader := io.NewSectionReader(uncompressFile, 0, uncompressFileSize)
-	md, err := metadataFromTarReader(tarSectionReader)
-	if err != nil {
-		return nil, 0, err
-	}
-	return md, compression.Offset(uncompressFileSize), nil
+	return md, uncompressFileSize, nil
 }
 
 // metadataFromTarReader reads every file from tar reader `sr` and creates
 // `FileMetadata` for each file.
-func metadataFromTarReader(sr *io.SectionReader) ([]FileMetadata, error) {
-	pt := &positionTrackerReader{r: sr}
+func metadataFromTarReader(r io.Reader) ([]FileMetadata, compression.Offset, error) {
+	pt := &positionTrackerReader{r: r}
 	tarRdr := tar.NewReader(pt)
 	var md []FileMetadata
 
@@ -133,13 +119,13 @@ func metadataFromTarReader(sr *io.SectionReader) ([]FileMetadata, error) {
 			if err == io.EOF {
 				break
 			} else {
-				return nil, fmt.Errorf("error while reading tar header: %w", err)
+				return nil, 0, fmt.Errorf("error while reading tar header: %w", err)
 			}
 		}
 
 		fileType, err := getType(hdr)
 		if err != nil {
-			return nil, err
+			return nil, 0, err
 		}
 
 		metadataEntry := FileMetadata{
@@ -160,7 +146,7 @@ func metadataFromTarReader(sr *io.SectionReader) ([]FileMetadata, error) {
 		}
 		md = append(md, metadataEntry)
 	}
-	return md, nil
+	return md, pt.CurrentPos(), nil
 }
 
 func getType(header *tar.Header) (fileType string, e error) {
@@ -186,12 +172,12 @@ func getType(header *tar.Header) (fileType string, e error) {
 }
 
 type positionTrackerReader struct {
-	r   io.ReaderAt
+	r   io.Reader
 	pos compression.Offset
 }
 
 func (p *positionTrackerReader) Read(b []byte) (int, error) {
-	n, err := p.r.ReadAt(b, int64(p.pos))
+	n, err := p.r.Read(b)
 	if err == io.EOF {
 		err = nil
 	}
