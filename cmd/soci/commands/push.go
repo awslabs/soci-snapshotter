@@ -20,6 +20,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"net/http"
 	"sort"
 	"strings"
@@ -30,6 +31,7 @@ import (
 	"github.com/awslabs/soci-snapshotter/soci"
 	"github.com/containerd/containerd/cmd/ctr/commands"
 	"github.com/containerd/containerd/reference"
+	dockercliconfig "github.com/docker/cli/cli/config"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/urfave/cli"
 	oraslib "oras.land/oras-go/v2"
@@ -95,6 +97,82 @@ if they are available in the snapshotter's local content store.
 			return err
 		}
 
+		refspec, err := reference.Parse(ref)
+		if err != nil {
+			return err
+		}
+
+		dst, err := remote.NewRepository(refspec.Locator)
+		if err != nil {
+			return err
+		}
+		authClient := auth.DefaultClient
+
+		var username string
+		var secret string
+		if cliContext.IsSet("user") {
+			username = cliContext.String("user")
+			if i := strings.IndexByte(username, ':'); i > 0 {
+				secret = username[i+1:]
+				username = username[0:i]
+			}
+		} else {
+			cf := dockercliconfig.LoadDefaultConfigFile(io.Discard)
+			if cf.ContainsAuth() {
+				if ac, err := cf.GetAuthConfig(refspec.Hostname()); err == nil {
+					username = ac.Username
+					secret = ac.Password
+				}
+			}
+		}
+
+		authClient.Credential = func(_ context.Context, host string) (auth.Credential, error) {
+			return auth.Credential{
+				Username: username,
+				Password: secret,
+			}, nil
+		}
+
+		src, err := oci.New(config.SociContentStorePath)
+		if err != nil {
+			return fmt.Errorf("cannot create OCI local store: %w", err)
+		}
+
+		dst.Client = authClient
+		dst.PlainHTTP = cliContext.Bool("plain-http")
+
+		debug := cliContext.GlobalBool("debug")
+		if debug {
+			dst.Client = &debugClient{client: authClient}
+		} else {
+			dst.Client = authClient
+		}
+		existingIndexOption := cliContext.String(internal.ExistingIndexFlagName)
+		if !internal.SupportedArg(existingIndexOption, internal.SupportedExistingIndexOptions) {
+			return fmt.Errorf("unexpected value for flag %s: %s, expected types %v",
+				internal.ExistingIndexFlagName, existingIndexOption, internal.SupportedExistingIndexOptions)
+		}
+
+		options := oraslib.DefaultCopyGraphOptions
+		options.PreCopy = func(_ context.Context, desc ocispec.Descriptor) error {
+			if !quiet {
+				fmt.Printf("pushing artifact with digest: %v\n", desc.Digest)
+			}
+			return nil
+		}
+		options.PostCopy = func(_ context.Context, desc ocispec.Descriptor) error {
+			if !quiet {
+				fmt.Printf("successfully pushed artifact with digest: %v\n", desc.Digest)
+			}
+			return nil
+		}
+		options.OnCopySkipped = func(ctx context.Context, desc ocispec.Descriptor) error {
+			if !quiet {
+				fmt.Printf("skipped artifact with digest: %v\n", desc.Digest)
+			}
+			return nil
+		}
+
 		for _, platform := range ps {
 			indexDescriptors, imgManifestDesc, err := soci.GetIndexDescriptorCollection(ctx, cs, artifactsDb, img, []ocispec.Platform{platform})
 			if err != nil {
@@ -108,51 +186,8 @@ if they are available in the snapshotter's local content store.
 			sort.Slice(indexDescriptors, func(i, j int) bool {
 				return indexDescriptors[i].CreatedAt.Before(indexDescriptors[j].CreatedAt)
 			})
-
-			username := cliContext.String("user")
-			var secret string
-			if i := strings.IndexByte(username, ':'); i > 0 {
-				secret = username[i+1:]
-				username = username[0:i]
-			}
-
-			src, err := oci.New(config.SociContentStorePath)
-			if err != nil {
-				return fmt.Errorf("cannot create OCI local store: %w", err)
-			}
 			indexDesc := indexDescriptors[len(indexDescriptors)-1]
 
-			refspec, err := reference.Parse(ref)
-			if err != nil {
-				return err
-			}
-
-			dst, err := remote.NewRepository(refspec.Locator)
-			if err != nil {
-				return err
-			}
-			authClient := auth.DefaultClient
-			authClient.Credential = func(_ context.Context, host string) (auth.Credential, error) {
-				return auth.Credential{
-					Username: username,
-					Password: secret,
-				}, nil
-			}
-
-			dst.Client = authClient
-			dst.PlainHTTP = cliContext.Bool("plain-http")
-
-			debug := cliContext.GlobalBool("debug")
-			if debug {
-				dst.Client = &debugClient{client: authClient}
-			} else {
-				dst.Client = authClient
-			}
-			existingIndexOption := cliContext.String(internal.ExistingIndexFlagName)
-			if !internal.SupportedArg(existingIndexOption, internal.SupportedExistingIndexOptions) {
-				return fmt.Errorf("unexpected value for flag %s: %s, expected types %v",
-					internal.ExistingIndexFlagName, existingIndexOption, internal.SupportedExistingIndexOptions)
-			}
 			if existingIndexOption != internal.Allow {
 				if !quiet {
 					fmt.Println("checking if a soci index already exists in remote repository...")
@@ -182,25 +217,7 @@ if they are available in the snapshotter's local content store.
 				}
 
 			}
-			options := oraslib.DefaultCopyGraphOptions
-			options.PreCopy = func(_ context.Context, desc ocispec.Descriptor) error {
-				if !quiet {
-					fmt.Printf("pushing artifact with digest: %v\n", desc.Digest)
-				}
-				return nil
-			}
-			options.PostCopy = func(_ context.Context, desc ocispec.Descriptor) error {
-				if !quiet {
-					fmt.Printf("successfully pushed artifact with digest: %v\n", desc.Digest)
-				}
-				return nil
-			}
-			options.OnCopySkipped = func(ctx context.Context, desc ocispec.Descriptor) error {
-				if !quiet {
-					fmt.Printf("skipped artifact with digest: %v\n", desc.Digest)
-				}
-				return nil
-			}
+
 			if quiet {
 				fmt.Println(indexDesc.Digest.String())
 			} else {

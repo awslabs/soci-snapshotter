@@ -165,6 +165,8 @@ This will push all of the SOCI related artifacts (index manifest, ztoc):
 sudo soci push --user $REGISTRY_USER:$REGISTRY_PASSWORD $REGISTRY/rabbitmq:latest
 ```
 
+Credentials here can be omitted if `docker login` has stored credentials for this registry.
+
 ## Run container with soci-snapshotter
 
 ### Configure containerd

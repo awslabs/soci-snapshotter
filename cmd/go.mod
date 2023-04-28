@@ -6,6 +6,7 @@ require (
 	github.com/awslabs/soci-snapshotter v0.0.0-local
 	github.com/containerd/containerd v1.6.19
 	github.com/coreos/go-systemd/v22 v22.5.0
+	github.com/docker/cli v23.0.1+incompatible
 	github.com/docker/go-metrics v0.0.1
 	github.com/opencontainers/go-digest v1.0.0
 	github.com/opencontainers/image-spec v1.1.0-rc2
@@ -35,7 +36,6 @@ require (
 	github.com/containernetworking/plugins v1.1.1 // indirect
 	github.com/cpuguy83/go-md2man/v2 v2.0.2 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
-	github.com/docker/cli v23.0.1+incompatible // indirect
 	github.com/docker/docker v20.10.7+incompatible // indirect
 	github.com/docker/docker-credential-helpers v0.6.4 // indirect
 	github.com/docker/go-events v0.0.0-20190806004212-e31b211e4f1c // indirect
