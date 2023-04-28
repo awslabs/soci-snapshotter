@@ -57,6 +57,7 @@ const (
 type indexBuildConfig struct {
 	spanSize     int64
 	minLayerSize int64
+	allowErrors  bool
 }
 
 // indexBuildOption is a functional argument to update `indexBuildConfig`
@@ -77,6 +78,11 @@ func withMinLayerSize(minLayerSize int64) indexBuildOption {
 	}
 }
 
+// withAllowErrors does not fatally fail the test on the a shell command non-zero exit code
+func withAllowErrors(ibc *indexBuildConfig) {
+	ibc.allowErrors = true
+}
+
 // defaultIndexBuildConfig is the default parameters when creating and index with `buildIndex`
 func defaultIndexBuildConfig() indexBuildConfig {
 	return indexBuildConfig{
@@ -87,6 +93,7 @@ func defaultIndexBuildConfig() indexBuildConfig {
 
 // buildIndex builds an index for the source image with given options. By default, it will build with
 // min-layer-size = 0 and span-size = CLI default
+// returns the index digest, or an empty string for failure
 func buildIndex(sh *shell.Shell, src imageInfo, opt ...indexBuildOption) string {
 	indexBuildConfig := defaultIndexBuildConfig()
 	for _, o := range opt {
@@ -101,12 +108,19 @@ func buildIndex(sh *shell.Shell, src imageInfo, opt ...indexBuildOption) string 
 		"--platform", platforms.Format(src.platform),
 	}
 
-	indexDigest := sh.
-		X(append([]string{"nerdctl", "pull", "-q", "--platform", platforms.Format(src.platform)}, opts[0]...)...).
-		X(append(createCommand, createArgs...)...).
-		O("soci", "index", "list",
-			"-q", "--ref", src.ref,
-			"--platform", platforms.Format(src.platform)) // this will make SOCI artifact available locally
+	shx := sh.X
+	if indexBuildConfig.allowErrors {
+		shx = sh.XLog
+	}
+
+	shx(append([]string{"nerdctl", "pull", "-q", "--platform", platforms.Format(src.platform)}, opts[0]...)...)
+	shx(append(createCommand, createArgs...)...)
+	indexDigest, err := sh.OLog("soci", "index", "list",
+		"-q", "--ref", src.ref,
+		"--platform", platforms.Format(src.platform)) // this will make SOCI artifact available locally
+	if err != nil {
+		return ""
+	}
 	return strings.Trim(string(indexDigest), "\n")
 }
 

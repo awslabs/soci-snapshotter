@@ -77,7 +77,7 @@ func TestSkipBuildingZtoc(t *testing.T) {
 
 	for _, tc := range testcases {
 		t.Run(tc.name, func(t *testing.T) {
-			if skipBuildingZtoc(tc.desc, &tc.buildConfig) != tc.skip {
+			if skip, _ := skipBuildingZtoc(tc.desc, &tc.buildConfig); skip != tc.skip {
 				t.Fatalf("%v: the value returned does not equal actual value %v", tc.name, tc.skip)
 			}
 		})
