@@ -26,11 +26,19 @@ import (
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 )
 
-func TestSociCreateSparseIndex(t *testing.T) {
+func TestSociCreateEmptyIndex(t *testing.T) {
 	sh, done := newSnapshotterBaseShell(t)
 	defer done()
 
 	rebootContainerd(t, sh, "", "")
+	imgInfo := dockerhub(alpineImage)
+	indexDigest := buildIndex(sh, imgInfo, withMinLayerSize(1000000000), withAllowErrors)
+	if indexDigest != "" {
+		t.Fatal("index was created despite all layers being smaller than min layer size")
+	}
+}
+
+func TestSociCreateSparseIndex(t *testing.T) {
 	tests := []struct {
 		name         string
 		minLayerSize int64
@@ -44,12 +52,8 @@ func TestSociCreateSparseIndex(t *testing.T) {
 			minLayerSize: 1000000,
 		},
 		{
-			name:         "test create for rethinkdb:latest with min-layer-size 6000000 bytes",
-			minLayerSize: 10000000,
-		},
-		{
 			name:         "test create for rethinkdb:latest with min-layer-size 10000000 bytes",
-			minLayerSize: 100000000,
+			minLayerSize: 10000000,
 		},
 	}
 
@@ -58,15 +62,20 @@ func TestSociCreateSparseIndex(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			sh, done := newSnapshotterBaseShell(t)
+			defer done()
+
 			rebootContainerd(t, sh, "", "")
 			imgInfo := dockerhub(containerImage)
 			indexDigest := buildIndex(sh, imgInfo, withMinLayerSize(tt.minLayerSize))
-			checkpoints := fetchContentFromPath(sh, blobStorePath+"/"+trimSha256Prefix(indexDigest))
-
 			var index soci.Index
-			err := soci.DecodeIndex(bytes.NewReader(checkpoints), &index)
-			if err != nil {
-				t.Fatalf("cannot get index data: %v", err)
+			if indexDigest != "" {
+				checkpoints := fetchContentFromPath(sh, blobStorePath+"/"+trimSha256Prefix(indexDigest))
+
+				err := soci.DecodeIndex(bytes.NewReader(checkpoints), &index)
+				if err != nil {
+					t.Fatalf("cannot get index data: %v", err)
+				}
 			}
 
 			imageManifestJSON := fetchContentByDigest(sh, manifestDigest)
@@ -82,8 +91,14 @@ func TestSociCreateSparseIndex(t *testing.T) {
 				}
 			}
 
-			if err := validateSociIndex(sh, index, manifestDigest, includedLayers); err != nil {
-				t.Fatalf("failed to validate soci index: %v", err)
+			if indexDigest == "" {
+				if len(includedLayers) > 0 {
+					t.Fatalf("failed to validate soci index: unexpected layer count; expected=%v, got=0", len(includedLayers))
+				}
+			} else {
+				if err := validateSociIndex(sh, index, manifestDigest, includedLayers); err != nil {
+					t.Fatalf("failed to validate soci index: %v", err)
+				}
 			}
 		})
 	}

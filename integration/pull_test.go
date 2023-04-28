@@ -121,6 +121,8 @@ func TestOptimizeConsistentSociArtifact(t *testing.T) {
 				X("cp", "-r", blobStorePath, "copy") // move the contents of soci dir to another folder
 
 			// optimize for the second time
+			sh.
+				X("rm", "-rf", blobStorePath)
 			buildIndex(sh, regConfig.mirror(tt.containerImage), withMinLayerSize(0))
 
 			currContent := sh.O("ls", blobStorePath)
@@ -135,7 +137,7 @@ func TestOptimizeConsistentSociArtifact(t *testing.T) {
 					// skipping artifacts.db, since this is bbolt file and we have no control over its internals
 					continue
 				}
-				out, _ := sh.OLog("cmp", filepath.Join("soci", fn), filepath.Join("copy", "soci", fn))
+				out, _ := sh.OLog("cmp", filepath.Join(blobStorePath, fn), filepath.Join("copy", "sha256", fn))
 				if string(out) != "" {
 					t.Fatalf("the artifact is different: %v", string(out))
 				}
@@ -243,7 +245,7 @@ func TestLazyPull(t *testing.T) {
 	sh, done := newShellWithRegistry(t, regConfig)
 	defer done()
 
-	optimizedImageName1 := alpineImage
+	optimizedImageName1 := rabbitmqImage
 	optimizedImageName2 := nginxImage
 	nonOptimizedImageName := ubuntuImage
 
@@ -504,7 +506,7 @@ disable = true
 	sh, done := newShellWithRegistry(t, regConfig)
 	defer done()
 
-	optimizedImageName1 := alpineImage
+	optimizedImageName1 := rabbitmqImage
 	optimizedImageName2 := nginxImage
 	nonOptimizedImageName := ubuntuImage
 
@@ -672,7 +674,7 @@ insecure = true
 		X("update-ca-certificates").
 		Retry(100, "nerdctl", "login", "-u", regConfig.user, "-p", regConfig.pass, regConfig.host)
 
-	imageName := alpineImage
+	imageName := rabbitmqImage
 	// Mirror images
 	rebootContainerd(t, sh, getContainerdConfigToml(t, false, containerdMirrorConfig), getSnapshotterConfigToml(t, false, snapshotterMirrorConfig))
 	copyImage(sh, dockerhub(imageName), regConfig.mirror(imageName))

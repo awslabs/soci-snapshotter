@@ -24,6 +24,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"sync"
 	"time"
 
 	"github.com/awslabs/soci-snapshotter/ztoc"
@@ -35,7 +36,6 @@ import (
 	"github.com/opencontainers/go-digest"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 
-	"golang.org/x/sync/errgroup"
 	orascontent "oras.land/oras-go/v2/content"
 	"oras.land/oras-go/v2/errdef"
 )
@@ -296,28 +296,57 @@ func (b *IndexBuilder) Build(ctx context.Context, img images.Image) (*IndexWithM
 		return nil, err
 	}
 
+	// attempt to build a ztoc for each layer
 	sociLayersDesc := make([]*ocispec.Descriptor, len(manifest.Layers))
-	eg, ctx := errgroup.WithContext(ctx)
-	for i, l := range manifest.Layers {
-		i, l := i, l
-		eg.Go(func() error {
-			desc, err := b.buildSociLayer(ctx, l)
-			if err != nil {
-				return fmt.Errorf("could not build zTOC for layer %s: %w", l.Digest.String(), err)
-			}
-			sociLayersDesc[i] = desc
-			return nil
-		})
-	}
-	if err := eg.Wait(); err != nil {
-		return nil, err
+	errChan := make(chan error)
+	go func() {
+		var wg sync.WaitGroup
+		for i, l := range manifest.Layers {
+			wg.Add(1)
+			go func(i int, l ocispec.Descriptor) {
+				defer wg.Done()
+				desc, err := b.buildSociLayer(ctx, l)
+				if err != nil {
+					if err != errUnsupportedLayerFormat {
+						errChan <- err
+					}
+					return
+				}
+				if desc != nil {
+					// index layers must be in some deterministic order
+					// actual layer order used for historic consistency
+					sociLayersDesc[i] = desc
+				}
+			}(i, l)
+		}
+		wg.Wait()
+		close(errChan)
+	}()
+
+	errs := make([]error, 0, len(manifest.Layers))
+
+	for err := range errChan {
+		errs = append(errs, err)
 	}
 
-	ztocsDesc := make([]ocispec.Descriptor, 0, len(manifest.Layers))
+	if len(errs) > 0 {
+		errWrap := errors.New("errors encountered while building soci layers")
+		for _, err := range errs {
+			errWrap = fmt.Errorf("%w; %v", errWrap, err)
+		}
+
+		return nil, errWrap
+	}
+
+	ztocsDesc := make([]ocispec.Descriptor, 0, len(sociLayersDesc))
 	for _, desc := range sociLayersDesc {
 		if desc != nil {
 			ztocsDesc = append(ztocsDesc, *desc)
 		}
+	}
+
+	if len(ztocsDesc) == 0 {
+		return nil, errors.New("no ztocs created, all layers either skipped or produced errors")
 	}
 
 	annotations := map[string]string{
@@ -346,8 +375,8 @@ func (b *IndexBuilder) buildSociLayer(ctx context.Context, desc ocispec.Descript
 		return nil, errNotLayerType
 	}
 	// check if we need to skip building the zTOC
-	if skipBuildingZtoc(desc, b.config) {
-		fmt.Printf("layer %s -> ztoc skipped\n", desc.Digest)
+	if skip, reason := skipBuildingZtoc(desc, b.config); skip {
+		fmt.Printf("ztoc skipped - layer %s (%s) %s\n", desc.Digest, desc.MediaType, reason)
 		return nil, nil
 	}
 
@@ -365,8 +394,9 @@ func (b *IndexBuilder) buildSociLayer(ctx context.Context, desc ocispec.Descript
 	}
 
 	if !b.ztocBuilder.CheckCompressionAlgorithm(compressionAlgo) {
-		return nil, fmt.Errorf("layer %s (%s) is compressed in an unsupported format. expect: [tar, gzip, unknown] but got %q: %w",
-			desc.Digest, desc.MediaType, compressionAlgo, errUnsupportedLayerFormat)
+		fmt.Printf("ztoc skipped - layer %s (%s) is compressed in an unsupported format. expect: [tar, gzip, unknown] but got %q\n",
+			desc.Digest, desc.MediaType, compressionAlgo)
+		return nil, errUnsupportedLayerFormat
 	}
 
 	ra, err := b.contentStore.ReaderAt(ctx, desc)
@@ -450,12 +480,15 @@ func NewIndexFromReader(reader io.Reader) (*Index, error) {
 	return index, nil
 }
 
-func skipBuildingZtoc(desc ocispec.Descriptor, cfg *buildConfig) bool {
+func skipBuildingZtoc(desc ocispec.Descriptor, cfg *buildConfig) (bool, string) {
 	if cfg == nil {
-		return false
+		return false, ""
 	}
 	// avoid the file access if the layer size is below threshold
-	return desc.Size < cfg.minLayerSize
+	if desc.Size < cfg.minLayerSize {
+		return true, fmt.Sprintf("size %d is less than min-layer-size %d", desc.Size, cfg.minLayerSize)
+	}
+	return false, ""
 }
 
 // GetImageManifestDescriptor gets the descriptor of image manifest
