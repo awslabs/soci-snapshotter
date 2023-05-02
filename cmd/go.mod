@@ -3,7 +3,7 @@ module github.com/awslabs/soci-snapshotter/cmd
 go 1.18
 
 require (
-	github.com/awslabs/soci-snapshotter v0.0.0-local
+	github.com/awslabs/soci-snapshotter v0.0.0
 	github.com/containerd/containerd v1.7.0
 	github.com/coreos/go-systemd/v22 v22.5.0
 	github.com/docker/cli v23.0.4+incompatible
