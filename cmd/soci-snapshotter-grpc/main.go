@@ -84,6 +84,8 @@ const (
 	defaultMetricsNetwork      = "tcp"
 )
 
+// logLevel of Debug or Trace may emit sensitive information
+// e.g. file contents, file names and paths, network addresses and ports
 var (
 	address      = flag.String("address", defaultAddress, "address for the snapshotter's GRPC server")
 	configPath   = flag.String("config", defaultConfigPath, "path to the configuration file")
@@ -133,7 +135,7 @@ func main() {
 	)
 	defer cancel()
 	// Streams log of standard lib (go-fuse uses this) into debug log
-	// Snapshotter should use "github.com/containerd/containerd/log" otherwize
+	// Snapshotter should use "github.com/containerd/containerd/log" otherwise
 	// logs are always printed as "debug" mode.
 	golog.SetOutput(log.G(ctx).WriterLevel(logrus.DebugLevel))
 	log.G(ctx).WithFields(logrus.Fields{
