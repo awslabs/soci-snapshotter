@@ -29,4 +29,5 @@ const (
 	Gzip         = "gzip"
 	Zstd         = "zstd"
 	Uncompressed = "uncompressed"
+	Unknown      = "unknown"
 )
