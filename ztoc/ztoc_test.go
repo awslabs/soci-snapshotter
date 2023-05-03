@@ -394,6 +394,12 @@ func testZtocGeneration(t *testing.T, compressionAlgo string, generator tarGener
 	for _, tc := range testcases {
 		tc := tc
 		t.Run(fmt.Sprintf("%s-%s", compressionAlgo, tc.name), func(t *testing.T) {
+			tarBuffer := bytes.NewBuffer([]byte{})
+			rawTarFileSize, err := io.Copy(tarBuffer, testutil.BuildTar(tc.tarEntries))
+			if err != nil {
+				t.Fatal(err)
+			}
+
 			tarFilePath, m, fileNames := generator(t, tc.tarName, tc.tarEntries)
 			defer os.Remove(tarFilePath)
 
@@ -411,6 +417,10 @@ func testZtocGeneration(t *testing.T, compressionAlgo string, generator tarGener
 
 			if len(ztoc.FileMetadata) != len(fileNames) {
 				t.Fatalf("ztoc metadata count mismatch. expected: %d, actual: %d", len(fileNames), len(ztoc.FileMetadata))
+			}
+
+			if ztoc.UncompressedArchiveSize != compression.Offset(rawTarFileSize) {
+				t.Fatalf("ztoc uncompressed file size mismatch. expected: %d, actual:%d", rawTarFileSize, ztoc.UncompressedArchiveSize)
 			}
 
 			for i := 0; i < len(ztoc.FileMetadata); i++ {
