@@ -396,20 +396,16 @@ func (b *IndexBuilder) buildSociLayer(ctx context.Context, desc ocispec.Descript
 		return nil, fmt.Errorf("could not determine layer compression: %w", err)
 	}
 
-	// recognize uncompressed layer based on result from `images.DiffCompression`.
-	switch desc.MediaType {
-	case images.MediaTypeDockerSchema2Layer, images.MediaTypeDockerSchema2LayerForeign:
-		if compressionAlgo == "unknown" {
-			compressionAlgo = compression.Uncompressed
-		}
-	case ocispec.MediaTypeImageLayer, ocispec.MediaTypeImageLayerNonDistributable:
-		if compressionAlgo == "" {
+	if compressionAlgo == "" {
+		switch desc.MediaType {
+		case ocispec.MediaTypeImageLayer, ocispec.MediaTypeImageLayerNonDistributable:
+			// for OCI image layers, empty is returned for an uncompressed layer.
 			compressionAlgo = compression.Uncompressed
 		}
 	}
 
 	if !b.ztocBuilder.CheckCompressionAlgorithm(compressionAlgo) {
-		return nil, fmt.Errorf("layer %s (%s) is compressed in an unsupported format. expect: [tar, gzip] but got %q: %w",
+		return nil, fmt.Errorf("layer %s (%s) is compressed in an unsupported format. expect: [tar, gzip, unknown] but got %q: %w",
 			desc.Digest, desc.MediaType, compressionAlgo, errUnsupportedLayerFormat)
 	}
 
