@@ -178,12 +178,7 @@ type positionTrackerReader struct {
 
 func (p *positionTrackerReader) Read(b []byte) (int, error) {
 	n, err := p.r.Read(b)
-	if err == io.EOF {
-		err = nil
-	}
-	if err == nil {
-		p.pos += compression.Offset(n)
-	}
+	p.pos += compression.Offset(n)
 	return n, err
 }
 
