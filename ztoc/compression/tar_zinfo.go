@@ -17,15 +17,14 @@
 package compression
 
 import (
-	"bytes"
-	"encoding/binary"
 	"fmt"
 	"os"
+
+	zinfo_flatbuffers "github.com/awslabs/soci-snapshotter/ztoc/compression/fbs/zinfo"
+	flatbuffers "github.com/google/flatbuffers/go"
 )
 
 const (
-	// byte length of `TarZinfo`: version(4) + spanSize(8) + tar size(8)
-	tarZinfoLength = 4 + 8 + 8
 	// `TarZinfo` version. consistent with `GzipZinfo` version
 	zinfoVersion = 2
 )
@@ -42,30 +41,21 @@ type TarZinfo struct {
 }
 
 // newTarZinfo creates a new instance of `TarZinfo` from serialized bytes.
-func newTarZinfo(zinfoBytes []byte) (*TarZinfo, error) {
-	if len(zinfoBytes) != tarZinfoLength {
-		return nil, fmt.Errorf("invalid checkpoint length, expected: %d, actual: %d", tarZinfoLength, len(zinfoBytes))
-	}
+func newTarZinfo(zinfoBytes []byte) (zinfo *TarZinfo, err error) {
+	defer func() {
+		if r := recover(); r != nil {
+			zinfo = nil
+			err = fmt.Errorf("cannot unmarshal tar zinfo: %w", err)
+		}
+	}()
 
-	var version int32
-	var spanSize, size int64
+	zinfo = new(TarZinfo)
+	zinfoFlatbuf := zinfo_flatbuffers.GetRootAsTarZinfo(zinfoBytes, 0)
+	zinfo.version = zinfoFlatbuf.Version()
+	zinfo.spanSize = zinfoFlatbuf.SpanSize()
+	zinfo.size = zinfoFlatbuf.Size()
 
-	buf := bytes.NewReader(zinfoBytes)
-	if err := binary.Read(buf, binary.LittleEndian, &version); err != nil {
-		return nil, fmt.Errorf("invalid checkpoint data: %w", err)
-	}
-	if err := binary.Read(buf, binary.LittleEndian, &spanSize); err != nil {
-		return nil, fmt.Errorf("invalid checkpoint data: %w", err)
-	}
-	if err := binary.Read(buf, binary.LittleEndian, &size); err != nil {
-		return nil, fmt.Errorf("invalid checkpoint data: %w", err)
-	}
-
-	return &TarZinfo{
-		version:  version,
-		spanSize: spanSize,
-		size:     size,
-	}, nil
+	return zinfo, nil
 }
 
 // newTarZinfoFromFile creates a new instance of `TarZinfo` given tar file name and span size.
@@ -87,23 +77,22 @@ func (i *TarZinfo) Close() {}
 
 // Bytes returns the byte slice containing the `TarZinfo`. Integers are serialized
 // to `LittleEndian` binaries.
-func (i *TarZinfo) Bytes() ([]byte, error) {
-	buf := new(bytes.Buffer)
-	if err := binary.Write(buf, binary.LittleEndian, i.version); err != nil {
-		return nil, fmt.Errorf("failed to generate tar zinfo bytes: %w", err)
-	}
-	if err := binary.Write(buf, binary.LittleEndian, i.spanSize); err != nil {
-		return nil, fmt.Errorf("failed to generate tar zinfo bytes: %w", err)
-	}
-	if err := binary.Write(buf, binary.LittleEndian, i.size); err != nil {
-		return nil, fmt.Errorf("failed to generate tar zinfo bytes: %w", err)
-	}
+func (i *TarZinfo) Bytes() (fb []byte, err error) {
+	defer func() {
+		if r := recover(); r != nil {
+			fb = nil
+			err = fmt.Errorf("failed to generate tar zinfo flatbuf bytes: %w", err)
+		}
+	}()
 
-	zinfoBytes := buf.Bytes()
-	if len(zinfoBytes) != tarZinfoLength {
-		return nil, fmt.Errorf("invalid tar zinfo bytes length, expected: %d, actual: %d", len(zinfoBytes), tarZinfoLength)
-	}
-	return zinfoBytes, nil
+	builder := flatbuffers.NewBuilder(0)
+	zinfo_flatbuffers.TarZinfoStart(builder)
+	zinfo_flatbuffers.TarZinfoAddVersion(builder, i.version)
+	zinfo_flatbuffers.TarZinfoAddSpanSize(builder, i.spanSize)
+	zinfo_flatbuffers.TarZinfoAddSize(builder, i.size)
+	tarZinfoFlatbuf := zinfo_flatbuffers.TarZinfoEnd(builder)
+	builder.Finish(tarZinfoFlatbuf)
+	return builder.FinishedBytes(), nil
 }
 
 // MaxSpanID returns the max span ID.

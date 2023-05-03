@@ -24,6 +24,7 @@ GO_LD_FLAGS=-ldflags '-s -w -X $(PKG)/version.Version=$(VERSION) -X $(PKG)/versi
 SOCI_SNAPSHOTTER_PROJECT_ROOT ?= $(shell pwd)
 LTAG_TEMPLATE_FLAG=-t ./.headers
 FBS_FILE_PATH=$(CURDIR)/ztoc/fbs/ztoc.fbs
+FBS_FILE_PATH_COMPRESSION=$(CURDIR)/ztoc/compression/fbs/zinfo.fbs
 COMMIT=$(shell git rev-parse HEAD)
 STARGZ_BINARY?=/usr/local/bin/containerd-stargz-grpc
 
@@ -51,6 +52,8 @@ check:
 flatc:
 	rm -rf $(CURDIR)/ztoc/fbs/ztoc
 	flatc -o $(CURDIR)/ztoc/fbs -g $(FBS_FILE_PATH)
+	rm -rf $(CURDIR)/ztoc/compression/fbs/zinfo
+	flatc -o $(CURDIR)/ztoc/compression/fbs -g $(FBS_FILE_PATH_COMPRESSION)
 
 install:
 	@echo "$@"

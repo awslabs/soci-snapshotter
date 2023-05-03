@@ -1,0 +1,10 @@
+namespace zinfo;
+
+table TarZinfo {
+	version : int32;
+	span_size : int64;
+	size : int64;
+
+}
+
+root_type TarZinfo;
