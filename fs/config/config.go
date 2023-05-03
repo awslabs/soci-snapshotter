@@ -101,7 +101,8 @@ type FuseConfig struct {
 	NegativeTimeout int64 `toml:"negative_timeout"`
 
 	// LogFuseOperations enables logging of operations on FUSE FS. This is to be used
-	// for debugging purposes only.
+	// for debugging purposes only. This option may emit sensitive information,
+	// e.g. filenames and paths within an image
 	LogFuseOperations bool `toml:"log_fuse_operations"`
 }
 

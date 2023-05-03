@@ -190,6 +190,8 @@ func incFuseOpFailureMetric(operationName string, layer digest.Digest) {
 	commonmetrics.IncOperationCount(metric, layer)
 }
 
+// logFSOperations may cause sensitive information to be emitted to logs
+// e.g. filenames and paths within an image
 func newNode(layerDgst digest.Digest, r reader.Reader, blob remote.Blob, baseInode uint32, opaque OverlayOpaqueType, logFSOperations bool, opCounter *FuseOperationCounter) (fusefs.InodeEmbedder, error) {
 	rootID := r.Metadata().RootID()
 	rootAttr, err := r.Metadata().GetAttr(rootID)
