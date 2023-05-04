@@ -12,6 +12,7 @@ This document includes the following sections:
 - [Build soci-snapshotter](#build-soci-snapshotter)
 - [Test soci-snapshotter](#test-soci-snapshotter)
 - [(Optional) Contribute your change](#optional-contribute-your-change)
+- [Development tooling](#development-tooling)
 
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
 
@@ -127,3 +128,7 @@ provide a script (`./scripts/add-ltag.sh`) that can do this.
 > help install all these checking tools.
 
 Once you pass all the tests and checks. You're ready to make your PR!
+
+## Development tooling
+
+This repository contains two go modules, one in the root directory and the other in [`cmd`](../cmd). To describe this arrangement to tools like `gopls` (and, by extension, vscode), you need a `go.work` file listing the module locations. An example such file is included in this repositiry as `go.work.example` which you could rename to `go.work` to use as-is.
