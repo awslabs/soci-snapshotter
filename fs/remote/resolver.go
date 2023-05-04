@@ -90,7 +90,7 @@ func NewResolver(cfg config.BlobConfig, handlers map[string]Handler) *Resolver {
 		cfg.MinWaitMsec = socihttp.DefaultMinWaitMsec
 	}
 	if cfg.MaxWaitMsec == 0 {
-		cfg.MaxWaitMsec = socihttp.DefaultMaxRetries
+		cfg.MaxWaitMsec = socihttp.DefaultMaxWaitMsec
 	}
 
 	return &Resolver{
