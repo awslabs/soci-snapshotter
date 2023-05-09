@@ -376,7 +376,7 @@ func (db *ArtifactsDb) RemoveArtifactEntryByImageDigest(digest string) error {
 // Determines whether a bucket represents an index, as opposed to a zTOC
 func indexBucket(b *bolt.Bucket) bool {
 	mt := string(b.Get(bucketKeyMediaType))
-	return mt == ocispec.MediaTypeArtifactManifest || mt == ocispec.MediaTypeImageManifest
+	return mt == ocispec.MediaTypeImageManifest
 }
 
 // Determines whether a bucket's image digest is the same as digest

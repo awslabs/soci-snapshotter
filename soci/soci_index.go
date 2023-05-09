@@ -71,8 +71,7 @@ var (
 	// serializing a SOCI index as an OCI 1.0 Manifest for fallback compatibility.
 	defaultConfigDescriptor = ocispec.Descriptor{
 		// The Config's media type is set to `SociIndexArtifactType` so that the oras-go
-		// library can use it to filter artifacts. This would normally be handled using the
-		// `ArtifactType` filed of an OCI 1.1 Artifact.
+		// library can use it to filter artifacts.
 		MediaType: SociIndexArtifactType,
 		Digest:    emptyJSONObjectDigest,
 		Size:      2,
@@ -112,8 +111,7 @@ type IndexDescriptorInfo struct {
 }
 
 // DecodeIndex deserializes a JSON blob in an io.Reader
-// into a SOCI index. The blob can be either an OCI 1.1 Artifact
-// or an OCI 1.0 Manifest
+// into a SOCI index. The blob is an OCI 1.0 Manifest
 func DecodeIndex(r io.Reader, index *Index) error {
 	b, err := io.ReadAll(r)
 	if err != nil {
@@ -123,20 +121,19 @@ func DecodeIndex(r io.Reader, index *Index) error {
 }
 
 // UnmarshalIndex deserializes a JSON blob in a byte array
-// into a SOCI index. The blob can be either an OCI 1.1 Artifact
-// or an OCI 1.0 Manifest
+// into a SOCI index. The blob is an OCI 1.0 Manifest
 func UnmarshalIndex(b []byte, index *Index) error {
-	err := json.Unmarshal(b, index)
-	if err == nil && index.MediaType == ocispec.MediaTypeArtifactManifest {
-		return nil
+	if err := json.Unmarshal(b, index); err != nil {
+		return err
 	}
+
 	var manifest ocispec.Manifest
-	err = json.Unmarshal(b, &manifest)
-	if err == nil {
-		fromManifest(manifest, index)
-		return nil
+	if err := json.Unmarshal(b, &manifest); err != nil {
+		return err
 	}
-	return err
+
+	fromManifest(manifest, index)
+	return nil
 }
 
 // fromManifest converts an OCI 1.0 Manifest to a SOCI Index
@@ -148,23 +145,9 @@ func fromManifest(manifest ocispec.Manifest, index *Index) {
 	index.Annotations = manifest.Annotations
 }
 
-// Marshal serializes a SOCI index into a JSON blob.
-// The JSON blob will be either an OCI 1.1 Artifact or
-// an OCI 1.0 Manifest, depending on how the index was created.
+// MarshalIndex serializes a SOCI index into a JSON blob.
+// The JSON blob is an OCI 1.0 Manifest
 func MarshalIndex(i *Index) ([]byte, error) {
-	if i.MediaType == ocispec.MediaTypeArtifactManifest {
-		return marshalIndexAs11Artifact(i)
-	}
-	return marshalIndexAs10Manifest(i)
-}
-
-// marshalIndexAs11Artifact marshals an index as an OCI 1.1 Artifact Manifest
-func marshalIndexAs11Artifact(i *Index) ([]byte, error) {
-	return json.Marshal(i)
-}
-
-// marshalIndexAs10Manifest marshals an index as an OCI 1.0 Image Manifest
-func marshalIndexAs10Manifest(i *Index) ([]byte, error) {
 	var manifest ocispec.Manifest
 	manifest.SchemaVersion = 2
 	manifest.MediaType = ocispec.MediaTypeImageManifest
@@ -220,23 +203,10 @@ type buildConfig struct {
 	buildToolIdentifier string
 	artifactsDb         *ArtifactsDb
 	platform            ocispec.Platform
-	artifactRegistry    bool
-}
-type indexConfig struct {
-	artifact bool
 }
 
 // BuildOption specifies a config change to build soci indices.
 type BuildOption func(c *buildConfig) error
-
-// IndexOption specifies a config change for index creation.
-type IndexOption func(c *indexConfig) error
-
-// WithIndexAsArtifact sets whether to build SOCI index as an artifact manifest instead of an image manifest.
-func WithIndexAsArtifact(c *indexConfig) error {
-	c.artifact = true
-	return nil
-}
 
 // WithSpanSize specifies span size.
 func WithSpanSize(spanSize int64) BuildOption {
@@ -270,14 +240,7 @@ func WithPlatform(platform ocispec.Platform) BuildOption {
 	}
 }
 
-// WithOCIArtifactRegistrySupport sets whether to build SOCI index as an artifact manifest instead of an image
-// manifest. Artifact manifests are proposed within the OCI 1.1 spec and are only supported by OCI 1.1 compatible registries.
-func WithOCIArtifactRegistrySupport(c *buildConfig) error {
-	c.artifactRegistry = true
-	return nil
-}
-
-// Speicifies the artifacts database
+// WithArtifactsDb speicifies the artifacts database
 func WithArtifactsDb(db *ArtifactsDb) BuildOption {
 	return func(c *buildConfig) error {
 		c.artifactsDb = db
@@ -366,11 +329,8 @@ func (b *IndexBuilder) Build(ctx context.Context, img images.Image) (*IndexWithM
 		Digest:    imgManifestDesc.Digest,
 		Size:      imgManifestDesc.Size,
 	}
-	var indexOpts []IndexOption
-	if b.config.artifactRegistry {
-		indexOpts = append(indexOpts, WithIndexAsArtifact)
-	}
-	index := NewIndex(ztocsDesc, refers, annotations, indexOpts...)
+
+	index := NewIndex(ztocsDesc, refers, annotations)
 	return &IndexWithMetadata{
 		Index:       index,
 		Platform:    &b.config.platform,
@@ -398,7 +358,7 @@ func (b *IndexBuilder) buildSociLayer(ctx context.Context, desc ocispec.Descript
 
 	if compressionAlgo == "" {
 		switch desc.MediaType {
-		case ocispec.MediaTypeImageLayer, ocispec.MediaTypeImageLayerNonDistributable:
+		case ocispec.MediaTypeImageLayer:
 			// for OCI image layers, empty is returned for an uncompressed layer.
 			compressionAlgo = compression.Uncompressed
 		}
@@ -471,21 +431,13 @@ func (b *IndexBuilder) buildSociLayer(ctx context.Context, desc ocispec.Descript
 }
 
 // NewIndex returns a new index.
-func NewIndex(blobs []ocispec.Descriptor, subject *ocispec.Descriptor, annotations map[string]string, opts ...IndexOption) *Index {
-	ic := new(indexConfig)
-	for _, opt := range opts {
-		opt(ic)
-	}
-	mediaType := ocispec.MediaTypeImageManifest
-	if ic.artifact {
-		mediaType = ocispec.MediaTypeArtifactManifest
-	}
+func NewIndex(blobs []ocispec.Descriptor, subject *ocispec.Descriptor, annotations map[string]string) *Index {
 	return &Index{
 		Blobs:        blobs,
 		ArtifactType: SociIndexArtifactType,
 		Annotations:  annotations,
 		Subject:      subject,
-		MediaType:    mediaType,
+		MediaType:    ocispec.MediaTypeImageManifest,
 	}
 }
 

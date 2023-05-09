@@ -97,7 +97,7 @@ func TestBuildSociIndexNotLayer(t *testing.T) {
 		},
 		{
 			name:      "soci index manifest",
-			mediaType: ocispec.MediaTypeArtifactManifest,
+			mediaType: ocispec.MediaTypeImageManifest,
 			err:       errNotLayerType,
 		},
 		{
@@ -256,7 +256,7 @@ func TestNewIndex(t *testing.T) {
 
 	for _, tc := range testcases {
 		t.Run(tc.name, func(t *testing.T) {
-			index := NewIndex(tc.blobs, &tc.subject, tc.annotations, WithIndexAsArtifact)
+			index := NewIndex(tc.blobs, &tc.subject, tc.annotations)
 
 			if diff := cmp.Diff(index.Blobs, tc.blobs); diff != "" {
 				t.Fatalf("unexpected blobs; diff = %v", diff)
@@ -266,8 +266,8 @@ func TestNewIndex(t *testing.T) {
 				t.Fatalf("unexpected artifact type; expected = %s, got = %s", SociIndexArtifactType, index.ArtifactType)
 			}
 
-			if index.MediaType != ocispec.MediaTypeArtifactManifest {
-				t.Fatalf("unexpected media type; expected = %v, got = %v", ocispec.MediaTypeArtifactManifest, index.MediaType)
+			if index.MediaType != ocispec.MediaTypeImageManifest {
+				t.Fatalf("unexpected media type; expected = %v, got = %v", ocispec.MediaTypeImageManifest, index.MediaType)
 			}
 
 			if diff := cmp.Diff(index.Subject, &tc.subject); diff != "" {
@@ -304,8 +304,8 @@ func TestDecodeIndex(t *testing.T) {
 
 	for _, tc := range testcases {
 		t.Run(tc.name, func(t *testing.T) {
-			index := NewIndex(tc.blobs, &tc.subject, tc.annotations, WithIndexAsArtifact)
-			jsonBytes, err := json.Marshal(index)
+			index := NewIndex(tc.blobs, &tc.subject, tc.annotations)
+			jsonBytes, err := MarshalIndex(index)
 			if err != nil {
 				t.Fatalf("cannot convert index to json byte data: %v", err)
 			}
@@ -343,11 +343,6 @@ func TestMarshalIndex(t *testing.T) {
 		index *Index
 		ty    interface{}
 	}{
-		{
-			name:  "successfully roundtrip as Artifact Manifest",
-			index: NewIndex(blobs, &subject, annotations, WithIndexAsArtifact),
-			ty:    ocispec.Artifact{},
-		},
 		{
 			name:  "successfully roundtrip as Image Manifest",
 			index: NewIndex(blobs, &subject, annotations),

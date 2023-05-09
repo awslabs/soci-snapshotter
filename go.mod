@@ -18,20 +18,20 @@ require (
 	github.com/moby/sys/mountinfo v0.6.2
 	github.com/montanaflynn/stats v0.7.0
 	github.com/opencontainers/go-digest v1.0.0
-	github.com/opencontainers/image-spec v1.1.0-rc2.0.20221005185240-3a7f492d3f1b
+	github.com/opencontainers/image-spec v1.1.0-rc3
 	github.com/prometheus/client_golang v1.15.0
 	github.com/rs/xid v1.5.0
 	github.com/sirupsen/logrus v1.9.0
 	go.etcd.io/bbolt v1.3.7
 	golang.org/x/crypto v0.8.0
-	golang.org/x/sync v0.1.0
+	golang.org/x/sync v0.2.0
 	golang.org/x/sys v0.7.0
 	golang.org/x/time v0.3.0
 	google.golang.org/grpc v1.54.0
 	k8s.io/api v0.26.3
 	k8s.io/apimachinery v0.26.3
 	k8s.io/client-go v0.26.3
-	oras.land/oras-go/v2 v2.0.2
+	oras.land/oras-go/v2 v2.1.0
 )
 
 require (

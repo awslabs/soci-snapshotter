@@ -18,7 +18,6 @@ package commands
 
 import (
 	"errors"
-	"fmt"
 	"os"
 
 	"github.com/awslabs/soci-snapshotter/cmd/soci/commands/internal"
@@ -45,7 +44,6 @@ var CreateCommand = cli.Command{
 	ArgsUsage: "[flags] <image_ref>",
 	Flags: append(
 		internal.PlatformFlags,
-		internal.ManifestTypeFlag,
 		cli.Int64Flag{
 			Name:  spanSizeFlag,
 			Usage: "Span size that soci index uses to segment layer data. Default is 4 MiB",
@@ -106,16 +104,6 @@ var CreateCommand = cli.Command{
 			soci.WithMinLayerSize(minLayerSize),
 			soci.WithSpanSize(spanSize),
 			soci.WithBuildToolIdentifier(buildToolIdentifier),
-		}
-
-		manifestType := cliContext.String(internal.ManifestTypeFlagName)
-
-		if manifestType != internal.ImageManifestType && manifestType != internal.ArtifactManifestType {
-			return fmt.Errorf("undefined manifest type: %v. supported manifest types: [%s, %s]", manifestType, internal.ImageManifestType, internal.ArtifactManifestType)
-		}
-
-		if manifestType == internal.ArtifactManifestType {
-			builderOpts = append(builderOpts, soci.WithOCIArtifactRegistrySupport)
 		}
 
 		for _, plat := range ps {
