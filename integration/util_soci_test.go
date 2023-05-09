@@ -55,9 +55,8 @@ const (
 // indexBuildConfig represents the values of the CLI flags that should be used
 // when creating an index with `buildIndex`
 type indexBuildConfig struct {
-	spanSize                int64
-	minLayerSize            int64
-	supportArtifactRegistry bool
+	spanSize     int64
+	minLayerSize int64
 }
 
 // indexBuildOption is a functional argument to update `indexBuildConfig`
@@ -76,11 +75,6 @@ func withMinLayerSize(minLayerSize int64) indexBuildOption {
 	return func(ibc *indexBuildConfig) {
 		ibc.minLayerSize = minLayerSize
 	}
-}
-
-// withOCIArtifactRegistrySupport sets the SOCI index to built as an artifact manifest
-func withOCIArtifactRegistrySupport(ibc *indexBuildConfig) {
-	ibc.supportArtifactRegistry = true
 }
 
 // defaultIndexBuildConfig is the default parameters when creating and index with `buildIndex`
@@ -106,9 +100,6 @@ func buildIndex(sh *shell.Shell, src imageInfo, opt ...indexBuildOption) string 
 		"--span-size", fmt.Sprintf("%d", indexBuildConfig.spanSize),
 		"--platform", platforms.Format(src.platform),
 	}
-	if indexBuildConfig.supportArtifactRegistry {
-		createArgs = append(createArgs, "--manifest-type", "artifact")
-	}
 
 	indexDigest := sh.
 		X(append([]string{"nerdctl", "pull", "-q", "--platform", platforms.Format(src.platform)}, opts[0]...)...).
@@ -120,8 +111,8 @@ func buildIndex(sh *shell.Shell, src imageInfo, opt ...indexBuildOption) string 
 }
 
 func validateSociIndex(sh *shell.Shell, sociIndex soci.Index, imgManifestDigest string, includedLayers map[string]struct{}) error {
-	if sociIndex.MediaType != ocispec.MediaTypeArtifactManifest && sociIndex.MediaType != ocispec.MediaTypeImageManifest {
-		return fmt.Errorf("unexpected index media type; expected types: [%v, %v], got: %v", ocispec.MediaTypeArtifactManifest, ocispec.MediaTypeImageManifest, sociIndex.MediaType)
+	if sociIndex.MediaType != ocispec.MediaTypeImageManifest {
+		return fmt.Errorf("unexpected index media type; expected types: [%v], got: %v", ocispec.MediaTypeImageManifest, sociIndex.MediaType)
 	}
 	if sociIndex.ArtifactType != soci.SociIndexArtifactType {
 		return fmt.Errorf("unexpected index artifact type; expected = %v, got = %v", soci.SociIndexArtifactType, sociIndex.ArtifactType)

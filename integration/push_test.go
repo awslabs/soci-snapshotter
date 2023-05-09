@@ -125,34 +125,19 @@ func TestPushAlwaysMostRecentlyCreatedIndex(t *testing.T) {
 
 func TestLegacyOCI(t *testing.T) {
 	tests := []struct {
-		name                    string
-		registryImage           string
-		supportArtifactRegistry bool
-		expectError             bool
+		name          string
+		registryImage string
+		expectError   bool
 	}{
 		{
-			name:                    "OCI 1.1 Artifacts succeed with OCI 1.1 registry",
-			registryImage:           oci11RegistryImage,
-			supportArtifactRegistry: true,
-			expectError:             false,
+			name:          "OCI 1.0 Artifacts succeed with OCI 1.1 registry",
+			registryImage: oci11RegistryImage,
+			expectError:   false,
 		},
 		{
-			name:                    "OCI 1.0 Artifacts succeed with OCI 1.1 registry",
-			registryImage:           oci11RegistryImage,
-			supportArtifactRegistry: false,
-			expectError:             false,
-		},
-		{
-			name:                    "OCI 1.1 Artifacts fail with OCI 1.0 registry",
-			registryImage:           oci10RegistryImage,
-			supportArtifactRegistry: true,
-			expectError:             true,
-		},
-		{
-			name:                    "OCI 1.0 Artifacts succeed with OCI 1.0 registry",
-			registryImage:           oci10RegistryImage,
-			supportArtifactRegistry: false,
-			expectError:             false,
+			name:          "OCI 1.0 Artifacts succeed with OCI 1.0 registry",
+			registryImage: oci10RegistryImage,
+			expectError:   false,
 		},
 	}
 
@@ -168,11 +153,7 @@ func TestLegacyOCI(t *testing.T) {
 			imageName := ubuntuImage
 			copyImage(sh, dockerhub(imageName), regConfig.mirror(imageName))
 
-			var buildOpts []indexBuildOption
-			if tc.supportArtifactRegistry {
-				buildOpts = append(buildOpts, withOCIArtifactRegistrySupport)
-			}
-			indexDigest := buildIndex(sh, regConfig.mirror(imageName), buildOpts...)
+			indexDigest := buildIndex(sh, regConfig.mirror(imageName))
 			rawJSON := sh.O("soci", "index", "info", indexDigest)
 			var sociIndex soci.Index
 			if err := soci.UnmarshalIndex(rawJSON, &sociIndex); err != nil {

@@ -18,7 +18,6 @@ package integration
 
 import (
 	"bytes"
-	"encoding/json"
 	"fmt"
 	"io"
 	"math"
@@ -350,18 +349,13 @@ func buildIndexByManipulatingZtocData(sh *shell.Shell, indexDigest string, manip
 		ztocDescs = append(ztocDescs, ztocDesc)
 	}
 
-	newIndex := soci.Index{
-		MediaType:    ocispec.MediaTypeArtifactManifest,
-		ArtifactType: soci.SociIndexArtifactType,
-		Blobs:        ztocDescs,
-		Subject: &ocispec.Descriptor{
-			MediaType: ocispec.MediaTypeArtifactManifest,
-			Digest:    index.Subject.Digest,
-			Size:      index.Subject.Size,
-		},
+	subject := ocispec.Descriptor{
+		Digest: index.Subject.Digest,
+		Size:   index.Subject.Size,
 	}
 
-	b, err := json.Marshal(newIndex)
+	newIndex := soci.NewIndex(ztocDescs, &subject, nil)
+	b, err := soci.MarshalIndex(newIndex)
 	if err != nil {
 		return "", err
 	}

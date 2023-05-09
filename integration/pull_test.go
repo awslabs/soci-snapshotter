@@ -448,18 +448,13 @@ func TestPullWithAribtraryBlobInvalidZtocFormat(t *testing.T) {
 			})
 		}
 
-		index := soci.Index{
-			MediaType:    ocispec.MediaTypeArtifactManifest,
-			ArtifactType: soci.SociIndexArtifactType,
-			Blobs:        ztocDescs,
-			Subject: &ocispec.Descriptor{
-				MediaType: ocispec.MediaTypeArtifactManifest,
-				Digest:    digest.Digest(imgDigest),
-				Size:      int64(len(imgBytes)),
-			},
+		subject := ocispec.Descriptor{
+			Digest: digest.Digest(imgDigest),
+			Size:   int64(len(imgBytes)),
 		}
+		index := soci.NewIndex(ztocDescs, &subject, nil)
 
-		b, err := json.Marshal(index)
+		b, err := soci.MarshalIndex(index)
 		if err != nil {
 			return nil, nil, err
 		}

@@ -9,14 +9,14 @@ require (
 	github.com/docker/cli v23.0.4+incompatible
 	github.com/docker/go-metrics v0.0.1
 	github.com/opencontainers/go-digest v1.0.0
-	github.com/opencontainers/image-spec v1.1.0-rc2.0.20221005185240-3a7f492d3f1b
+	github.com/opencontainers/image-spec v1.1.0-rc3
 	github.com/pelletier/go-toml v1.9.5
 	github.com/sirupsen/logrus v1.9.0
 	github.com/urfave/cli v1.22.12
 	go.etcd.io/bbolt v1.3.7
 	golang.org/x/sys v0.7.0
 	google.golang.org/grpc v1.54.0
-	oras.land/oras-go/v2 v2.0.2
+	oras.land/oras-go/v2 v2.1.0
 )
 
 require (
@@ -94,7 +94,7 @@ require (
 	golang.org/x/mod v0.10.0 // indirect
 	golang.org/x/net v0.9.0 // indirect
 	golang.org/x/oauth2 v0.5.0 // indirect
-	golang.org/x/sync v0.1.0 // indirect
+	golang.org/x/sync v0.2.0 // indirect
 	golang.org/x/term v0.7.0 // indirect
 	golang.org/x/text v0.9.0 // indirect
 	golang.org/x/time v0.3.0 // indirect
