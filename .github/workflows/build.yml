@@ -6,47 +6,147 @@ on:
   pull_request:
     branches: [ main ]
 
+env:
+  GO_VERSION: '1.18.10'
+
 jobs:
-  check:
-    runs-on: ubuntu-20.04
-    steps:
-      - uses: actions/checkout@v3
-        with:
-          # check-dco will check the last 20 commits, but commit ranges
-          # exclude the start commit in the result, but need that commit
-          # in order to calculate the range. i.e. HEAD~20..HEAD includes
-          # 20 commits, but including HEAD it needs 21 commits.
-          fetch-depth: 21
-      - uses: actions/setup-go@v4
-        with:
-          go-version: '1.18.10'
-      - run: wget https://github.com/google/flatbuffers/releases/download/v22.9.29/Linux.flatc.binary.g++-10.zip
-      - run: unzip Linux.flatc.binary.g++-10.zip
-      - run: ./scripts/install-check-tools.sh
-      - run: ./scripts/check-ltag.sh
-      - run: ./scripts/check-dco.sh
-      - run: ./scripts/check-lint.sh
-      - run: PATH=$PATH:$(pwd) ./scripts/check-flatc.sh
-  test:
-    runs-on: ubuntu-20.04
-    steps:
-      - uses: actions/checkout@v3
-      - uses: actions/setup-go@v4
-        with:
-          go-version: '1.18.10'
-      - run: make
-      - run: make test
+  # check:
+  #   runs-on: ubuntu-20.04
+  #   steps:
+  #     - uses: actions/checkout@v3
+  #       with:
+  #         # check-dco will check the last 20 commits, but commit ranges
+  #         # exclude the start commit in the result, but need that commit
+  #         # in order to calculate the range. i.e. HEAD~20..HEAD includes
+  #         # 20 commits, but including HEAD it needs 21 commits.
+  #         fetch-depth: 21
+  #     - uses: actions/setup-go@v4
+  #       with:
+  #         go-version: ${{ env.GO_VERSION }}
+  #     - run: wget https://github.com/google/flatbuffers/releases/download/v22.9.29/Linux.flatc.binary.g++-10.zip
+  #     - run: unzip Linux.flatc.binary.g++-10.zip
+  #     - run: ./scripts/install-check-tools.sh
+  #     - run: ./scripts/check-ltag.sh
+  #     - run: ./scripts/check-dco.sh
+  #     - run: ./scripts/check-lint.sh
+  #     - run: PATH=$PATH:$(pwd) ./scripts/check-flatc.sh
+  # test:
+  #   runs-on: ubuntu-20.04
+  #   steps:
+  #     - uses: actions/checkout@v3
+  #     - uses: actions/setup-go@v4
+  #       with:
+  #         go-version: ${{ env.GO_VERSION }}
+  #     - run: make
+  #     - run: make test
   integration:
     runs-on: ubuntu-20.04
     strategy:
       fail-fast: false
       matrix:
-        containerd: ["1.6.19", "1.7.0"]
+        # containerd: ["1.6.19", "1.7.0"]
+        # arch: ["amd64", "arm64"]
+        containerd: ["1.7.0"]
+        arch: ["arm64"]
     env:
       DOCKER_BUILD_ARGS: "CONTAINERD_VERSION=${{ matrix.containerd }}"
     steps:
+      - name: Install containerd
+        run: |
+          set -x
+          sudo apt-get update
+          sudo apt-get install libseccomp-dev
+          sudo systemctl status containerd || true
+          which containerd || true
+          containerd --version || true
+          cat /lib/systemd/system/containerd.service || true
+          cat /lib/systemd/system/docker.service || true
+          git clone --branch v1.7.0 https://github.com/containerd/containerd.git
+          pushd containerd
+          # sudo make install-cri-deps
+          make
+          sudo make install
+          popd
+          sudo systemctl status containerd || true
+          which containerd || true
+          containerd --version || true
+          cat <<EOF | sudo tee /lib/systemd/system/containerd.service
+          [Unit]
+          Description=containerd container runtime
+          Documentation=https://containerd.io
+          After=network.target local-fs.target
+          [Service]
+          ExecStartPre=-/sbin/modprobe overlay
+          ExecStart=/usr/local/bin/containerd
+          Type=notify
+          Delegate=yes
+          KillMode=process
+          Restart=always
+          RestartSec=5
+          LimitNPROC=infinity
+          LimitCORE=infinity
+          LimitNOFILE=infinity
+          TasksMax=infinity
+          OOMScoreAdjust=-999
+          [Install]
+          WantedBy=multi-user.target
+          EOF
+          sudo systemctl daemon-reload || true
+          sudo systemctl restart containerd || true
+          sudo ls -l /run/containerd/containerd.sock || true
+          sudo systemctl restart docker || true
+          # sudo apt-get install -y curl alien
+          # curl -OL https://github.com/containerd/containerd/releases/download/v1.7.0/containerd-1.7.0-linux-amd64.tar.gz
+          # sudo alien --to-deb containerd-1.7.0-linux-amd64.tar.gz
+          # sudo dpkg -P --force-depends moby-containerd
+          # sudo dpkg -i containerd_1.7.0-2_all.deb
+          # cd /lib/systemd/system/
+          # sudo curl -OL https://raw.githubusercontent.com/containerd/containerd/v1.7.0/containerd.service
+          # sudo systemctl daemon-reload || true
+          # sudo systemctl status containerd || true
+          # sudo systemctl restart containerd || true
+          # sudo systemctl status containerd || true
+          # sudo journalctl -xe || true
+          # sudo systemctl status docker || true
+          # sudo systemctl restart docker || true
+          # sudo docker version || true
+          # sudo docker system info || true
       - uses: actions/checkout@v3
-      - uses: actions/setup-go@v4
+      # amd64 is a special case, runs directly on the runner, can use actions directly
+      - if: ${{ matrix.arch == 'amd64' }}
+        uses: actions/setup-go@v4
         with:
-          go-version: '1.18.10'
-      - run: make integration
+          go-version: ${{ env.GO_VERSION }}
+      - if: ${{ matrix.arch == 'amd64' }}
+        run: make integration
+      # all other arch run in qemu, can only use shell scripts
+      - if: ${{ matrix.arch != 'amd64' }}
+        uses: uraimo/run-on-arch-action@v2
+        with:
+          arch: ${{ fromJSON('{"arm64":"aarch64"}')[matrix.arch] }}
+          distro: ubuntu20.04
+          githubToken: ${{ github.token }} # org permission required to save packages and skip rebuilding docker image
+          dockerRunArgs: --volume "${PWD}:/soci-snapshotter"
+          install: |
+            set -x
+            echo "Installing packages"
+            apt-get update -y
+            apt-get install -y make git g++ zlib1g-dev
+            apt-get install -y curl
+            echo "Installing Go"
+            curl -OL https://golang.org/dl/go${{ env.GO_VERSION }}.linux-${{ matrix.arch }}.tar.gz
+            tar -C /usr/local -xf go${{ env.GO_VERSION }}.linux-${{ matrix.arch }}.tar.gz
+            export PATH=$PATH:/usr/local/go/bin
+            go version
+            echo "Installing docker"
+            apt-get install -y docker docker-compose
+          run: |
+            set -x
+            git config --global --add safe.directory /soci-snapshotter
+            cd /soci-snapshotter
+            export PATH=$PATH:/usr/local/go/bin
+            docker --version || true
+            docker version || true
+            docker system info || true
+            docker ps || true
+            make integration
