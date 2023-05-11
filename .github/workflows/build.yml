@@ -41,9 +41,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        include:
-          - containerd: "1.6.19"
-          - containerd: "1.7.0"
+        containerd: ["1.6.19", "1.7.0"]
     env:
       DOCKER_BUILD_ARGS: "CONTAINERD_VERSION=${{ matrix.containerd }}"
     steps:
