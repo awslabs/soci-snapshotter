@@ -20,7 +20,19 @@ OUTDIR ?= $(CURDIR)/out
 PKG=github.com/awslabs/soci-snapshotter
 VERSION=$(shell git describe --match 'v[0-9]*' --dirty='.m' --always --tags)
 REVISION=$(shell git rev-parse HEAD)$(shell if ! git diff --no-ext-diff --quiet --exit-code; then echo .m; fi)
-GO_LD_FLAGS=-ldflags '-s -w -X $(PKG)/version.Version=$(VERSION) -X $(PKG)/version.Revision=$(REVISION) $(GO_EXTRA_LDFLAGS)'
+
+GO_BUILDTAGS ?=
+ifneq ($(STATIC),)
+	GO_BUILDTAGS += osusergo netgo static_build
+endif
+GO_TAGS=$(if $(GO_BUILDTAGS),-tags "$(strip $(GO_BUILDTAGS))",)
+
+GO_LD_FLAGS=-ldflags '-s -w -X $(PKG)/version.Version=$(VERSION) -X $(PKG)/version.Revision=$(REVISION) $(GO_EXTRA_LDFLAGS)
+ifneq ($(STATIC),)
+	GO_LD_FLAGS += -extldflags "-static"
+endif
+GO_LD_FLAGS+='
+
 SOCI_SNAPSHOTTER_PROJECT_ROOT ?= $(shell pwd)
 LTAG_TEMPLATE_FLAG=-t ./.headers
 FBS_FILE_PATH=$(CURDIR)/ztoc/fbs/ztoc.fbs
@@ -40,10 +52,10 @@ build: $(CMD)
 FORCE:
 
 soci-snapshotter-grpc: FORCE
-	cd cmd/ ; GO111MODULE=$(GO111MODULE_VALUE) go build -o $(OUTDIR)/$@ $(GO_BUILD_FLAGS) $(GO_LD_FLAGS) ./soci-snapshotter-grpc
+	cd cmd/ ; GO111MODULE=$(GO111MODULE_VALUE) go build -o $(OUTDIR)/$@ $(GO_BUILD_FLAGS) $(GO_LD_FLAGS) $(GO_TAGS) ./soci-snapshotter-grpc
 
 soci: FORCE
-	cd cmd/ ; GO111MODULE=$(GO111MODULE_VALUE) go build -o $(OUTDIR)/$@ $(GO_BUILD_FLAGS) $(GO_LD_FLAGS) ./soci
+	cd cmd/ ; GO111MODULE=$(GO111MODULE_VALUE) go build -o $(OUTDIR)/$@ $(GO_BUILD_FLAGS) $(GO_LD_FLAGS) $(GO_TAGS) ./soci
 
 check:
 	cd scripts/ ; ./check-all.sh
