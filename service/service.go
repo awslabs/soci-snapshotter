@@ -36,6 +36,7 @@ import (
 	"context"
 	"path/filepath"
 
+	"github.com/awslabs/soci-snapshotter/config"
 	socifs "github.com/awslabs/soci-snapshotter/fs"
 	"github.com/awslabs/soci-snapshotter/fs/layer"
 	"github.com/awslabs/soci-snapshotter/fs/source"
@@ -76,7 +77,7 @@ func WithFilesystemOptions(opts ...socifs.Option) Option {
 }
 
 // NewSociSnapshotterService returns soci snapshotter.
-func NewSociSnapshotterService(ctx context.Context, root string, config *Config, opts ...Option) (snapshots.Snapshotter, error) {
+func NewSociSnapshotterService(ctx context.Context, root string, serviceCfg *config.ServiceConfig, opts ...Option) (snapshots.Snapshotter, error) {
 	var sOpts options
 	for _, o := range opts {
 		o(&sOpts)
@@ -85,7 +86,7 @@ func NewSociSnapshotterService(ctx context.Context, root string, config *Config,
 	hosts := sOpts.registryHosts
 	if hosts == nil {
 		// Use RegistryHosts based on ResolverConfig and keychain
-		hosts = resolver.RegistryHostsFromConfig(resolver.Config(config.ResolverConfig), sOpts.credsFuncs...)
+		hosts = resolver.RegistryHostsFromConfig(serviceCfg.ResolverConfig, sOpts.credsFuncs...)
 	}
 	userxattr, err := overlayutils.NeedsUserXAttr(snapshotterRoot(root))
 	if err != nil {
@@ -99,7 +100,7 @@ func NewSociSnapshotterService(ctx context.Context, root string, config *Config,
 	fsOpts := append(sOpts.fsOpts, socifs.WithGetSources(
 		source.FromDefaultLabels(hosts), // provides source info based on default labels
 	), socifs.WithOverlayOpaqueType(opq))
-	fs, err := socifs.NewFilesystem(ctx, fsRoot(root), config.Config, fsOpts...)
+	fs, err := socifs.NewFilesystem(ctx, fsRoot(root), serviceCfg.FSConfig, fsOpts...)
 	if err != nil {
 		log.G(ctx).WithError(err).Fatalf("failed to configure filesystem")
 	}
@@ -107,10 +108,10 @@ func NewSociSnapshotterService(ctx context.Context, root string, config *Config,
 	var snapshotter snapshots.Snapshotter
 
 	snOpts := []snbase.Opt{snbase.WithAsynchronousRemove}
-	if config.MinLayerSize > -1 {
-		snOpts = append(snOpts, snbase.WithMinLayerSize(config.MinLayerSize))
+	if serviceCfg.MinLayerSize > -1 {
+		snOpts = append(snOpts, snbase.WithMinLayerSize(serviceCfg.MinLayerSize))
 	}
-	if config.SnapshotterConfig.AllowInvalidMountsOnRestart {
+	if serviceCfg.SnapshotterConfig.AllowInvalidMountsOnRestart {
 		snOpts = append(snOpts, snbase.AllowInvalidMountsOnRestart)
 	}
 

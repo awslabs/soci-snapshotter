@@ -38,15 +38,9 @@
 
 package config
 
-const (
-	// Default path to OCI-compliant CAS
-	SociContentStorePath = "/var/lib/soci-snapshotter-grpc/content/"
+import "time"
 
-	// Default path to snapshotter root dir
-	SociSnapshotterRootPath = "/var/lib/soci-snapshotter-grpc/"
-)
-
-type Config struct {
+type FSConfig struct {
 	HTTPCacheType                  string `toml:"http_cache_type"`
 	FSCacheType                    string `toml:"filesystem_cache_type"`
 	ResolveResultEntry             int    `toml:"resolve_result_entry"`
@@ -58,10 +52,8 @@ type Config struct {
 	MountTimeoutSec                int64  `toml:"mount_timeout_sec"`
 	FuseMetricsEmitWaitDurationSec int64  `toml:"fuse_metrics_emit_wait_duration_sec"`
 
-	// BlobConfig is config for layer blob management.
 	BlobConfig `toml:"blob"`
 
-	// DirectoryCacheConfig is config for directory-based cache.
 	DirectoryCacheConfig `toml:"directory_cache"`
 
 	FuseConfig `toml:"fuse"`
@@ -69,6 +61,7 @@ type Config struct {
 	BackgroundFetchConfig `toml:"background_fetch"`
 }
 
+// BlobConfig is config for layer blob management.
 type BlobConfig struct {
 	ValidInterval        int64 `toml:"valid_interval"`
 	CheckAlways          bool  `toml:"check_always"`
@@ -83,6 +76,7 @@ type BlobConfig struct {
 	MaxSpanVerificationRetries int `toml:"max_span_verification_retries"`
 }
 
+// DirectoryCacheConfig is config for directory-based cache.
 type DirectoryCacheConfig struct {
 	MaxLRUCacheEntry int  `toml:"max_lru_cache_entry"`
 	MaxCacheFds      int  `toml:"max_cache_fds"`
@@ -125,4 +119,36 @@ type BackgroundFetchConfig struct {
 	// EmitMetricPeriodSec is the amount of interval (in second) at which the background
 	// fetcher emits metrics
 	EmitMetricPeriodSec int64 `toml:"emit_metric_period_sec"`
+}
+
+// RetryConfig represents the settings for retries in a retryable http client.
+type RetryConfig struct {
+	// MaxRetries is the maximum number of retries before giving up on a retryable request.
+	// This does not include the initial request so the total number of attempts will be MaxRetries + 1.
+	MaxRetries int
+	// MinWait is the minimum wait time between attempts. The actual wait time is governed by the BackoffStrategy,
+	// but the wait time will never be shorter than this duration.
+	MinWait time.Duration
+	// MaxWait is the maximum wait time between attempts. The actual wait time is governed by the BackoffStrategy,
+	// but the wait time will never be longer than this duration.
+	MaxWait time.Duration
+}
+
+// TimeoutConfig represents the settings for timeout at various points in a request lifecycle in a retryable http client.
+type TimeoutConfig struct {
+	// DialTimeout is the maximum duration that connection can take before a request attempt is timed out.
+	DialTimeout time.Duration
+	// ResponseHeaderTimeout is the maximum duration waiting for response headers before a request attempt is timed out.
+	// This starts after the entire request body is uploaded to the remote endpoint and stops when the request headers
+	// are fully read. It does not include reading the body.
+	ResponseHeaderTimeout time.Duration
+	// RequestTimeout is the maximum duration before the entire request attempt is timed out. This starts when the
+	// client starts the connection attempt and ends when the entire response body is read.
+	RequestTimeout time.Duration
+}
+
+// RetryableClientConfig is the complete config for a retryable http client
+type RetryableClientConfig struct {
+	TimeoutConfig
+	RetryConfig
 }

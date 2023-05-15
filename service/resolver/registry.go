@@ -35,42 +35,20 @@ package resolver
 import (
 	"time"
 
+	"github.com/awslabs/soci-snapshotter/config"
 	"github.com/awslabs/soci-snapshotter/fs/source"
 	socihttp "github.com/awslabs/soci-snapshotter/util/http"
 	"github.com/containerd/containerd/reference"
 	"github.com/containerd/containerd/remotes/docker"
 )
 
-// Config is config for resolving registries.
-type Config struct {
-	Host map[string]HostConfig `toml:"host"`
-}
-
-type HostConfig struct {
-	Mirrors []MirrorConfig `toml:"mirrors"`
-}
-
-type MirrorConfig struct {
-
-	// Host is the hostname of the host.
-	Host string `toml:"host"`
-
-	// Insecure is true means use http scheme instead of https.
-	Insecure bool `toml:"insecure"`
-
-	// RequestTimeoutSec is timeout seconds of each request to the registry.
-	// RequestTimeoutSec == 0 indicates the default timeout (defaultRequestTimeoutSec).
-	// RequestTimeoutSec < 0 indicates no timeout.
-	RequestTimeoutSec int64 `toml:"request_timeout_sec"`
-}
-
 type Credential func(string, reference.Spec) (string, string, error)
 
 // RegistryHostsFromConfig creates RegistryHosts (a set of registry configuration) from Config.
-func RegistryHostsFromConfig(cfg Config, credsFuncs ...Credential) source.RegistryHosts {
+func RegistryHostsFromConfig(registryConfig config.ResolverConfig, credsFuncs ...Credential) source.RegistryHosts {
 	return func(ref reference.Spec) (hosts []docker.RegistryHost, _ error) {
 		host := ref.Hostname()
-		for _, h := range append(cfg.Host[host].Mirrors, MirrorConfig{
+		for _, h := range append(registryConfig.Host[host].Mirrors, config.MirrorConfig{
 			Host: host,
 		}) {
 			clientConfig := socihttp.NewRetryableClientConfig()

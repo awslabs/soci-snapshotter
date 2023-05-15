@@ -26,8 +26,8 @@ import (
 	"strings"
 
 	"github.com/awslabs/soci-snapshotter/cmd/soci/commands/internal"
+	"github.com/awslabs/soci-snapshotter/config"
 	"github.com/awslabs/soci-snapshotter/fs"
-	"github.com/awslabs/soci-snapshotter/fs/config"
 	"github.com/awslabs/soci-snapshotter/soci"
 	"github.com/containerd/containerd/cmd/ctr/commands"
 	"github.com/containerd/containerd/reference"

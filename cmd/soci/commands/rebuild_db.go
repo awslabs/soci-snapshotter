@@ -19,7 +19,7 @@ package commands
 import (
 	"path/filepath"
 
-	"github.com/awslabs/soci-snapshotter/fs/config"
+	"github.com/awslabs/soci-snapshotter/config"
 	"github.com/awslabs/soci-snapshotter/soci"
 	"github.com/containerd/containerd/cmd/ctr/commands"
 	"github.com/urfave/cli"

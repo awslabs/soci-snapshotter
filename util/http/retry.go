@@ -23,6 +23,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/awslabs/soci-snapshotter/config"
 	"github.com/containerd/containerd/log"
 	rhttp "github.com/hashicorp/go-retryablehttp"
 	"github.com/sirupsen/logrus"
@@ -46,49 +47,17 @@ const (
 	DefaultMaxWaitMsec = 300_000
 )
 
-// RetryConfig represents the settings for retries in a retryable http client.
-type RetryConfig struct {
-	// MaxRetries is the maximum number of retries before giving up on a retryable request.
-	// This does not include the initial request so the total number of attempts will be MaxRetries + 1.
-	MaxRetries int
-	// MinWait is the minimum wait time between attempts. The actual wait time is governed by the BackoffStrategy,
-	// but the wait time will never be shorter than this duration.
-	MinWait time.Duration
-	// MaxWait is the maximum wait time between attempts. The actual wait time is governed by the BackoffStrategy,
-	// but the wait time will never be longer than this duration.
-	MaxWait time.Duration
-}
-
-// TimeoutConfig represents the settings for timeout at various points in a request lifecycle in a retryable http client.
-type TimeoutConfig struct {
-	// DialTimeout is the maximum duration that connection can take before a request attempt is timed out.
-	DialTimeout time.Duration
-	// ResponseHeaderTimeout is the maximum duration waiting for response headers before a request attempt is timed out.
-	// This starts after the entire request body is uploaded to the remote endpoint and stops when the request headers
-	// are fully read. It does not include reading the body.
-	ResponseHeaderTimeout time.Duration
-	// RequestTimeout is the maximum duration before the entire request attempt is timed out. This starts when the
-	// client starts the connection attempt and ends when the entire response body is read.
-	RequestTimeout time.Duration
-}
-
-// RetryableClientConfig is the complete config for a retryable http client
-type RetryableClientConfig struct {
-	TimeoutConfig
-	RetryConfig
-}
-
 // NewRetryableClientConfig creates a new config with default values.
 // Users of `NewRetryableClient` should use this method to get a new
 // config and then overwrite values if desired.
-func NewRetryableClientConfig() RetryableClientConfig {
-	return RetryableClientConfig{
-		TimeoutConfig{
+func NewRetryableClientConfig() config.RetryableClientConfig {
+	return config.RetryableClientConfig{
+		TimeoutConfig: config.TimeoutConfig{
 			DialTimeout:           DefaultDialTimeoutMsec * time.Millisecond,
 			ResponseHeaderTimeout: DefaultResponseHeaderTimeoutMsec * time.Millisecond,
 			RequestTimeout:        DefaultRequestTimeoutMsec * time.Millisecond,
 		},
-		RetryConfig{
+		RetryConfig: config.RetryConfig{
 			MaxRetries: DefaultMaxRetries,
 			MinWait:    DefaultMinWaitMsec * time.Millisecond,
 			MaxWait:    DefaultMaxWaitMsec * time.Millisecond,
@@ -98,7 +67,7 @@ func NewRetryableClientConfig() RetryableClientConfig {
 
 // NewRetryableClient creates a go http.Client which will automatically
 // retry on non-fatal errors
-func NewRetryableClient(config RetryableClientConfig) *http.Client {
+func NewRetryableClient(config config.RetryableClientConfig) *http.Client {
 	rhttpClient := rhttp.NewClient()
 	// Don't log every request
 	rhttpClient.Logger = nil

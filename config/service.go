@@ -30,15 +30,10 @@
    limitations under the License.
 */
 
-package service
+package config
 
-import (
-	"github.com/awslabs/soci-snapshotter/fs/config"
-	"github.com/awslabs/soci-snapshotter/service/resolver"
-)
-
-type Config struct {
-	config.Config
+type ServiceConfig struct {
+	FSConfig
 
 	// KubeconfigKeychainConfig is config for kubeconfig-based keychain.
 	KubeconfigKeychainConfig `toml:"kubeconfig_keychain"`
@@ -71,9 +66,6 @@ type CRIKeychainConfig struct {
 	// ImageServicePath is the path to the unix socket of backing CRI Image Service (e.g. containerd CRI plugin)
 	ImageServicePath string `toml:"image_service_path"`
 }
-
-// ResolverConfig is config for resolving registries.
-type ResolverConfig resolver.Config
 
 // SnapshotterConfig is snapshotter-related config.
 type SnapshotterConfig struct {

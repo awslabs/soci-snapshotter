@@ -50,8 +50,8 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/awslabs/soci-snapshotter/config"
 	bf "github.com/awslabs/soci-snapshotter/fs/backgroundfetcher"
-	"github.com/awslabs/soci-snapshotter/fs/config"
 	"github.com/awslabs/soci-snapshotter/fs/layer"
 	commonmetrics "github.com/awslabs/soci-snapshotter/fs/metrics/common"
 	layermetrics "github.com/awslabs/soci-snapshotter/fs/metrics/layer"
@@ -142,7 +142,7 @@ func WithOverlayOpaqueType(overlayOpaqueType layer.OverlayOpaqueType) Option {
 	}
 }
 
-func NewFilesystem(ctx context.Context, root string, cfg config.Config, opts ...Option) (_ snapshot.FileSystem, err error) {
+func NewFilesystem(ctx context.Context, root string, cfg config.FSConfig, opts ...Option) (_ snapshot.FileSystem, err error) {
 	var fsOpts options
 	for _, o := range opts {
 		o(&fsOpts)

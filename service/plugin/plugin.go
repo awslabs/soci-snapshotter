@@ -40,6 +40,7 @@ import (
 	"path/filepath"
 	"time"
 
+	"github.com/awslabs/soci-snapshotter/config"
 	"github.com/awslabs/soci-snapshotter/service"
 	"github.com/awslabs/soci-snapshotter/service/keychain/cri"
 	"github.com/awslabs/soci-snapshotter/service/keychain/dockerconfig"
@@ -58,7 +59,7 @@ import (
 
 // Config represents configuration for the soci snapshotter plugin.
 type Config struct {
-	service.Config
+	config.ServiceConfig
 
 	// RootPath is the directory for the plugin
 	RootPath string `toml:"root_path"`
@@ -92,17 +93,17 @@ func init() {
 
 			// Configure keychain
 			credsFuncs := []resolver.Credential{dockerconfig.NewDockerConfigKeychain(ctx)}
-			if config.Config.KubeconfigKeychainConfig.EnableKeychain {
+			if config.KubeconfigKeychainConfig.EnableKeychain {
 				var opts []kubeconfig.Option
-				if kcp := config.Config.KubeconfigKeychainConfig.KubeconfigPath; kcp != "" {
+				if kcp := config.KubeconfigKeychainConfig.KubeconfigPath; kcp != "" {
 					opts = append(opts, kubeconfig.WithKubeconfigPath(kcp))
 				}
 				credsFuncs = append(credsFuncs, kubeconfig.NewKubeconfigKeychain(ctx, opts...))
 			}
-			if addr := config.CRIKeychainImageServicePath; config.Config.CRIKeychainConfig.EnableKeychain && addr != "" {
+			if addr := config.CRIKeychainImageServicePath; config.CRIKeychainConfig.EnableKeychain && addr != "" {
 				// connects to the backend CRI service (defaults to containerd socket)
 				criAddr := ic.Address
-				if cp := config.Config.CRIKeychainConfig.ImageServicePath; cp != "" {
+				if cp := config.CRIKeychainConfig.ImageServicePath; cp != "" {
 					criAddr = cp
 				}
 				if criAddr == "" {
@@ -155,7 +156,7 @@ func init() {
 
 			// TODO(ktock): print warn if old configuration is specified.
 			// TODO(ktock): should we respect old configuration?
-			return service.NewSociSnapshotterService(ctx, root, &config.Config,
+			return service.NewSociSnapshotterService(ctx, root, &config.ServiceConfig,
 				service.WithCustomRegistryHosts(resolver.RegistryHostsFromCRIConfig(ctx, config.Registry, credsFuncs...)))
 		},
 	})

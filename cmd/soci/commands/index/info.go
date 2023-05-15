@@ -22,7 +22,7 @@ import (
 	"io"
 	"os"
 
-	"github.com/awslabs/soci-snapshotter/fs/config"
+	"github.com/awslabs/soci-snapshotter/config"
 	"github.com/awslabs/soci-snapshotter/soci"
 
 	"github.com/opencontainers/go-digest"

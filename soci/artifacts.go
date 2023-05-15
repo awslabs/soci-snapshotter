@@ -27,7 +27,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/awslabs/soci-snapshotter/fs/config"
+	"github.com/awslabs/soci-snapshotter/config"
 	"github.com/awslabs/soci-snapshotter/util/dbutil"
 	"github.com/containerd/containerd/content"
 	"github.com/containerd/containerd/errdefs"
