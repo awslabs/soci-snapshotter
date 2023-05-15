@@ -75,35 +75,9 @@ import (
 	"oras.land/oras-go/v2/content/oci"
 )
 
-const (
-	defaultFuseTimeout = time.Second
-	fusermountBin      = "fusermount"
-
-	// Amount of time the background fetcher will wait once a new layer comes in
-	// before (re)starting fetches.
-	defaultBgSilencePeriod = 30 * time.Second
-
-	// Specifies how often the fetch will occur.
-	// The background fetcher will fetch a single span every `defaultFetchPeriod`.
-	defaultBgFetchPeriod = 500 * time.Millisecond
-
-	// Specifies the maximum size of the bg-fetcher work queue i.e., the maximum number
-	// of span managers that can be queued. In case of overflow, the `Add` call
-	// will block until a span manager is removed from the workqueue.
-	defaultBgMaxQueueSize = 100
-
-	// The default amount of interval at which the background fetcher emits metrics
-	defaultBgMetricEmitPeriod = 10 * time.Second
-
-	// Amount of time Mount will time out if a layer can't be resolved.
-	defaultMountTimeout = 30 * time.Second
-
-	// Amount of time the snapshotter will wait before emitting the metrics for FUSE operation.
-	defaultFuseMetricsEmitWaitDuration = 60 * time.Second
-)
-
 var (
 	defaultIndexSelectionPolicy = SelectFirstPolicy
+	fusermountBin               = "fusermount"
 )
 
 type Option func(*options)
@@ -148,20 +122,17 @@ func NewFilesystem(ctx context.Context, root string, cfg config.FSConfig, opts .
 		o(&fsOpts)
 	}
 
-	attrTimeout := time.Duration(cfg.FuseConfig.AttrTimeout) * time.Second
-	if attrTimeout == 0 {
-		attrTimeout = defaultFuseTimeout
-	}
-
-	entryTimeout := time.Duration(cfg.FuseConfig.EntryTimeout) * time.Second
-	if entryTimeout == 0 {
-		entryTimeout = defaultFuseTimeout
-	}
-
-	negativeTimeout := time.Duration(cfg.FuseConfig.NegativeTimeout) * time.Second
-	if negativeTimeout == 0 {
-		negativeTimeout = defaultFuseTimeout
-	}
+	var (
+		mountTimeout                = time.Duration(cfg.MountTimeoutSec) * time.Second
+		fuseMetricsEmitWaitDuration = time.Duration(cfg.FuseMetricsEmitWaitDurationSec) * time.Second
+		attrTimeout                 = time.Duration(cfg.FuseConfig.AttrTimeout) * time.Second
+		entryTimeout                = time.Duration(cfg.FuseConfig.EntryTimeout) * time.Second
+		negativeTimeout             = time.Duration(cfg.FuseConfig.NegativeTimeout) * time.Second
+		bgFetchPeriod               = time.Duration(cfg.BackgroundFetchConfig.FetchPeriodMsec) * time.Millisecond
+		bgSilencePeriod             = time.Duration(cfg.BackgroundFetchConfig.SilencePeriodMsec) * time.Millisecond
+		bgEmitMetricPeriod          = time.Duration(cfg.BackgroundFetchConfig.EmitMetricPeriodSec) * time.Second
+		bgMaxQueueSize              = cfg.BackgroundFetchConfig.MaxQueueSize
+	)
 
 	metadataStore := fsOpts.metadataStore
 
@@ -172,32 +143,13 @@ func NewFilesystem(ctx context.Context, root string, cfg config.FSConfig, opts .
 		})
 	}
 
-	bgFetchPeriod := time.Duration(cfg.BackgroundFetchConfig.FetchPeriodMsec) * time.Millisecond
-	if bgFetchPeriod == 0 {
-		bgFetchPeriod = defaultBgFetchPeriod
-	}
-
-	bgSilencePeriod := time.Duration(cfg.BackgroundFetchConfig.SilencePeriodMsec) * time.Millisecond
-	if bgSilencePeriod == 0 {
-		bgSilencePeriod = defaultBgSilencePeriod
-	}
-
-	bgMaxQueueSize := cfg.BackgroundFetchConfig.MaxQueueSize
-	if bgMaxQueueSize == 0 {
-		bgMaxQueueSize = defaultBgMaxQueueSize
-	}
-
-	bgEmitMetricPeriod := time.Duration(cfg.BackgroundFetchConfig.EmitMetricPeriodSec) * time.Second
-	if bgEmitMetricPeriod == 0 {
-		bgEmitMetricPeriod = defaultBgMetricEmitPeriod
-	}
-
 	store, err := oci.New(config.SociContentStorePath)
 	if err != nil {
 		return nil, fmt.Errorf("cannot create local store: %w", err)
 	}
 
 	var bgFetcher *bf.BackgroundFetcher
+
 	if !cfg.BackgroundFetchConfig.Disable {
 		log.G(context.Background()).WithFields(logrus.Fields{
 			"fetchPeriod":      bgFetchPeriod,
@@ -233,16 +185,6 @@ func NewFilesystem(ctx context.Context, root string, cfg config.FSConfig, opts .
 	if ns != nil {
 		metrics.Register(ns) // Register layer metrics.
 	}
-	mountTimeout := time.Duration(cfg.MountTimeoutSec) * time.Second
-	if mountTimeout == 0 {
-		mountTimeout = defaultMountTimeout
-	}
-
-	fuseMetricsEmitWaitDuration := time.Duration(cfg.FuseMetricsEmitWaitDurationSec) * time.Second
-	if fuseMetricsEmitWaitDuration == 0 {
-		fuseMetricsEmitWaitDuration = defaultFuseMetricsEmitWaitDuration
-	}
-
 	return &filesystem{
 		// it's generally considered bad practice to store a context in a struct,
 		// however `filesystem` has it's own lifecycle as well as a per-request lifecycle.
@@ -262,6 +204,7 @@ func NewFilesystem(ctx context.Context, root string, cfg config.FSConfig, opts .
 		attrTimeout:                 attrTimeout,
 		entryTimeout:                entryTimeout,
 		negativeTimeout:             negativeTimeout,
+		httpConfig:                  cfg.RetryableHTTPClientConfig,
 		orasStore:                   store,
 		bgFetcher:                   bgFetcher,
 		mountTimeout:                mountTimeout,
@@ -279,7 +222,7 @@ type sociContext struct {
 	fuseOperationCounter *layer.FuseOperationCounter
 }
 
-func (c *sociContext) Init(fsCtx context.Context, ctx context.Context, imageRef, indexDigest, imageManifestDigest string, store orascontent.Storage, fuseOpEmitWaitDuration time.Duration) error {
+func (c *sociContext) Init(fsCtx context.Context, ctx context.Context, imageRef, indexDigest, imageManifestDigest string, store orascontent.Storage, fuseOpEmitWaitDuration time.Duration, httpConfig config.RetryableHTTPClientConfig) error {
 	var retErr error
 	c.fetchOnce.Do(func() {
 		defer func() {
@@ -296,7 +239,7 @@ func (c *sociContext) Init(fsCtx context.Context, ctx context.Context, imageRef,
 			return
 		}
 
-		remoteStore, err := newRemoteStore(refspec)
+		remoteStore, err := newRemoteStore(refspec, httpConfig)
 		if err != nil {
 			retErr = err
 			return
@@ -364,6 +307,7 @@ type filesystem struct {
 	attrTimeout                 time.Duration
 	entryTimeout                time.Duration
 	negativeTimeout             time.Duration
+	httpConfig                  config.RetryableHTTPClientConfig
 	sociContexts                sync.Map
 	orasStore                   orascontent.Storage
 	bgFetcher                   *bf.BackgroundFetcher
@@ -390,7 +334,7 @@ func (fs *filesystem) MountLocal(ctx context.Context, mountpoint string, labels 
 	if err != nil {
 		return fmt.Errorf("cannot parse image ref (%s): %w", imageRef, err)
 	}
-	remoteStore, err := newRemoteStore(refspec)
+	remoteStore, err := newRemoteStore(refspec, fs.httpConfig)
 	if err != nil {
 		return fmt.Errorf("cannot create remote store: %w", err)
 	}
@@ -414,7 +358,7 @@ func (fs *filesystem) getSociContext(ctx context.Context, imageRef, indexDigest,
 	if !ok {
 		return nil, fmt.Errorf("could not load index: fs soci context is invalid type for %s", indexDigest)
 	}
-	err := c.Init(fs.ctx, ctx, imageRef, indexDigest, imageManifestDigest, fs.orasStore, fs.fuseMetricsEmitWaitDuration)
+	err := c.Init(fs.ctx, ctx, imageRef, indexDigest, imageManifestDigest, fs.orasStore, fs.fuseMetricsEmitWaitDuration, fs.httpConfig)
 	return c, err
 }
 

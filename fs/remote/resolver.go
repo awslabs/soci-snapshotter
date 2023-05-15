@@ -74,25 +74,6 @@ const (
 )
 
 func NewResolver(cfg config.BlobConfig, handlers map[string]Handler) *Resolver {
-	if cfg.ValidInterval == 0 { // zero means "use default interval"
-		cfg.ValidInterval = defaultValidIntervalSec
-	}
-	if cfg.CheckAlways {
-		cfg.ValidInterval = 0
-	}
-	if cfg.FetchTimeoutSec == 0 {
-		cfg.FetchTimeoutSec = defaultFetchTimeoutSec
-	}
-	if cfg.MaxRetries == 0 {
-		cfg.MaxRetries = socihttp.DefaultMaxRetries
-	}
-	if cfg.MinWaitMsec == 0 {
-		cfg.MinWaitMsec = socihttp.DefaultMinWaitMsec
-	}
-	if cfg.MaxWaitMsec == 0 {
-		cfg.MaxWaitMsec = socihttp.DefaultMaxWaitMsec
-	}
-
 	return &Resolver{
 		blobConfig: cfg,
 		handlers:   handlers,

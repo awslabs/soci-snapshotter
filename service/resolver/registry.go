@@ -33,8 +33,6 @@
 package resolver
 
 import (
-	"time"
-
 	"github.com/awslabs/soci-snapshotter/config"
 	"github.com/awslabs/soci-snapshotter/fs/source"
 	socihttp "github.com/awslabs/soci-snapshotter/util/http"
@@ -45,20 +43,19 @@ import (
 type Credential func(string, reference.Spec) (string, string, error)
 
 // RegistryHostsFromConfig creates RegistryHosts (a set of registry configuration) from Config.
-func RegistryHostsFromConfig(registryConfig config.ResolverConfig, credsFuncs ...Credential) source.RegistryHosts {
+func RegistryHostsFromConfig(registryConfig config.ResolverConfig, httpConfig config.RetryableHTTPClientConfig, credsFuncs ...Credential) source.RegistryHosts {
 	return func(ref reference.Spec) (hosts []docker.RegistryHost, _ error) {
 		host := ref.Hostname()
 		for _, h := range append(registryConfig.Host[host].Mirrors, config.MirrorConfig{
 			Host: host,
 		}) {
-			clientConfig := socihttp.NewRetryableClientConfig()
 			if h.RequestTimeoutSec < 0 {
-				clientConfig.RequestTimeout = 0
+				httpConfig.RequestTimeoutMsec = 0
 			}
 			if h.RequestTimeoutSec > 0 {
-				clientConfig.RequestTimeout = time.Duration(h.RequestTimeoutSec) * time.Second
+				httpConfig.RequestTimeoutMsec = h.RequestTimeoutSec * 1000
 			}
-			client := socihttp.NewRetryableClient(clientConfig)
+			client := socihttp.NewRetryableClient(httpConfig)
 			config := docker.RegistryHost{
 				Client:       client,
 				Host:         h.Host,

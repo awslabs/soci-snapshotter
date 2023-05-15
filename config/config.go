@@ -38,12 +38,21 @@
 
 package config
 
+import (
+	"fmt"
+	"os"
+
+	"github.com/pelletier/go-toml"
+)
+
 const (
 	// Default path to OCI-compliant CAS
 	SociContentStorePath = "/var/lib/soci-snapshotter-grpc/content/"
 
 	// Default path to snapshotter root dir
 	SociSnapshotterRootPath = "/var/lib/soci-snapshotter-grpc/"
+
+	defaultConfigPath = "/etc/soci-snapshotter-grpc/config.toml"
 )
 
 type Config struct {
@@ -63,4 +72,30 @@ type Config struct {
 
 	// MetadataStore is the type of the metadata store to use.
 	MetadataStore string `toml:"metadata_store" default:"db"`
+}
+type configParser func(*Config)
+
+func NewConfigFromToml(cfgPath string) (*Config, error) {
+	cfg := &Config{}
+	// Get configuration from specified file
+	tree, err := toml.LoadFile(cfgPath)
+	if err != nil && !(os.IsNotExist(err) && cfgPath == defaultConfigPath) {
+		return nil, fmt.Errorf("failed to load config file %q", cfgPath)
+	}
+	if err := tree.Unmarshal(cfg); err != nil {
+		return nil, fmt.Errorf("failed to unmarshal config file %q", cfgPath)
+	}
+	parsers := []configParser{parseRootConfig, parseServiceConfig, parseFSConfig}
+
+	for _, p := range parsers {
+		p(cfg)
+	}
+
+	return cfg, nil
+}
+
+func parseRootConfig(cfg *Config) {
+	if cfg.MetricsNetwork == "" {
+		cfg.MetricsNetwork = defaultMetricsNetwork
+	}
 }

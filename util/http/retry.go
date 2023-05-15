@@ -29,64 +29,28 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-const (
-	// DefaultDialTimeoutMsec is the default number of milliseconds before timeout while connecting to a remote endpoint. See `TimeoutConfig.DialTimeout`.
-	DefaultDialTimeoutMsec = 3000
-	// DefaultResponseHeaderTimeoutMsec is the default number of milliseconds before timeout while waiting for response header from a remote endpoint. See `TimeoutConfig.ResponseHeaderTimeout`.
-	DefaultResponseHeaderTimeoutMsec = 3000
-	// DefaultRequestTimeoutMsec is the default number of milliseconds that the entire request can take before timeout. See `TimeoutConfig.RequestTimeout`.
-	DefaultRequestTimeoutMsec = 30_000
-
-	// defaults based on a target total retry time of at least 5s. 30*((2^8)-1)>5000
-
-	// DefaultMaxRetries is the default number of retries that a retryable request will make. See `RetryConfig.MaxRetries`.
-	DefaultMaxRetries = 8
-	// DefaultMinWaitMsec is the default minimum number of milliseconds between attempts. See `RetryConfig.MinWait`.
-	DefaultMinWaitMsec = 30
-	// DefaultMaxWaitMsec is the default maxmimum number of millisends between attempts. See `RetryConfig.MaxWait`.
-	DefaultMaxWaitMsec = 300_000
-)
-
-// NewRetryableClientConfig creates a new config with default values.
-// Users of `NewRetryableClient` should use this method to get a new
-// config and then overwrite values if desired.
-func NewRetryableClientConfig() config.RetryableClientConfig {
-	return config.RetryableClientConfig{
-		TimeoutConfig: config.TimeoutConfig{
-			DialTimeout:           DefaultDialTimeoutMsec * time.Millisecond,
-			ResponseHeaderTimeout: DefaultResponseHeaderTimeoutMsec * time.Millisecond,
-			RequestTimeout:        DefaultRequestTimeoutMsec * time.Millisecond,
-		},
-		RetryConfig: config.RetryConfig{
-			MaxRetries: DefaultMaxRetries,
-			MinWait:    DefaultMinWaitMsec * time.Millisecond,
-			MaxWait:    DefaultMaxWaitMsec * time.Millisecond,
-		},
-	}
-}
-
 // NewRetryableClient creates a go http.Client which will automatically
 // retry on non-fatal errors
-func NewRetryableClient(config config.RetryableClientConfig) *http.Client {
+func NewRetryableClient(config config.RetryableHTTPClientConfig) *http.Client {
 	rhttpClient := rhttp.NewClient()
 	// Don't log every request
 	rhttpClient.Logger = nil
 
 	// set retry config
 	rhttpClient.RetryMax = config.MaxRetries
-	rhttpClient.RetryWaitMin = config.MinWait
-	rhttpClient.RetryWaitMax = config.MaxWait
+	rhttpClient.RetryWaitMin = time.Duration(config.MinWaitMsec) * time.Millisecond
+	rhttpClient.RetryWaitMax = time.Duration(config.MaxWaitMsec) * time.Millisecond
 	rhttpClient.Backoff = BackoffStrategy
 	rhttpClient.CheckRetry = RetryStrategy
-	rhttpClient.HTTPClient.Timeout = config.RequestTimeout
+	rhttpClient.HTTPClient.Timeout = time.Duration(config.RequestTimeoutMsec) * time.Millisecond
 
 	// set timeouts
 	innerTransport := rhttpClient.HTTPClient.Transport
 	if t, ok := innerTransport.(*http.Transport); ok {
 		t.DialContext = (&net.Dialer{
-			Timeout: config.DialTimeout,
+			Timeout: time.Duration(config.DialTimeoutMsec) * time.Millisecond,
 		}).DialContext
-		t.ResponseHeaderTimeout = config.ResponseHeaderTimeout
+		t.ResponseHeaderTimeout = time.Duration(config.ResponseHeaderTimeoutMsec) * time.Millisecond
 	}
 
 	return rhttpClient.StandardClient()
