@@ -78,3 +78,9 @@ type SnapshotterConfig struct {
 	//       ctr (e.g. `ctr snapshot rm`).
 	AllowInvalidMountsOnRestart bool `toml:"allow_invalid_mounts_on_restart"`
 }
+
+func parseServiceConfig(cfg *Config) {
+	if cfg.CRIKeychainConfig.ImageServicePath == "" {
+		cfg.CRIKeychainConfig.ImageServicePath = defaultImageServiceAddress
+	}
+}

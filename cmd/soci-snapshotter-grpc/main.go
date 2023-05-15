@@ -67,7 +67,6 @@ import (
 	runtime_alpha "github.com/containerd/containerd/third_party/k8s.io/cri-api/pkg/apis/runtime/v1alpha2"
 	sddaemon "github.com/coreos/go-systemd/v22/daemon"
 	metrics "github.com/docker/go-metrics"
-	"github.com/pelletier/go-toml"
 	"github.com/sirupsen/logrus"
 	bolt "go.etcd.io/bbolt"
 	"golang.org/x/sys/unix"
@@ -77,12 +76,10 @@ import (
 )
 
 const (
-	defaultAddress             = "/run/soci-snapshotter-grpc/soci-snapshotter-grpc.sock"
-	defaultConfigPath          = "/etc/soci-snapshotter-grpc/config.toml"
-	defaultLogLevel            = logrus.InfoLevel
-	defaultRootDir             = "/var/lib/soci-snapshotter-grpc"
-	defaultImageServiceAddress = "/run/containerd/containerd.sock"
-	defaultMetricsNetwork      = "tcp"
+	defaultAddress    = "/run/soci-snapshotter-grpc/soci-snapshotter-grpc.sock"
+	defaultConfigPath = "/etc/soci-snapshotter-grpc/config.toml"
+	defaultLogLevel   = logrus.InfoLevel
+	defaultRootDir    = "/var/lib/soci-snapshotter-grpc"
 )
 
 // logLevel of Debug or Trace may emit sensitive information
@@ -111,10 +108,7 @@ func main() {
 		TimestampFormat: log.RFC3339NanoFixed,
 	})
 
-	var (
-		ctx, cancel = context.WithCancel(log.WithLogger(context.Background(), log.L))
-		cfg         config.Config
-	)
+	ctx, cancel := context.WithCancel(log.WithLogger(context.Background(), log.L))
 	defer cancel()
 	// Streams log of standard lib (go-fuse uses this) into debug log
 	// Snapshotter should use "github.com/containerd/containerd/log" otherwise
@@ -125,13 +119,9 @@ func main() {
 		"revision": version.Revision,
 	}).Info("starting soci-snapshotter-grpc")
 
-	// Get configuration from specified file
-	tree, err := toml.LoadFile(*configPath)
-	if err != nil && !(os.IsNotExist(err) && *configPath == defaultConfigPath) {
-		log.G(ctx).WithError(err).Fatalf("failed to load config file %q", *configPath)
-	}
-	if err := tree.Unmarshal(&cfg); err != nil {
-		log.G(ctx).WithError(err).Fatalf("failed to unmarshal config file %q", *configPath)
+	cfg, err := config.NewConfigFromToml(*configPath)
+	if err != nil {
+		log.G(ctx).WithError(err).Fatal(err)
 	}
 
 	if err := service.Supported(*rootDir); err != nil {
@@ -152,10 +142,6 @@ func main() {
 	}
 	if cfg.CRIKeychainConfig.EnableKeychain {
 		// connects to the backend CRI service (defaults to containerd socket)
-		criAddr := defaultImageServiceAddress
-		if cp := cfg.CRIKeychainConfig.ImageServicePath; cp != "" {
-			criAddr = cp
-		}
 		connectCRI := func() (runtime_alpha.ImageServiceClient, error) {
 			// TODO: make gRPC options configurable from config.toml
 			backoffConfig := backoff.DefaultConfig
@@ -170,7 +156,7 @@ func main() {
 				grpc.WithDefaultCallOptions(grpc.MaxCallRecvMsgSize(defaults.DefaultMaxRecvMsgSize)),
 				grpc.WithDefaultCallOptions(grpc.MaxCallSendMsgSize(defaults.DefaultMaxSendMsgSize)),
 			}
-			conn, err := grpc.Dial(dialer.DialAddress(criAddr), gopts...)
+			conn, err := grpc.Dial(dialer.DialAddress(cfg.CRIKeychainConfig.ImageServicePath), gopts...)
 			if err != nil {
 				return nil, err
 			}
@@ -181,7 +167,7 @@ func main() {
 		credsFuncs = append(credsFuncs, f)
 	}
 	var fsOpts []fs.Option
-	mt, err := getMetadataStore(*rootDir, cfg)
+	mt, err := getMetadataStore(*rootDir, *cfg)
 	if err != nil {
 		log.G(ctx).WithError(err).Fatalf("failed to configure metadata store")
 	}
@@ -192,7 +178,7 @@ func main() {
 		log.G(ctx).WithError(err).Fatalf("failed to configure snapshotter")
 	}
 
-	cleanup, err := serve(ctx, rpc, *address, rs, cfg)
+	cleanup, err := serve(ctx, rpc, *address, rs, *cfg)
 	if err != nil {
 		log.G(ctx).WithError(err).Fatalf("failed to serve snapshotter")
 	}
@@ -232,9 +218,6 @@ func serve(ctx context.Context, rpc *grpc.Server, addr string, rs snapshots.Snap
 
 	// We need to consider both the existence of MetricsAddress as well as NoPrometheus flag not set
 	if cfg.MetricsAddress != "" && !cfg.NoPrometheus {
-		if cfg.MetricsNetwork == "" {
-			cfg.MetricsNetwork = defaultMetricsNetwork
-		}
 		l, err := net.Listen(cfg.MetricsNetwork, cfg.MetricsAddress)
 		if err != nil {
 			return false, fmt.Errorf("failed to get listener for metrics endpoint: %w", err)

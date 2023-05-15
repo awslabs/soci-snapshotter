@@ -38,8 +38,6 @@
 
 package config
 
-import "time"
-
 type FSConfig struct {
 	HTTPCacheType                  string `toml:"http_cache_type"`
 	FSCacheType                    string `toml:"filesystem_cache_type"`
@@ -52,7 +50,8 @@ type FSConfig struct {
 	MountTimeoutSec                int64  `toml:"mount_timeout_sec"`
 	FuseMetricsEmitWaitDurationSec int64  `toml:"fuse_metrics_emit_wait_duration_sec"`
 
-	BlobConfig `toml:"blob"`
+	RetryableHTTPClientConfig `toml:"http"`
+	BlobConfig                `toml:"blob"`
 
 	DirectoryCacheConfig `toml:"directory_cache"`
 
@@ -128,27 +127,120 @@ type RetryConfig struct {
 	MaxRetries int
 	// MinWait is the minimum wait time between attempts. The actual wait time is governed by the BackoffStrategy,
 	// but the wait time will never be shorter than this duration.
-	MinWait time.Duration
+	MinWaitMsec int64
 	// MaxWait is the maximum wait time between attempts. The actual wait time is governed by the BackoffStrategy,
 	// but the wait time will never be longer than this duration.
-	MaxWait time.Duration
+	MaxWaitMsec int64
 }
 
 // TimeoutConfig represents the settings for timeout at various points in a request lifecycle in a retryable http client.
 type TimeoutConfig struct {
 	// DialTimeout is the maximum duration that connection can take before a request attempt is timed out.
-	DialTimeout time.Duration
+	DialTimeoutMsec int64
 	// ResponseHeaderTimeout is the maximum duration waiting for response headers before a request attempt is timed out.
 	// This starts after the entire request body is uploaded to the remote endpoint and stops when the request headers
 	// are fully read. It does not include reading the body.
-	ResponseHeaderTimeout time.Duration
+	ResponseHeaderTimeoutMsec int64
 	// RequestTimeout is the maximum duration before the entire request attempt is timed out. This starts when the
 	// client starts the connection attempt and ends when the entire response body is read.
-	RequestTimeout time.Duration
+	RequestTimeoutMsec int64
 }
 
-// RetryableClientConfig is the complete config for a retryable http client
-type RetryableClientConfig struct {
+// RetryableHTTPClientConfig is the complete config for a retryable http client
+type RetryableHTTPClientConfig struct {
 	TimeoutConfig
 	RetryConfig
+}
+
+func parseFSConfig(cfg *Config) {
+	// Parse top level fs config
+	if cfg.MountTimeoutSec == 0 {
+		cfg.MountTimeoutSec = defaultMountTimeoutSec
+	}
+	if cfg.FuseMetricsEmitWaitDurationSec == 0 {
+		cfg.FuseMetricsEmitWaitDurationSec = defaultFuseMetricsEmitWaitDurationSec
+	}
+	// Parse nested fs configs
+	parsers := []configParser{parseFuseConfig, parseBackgroundFetchConfig, parseRetryableHTTPClientConfig, parseBlobConfig}
+	for _, p := range parsers {
+		p(cfg)
+	}
+}
+
+func parseFuseConfig(cfg *Config) {
+	if cfg.FuseConfig.AttrTimeout == 0 {
+		cfg.FuseConfig.AttrTimeout = defaultFuseTimeoutSec
+	}
+
+	if cfg.FuseConfig.EntryTimeout == 0 {
+		cfg.FuseConfig.EntryTimeout = defaultFuseTimeoutSec
+	}
+
+	if cfg.FuseConfig.NegativeTimeout == 0 {
+		cfg.FuseConfig.NegativeTimeout = defaultFuseTimeoutSec
+	}
+}
+
+func parseBackgroundFetchConfig(cfg *Config) {
+	if cfg.BackgroundFetchConfig.FetchPeriodMsec == 0 {
+		cfg.BackgroundFetchConfig.FetchPeriodMsec = defaultBgFetchPeriodMsec
+	}
+	if cfg.BackgroundFetchConfig.SilencePeriodMsec == 0 {
+		cfg.BackgroundFetchConfig.SilencePeriodMsec = defaultBgSilencePeriodMsec
+	}
+
+	if cfg.BackgroundFetchConfig.MaxQueueSize == 0 {
+		cfg.BackgroundFetchConfig.MaxQueueSize = defaultBgMaxQueueSize
+	}
+
+	if cfg.BackgroundFetchConfig.EmitMetricPeriodSec == 0 {
+		cfg.BackgroundFetchConfig.EmitMetricPeriodSec = defaultBgMetricEmitPeriodSec
+	}
+}
+
+func parseRetryableHTTPClientConfig(cfg *Config) {
+	if cfg.RetryableHTTPClientConfig.TimeoutConfig.DialTimeoutMsec == 0 {
+		cfg.RetryableHTTPClientConfig.TimeoutConfig.DialTimeoutMsec = defaultDialTimeoutMsec
+	}
+
+	if cfg.RetryableHTTPClientConfig.TimeoutConfig.ResponseHeaderTimeoutMsec == 0 {
+		cfg.RetryableHTTPClientConfig.TimeoutConfig.ResponseHeaderTimeoutMsec = defaultResponseHeaderTimeoutMsec
+
+	}
+	if cfg.RetryableHTTPClientConfig.TimeoutConfig.RequestTimeoutMsec == 0 {
+		cfg.RetryableHTTPClientConfig.TimeoutConfig.RequestTimeoutMsec = defaultRequestTimeoutMsec
+
+	}
+	if cfg.RetryableHTTPClientConfig.RetryConfig.MaxRetries == 0 {
+		cfg.RetryableHTTPClientConfig.RetryConfig.MaxRetries = defaultMaxRetries
+
+	}
+	if cfg.RetryableHTTPClientConfig.RetryConfig.MinWaitMsec == 0 {
+		cfg.RetryableHTTPClientConfig.RetryConfig.MinWaitMsec = defaultMinWaitMsec
+
+	}
+	if cfg.RetryableHTTPClientConfig.RetryConfig.MaxWaitMsec == 0 {
+		cfg.RetryableHTTPClientConfig.RetryConfig.MaxWaitMsec = defaultMaxWaitMsec
+	}
+}
+
+func parseBlobConfig(cfg *Config) {
+	if cfg.BlobConfig.ValidInterval == 0 {
+		cfg.BlobConfig.ValidInterval = defaultValidIntervalSec
+	}
+	if cfg.BlobConfig.CheckAlways {
+		cfg.BlobConfig.ValidInterval = 0
+	}
+	if cfg.BlobConfig.FetchTimeoutSec == 0 {
+		cfg.BlobConfig.FetchTimeoutSec = defaultFetchTimeoutSec
+	}
+	if cfg.BlobConfig.MaxRetries == 0 {
+		cfg.BlobConfig.MaxRetries = cfg.RetryableHTTPClientConfig.RetryConfig.MaxRetries
+	}
+	if cfg.BlobConfig.MinWaitMsec == 0 {
+		cfg.BlobConfig.MinWaitMsec = cfg.RetryableHTTPClientConfig.RetryConfig.MinWaitMsec
+	}
+	if cfg.BlobConfig.MaxWaitMsec == 0 {
+		cfg.BlobConfig.MaxWaitMsec = cfg.RetryableHTTPClientConfig.RetryConfig.MaxWaitMsec
+	}
 }

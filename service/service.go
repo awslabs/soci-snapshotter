@@ -86,7 +86,7 @@ func NewSociSnapshotterService(ctx context.Context, root string, serviceCfg *con
 	hosts := sOpts.registryHosts
 	if hosts == nil {
 		// Use RegistryHosts based on ResolverConfig and keychain
-		hosts = resolver.RegistryHostsFromConfig(serviceCfg.ResolverConfig, sOpts.credsFuncs...)
+		hosts = resolver.RegistryHostsFromConfig(serviceCfg.ResolverConfig, serviceCfg.FSConfig.RetryableHTTPClientConfig, sOpts.credsFuncs...)
 	}
 	userxattr, err := overlayutils.NeedsUserXAttr(snapshotterRoot(root))
 	if err != nil {

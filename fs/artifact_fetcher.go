@@ -23,6 +23,7 @@ import (
 	"fmt"
 	"io"
 
+	"github.com/awslabs/soci-snapshotter/config"
 	"github.com/awslabs/soci-snapshotter/service/keychain/dockerconfig"
 	"github.com/awslabs/soci-snapshotter/soci"
 	socihttp "github.com/awslabs/soci-snapshotter/util/http"
@@ -67,14 +68,14 @@ func newArtifactFetcher(refspec reference.Spec, localStore content.Storage, remo
 	}, nil
 }
 
-func newRemoteStore(refspec reference.Spec) (*remote.Repository, error) {
+func newRemoteStore(refspec reference.Spec, httpConfig config.RetryableHTTPClientConfig) (*remote.Repository, error) {
 	repo, err := remote.NewRepository(refspec.Locator)
 	if err != nil {
 		return nil, fmt.Errorf("cannot create repository %s: %w", refspec.Locator, err)
 	}
 
 	authClient := auth.Client{
-		Client: socihttp.NewRetryableClient(socihttp.NewRetryableClientConfig()),
+		Client: socihttp.NewRetryableClient(httpConfig),
 		Cache:  auth.DefaultCache,
 		Credential: func(_ context.Context, host string) (auth.Credential, error) {
 			username, secret, err := dockerconfig.DockerCreds(host)
