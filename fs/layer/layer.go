@@ -49,7 +49,7 @@ import (
 	"time"
 
 	"github.com/awslabs/soci-snapshotter/cache"
-	"github.com/awslabs/soci-snapshotter/fs/config"
+	"github.com/awslabs/soci-snapshotter/config"
 
 	backgroundfetcher "github.com/awslabs/soci-snapshotter/fs/backgroundfetcher"
 	commonmetrics "github.com/awslabs/soci-snapshotter/fs/metrics/common"
@@ -125,7 +125,7 @@ type Resolver struct {
 	blobCache         *lrucache.Cache
 	blobCacheMu       sync.Mutex
 	resolveLock       *namedmutex.NamedMutex
-	config            config.Config
+	config            config.FSConfig
 	metadataStore     metadata.Store
 	artifactStore     content.Storage
 	overlayOpaqueType OverlayOpaqueType
@@ -133,7 +133,7 @@ type Resolver struct {
 }
 
 // NewResolver returns a new layer resolver.
-func NewResolver(root string, cfg config.Config, resolveHandlers map[string]remote.Handler,
+func NewResolver(root string, cfg config.FSConfig, resolveHandlers map[string]remote.Handler,
 	metadataStore metadata.Store, artifactStore content.Storage, overlayOpaqueType OverlayOpaqueType, bgFetcher *backgroundfetcher.BackgroundFetcher) (*Resolver, error) {
 	resolveResultEntry := cfg.ResolveResultEntry
 	if resolveResultEntry == 0 {
@@ -180,7 +180,7 @@ func NewResolver(root string, cfg config.Config, resolveHandlers map[string]remo
 	}, nil
 }
 
-func newCache(root string, cacheType string, cfg config.Config) (cache.BlobCache, error) {
+func newCache(root string, cacheType string, cfg config.FSConfig) (cache.BlobCache, error) {
 	if cacheType == memoryCacheType {
 		return cache.NewMemoryCache(), nil
 	}

@@ -48,6 +48,7 @@ import (
 
 	_ "net/http/pprof"
 
+	"github.com/awslabs/soci-snapshotter/config"
 	"github.com/awslabs/soci-snapshotter/fs"
 	"github.com/awslabs/soci-snapshotter/metadata"
 	"github.com/awslabs/soci-snapshotter/service"
@@ -94,25 +95,6 @@ var (
 	printVersion = flag.Bool("version", false, "print the version")
 )
 
-type snapshotterConfig struct {
-	service.Config
-
-	// MetricsAddress is address for the metrics API
-	MetricsAddress string `toml:"metrics_address"`
-
-	// MetricsNetwork is the type of network for the metrics API (e.g. tcp or unix)
-	MetricsNetwork string `toml:"metrics_network"`
-
-	// NoPrometheus is a flag to disable the emission of the metrics
-	NoPrometheus bool `toml:"no_prometheus"`
-
-	// DebugAddress is a Unix domain socket address where the snapshotter exposes /debug/ endpoints.
-	DebugAddress string `toml:"debug_address"`
-
-	// MetadataStore is the type of the metadata store to use.
-	MetadataStore string `toml:"metadata_store" default:"db"`
-}
-
 func main() {
 	rand.Seed(time.Now().UnixNano())
 	flag.Parse()
@@ -131,7 +113,7 @@ func main() {
 
 	var (
 		ctx, cancel = context.WithCancel(log.WithLogger(context.Background(), log.L))
-		config      snapshotterConfig
+		cfg         config.Config
 	)
 	defer cancel()
 	// Streams log of standard lib (go-fuse uses this) into debug log
@@ -148,7 +130,7 @@ func main() {
 	if err != nil && !(os.IsNotExist(err) && *configPath == defaultConfigPath) {
 		log.G(ctx).WithError(err).Fatalf("failed to load config file %q", *configPath)
 	}
-	if err := tree.Unmarshal(&config); err != nil {
+	if err := tree.Unmarshal(&cfg); err != nil {
 		log.G(ctx).WithError(err).Fatalf("failed to unmarshal config file %q", *configPath)
 	}
 
@@ -161,17 +143,17 @@ func main() {
 
 	// Configure keychain
 	credsFuncs := []resolver.Credential{dockerconfig.NewDockerConfigKeychain(ctx)}
-	if config.Config.KubeconfigKeychainConfig.EnableKeychain {
+	if cfg.KubeconfigKeychainConfig.EnableKeychain {
 		var opts []kubeconfig.Option
-		if kcp := config.Config.KubeconfigKeychainConfig.KubeconfigPath; kcp != "" {
+		if kcp := cfg.KubeconfigKeychainConfig.KubeconfigPath; kcp != "" {
 			opts = append(opts, kubeconfig.WithKubeconfigPath(kcp))
 		}
 		credsFuncs = append(credsFuncs, kubeconfig.NewKubeconfigKeychain(ctx, opts...))
 	}
-	if config.Config.CRIKeychainConfig.EnableKeychain {
+	if cfg.CRIKeychainConfig.EnableKeychain {
 		// connects to the backend CRI service (defaults to containerd socket)
 		criAddr := defaultImageServiceAddress
-		if cp := config.CRIKeychainConfig.ImageServicePath; cp != "" {
+		if cp := cfg.CRIKeychainConfig.ImageServicePath; cp != "" {
 			criAddr = cp
 		}
 		connectCRI := func() (runtime_alpha.ImageServiceClient, error) {
@@ -199,18 +181,18 @@ func main() {
 		credsFuncs = append(credsFuncs, f)
 	}
 	var fsOpts []fs.Option
-	mt, err := getMetadataStore(*rootDir, config)
+	mt, err := getMetadataStore(*rootDir, cfg)
 	if err != nil {
 		log.G(ctx).WithError(err).Fatalf("failed to configure metadata store")
 	}
 	fsOpts = append(fsOpts, fs.WithMetadataStore(mt))
-	rs, err := service.NewSociSnapshotterService(ctx, *rootDir, &config.Config,
+	rs, err := service.NewSociSnapshotterService(ctx, *rootDir, &cfg.ServiceConfig,
 		service.WithCredsFuncs(credsFuncs...), service.WithFilesystemOptions(fsOpts...))
 	if err != nil {
 		log.G(ctx).WithError(err).Fatalf("failed to configure snapshotter")
 	}
 
-	cleanup, err := serve(ctx, rpc, *address, rs, config)
+	cleanup, err := serve(ctx, rpc, *address, rs, cfg)
 	if err != nil {
 		log.G(ctx).WithError(err).Fatalf("failed to serve snapshotter")
 	}
@@ -222,7 +204,7 @@ func main() {
 	log.G(ctx).Info("Exiting")
 }
 
-func serve(ctx context.Context, rpc *grpc.Server, addr string, rs snapshots.Snapshotter, config snapshotterConfig) (bool, error) {
+func serve(ctx context.Context, rpc *grpc.Server, addr string, rs snapshots.Snapshotter, cfg config.Config) (bool, error) {
 	// Convert the snapshotter to a gRPC service,
 	snsvc := snapshotservice.FromSnapshotter(rs)
 
@@ -249,11 +231,11 @@ func serve(ctx context.Context, rpc *grpc.Server, addr string, rs snapshots.Snap
 	}()
 
 	// We need to consider both the existence of MetricsAddress as well as NoPrometheus flag not set
-	if config.MetricsAddress != "" && !config.NoPrometheus {
-		if config.MetricsNetwork == "" {
-			config.MetricsNetwork = defaultMetricsNetwork
+	if cfg.MetricsAddress != "" && !cfg.NoPrometheus {
+		if cfg.MetricsNetwork == "" {
+			cfg.MetricsNetwork = defaultMetricsNetwork
 		}
-		l, err := net.Listen(config.MetricsNetwork, config.MetricsAddress)
+		l, err := net.Listen(cfg.MetricsNetwork, cfg.MetricsAddress)
 		if err != nil {
 			return false, fmt.Errorf("failed to get listener for metrics endpoint: %w", err)
 		}
@@ -267,10 +249,10 @@ func serve(ctx context.Context, rpc *grpc.Server, addr string, rs snapshots.Snap
 		}()
 	}
 
-	if config.DebugAddress != "" {
-		log.G(ctx).Infof("listen %q for debugging", config.DebugAddress)
+	if cfg.DebugAddress != "" {
+		log.G(ctx).Infof("listen %q for debugging", cfg.DebugAddress)
 		go func() {
-			if err := http.ListenAndServe(config.DebugAddress, nil); err != nil {
+			if err := http.ListenAndServe(cfg.DebugAddress, nil); err != nil {
 				errCh <- fmt.Errorf("error on serving a debug endpoint via socket %q: %w", addr, err)
 			}
 		}()
@@ -318,7 +300,7 @@ const (
 	dbMetadataType = "db"
 )
 
-func getMetadataStore(rootDir string, config snapshotterConfig) (metadata.Store, error) {
+func getMetadataStore(rootDir string, config config.Config) (metadata.Store, error) {
 	switch config.MetadataStore {
 	case "", dbMetadataType:
 		bOpts := bolt.Options{
