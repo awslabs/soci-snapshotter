@@ -96,8 +96,7 @@ func NewSociSnapshotterService(ctx context.Context, root string, config *Config,
 		opq = layer.OverlayOpaqueUser
 	}
 	// Configure filesystem and snapshotter
-	fsOpts := append(sOpts.fsOpts, socifs.WithGetSources(sources(
-		SourceFromCRILabels(hosts),      // provides source info based on CRI labels
+	fsOpts := append(sOpts.fsOpts, socifs.WithGetSources(
 		source.FromDefaultLabels(hosts), // provides source info based on default labels
 	), socifs.WithOverlayOpaqueType(opq))
 	fs, err := socifs.NewFilesystem(ctx, fsRoot(root), config.Config, fsOpts...)

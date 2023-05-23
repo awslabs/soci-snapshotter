@@ -30,7 +30,6 @@ import (
 	"github.com/awslabs/soci-snapshotter/fs/layer"
 	"github.com/awslabs/soci-snapshotter/fs/source"
 	"github.com/awslabs/soci-snapshotter/metadata"
-	"github.com/awslabs/soci-snapshotter/service"
 	"github.com/awslabs/soci-snapshotter/service/keychain/dockerconfig"
 	"github.com/awslabs/soci-snapshotter/service/keychain/kubeconfig"
 	"github.com/awslabs/soci-snapshotter/service/resolver"
@@ -142,10 +141,9 @@ func main() {
 	// Configure filesystem and snapshotter
 	var fsOpts []socifs.Option
 	opq := layer.OverlayOpaqueTrusted
-	fsOpts = append(fsOpts, socifs.WithGetSources(sources(
-		service.SourceFromCRILabels(hosts), // provides source info based on CRI labels
+	fsOpts = append(fsOpts, socifs.WithGetSources(
 		source.FromDefaultLabels(hosts),    // provides source info based on default labels
-	)), socifs.WithOverlayOpaqueType(opq))
+	), socifs.WithOverlayOpaqueType(opq))
 	fs, err := socifs.NewFilesystem(ctx, defaultRootDir, config.Config, fsOpts...)
 	if err != nil {
 		log.G(ctx).WithError(err).Fatalf("failed to prepare fs")
@@ -207,7 +205,7 @@ func getMetadataStore(rootDir string, config Config) (metadata.Store, error) {
 	if err != nil {
 		return nil, err
 	}
-	return func(sr *io.SectionReader, ztoc *ztoc.Ztoc, opts ...metadata.Option) (metadata.Reader, error) {
+	return func(sr *io.SectionReader, ztoc ztoc.TOC, opts ...metadata.Option) (metadata.Reader, error) {
 		return metadata.NewReader(db, sr, ztoc, opts...)
 	}, nil
 }
