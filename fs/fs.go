@@ -60,6 +60,7 @@ import (
 	"github.com/awslabs/soci-snapshotter/metadata"
 	"github.com/awslabs/soci-snapshotter/snapshot"
 	"github.com/awslabs/soci-snapshotter/soci"
+	"github.com/awslabs/soci-snapshotter/soci/store"
 	"github.com/containerd/containerd/log"
 	"github.com/containerd/containerd/mount"
 	ctdsnapshotters "github.com/containerd/containerd/pkg/snapshotters"
@@ -71,8 +72,6 @@ import (
 	"github.com/opencontainers/go-digest"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/sirupsen/logrus"
-	orascontent "oras.land/oras-go/v2/content"
-	"oras.land/oras-go/v2/content/oci"
 )
 
 var (
@@ -142,10 +141,9 @@ func NewFilesystem(ctx context.Context, root string, cfg config.FSConfig, opts .
 			return docker.ConfigureDefaultRegistries(docker.WithPlainHTTP(docker.MatchLocalhost))(refspec.Hostname())
 		})
 	}
-
-	store, err := oci.New(config.SociContentStorePath)
+	ctx, store, err := store.NewContentStore(ctx, store.WithType(store.ContentStoreType(cfg.ContentStoreConfig.Type)), store.WithNamespace(cfg.ContentStoreConfig.Namespace))
 	if err != nil {
-		return nil, fmt.Errorf("cannot create local store: %w", err)
+		return nil, fmt.Errorf("cannot create content store: %w", err)
 	}
 
 	var bgFetcher *bf.BackgroundFetcher
@@ -205,7 +203,7 @@ func NewFilesystem(ctx context.Context, root string, cfg config.FSConfig, opts .
 		entryTimeout:                entryTimeout,
 		negativeTimeout:             negativeTimeout,
 		httpConfig:                  cfg.RetryableHTTPClientConfig,
-		orasStore:                   store,
+		contentStore:                store,
 		bgFetcher:                   bgFetcher,
 		mountTimeout:                mountTimeout,
 		fuseMetricsEmitWaitDuration: fuseMetricsEmitWaitDuration,
@@ -222,7 +220,7 @@ type sociContext struct {
 	fuseOperationCounter *layer.FuseOperationCounter
 }
 
-func (c *sociContext) Init(fsCtx context.Context, ctx context.Context, imageRef, indexDigest, imageManifestDigest string, store orascontent.Storage, fuseOpEmitWaitDuration time.Duration, httpConfig config.RetryableHTTPClientConfig) error {
+func (c *sociContext) Init(fsCtx context.Context, ctx context.Context, imageRef, indexDigest, imageManifestDigest string, store store.Store, fuseOpEmitWaitDuration time.Duration, httpConfig config.RetryableHTTPClientConfig) error {
 	var retErr error
 	c.fetchOnce.Do(func() {
 		defer func() {
@@ -267,7 +265,7 @@ func (c *sociContext) Init(fsCtx context.Context, ctx context.Context, imageRef,
 
 		log.G(ctx).WithField("digest", indexDesc.Digest.String()).Infof("fetching SOCI artifacts using index descriptor")
 
-		index, err := FetchSociArtifacts(ctx, refspec, indexDesc, store, remoteStore)
+		index, err := FetchSociArtifacts(fsCtx, refspec, indexDesc, store, remoteStore)
 		if err != nil {
 			retErr = fmt.Errorf("error trying to fetch SOCI artifacts: %w", err)
 			return
@@ -309,7 +307,7 @@ type filesystem struct {
 	negativeTimeout             time.Duration
 	httpConfig                  config.RetryableHTTPClientConfig
 	sociContexts                sync.Map
-	orasStore                   orascontent.Storage
+	contentStore                store.Store
 	bgFetcher                   *bf.BackgroundFetcher
 	mountTimeout                time.Duration
 	fuseMetricsEmitWaitDuration time.Duration
@@ -338,7 +336,7 @@ func (fs *filesystem) MountLocal(ctx context.Context, mountpoint string, labels 
 	if err != nil {
 		return fmt.Errorf("cannot create remote store: %w", err)
 	}
-	fetcher, err := newArtifactFetcher(refspec, fs.orasStore, remoteStore)
+	fetcher, err := newArtifactFetcher(refspec, fs.contentStore, remoteStore)
 	if err != nil {
 		return fmt.Errorf("cannot create fetcher: %w", err)
 	}
@@ -358,7 +356,7 @@ func (fs *filesystem) getSociContext(ctx context.Context, imageRef, indexDigest,
 	if !ok {
 		return nil, fmt.Errorf("could not load index: fs soci context is invalid type for %s", indexDigest)
 	}
-	err := c.Init(fs.ctx, ctx, imageRef, indexDigest, imageManifestDigest, fs.orasStore, fs.fuseMetricsEmitWaitDuration, fs.httpConfig)
+	err := c.Init(fs.ctx, ctx, imageRef, indexDigest, imageManifestDigest, fs.contentStore, fs.fuseMetricsEmitWaitDuration, fs.httpConfig)
 	return c, err
 }
 

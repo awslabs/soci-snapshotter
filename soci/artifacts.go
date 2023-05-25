@@ -28,6 +28,7 @@ import (
 	"time"
 
 	"github.com/awslabs/soci-snapshotter/config"
+	"github.com/awslabs/soci-snapshotter/soci/store"
 	"github.com/awslabs/soci-snapshotter/util/dbutil"
 	"github.com/containerd/containerd/content"
 	"github.com/containerd/containerd/errdefs"
@@ -37,7 +38,6 @@ import (
 	"github.com/opencontainers/go-digest"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	bolt "go.etcd.io/bbolt"
-	"oras.land/oras-go/v2/content/oci"
 )
 
 // Artifacts package stores SOCI artifacts info in the following schema.
@@ -174,8 +174,8 @@ func (db *ArtifactsDb) Walk(f func(*ArtifactEntry) error) error {
 }
 
 // SyncWithLocalStore will sync the artifacts databse with SOCIs local content store, either adding new or removing old artifacts.
-func (db *ArtifactsDb) SyncWithLocalStore(ctx context.Context, blobStore *oci.Store, blobStorePath string, cs content.Store) error {
-	if err := db.removeOldArtifacts(blobStore); err != nil {
+func (db *ArtifactsDb) SyncWithLocalStore(ctx context.Context, blobStore store.Store, blobStorePath string, cs content.Store) error {
+	if err := db.RemoveOldArtifacts(blobStore); err != nil {
 		return fmt.Errorf("failed to remove old artifacts from db: %w", err)
 	}
 	if err := db.addNewArtifacts(ctx, blobStorePath, cs); err != nil {
@@ -184,12 +184,12 @@ func (db *ArtifactsDb) SyncWithLocalStore(ctx context.Context, blobStore *oci.St
 	return nil
 }
 
-// removeOldArtifacts will remove any artifacts from the artifacts database that
+// RemoveOldArtifacts will remove any artifacts from the artifacts database that
 // no longer exist in SOCIs local content store. NOTE: Removing buckets while iterating
 // (bucket.ForEach) causes unexpected behavior (see: https://github.com/boltdb/bolt/issues/426).
 // This implementation works around this issue by appending buckets to a slice when
 // iterating and removing them after.
-func (db *ArtifactsDb) removeOldArtifacts(blobStore *oci.Store) error {
+func (db *ArtifactsDb) RemoveOldArtifacts(blobStore store.Store) error {
 	err := db.db.Update(func(tx *bolt.Tx) error {
 		bucket, err := getArtifactsBucket(tx)
 		if err != nil {
@@ -251,11 +251,22 @@ func (db *ArtifactsDb) addNewArtifacts(ctx context.Context, blobStorePath string
 			return err
 		}
 		defer f.Close()
+
 		var sociIndex Index
+		// tests to ensure artifact is really an index
 		if err = DecodeIndex(f, &sociIndex); err != nil {
-			// skip: entry is a ztoc
 			return nil
 		}
+		if sociIndex.MediaType != ocispec.MediaTypeImageManifest {
+			return nil
+		}
+		if sociIndex.ArtifactType != SociIndexArtifactType {
+			return nil
+		}
+		if sociIndex.Subject == nil {
+			return nil
+		}
+		// entry is an index
 		indexDigest := addHashPrefix(d.Name())
 		ae, err := db.GetArtifactEntry(indexDigest)
 		if err != nil && !errors.Is(err, ErrArtifactBucketNotFound) && !errors.Is(err, errdefs.ErrNotFound) {
@@ -335,28 +346,29 @@ func (db *ArtifactsDb) GetArtifactType(digest string) (ArtifactEntryType, error)
 }
 
 // RemoveArtifactEntryByIndexDigest removes an index's artifact entry using its digest
-func (db *ArtifactsDb) RemoveArtifactEntryByIndexDigest(digest string) error {
+func (db *ArtifactsDb) RemoveArtifactEntryByIndexDigest(digest []byte) error {
 	return db.db.Update(func(tx *bolt.Tx) error {
 		bucket, err := getArtifactsBucket(tx)
 		if err != nil {
 			return err
 		}
 
-		dgstBucket := bucket.Bucket([]byte(digest))
+		dgstBucket := bucket.Bucket(digest)
 		if dgstBucket == nil {
 			return fmt.Errorf("the index of the digest %v doesn't exist", digest)
 		}
 
 		if indexBucket(dgstBucket) {
-			return bucket.DeleteBucket([]byte(digest))
+			return bucket.DeleteBucket(digest)
 		}
 		return fmt.Errorf("the digest %v does not correspond to an index", digest)
 	})
 }
 
-// RemoveArtifactEntryByIndexDigest removes an index's artifact entry using the image digest
-func (db *ArtifactsDb) RemoveArtifactEntryByImageDigest(digest string) error {
-	return db.db.Update(func(tx *bolt.Tx) error {
+// GetArtifactEntriesByImageDigest returns all index digests greated from a given image digest
+func (db *ArtifactsDb) GetArtifactEntriesByImageDigest(digest string) ([][]byte, error) {
+	entries := make([][]byte, 0)
+	return entries, db.db.View(func(tx *bolt.Tx) error {
 		bucket, err := getArtifactsBucket(tx)
 		if err != nil {
 			return err
@@ -366,7 +378,7 @@ func (db *ArtifactsDb) RemoveArtifactEntryByImageDigest(digest string) error {
 		for k, _ := c.First(); k != nil; k, _ = c.Next() {
 			artifactBucket := bucket.Bucket(k)
 			if indexBucket(artifactBucket) && hasImageDigest(artifactBucket, digest) {
-				bucket.DeleteBucket(k)
+				entries = append(entries, k)
 			}
 		}
 		return nil

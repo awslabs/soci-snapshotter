@@ -19,19 +19,20 @@ package integration
 import (
 	"bytes"
 	"fmt"
-	"io"
 	"math"
 	"strconv"
 	"strings"
 	"testing"
 	"time"
 
+	"github.com/awslabs/soci-snapshotter/config"
 	"github.com/awslabs/soci-snapshotter/fs/layer"
 	commonmetrics "github.com/awslabs/soci-snapshotter/fs/metrics/common"
 	"github.com/awslabs/soci-snapshotter/soci"
+	"github.com/awslabs/soci-snapshotter/soci/store"
+	"github.com/awslabs/soci-snapshotter/util/testutil"
 
 	shell "github.com/awslabs/soci-snapshotter/util/dockershell"
-	"github.com/awslabs/soci-snapshotter/util/testutil"
 	"github.com/awslabs/soci-snapshotter/ztoc"
 	"github.com/opencontainers/go-digest"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
@@ -91,51 +92,53 @@ func TestOverlayFallbackMetric(t *testing.T) {
 	testCases := []struct {
 		name                  string
 		image                 string
-		indexDigestFn         func(*shell.Shell, imageInfo) string
+		indexDigestFn         func(*shell.Shell, store.ContentStoreType, imageInfo) string
 		expectedFallbackCount int
 	}{
 		{
 			name:  "image with all layers having ztocs and no fs.Mount error results in 0 overlay fallback",
 			image: rabbitmqImage,
-			indexDigestFn: func(sh *shell.Shell, image imageInfo) string {
-				return buildIndex(sh, image, withMinLayerSize(0))
+			indexDigestFn: func(sh *shell.Shell, contentStoreType store.ContentStoreType, image imageInfo) string {
+				return buildIndex(sh, image, withMinLayerSize(0), withContentStoreType(contentStoreType))
 			},
 			expectedFallbackCount: 0,
 		},
 		{
 			name:  "image with some layers not having ztoc and no fs.Mount results in 0 overlay fallback",
 			image: rabbitmqImage,
-			indexDigestFn: func(sh *shell.Shell, image imageInfo) string {
-				return buildIndex(sh, image, withMinLayerSize(defaultMinLayerSize))
+			indexDigestFn: func(sh *shell.Shell, contentStoreType store.ContentStoreType, image imageInfo) string {
+				return buildIndex(sh, image, withMinLayerSize(defaultMinLayerSize), withContentStoreType(contentStoreType))
 			},
 			expectedFallbackCount: 0,
 		},
 		{
 			name:  "image with fs.Mount errors results in non-zero overlay fallback",
 			image: rabbitmqImage,
-			indexDigestFn: func(_ *shell.Shell, _ imageInfo) string {
-				return "dwadwadawdad"
+			indexDigestFn: func(_ *shell.Shell, _ store.ContentStoreType, _ imageInfo) string {
+				return "invalid index string"
 			},
 			expectedFallbackCount: 10,
 		},
 	}
 
 	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
-			rebootContainerd(t, sh, getContainerdConfigToml(t, false), getSnapshotterConfigToml(t, false, tcpMetricsConfig))
+		for _, contentStoreType := range store.ContentStoreTypes() {
+			t.Run(tc.name+" with "+string(contentStoreType)+" content store", func(t *testing.T) {
+				rebootContainerd(t, sh, getContainerdConfigToml(t, false), getSnapshotterConfigToml(t, false, tcpMetricsConfig, GetContentStoreConfigToml(store.WithType(contentStoreType))))
 
-			imgInfo := dockerhub(tc.image)
+				imgInfo := dockerhub(tc.image)
 
-			sh.X("nerdctl", "pull", "-q", imgInfo.ref)
-			indexDigest := tc.indexDigestFn(sh, imgInfo)
+				sh.X("nerdctl", "pull", "-q", imgInfo.ref)
+				indexDigest := tc.indexDigestFn(sh, contentStoreType, imgInfo)
 
-			sh.X("soci", "image", "rpull", "--soci-index-digest", indexDigest, imgInfo.ref)
-			curlOutput := string(sh.O("curl", tcpMetricsAddress+metricsPath))
+				sh.X("soci", "--content-store", string(contentStoreType), "image", "rpull", "--soci-index-digest", indexDigest, imgInfo.ref)
+				curlOutput := string(sh.O("curl", tcpMetricsAddress+metricsPath))
 
-			if err := checkOverlayFallbackCount(curlOutput, tc.expectedFallbackCount); err != nil {
-				t.Fatal(err)
-			}
-		})
+				if err := checkOverlayFallbackCount(curlOutput, tc.expectedFallbackCount); err != nil {
+					t.Fatal(err)
+				}
+			})
+		}
 	}
 }
 
@@ -313,40 +316,44 @@ emit_metric_period_sec = 2
 // The manipulated ztocs are (de)serializable but have meaningless ztoc data (manipuated by `manipulator`).
 // This helps test soci behaviors when ztocs have valid format but wrong/corrupted data.
 func buildIndexByManipulatingZtocData(sh *shell.Shell, indexDigest string, manipulator func(*ztoc.Ztoc)) (string, error) {
+	sh.O("ctr", "i", "ls")
 	index, err := sociIndexFromDigest(sh, indexDigest)
 	if err != nil {
 		return "", err
 	}
 
-	var ztocDescs []ocispec.Descriptor
+	var newZtocDescs []ocispec.Descriptor
 	for _, blob := range index.Blobs {
-		ztocDigest := blob.Digest.String()
-		blobContent := fetchContentFromPath(sh, blobStorePath+"/"+trimSha256Prefix(ztocDigest))
-		zt, err := ztoc.Unmarshal(bytes.NewReader(blobContent))
+		origZtocDigestString := blob.Digest.String()
+		origZtocDigest, err := digest.Parse(origZtocDigestString)
 		if err != nil {
-			return "", fmt.Errorf("invalid ztoc %s from soci index %s: %v", ztocDigest, indexDigest, err)
+			return "", fmt.Errorf("cannot parse ztoc digest %s: %w", origZtocDigestString, err)
+		}
+		origBlobBytes, err := FetchContentByDigest(sh, config.DefaultContentStoreType, origZtocDigest)
+		if err != nil {
+			return "", fmt.Errorf("cannot fetch ztoc digest %s: %w", origZtocDigestString, err)
+		}
+		origBlobReader := bytes.NewReader(origBlobBytes)
+		zt, err := ztoc.Unmarshal(origBlobReader)
+		if err != nil {
+			return "", fmt.Errorf("invalid ztoc %s from soci index %s: %w", origZtocDigestString, indexDigest, err)
 		}
 
 		// manipulate the ztoc
 		manipulator(zt)
 
-		ztocReader, ztocDesc, err := ztoc.Marshal(zt)
+		newZtocReader, newZtocDesc, err := ztoc.Marshal(zt)
 		if err != nil {
-			return "", fmt.Errorf("unable to marshal ztoc %s: %s", ztocDesc.Digest.String(), err)
+			return "", fmt.Errorf("unable to marshal ztoc %s: %s", newZtocDesc.Digest.String(), err)
 		}
-		ztocBytes, err := io.ReadAll(ztocReader)
+		err = testutil.InjectContentStoreContentFromReader(sh, config.DefaultContentStoreType, newZtocDesc, newZtocReader)
 		if err != nil {
-			return "", fmt.Errorf("unable to read bytes of ztoc %s: %s", ztocDesc.Digest.String(), err)
+			return "", fmt.Errorf("cannot inject manipulated ztoc %s: %w", newZtocDesc.Digest.String(), err)
 		}
 
-		ztocPath := fmt.Sprintf("%s/%s", blobStorePath, trimSha256Prefix(ztocDesc.Digest.String()))
-		if err := testutil.WriteFileContents(sh, ztocPath, ztocBytes, 0600); err != nil {
-			return "", fmt.Errorf("cannot write ztoc %s to path %s: %s", ztocDesc.Digest.String(), ztocPath, err)
-		}
-
-		ztocDesc.MediaType = soci.SociLayerMediaType
-		ztocDesc.Annotations = blob.Annotations
-		ztocDescs = append(ztocDescs, ztocDesc)
+		newZtocDesc.MediaType = soci.SociLayerMediaType
+		newZtocDesc.Annotations = blob.Annotations
+		newZtocDescs = append(newZtocDescs, newZtocDesc)
 	}
 
 	subject := ocispec.Descriptor{
@@ -354,16 +361,17 @@ func buildIndexByManipulatingZtocData(sh *shell.Shell, indexDigest string, manip
 		Size:   index.Subject.Size,
 	}
 
-	newIndex := soci.NewIndex(ztocDescs, &subject, nil)
+	newIndex := soci.NewIndex(newZtocDescs, &subject, nil)
 	b, err := soci.MarshalIndex(newIndex)
 	if err != nil {
 		return "", err
 	}
 
 	newIndexDigest := digest.FromBytes(b)
-	newIndexPath := fmt.Sprintf("%s/%s", blobStorePath, trimSha256Prefix(newIndexDigest.String()))
-	if err := testutil.WriteFileContents(sh, newIndexPath, b, 0600); err != nil {
-		return "", fmt.Errorf("cannot write index %s to path %s: %s", newIndexDigest, newIndexPath, err)
+	desc := ocispec.Descriptor{Digest: newIndexDigest}
+	err = testutil.InjectContentStoreContentFromBytes(sh, config.DefaultContentStoreType, desc, b)
+	if err != nil {
+		return "", err
 	}
 	return strings.Trim(newIndexDigest.String(), "\n"), nil
 }

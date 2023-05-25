@@ -19,16 +19,15 @@ package commands
 import (
 	"path/filepath"
 
-	"github.com/awslabs/soci-snapshotter/config"
 	"github.com/awslabs/soci-snapshotter/soci"
+	"github.com/awslabs/soci-snapshotter/soci/store"
 	"github.com/containerd/containerd/cmd/ctr/commands"
 	"github.com/urfave/cli"
-	"oras.land/oras-go/v2/content/oci"
 )
 
 var RebuildDBCommand = cli.Command{
 	Name:  "rebuild-db",
-	Usage: `rebuild the artifacts database. You should use this command after "rpull" so that indices/ztocs can be discovered by commands like "soci index list".`,
+	Usage: `rebuild the artifacts database. You should use this command after "rpull" so that indices/ztocs can be discovered by commands like "soci index list", and after "index rm" when using the containerd content store so that deleted orphaned zTOCs will be forgotten`,
 	Action: func(cliContext *cli.Context) error {
 		client, ctx, cancel, err := commands.NewClient(cliContext)
 		if err != nil {
@@ -40,11 +39,17 @@ var RebuildDBCommand = cli.Command{
 		if err != nil {
 			return err
 		}
-		blobStore, err := oci.New(config.SociContentStorePath)
+		ctx, blobStore, err := store.NewContentStore(ctx, store.WithType(store.ContentStoreType(cliContext.GlobalString("content-store"))), store.WithNamespace(cliContext.GlobalString("namespace")))
 		if err != nil {
 			return err
 		}
-		blobStorePath := filepath.Join(config.SociContentStorePath, "blobs")
+
+		contentStorePath, err := store.GetContentStorePath(store.ContentStoreType(cliContext.GlobalString("content-store")))
+		if err != nil {
+			return err
+		}
+
+		blobStorePath := filepath.Join(contentStorePath, "blobs")
 		return artifactsDb.SyncWithLocalStore(ctx, blobStore, blobStorePath, containerdContentStore)
 	},
 }

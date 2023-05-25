@@ -19,10 +19,15 @@ package integration
 import (
 	"bytes"
 	"encoding/json"
+	"path/filepath"
 	"testing"
 
+	"github.com/awslabs/soci-snapshotter/config"
 	"github.com/awslabs/soci-snapshotter/soci"
+	"github.com/awslabs/soci-snapshotter/soci/store"
+	"github.com/awslabs/soci-snapshotter/util/testutil"
 	"github.com/containerd/containerd/platforms"
+	"github.com/opencontainers/go-digest"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 )
 
@@ -57,8 +62,8 @@ func TestSociCreateSparseIndex(t *testing.T) {
 		},
 	}
 
-	const containerImage = "rethinkdb@sha256:4452aadba3e99771ff3559735dab16279c5a352359d79f38737c6fdca941c6e5"
 	const manifestDigest = "sha256:4452aadba3e99771ff3559735dab16279c5a352359d79f38737c6fdca941c6e5"
+	const containerImage = "rethinkdb@" + manifestDigest
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -69,16 +74,25 @@ func TestSociCreateSparseIndex(t *testing.T) {
 			imgInfo := dockerhub(containerImage)
 			indexDigest := buildIndex(sh, imgInfo, withMinLayerSize(tt.minLayerSize))
 			var index soci.Index
+			contentStoreBlobPath, _ := testutil.GetContentStoreBlobPath(config.DefaultContentStoreType)
 			if indexDigest != "" {
-				checkpoints := fetchContentFromPath(sh, blobStorePath+"/"+trimSha256Prefix(indexDigest))
+				dgst, err := digest.Parse(indexDigest)
+				if err != nil {
+					t.Fatalf("cannot parse digest: %v", err)
+				}
+				checkpoints := fetchContentFromPath(sh, filepath.Join(contentStoreBlobPath, dgst.Encoded()))
 
-				err := soci.DecodeIndex(bytes.NewReader(checkpoints), &index)
+				err = soci.DecodeIndex(bytes.NewReader(checkpoints), &index)
 				if err != nil {
 					t.Fatalf("cannot get index data: %v", err)
 				}
 			}
 
-			imageManifestJSON := fetchContentByDigest(sh, manifestDigest)
+			imageManifestJSON, err := FetchContentByDigest(sh, store.ContainerdContentStoreType, manifestDigest)
+			if err != nil {
+				t.Fatalf("cannot fetch content %s: %v", manifestDigest, err)
+			}
+
 			imageManifest := new(ocispec.Manifest)
 			if err := json.Unmarshal(imageManifestJSON, imageManifest); err != nil {
 				t.Fatalf("cannot unmarshal index manifest: %v", err)
@@ -96,7 +110,7 @@ func TestSociCreateSparseIndex(t *testing.T) {
 					t.Fatalf("failed to validate soci index: unexpected layer count; expected=%v, got=0", len(includedLayers))
 				}
 			} else {
-				if err := validateSociIndex(sh, index, manifestDigest, includedLayers); err != nil {
+				if err := validateSociIndex(sh, config.DefaultContentStoreType, index, manifestDigest, includedLayers); err != nil {
 					t.Fatalf("failed to validate soci index: %v", err)
 				}
 			}
@@ -108,17 +122,12 @@ func TestSociCreate(t *testing.T) {
 	sh, done := newSnapshotterBaseShell(t)
 	defer done()
 
-	rebootContainerd(t, sh, "", "")
-
 	tests := []struct {
-		name           string
-		containerImage string
-		platform       string
+		name             string
+		containerImage   string
+		platform         string
+		contentStoreType store.ContentStoreType
 	}{
-		{
-			name:           "test create for ubuntu",
-			containerImage: ubuntuImage,
-		},
 		{
 			name:           "test create for nginx",
 			containerImage: nginxImage,
@@ -127,9 +136,17 @@ func TestSociCreate(t *testing.T) {
 			name:           "test create for alpine",
 			containerImage: alpineImage,
 		},
+		// The following two tests guarantee that we have tested both content
+		// stores
 		{
-			name:           "test create for drupal",
-			containerImage: drupalImage,
+			name:             "test create for drupal on soci content store",
+			containerImage:   drupalImage,
+			contentStoreType: store.SociContentStoreType,
+		},
+		{
+			name:             "test create for drupal on containerd content store",
+			containerImage:   drupalImage,
+			contentStoreType: store.ContainerdContentStoreType,
 		},
 		// The following two tests guarantee that we have tested at least
 		// 2 different platforms. Depending on what host they run on, one
@@ -148,7 +165,7 @@ func TestSociCreate(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			rebootContainerd(t, sh, "", "")
+			rebootContainerd(t, sh, "", getSnapshotterConfigToml(t, false, GetContentStoreConfigToml(store.WithType(tt.contentStoreType))))
 			platform := platforms.DefaultSpec()
 			if tt.platform != "" {
 				var err error
@@ -158,10 +175,18 @@ func TestSociCreate(t *testing.T) {
 				}
 			}
 			imgInfo := dockerhub(tt.containerImage, withPlatform(platform))
-			indexDigest := buildIndex(sh, imgInfo, withMinLayerSize(0))
-			checkpoints := fetchContentFromPath(sh, blobStorePath+"/"+trimSha256Prefix(indexDigest))
+			indexDigest := buildIndex(sh, imgInfo, withMinLayerSize(0), withContentStoreType(tt.contentStoreType))
+			contentStoreBlobPath, err := testutil.GetContentStoreBlobPath(tt.contentStoreType)
+			if err != nil {
+				t.Fatalf("cannot get content store path: %v", err)
+			}
+			dgst, err := digest.Parse(indexDigest)
+			if err != nil {
+				t.Fatalf("cannot parse digest: %v", err)
+			}
+			checkpoints := fetchContentFromPath(sh, filepath.Join(contentStoreBlobPath, dgst.Encoded()))
 			var sociIndex soci.Index
-			err := soci.DecodeIndex(bytes.NewReader(checkpoints), &sociIndex)
+			err = soci.DecodeIndex(bytes.NewReader(checkpoints), &sociIndex)
 			if err != nil {
 				t.Fatalf("cannot get soci index: %v", err)
 			}
@@ -171,7 +196,7 @@ func TestSociCreate(t *testing.T) {
 				t.Fatalf("failed to get manifest digest: %v", err)
 			}
 
-			if err := validateSociIndex(sh, sociIndex, m, nil); err != nil {
+			if err := validateSociIndex(sh, tt.contentStoreType, sociIndex, m, nil); err != nil {
 				t.Fatalf("failed to validate soci index: %v", err)
 			}
 		})

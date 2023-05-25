@@ -45,6 +45,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/awslabs/soci-snapshotter/soci/store"
 	shell "github.com/awslabs/soci-snapshotter/util/dockershell"
 )
 
@@ -420,5 +421,78 @@ func TestRootFolderPermission(t *testing.T) {
 	subfolders := sh.O("soci", "run", "-d", "--snapshotter=soci", "--user", "1000", dockerhub(image).ref, containerName, "ls", "/")
 	if string(subfolders) == "" {
 		t.Fatal("non-root user should be able to `ls /`")
+	}
+}
+
+func TestRunInContentStore(t *testing.T) {
+	imageName := helloImage
+	sh, done := newSnapshotterBaseShell(t)
+	defer done()
+
+	for _, createContentStoreType := range store.ContentStoreTypes() {
+		for _, runContentStoreType := range store.ContentStoreTypes() {
+			t.Run("create in "+string(createContentStoreType)+", run in "+string(runContentStoreType), func(t *testing.T) {
+				rebootContainerd(t, sh, "", getSnapshotterConfigToml(t, false, tcpMetricsConfig, GetContentStoreConfigToml(store.WithType(runContentStoreType))))
+				imageInfo := dockerhub(imageName)
+				indexDigest := buildIndex(sh, imageInfo, withMinLayerSize(0), withContentStoreType(createContentStoreType))
+				if indexDigest == "" {
+					t.Fatal("failed to build index")
+				}
+				sh.X("soci", "image", "rpull", "--soci-index-digest", indexDigest, imageInfo.ref)
+				// Run the container
+				_, err := sh.OLog("soci", "run", "--rm", "--snapshotter=soci", imageInfo.ref, "test")
+				if err != nil {
+					t.Fatalf("encountered error running container: %v", err)
+				}
+				if createContentStoreType == runContentStoreType {
+					// same content store should succeed and use soci
+					checkFuseMounts(t, sh, 1)
+				} else {
+					// different content store should fallback to overlayfs
+					checkFuseMounts(t, sh, 0)
+				}
+			})
+		}
+	}
+}
+
+func TestRunInNamespace(t *testing.T) {
+	imageName := helloImage
+	sh, done := newSnapshotterBaseShell(t)
+	defer done()
+
+	namespaces := []string{"default", "test"}
+
+	for _, contentStoreType := range store.ContentStoreTypes() {
+		for _, createNamespace := range namespaces {
+			for _, runNamespace := range namespaces {
+				t.Run("content store "+string(contentStoreType)+", create in "+createNamespace+", run in "+runNamespace, func(t *testing.T) {
+					rebootContainerd(t, sh, "", getSnapshotterConfigToml(t, false, tcpMetricsConfig, GetContentStoreConfigToml(store.WithType(contentStoreType), store.WithNamespace(runNamespace))))
+					imageInfo := dockerhub(imageName)
+					indexDigest := buildIndex(sh, imageInfo, withMinLayerSize(0), withContentStoreType(contentStoreType), withNamespace(createNamespace))
+					if indexDigest == "" {
+						t.Fatal("failed to build index")
+					}
+					sh.X("soci",
+						"--namespace", createNamespace,
+						"--content-store", string(contentStoreType),
+						"image", "rpull", "--soci-index-digest", indexDigest, imageInfo.ref)
+					// Run the container
+					_, err := sh.OLog("soci", "--namespace", runNamespace, "run", "--snapshotter=soci", imageInfo.ref, "test")
+					if createNamespace == runNamespace {
+						// same namespace should succeed without overlayfs fallback
+						if err != nil {
+							t.Fatalf("encountered error running container: %v", err)
+						}
+						checkFuseMounts(t, sh, 1)
+					} else {
+						// different namespace should fail to launch the container
+						if err == nil {
+							t.Fatal("container launch succeeded unexpectedly")
+						}
+					}
+				})
+			}
+		}
 	}
 }

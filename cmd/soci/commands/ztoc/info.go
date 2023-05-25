@@ -21,14 +21,13 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"github.com/awslabs/soci-snapshotter/config"
 	"github.com/awslabs/soci-snapshotter/soci"
+	"github.com/awslabs/soci-snapshotter/soci/store"
 	"github.com/awslabs/soci-snapshotter/ztoc"
 	"github.com/awslabs/soci-snapshotter/ztoc/compression"
 	"github.com/opencontainers/go-digest"
 	v1 "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/urfave/cli"
-	"oras.land/oras-go/v2/content/oci"
 )
 
 type Info struct {
@@ -71,13 +70,13 @@ var infoCommand = cli.Command{
 		if entry.MediaType == soci.SociIndexArtifactType {
 			return fmt.Errorf("the provided digest belongs to a SOCI index. Use `soci index info` to get the detailed information about it")
 		}
-		storage, err := oci.New(config.SociContentStorePath)
+		ctx, cancel := context.WithTimeout(context.Background(), cliContext.GlobalDuration("timeout"))
+		defer cancel()
+		ctx, store, err := store.NewContentStore(ctx, store.WithType(store.ContentStoreType(cliContext.GlobalString("content-store"))), store.WithNamespace(cliContext.GlobalString("namespace")))
 		if err != nil {
 			return err
 		}
-		ctx, cancel := context.WithTimeout(context.Background(), cliContext.GlobalDuration("timeout"))
-		defer cancel()
-		reader, err := storage.Fetch(ctx, v1.Descriptor{Digest: digest})
+		reader, err := store.Fetch(ctx, v1.Descriptor{Digest: digest})
 		if err != nil {
 			return err
 		}

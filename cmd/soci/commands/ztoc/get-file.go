@@ -23,15 +23,14 @@ import (
 	"io"
 	"os"
 
-	"github.com/awslabs/soci-snapshotter/config"
 	"github.com/awslabs/soci-snapshotter/soci"
+	"github.com/awslabs/soci-snapshotter/soci/store"
 	"github.com/awslabs/soci-snapshotter/ztoc"
 	"github.com/containerd/containerd/cmd/ctr/commands"
 	"github.com/containerd/containerd/content"
 	"github.com/opencontainers/go-digest"
 	v1 "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/urfave/cli"
-	"oras.land/oras-go/v2/content/oci"
 )
 
 var getFileCommand = cli.Command{
@@ -61,7 +60,7 @@ var getFileCommand = cli.Command{
 		}
 		defer cancel()
 
-		toc, err := getZtoc(ctx, ztocDigest)
+		toc, err := getZtoc(ctx, cliContext, ztocDigest)
 		if err != nil {
 			return err
 		}
@@ -87,8 +86,8 @@ var getFileCommand = cli.Command{
 	},
 }
 
-func getZtoc(ctx context.Context, d digest.Digest) (*ztoc.Ztoc, error) {
-	blobStore, err := oci.New(config.SociContentStorePath)
+func getZtoc(ctx context.Context, cliContext *cli.Context, d digest.Digest) (*ztoc.Ztoc, error) {
+	ctx, blobStore, err := store.NewContentStore(ctx, store.WithType(store.ContentStoreType(cliContext.GlobalString("content-store"))), store.WithNamespace(cliContext.GlobalString("namespace")))
 	if err != nil {
 		return nil, err
 	}

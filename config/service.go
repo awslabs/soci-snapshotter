@@ -81,6 +81,6 @@ type SnapshotterConfig struct {
 
 func parseServiceConfig(cfg *Config) {
 	if cfg.CRIKeychainConfig.ImageServicePath == "" {
-		cfg.CRIKeychainConfig.ImageServicePath = defaultImageServiceAddress
+		cfg.CRIKeychainConfig.ImageServicePath = DefaultImageServiceAddress
 	}
 }

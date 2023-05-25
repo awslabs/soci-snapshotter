@@ -22,10 +22,12 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"strconv"
 
 	"github.com/awslabs/soci-snapshotter/config"
 	"github.com/awslabs/soci-snapshotter/service/keychain/dockerconfig"
 	"github.com/awslabs/soci-snapshotter/soci"
+	"github.com/awslabs/soci-snapshotter/soci/store"
 	socihttp "github.com/awslabs/soci-snapshotter/util/http"
 	"github.com/awslabs/soci-snapshotter/util/ioutils"
 	"github.com/containerd/containerd/log"
@@ -54,13 +56,13 @@ type resolverStorage interface {
 // artifactFetcher is responsible for fetching and storing artifacts in the provided artifact store.
 type artifactFetcher struct {
 	remoteStore resolverStorage
-	localStore  content.Storage
+	localStore  store.BasicStore
 	refspec     reference.Spec
 }
 
 // Constructs a new artifact fetcher
 // Takes in the image reference, the local store and the resolver
-func newArtifactFetcher(refspec reference.Spec, localStore content.Storage, remoteStore resolverStorage) (*artifactFetcher, error) {
+func newArtifactFetcher(refspec reference.Spec, localStore store.BasicStore, remoteStore resolverStorage) (*artifactFetcher, error) {
 	return &artifactFetcher{
 		localStore:  localStore,
 		remoteStore: remoteStore,
@@ -153,8 +155,7 @@ func (f *artifactFetcher) Store(ctx context.Context, desc ocispec.Descriptor, re
 	return nil
 }
 
-func FetchSociArtifacts(ctx context.Context, refspec reference.Spec, indexDesc ocispec.Descriptor, localStore content.Storage, remoteStore resolverStorage) (*soci.Index, error) {
-
+func FetchSociArtifacts(ctx context.Context, refspec reference.Spec, indexDesc ocispec.Descriptor, localStore store.Store, remoteStore resolverStorage) (*soci.Index, error) {
 	fetcher, err := newArtifactFetcher(refspec, localStore, remoteStore)
 	if err != nil {
 		return nil, fmt.Errorf("could not create an artifact fetcher: %w", err)
@@ -177,24 +178,39 @@ func FetchSociArtifacts(ctx context.Context, refspec reference.Spec, indexDesc o
 		return nil, fmt.Errorf("cannot deserialize byte data to index: %w", err)
 	}
 
+	desc := ocispec.Descriptor{
+		Digest: indexDesc.Digest,
+		Size:   cw.Size(),
+	}
+
+	// batch will prevent content from being garbage collected in the middle of the following operations
+	ctx, batchDone, err := localStore.BatchOpen(ctx)
+	if err != nil {
+		return nil, err
+	}
+	defer batchDone(ctx)
+
 	if !local {
 		b, err := soci.MarshalIndex(&index)
 		if err != nil {
 			return nil, err
 		}
-		err = localStore.Push(ctx, ocispec.Descriptor{
-			Digest: indexDesc.Digest,
-			Size:   cw.Size(),
-		}, bytes.NewReader(b))
 
+		err = localStore.Push(ctx, desc, bytes.NewReader(b))
 		if err != nil && !errors.Is(err, errdef.ErrAlreadyExists) {
 			return nil, fmt.Errorf("unable to store index in local store: %w", err)
+		}
+
+		err = store.LabelGCRoot(ctx, localStore, desc)
+		if err != nil {
+			return nil, fmt.Errorf("unable to label index to prevent garbage collection: %w", err)
 		}
 	}
 
 	eg, ctx := errgroup.WithContext(ctx)
-	for _, blob := range index.Blobs {
+	for i, blob := range index.Blobs {
 		blob := blob
+		i := i
 		eg.Go(func() error {
 			rc, local, err := fetcher.Fetch(ctx, blob)
 			if err != nil {
@@ -207,7 +223,7 @@ func FetchSociArtifacts(ctx context.Context, refspec reference.Spec, indexDesc o
 			if err := fetcher.Store(ctx, blob, rc); err != nil && !errors.Is(err, errdef.ErrAlreadyExists) {
 				return fmt.Errorf("unable to store ztoc in local store: %w", err)
 			}
-			return nil
+			return store.LabelGCRefContent(ctx, localStore, desc, "ztoc."+strconv.Itoa(i), blob.Digest.String())
 		})
 	}
 

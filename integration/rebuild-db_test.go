@@ -22,7 +22,12 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/awslabs/soci-snapshotter/config"
 	"github.com/awslabs/soci-snapshotter/soci"
+	"github.com/awslabs/soci-snapshotter/soci/store"
+	"github.com/awslabs/soci-snapshotter/util/dockershell"
+	"github.com/awslabs/soci-snapshotter/util/testutil"
+	"github.com/opencontainers/go-digest"
 )
 
 func TestRebuildArtifactsDB(t *testing.T) {
@@ -33,15 +38,18 @@ func TestRebuildArtifactsDB(t *testing.T) {
 	img := rabbitmqImage
 	copyImage(sh, dockerhub(img), regConfig.mirror(img))
 	indexDigest := buildIndex(sh, regConfig.mirror(img), withMinLayerSize(0))
-	indexBytes := sh.O("cat", filepath.Join(blobStorePath, trimSha256Prefix(indexDigest)))
+	blobPath, _ := testutil.GetContentStoreBlobPath(config.DefaultContentStoreType)
+	dgst, err := digest.Parse(indexDigest)
+	if err != nil {
+		t.Fatalf("cannot parse digest: %v", err)
+	}
+	indexBytes := sh.O("cat", filepath.Join(blobPath, dgst.Encoded()))
 	var sociIndex soci.Index
-	err := soci.DecodeIndex(bytes.NewBuffer(indexBytes), &sociIndex)
+	err = soci.DecodeIndex(bytes.NewBuffer(indexBytes), &sociIndex)
 	if err != nil {
 		t.Fatal(err)
 	}
 	sh.X("soci", "push", "--user", regConfig.creds(), regConfig.mirror(img).ref)
-
-	rebuildDb := []string{"soci", "rebuild-db"}
 
 	verifyArtifacts := func(expectedIndexCount, expectedZtocCount int) error {
 		indexOutput := sh.O("soci", "index", "list")
@@ -59,39 +67,50 @@ func TestRebuildArtifactsDB(t *testing.T) {
 
 	testCases := []struct {
 		name               string
-		cmd                []string
+		setup              func(*dockershell.Shell, store.ContentStoreType)
 		afterContent       bool
 		expectedIndexCount int
 		exptectedZtocCount int
 	}{
 		{
-			name:               "Rpull and rebuild",
-			cmd:                []string{"soci", "image", "rpull", "--user", regConfig.creds(), regConfig.mirror(img).ref},
+			name: "Rpull and rebuild %s content store",
+			setup: func(sh *dockershell.Shell, contentStoreType store.ContentStoreType) {
+				sh.X(
+					"soci", "image", "rpull", "--user", regConfig.creds(),
+					regConfig.mirror(img).ref)
+			},
 			afterContent:       true,
 			expectedIndexCount: 1,
 			exptectedZtocCount: len(sociIndex.Blobs),
 		},
 		{
-			name:               "Remove artifacts from content store and rebuild",
-			cmd:                []string{"rm", "-rf", blobStorePath},
+			name: "Remove artifacts from %s content store and rebuild",
+			setup: func(sh *dockershell.Shell, contentStoreType store.ContentStoreType) {
+				testutil.RemoveContentStoreContent(sh, contentStoreType, indexDigest)
+				for _, blob := range sociIndex.Blobs {
+					testutil.RemoveContentStoreContent(sh, contentStoreType, blob.Digest.String())
+				}
+			},
 			expectedIndexCount: 0,
 			exptectedZtocCount: 0,
 		},
 	}
 	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
-			rebootContainerd(t, sh, "", "")
-			if !tc.afterContent {
-				copyImage(sh, dockerhub(img), regConfig.mirror(img))
-				buildIndex(sh, regConfig.mirror(img), withMinLayerSize(0))
-			}
-			sh.X(tc.cmd...)
-			sh.X(rebuildDb...)
-			err := verifyArtifacts(tc.expectedIndexCount, tc.exptectedZtocCount)
-			if err != nil {
-				t.Fatal(err)
-			}
-		})
+		for _, contentStoreType := range store.ContentStoreTypes() {
+			t.Run(fmt.Sprintf(tc.name, contentStoreType), func(t *testing.T) {
+				rebootContainerd(t, sh, "", getSnapshotterConfigToml(t, false, GetContentStoreConfigToml(store.WithType(contentStoreType))))
+				if !tc.afterContent {
+					copyImage(sh, dockerhub(img), regConfig.mirror(img))
+					buildIndex(sh, regConfig.mirror(img), withMinLayerSize(0), withContentStoreType(contentStoreType))
+				}
+				tc.setup(sh, contentStoreType)
+				sh.X("soci", "--content-store", string(contentStoreType), "rebuild-db")
+				err := verifyArtifacts(tc.expectedIndexCount, tc.exptectedZtocCount)
+				if err != nil {
+					t.Fatal(err)
+				}
+			})
+		}
 	}
 
 }

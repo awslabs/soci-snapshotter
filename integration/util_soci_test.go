@@ -35,10 +35,15 @@ package integration
 import (
 	"bytes"
 	"fmt"
+	"path/filepath"
 	"strings"
 
+	"github.com/awslabs/soci-snapshotter/config"
 	"github.com/awslabs/soci-snapshotter/soci"
+	"github.com/awslabs/soci-snapshotter/soci/store"
 	shell "github.com/awslabs/soci-snapshotter/util/dockershell"
+	"github.com/awslabs/soci-snapshotter/util/testutil"
+	"github.com/containerd/containerd/namespaces"
 	"github.com/containerd/containerd/platforms"
 	"github.com/google/go-cmp/cmp"
 	"github.com/opencontainers/go-digest"
@@ -55,13 +60,26 @@ const (
 // indexBuildConfig represents the values of the CLI flags that should be used
 // when creating an index with `buildIndex`
 type indexBuildConfig struct {
-	spanSize     int64
-	minLayerSize int64
-	allowErrors  bool
+	spanSize         int64
+	minLayerSize     int64
+	allowErrors      bool
+	contentStoreType store.ContentStoreType
+	namespace        string
 }
 
 // indexBuildOption is a functional argument to update `indexBuildConfig`
 type indexBuildOption func(*indexBuildConfig)
+
+// withIndexBuildConfig copies a provided config
+func withIndexBuildConfig(newIbc indexBuildConfig) indexBuildOption {
+	return func(ibc *indexBuildConfig) {
+		ibc.spanSize = newIbc.spanSize
+		ibc.minLayerSize = newIbc.minLayerSize
+		ibc.allowErrors = newIbc.allowErrors
+		ibc.contentStoreType = newIbc.contentStoreType
+		ibc.namespace = newIbc.namespace
+	}
+}
 
 // withSpanSize overrides the default span size to use when creating an index with `buildIndex`
 func withSpanSize(spanSize int64) indexBuildOption {
@@ -78,6 +96,20 @@ func withMinLayerSize(minLayerSize int64) indexBuildOption {
 	}
 }
 
+// withContentStoreType overrides the default content store
+func withContentStoreType(contentStoreType store.ContentStoreType) indexBuildOption {
+	return func(ibc *indexBuildConfig) {
+		ibc.contentStoreType, _ = store.CanonicalizeContentStoreType(contentStoreType)
+	}
+}
+
+// withNamespace overrides the default namespace
+func withNamespace(namespace string) indexBuildOption {
+	return func(ibc *indexBuildConfig) {
+		ibc.namespace = namespace
+	}
+}
+
 // withAllowErrors does not fatally fail the test on the a shell command non-zero exit code
 func withAllowErrors(ibc *indexBuildConfig) {
 	ibc.allowErrors = true
@@ -86,8 +118,10 @@ func withAllowErrors(ibc *indexBuildConfig) {
 // defaultIndexBuildConfig is the default parameters when creating and index with `buildIndex`
 func defaultIndexBuildConfig() indexBuildConfig {
 	return indexBuildConfig{
-		spanSize:     defaultSpanSize,
-		minLayerSize: defaultMinLayerSize,
+		spanSize:         defaultSpanSize,
+		minLayerSize:     defaultMinLayerSize,
+		contentStoreType: config.DefaultContentStoreType,
+		namespace:        namespaces.Default,
 	}
 }
 
@@ -101,8 +135,11 @@ func buildIndex(sh *shell.Shell, src imageInfo, opt ...indexBuildOption) string 
 	}
 	opts := encodeImageInfoNerdctl(src)
 
-	createCommand := []string{"soci", "create", src.ref}
-	createArgs := []string{
+	createCommand := []string{
+		"soci",
+		"--namespace", indexBuildConfig.namespace,
+		"--content-store", string(indexBuildConfig.contentStoreType),
+		"create", src.ref,
 		"--min-layer-size", fmt.Sprintf("%d", indexBuildConfig.minLayerSize),
 		"--span-size", fmt.Sprintf("%d", indexBuildConfig.spanSize),
 		"--platform", platforms.Format(src.platform),
@@ -113,18 +150,23 @@ func buildIndex(sh *shell.Shell, src imageInfo, opt ...indexBuildOption) string 
 		shx = sh.XLog
 	}
 
-	shx(append([]string{"nerdctl", "pull", "-q", "--platform", platforms.Format(src.platform)}, opts[0]...)...)
-	shx(append(createCommand, createArgs...)...)
-	indexDigest, err := sh.OLog("soci", "index", "list",
+	shx(append([]string{"nerdctl", "--namespace", indexBuildConfig.namespace, "pull", "-q", "--platform", platforms.Format(src.platform)}, opts[0]...)...)
+	shx(createCommand...)
+	indexDigest, err := sh.OLog("soci",
+		"--namespace", indexBuildConfig.namespace,
+		"--content-store", string(indexBuildConfig.contentStoreType),
+		"index", "list",
 		"-q", "--ref", src.ref,
-		"--platform", platforms.Format(src.platform)) // this will make SOCI artifact available locally
+		"--platform", platforms.Format(src.platform), // this will make SOCI artifact available locally
+	)
 	if err != nil {
 		return ""
 	}
+
 	return strings.Trim(string(indexDigest), "\n")
 }
 
-func validateSociIndex(sh *shell.Shell, sociIndex soci.Index, imgManifestDigest string, includedLayers map[string]struct{}) error {
+func validateSociIndex(sh *shell.Shell, contentStoreType store.ContentStoreType, sociIndex soci.Index, imgManifestDigest string, includedLayers map[string]struct{}) error {
 	if sociIndex.MediaType != ocispec.MediaTypeImageManifest {
 		return fmt.Errorf("unexpected index media type; expected types: [%v], got: %v", ocispec.MediaTypeImageManifest, sociIndex.MediaType)
 	}
@@ -150,7 +192,11 @@ func validateSociIndex(sh *shell.Shell, sociIndex soci.Index, imgManifestDigest 
 	}
 
 	for _, blob := range blobs {
-		blobContent := fetchContentFromPath(sh, blobStorePath+"/"+trimSha256Prefix(blob.Digest.String()))
+		blobPath, err := testutil.GetContentStoreBlobPath(contentStoreType)
+		if err != nil {
+			return err
+		}
+		blobContent := fetchContentFromPath(sh, filepath.Join(blobPath, blob.Digest.Encoded()))
 		blobSize := int64(len(blobContent))
 		blobDigest := digest.FromBytes(blobContent)
 
@@ -175,11 +221,15 @@ func validateSociIndex(sh *shell.Shell, sociIndex soci.Index, imgManifestDigest 
 }
 
 // getSociLocalStoreContentDigest will generate a digest based on the contents of the soci content store
-// Files that are smaller than 10 bytes wil not be included when generating the digest
-func getSociLocalStoreContentDigest(sh *shell.Shell) digest.Digest {
+// Files that are smaller than 10 bytes will not be included when generating the digest
+func getSociLocalStoreContentDigest(sh *shell.Shell, contentStoreType store.ContentStoreType) (string, error) {
 	content := new(bytes.Buffer)
-	sh.Pipe(nil, []string{"find", blobStorePath, "-maxdepth", "1", "-type", "f", "-size", "+10c"}).Pipe(content, []string{"sort"})
-	return digest.FromBytes(content.Bytes())
+	blobPath, err := testutil.GetContentStoreBlobPath(contentStoreType)
+	if err != nil {
+		return "", err
+	}
+	sh.Pipe(nil, []string{"find", blobPath, "-maxdepth", "1", "-type", "f", "-size", "+10c"}).Pipe(content, []string{"sort"})
+	return digest.FromBytes(content.Bytes()).String(), nil
 }
 
 func sociIndexFromDigest(sh *shell.Shell, indexDigest string) (index soci.Index, err error) {

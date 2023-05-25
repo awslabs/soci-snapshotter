@@ -45,7 +45,7 @@ const (
 
 // ServiceConfig defaults
 const (
-	defaultImageServiceAddress = "/run/containerd/containerd.sock"
+	DefaultImageServiceAddress = "/run/containerd/containerd.sock"
 )
 
 // FSConfig defaults
@@ -93,4 +93,7 @@ const (
 	defaultMinWaitMsec = 30
 	// defaultMaxWaitMsec is the default maximum number of milliseconds between attempts. See `RetryConfig.MaxWait`.
 	defaultMaxWaitMsec = 300_000
+
+	// DefaultContentStore chooses the soci or containerd content store as the default
+	DefaultContentStoreType = "soci"
 )

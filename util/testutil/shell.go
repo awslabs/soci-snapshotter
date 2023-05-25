@@ -50,8 +50,11 @@ import (
 	"testing"
 	"time"
 
+	"github.com/awslabs/soci-snapshotter/soci/store"
 	shell "github.com/awslabs/soci-snapshotter/util/dockershell"
 	"github.com/hashicorp/go-multierror"
+	"github.com/opencontainers/go-digest"
+	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/rs/xid"
 	"golang.org/x/sync/errgroup"
 )
@@ -231,6 +234,48 @@ func TempDir(sh *shell.Shell) (string, error) {
 	return strings.TrimSpace(string(out)), nil
 }
 
+func injectContainerdContentStoreContentFromReader(sh *shell.Shell, desc ocispec.Descriptor, content io.Reader) error {
+	reference := desc.Digest.String()
+	cmd := sh.Command("ctr", "content", "ingest", reference)
+	cmd.Stdin = content
+	if err := cmd.Run(); err != nil {
+		return err
+	}
+	cmd = sh.Command("ctr", "content", "label", desc.Digest.String(), "")
+	return cmd.Run()
+}
+
+func injectSociContentStoreContentFromReader(sh *shell.Shell, desc ocispec.Descriptor, content io.Reader) error {
+	dir := filepath.Join(store.DefaultSociContentStorePath, "blobs", desc.Digest.Algorithm().String())
+	if err := sh.Command("mkdir", "-p", dir).Run(); err != nil {
+		return err
+	}
+	path := filepath.Join(dir, desc.Digest.Encoded())
+	cmd := sh.Command("/bin/sh", "-c", fmt.Sprintf("cat > %s && chmod %#o %s", path, 0600, path))
+	cmd.Stdin = content
+	return cmd.Run()
+}
+
+func InjectContentStoreContentFromReader(sh *shell.Shell, contentStoreType store.ContentStoreType, desc ocispec.Descriptor, content io.Reader) error {
+	contentStoreType, err := store.CanonicalizeContentStoreType(contentStoreType)
+	if err != nil {
+		return err
+	}
+	switch contentStoreType {
+	case store.SociContentStoreType:
+		injectSociContentStoreContentFromReader(sh, desc, content)
+	case store.ContainerdContentStoreType:
+		injectContainerdContentStoreContentFromReader(sh, desc, content)
+	default:
+		return store.ErrUnknownContentStoreType(contentStoreType)
+	}
+	return nil
+}
+
+func InjectContentStoreContentFromBytes(sh *shell.Shell, contentStoreType store.ContentStoreType, desc ocispec.Descriptor, content []byte) error {
+	return InjectContentStoreContentFromReader(sh, contentStoreType, desc, bytes.NewReader(content))
+}
+
 func writeFileFromReader(sh *shell.Shell, name string, content io.Reader, mode uint32) error {
 	if err := sh.Command("mkdir", "-p", filepath.Dir(name)).Run(); err != nil {
 		return err
@@ -316,4 +361,30 @@ func KillMatchingProcess(sh *shell.Shell, psLinePattern string) error {
 		}
 	}
 	return allErr
+}
+
+func RemoveContentStoreContent(sh *shell.Shell, contentStoreType store.ContentStoreType, contentDigest string) error {
+	contentStoreType, err := store.CanonicalizeContentStoreType(contentStoreType)
+	if err != nil {
+		return err
+	}
+	switch contentStoreType {
+	case store.SociContentStoreType:
+		removeSociContentStoreContent(sh, contentDigest)
+	case store.ContainerdContentStoreType:
+		removeContainerdContentStoreContent(sh, contentDigest)
+	}
+	return nil
+}
+
+func removeSociContentStoreContent(sh *shell.Shell, contentDigest string) {
+	path, _ := GetContentStoreBlobPath(store.SociContentStoreType)
+	dgst, err := digest.Parse(contentDigest)
+	if err == nil {
+		sh.X("rm", filepath.Join(path, dgst.Encoded()))
+	}
+}
+
+func removeContainerdContentStoreContent(sh *shell.Shell, contentDigest string) {
+	sh.X("ctr", "content", "rm", contentDigest)
 }
