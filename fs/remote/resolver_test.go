@@ -45,6 +45,7 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"path/filepath"
 	"regexp"
 	"strings"
 	"testing"
@@ -65,9 +66,8 @@ func TestMirror(t *testing.T) {
 	}
 	var (
 		blobDigest = digest.FromString("dummy")
-		blobPath   = fmt.Sprintf("/v2/%s/blobs/%s",
-			strings.TrimPrefix(refspec.Locator, refspec.Hostname()+"/"), blobDigest.String())
-		refHost = refspec.Hostname()
+		blobPath   = filepath.Join("/v2", strings.TrimPrefix(refspec.Locator, refspec.Hostname()+"/"), "blobs", blobDigest.String())
+		refHost    = refspec.Hostname()
 	)
 
 	tests := []struct {

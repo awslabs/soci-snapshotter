@@ -40,6 +40,7 @@ import (
 	"github.com/awslabs/soci-snapshotter/cmd/soci/commands/image"
 	"github.com/awslabs/soci-snapshotter/cmd/soci/commands/index"
 	"github.com/awslabs/soci-snapshotter/cmd/soci/commands/ztoc"
+	"github.com/awslabs/soci-snapshotter/config"
 	"github.com/awslabs/soci-snapshotter/version"
 	"github.com/containerd/containerd/cmd/ctr/commands/run"
 	"github.com/containerd/containerd/defaults"
@@ -78,6 +79,11 @@ func main() {
 		cli.BoolFlag{
 			Name:  "debug",
 			Usage: "enable debug output",
+		},
+		cli.StringFlag{
+			Name:  "content-store",
+			Usage: "use a specific content store (soci or containerd)",
+			Value: config.DefaultContentStoreType,
 		},
 	}
 

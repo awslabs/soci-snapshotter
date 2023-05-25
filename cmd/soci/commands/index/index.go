@@ -16,7 +16,9 @@
 
 package index
 
-import "github.com/urfave/cli"
+import (
+	"github.com/urfave/cli"
+)
 
 var Command = cli.Command{
 	Name:  "index",

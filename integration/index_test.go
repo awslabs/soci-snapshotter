@@ -21,7 +21,10 @@ import (
 	"bytes"
 	"strings"
 	"testing"
+	"time"
 
+	"github.com/awslabs/soci-snapshotter/config"
+	"github.com/awslabs/soci-snapshotter/soci/store"
 	shell "github.com/awslabs/soci-snapshotter/util/dockershell"
 	"github.com/containerd/containerd/platforms"
 )
@@ -34,8 +37,8 @@ type testImageIndex struct {
 	ztocDigests     []string
 }
 
-func prepareSociIndices(t *testing.T, sh *shell.Shell) []testImageIndex {
-	testImages := []testImageIndex{
+func prepareSociIndices(t *testing.T, sh *shell.Shell, opt ...indexBuildOption) map[string]testImageIndex {
+	imageIndexes := []testImageIndex{
 		{
 			imgName:  ubuntuImage,
 			platform: "linux/arm64",
@@ -53,8 +56,20 @@ func prepareSociIndices(t *testing.T, sh *shell.Shell) []testImageIndex {
 			platform: "linux/amd64",
 		},
 	}
+	return prepareCustomSociIndices(t, sh, imageIndexes, opt...)
+}
 
-	for i, img := range testImages {
+func prepareCustomSociIndices(t *testing.T, sh *shell.Shell, images []testImageIndex, opt ...indexBuildOption) map[string]testImageIndex {
+	indexBuildConfig := defaultIndexBuildConfig()
+	for _, o := range opt {
+		o(&indexBuildConfig)
+	}
+	testImages := make(map[string]testImageIndex)
+	for _, tii := range images {
+		testImages[tii.imgName] = tii
+	}
+
+	for imgName, img := range testImages {
 		platform := platforms.DefaultSpec()
 		if img.platform != "" {
 			var err error
@@ -63,14 +78,14 @@ func prepareSociIndices(t *testing.T, sh *shell.Shell) []testImageIndex {
 				t.Fatalf("could not parse platform: %v", err)
 			}
 		}
-		img.imgInfo = dockerhub(img.imgName, withPlatform(platform))
-		img.sociIndexDigest = buildIndex(sh, img.imgInfo, withMinLayerSize(0))
+		img.imgInfo = dockerhub(imgName, withPlatform(platform))
+		img.sociIndexDigest = buildIndex(sh, img.imgInfo, withIndexBuildConfig(indexBuildConfig), withMinLayerSize(0))
 		ztocDigests, err := getZtocDigestsForImage(sh, img.imgInfo)
 		if err != nil {
 			t.Fatalf("could not get ztoc digests: %v", err)
 		}
 		img.ztocDigests = ztocDigests
-		testImages[i] = img
+		testImages[imgName] = img
 	}
 
 	return testImages
@@ -100,19 +115,19 @@ func TestSociIndexInfo(t *testing.T) {
 
 	testImages := prepareSociIndices(t, sh)
 
-	for _, img := range testImages {
+	for imgName, img := range testImages {
 		tests := []struct {
 			name      string
 			digest    string
 			expectErr bool
 		}{
 			{
-				name:      img.imgName + " with index digest",
+				name:      imgName + " with index digest",
 				digest:    img.sociIndexDigest,
 				expectErr: false,
 			},
 			{
-				name:      img.imgName + " with ztoc digest",
+				name:      imgName + " with ztoc digest",
 				digest:    img.ztocDigests[0],
 				expectErr: true,
 			},
@@ -131,7 +146,7 @@ func TestSociIndexInfo(t *testing.T) {
 						t.Fatalf("failed to get manifest digest: %v", err)
 					}
 
-					if err := validateSociIndex(sh, sociIndex, m, nil); err != nil {
+					if err := validateSociIndex(sh, config.DefaultContentStoreType, sociIndex, m, nil); err != nil {
 						t.Fatalf("failed to validate soci index: %v", err)
 					}
 				} else if err == nil {
@@ -189,8 +204,8 @@ func TestSociIndexList(t *testing.T) {
 		},
 		{
 			name:         "`soci index ls --ref imgRef` should only list soci indices for the image",
-			command:      []string{"soci", "index", "list", "--ref", testImages[0].imgInfo.ref},
-			filter:       func(img testImageIndex) bool { return img.imgInfo.ref == testImages[0].imgInfo.ref },
+			command:      []string{"soci", "index", "list", "--ref", testImages[ubuntuImage].imgInfo.ref},
+			filter:       func(img testImageIndex) bool { return img.imgInfo.ref == testImages[ubuntuImage].imgInfo.ref },
 			existHandler: existHandlerFull,
 		},
 		{
@@ -202,8 +217,8 @@ func TestSociIndexList(t *testing.T) {
 		{
 			// make sure the image only generates one soci index (the test expects a single digest output)
 			name:         "`soci index ls --ref imgRef -q` should print the exact soci index digest",
-			command:      []string{"soci", "index", "list", "-q", "--ref", testImages[0].imgInfo.ref},
-			filter:       func(img testImageIndex) bool { return img.imgInfo.ref == testImages[0].imgInfo.ref },
+			command:      []string{"soci", "index", "list", "-q", "--ref", testImages[ubuntuImage].imgInfo.ref},
+			filter:       func(img testImageIndex) bool { return img.imgInfo.ref == testImages[ubuntuImage].imgInfo.ref },
 			existHandler: existHandlerExact,
 		},
 	}
@@ -228,11 +243,15 @@ func TestSociIndexList(t *testing.T) {
 func TestSociIndexRemove(t *testing.T) {
 	sh, done := newSnapshotterBaseShell(t)
 	defer done()
-	rebootContainerd(t, sh, "", "")
+	rebootContainerd(t, sh, getContainerdConfigToml(t, false, `
+[plugins."io.containerd.gc.v1.scheduler"]
+	deletion_threshold = 1
+	startup_delay = "10ms"
+`), "")
 
 	t.Run("soci index rm indexDigest removes an index", func(t *testing.T) {
 		testImages := prepareSociIndices(t, sh)
-		target := testImages[0]
+		target := testImages[ubuntuImage]
 		indicesRaw := sh.
 			X("soci", "index", "rm", target.sociIndexDigest).
 			O("soci", "index", "list", "-q")
@@ -243,13 +262,56 @@ func TestSociIndexRemove(t *testing.T) {
 
 	t.Run("soci index rm --ref imgRef removes all indices for imgRef", func(t *testing.T) {
 		testImages := prepareSociIndices(t, sh)
-		target := testImages[0]
+		target := testImages[ubuntuImage]
 		indicesRaw := sh.
 			X("soci", "index", "rm", "--ref", target.imgInfo.ref).
 			O("soci", "index", "list", "-q", "--ref", target.imgInfo.ref)
 		indices := strings.Trim(string(indicesRaw), "\n")
 		if indices != "" {
 			t.Fatalf("\"soci index rm --ref\" doesn't remove all soci indices for the given image %s, remaining indices: %s", target.imgInfo.ref, indices)
+		}
+	})
+
+	t.Run("soci index rm on containerd content store removes orphaned zTOCs and not unorphaned zTOCs", func(t *testing.T) {
+		testImages := prepareCustomSociIndices(t, sh,
+			[]testImageIndex{{imgName: nginxAlpineImage}, {imgName: nginxAlpineImage2}}, withContentStoreType(store.ContainerdContentStoreType))
+
+		remove := testImages[nginxAlpineImage]
+		keep := testImages[nginxAlpineImage2]
+
+		commonZtocs := make(map[string]struct{})
+		removeZtocs := make(map[string]struct{})
+		for _, dgst := range remove.ztocDigests {
+			removeZtocs[dgst] = struct{}{}
+		}
+		for _, dgst := range keep.ztocDigests {
+			if _, ok := removeZtocs[dgst]; ok {
+				commonZtocs[dgst] = struct{}{}
+			}
+		}
+		if len(commonZtocs) == 0 {
+			t.Fatalf("test invalidated due to no common zTOCs between %s and %s", remove.sociIndexDigest, keep.sociIndexDigest)
+		}
+		if len(removeZtocs)-len(commonZtocs) < 1 {
+			t.Fatalf("test invalidated due to no unique zTOCs between %s and %s", remove.sociIndexDigest, keep.sociIndexDigest)
+		}
+
+		sh.X("soci", "--content-store", string(store.ContainerdContentStoreType), "index", "rm", remove.sociIndexDigest)
+		time.Sleep(1 * time.Second)
+		// clean up zTOCs from the artifact db if they were removed from the content store due to garbage collection
+		sh.X("soci", "--content-store", string(store.ContainerdContentStoreType), "rebuild-db")
+
+		ztocsRaw := string(sh.O("soci", "ztoc", "list", "-q"))
+		for dgst := range removeZtocs {
+			if _, ok := commonZtocs[dgst]; ok {
+				if !strings.Contains(ztocsRaw, dgst) {
+					t.Fatalf("index removal removed non-oprhaned ztoc: %s", dgst)
+				}
+			} else {
+				if strings.Contains(ztocsRaw, dgst) {
+					t.Fatalf("index removal didn't remove oprhaned ztoc: %s", dgst)
+				}
+			}
 		}
 	})
 

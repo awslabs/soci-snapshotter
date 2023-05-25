@@ -51,13 +51,15 @@ import (
 	"time"
 
 	commonmetrics "github.com/awslabs/soci-snapshotter/fs/metrics/common"
-	"github.com/awslabs/soci-snapshotter/util/dockershell"
+	"github.com/awslabs/soci-snapshotter/soci/store"
 	shell "github.com/awslabs/soci-snapshotter/util/dockershell"
 	"github.com/awslabs/soci-snapshotter/util/dockershell/compose"
 	dexec "github.com/awslabs/soci-snapshotter/util/dockershell/exec"
 	"github.com/awslabs/soci-snapshotter/util/testutil"
 	"github.com/containerd/containerd/platforms"
+	"github.com/opencontainers/go-digest"
 	spec "github.com/opencontainers/image-spec/specs-go/v1"
+	"github.com/pelletier/go-toml"
 	"github.com/rs/xid"
 	"golang.org/x/crypto/bcrypt"
 )
@@ -68,8 +70,6 @@ const (
 	builtinSnapshotterFlagEnv    = "BUILTIN_SNAPSHOTTER"
 	buildArgsEnv                 = "DOCKER_BUILD_ARGS"
 	dockerLibrary                = "public.ecr.aws/docker/library/"
-	blobStorePath                = "/var/lib/soci-snapshotter-grpc/content/blobs/sha256"
-	containerdBlobStorePath      = "/var/lib/containerd/io.containerd.content.v1.content/blobs/sha256"
 	// Registry images to use in the test infrastructure. These are not intended to be used
 	// as images in the test itself, but just when we're setting up docker compose.
 	oci11RegistryImage = "ghcr:soci_test"
@@ -78,6 +78,7 @@ const (
 
 // These are images that we use in our integration tests
 const (
+	helloImage    = "hello-world:latest"
 	alpineImage   = "alpine:3.17.1"
 	nginxImage    = "nginx:1.23.3"
 	ubuntuImage   = "ubuntu:23.04"
@@ -275,10 +276,6 @@ func getSnapshotterConfigToml(t *testing.T, disableVerification bool, additional
 		t.Fatal(err)
 	}
 	return s
-}
-
-func trimSha256Prefix(s string) string {
-	return strings.TrimPrefix(s, "sha256:")
 }
 
 func isTestingBuiltinSnapshotter() bool {
@@ -611,7 +608,7 @@ func getManifestDigest(sh *shell.Shell, ref string, platform spec.Platform) (str
 	return "", fmt.Errorf("could not find manifest for %s for platform %s", ref, platforms.Format(platform))
 }
 
-func getReferrers(sh *dockershell.Shell, regConfig registryConfig, imgName, digest string) (*spec.Index, error) {
+func getReferrers(sh *shell.Shell, regConfig registryConfig, imgName, digest string) (*spec.Index, error) {
 	var index spec.Index
 	output, err := sh.OLog("curl", "-u", regConfig.creds(), fmt.Sprintf("https://%s:443/v2/%s/referrers/%s", regConfig.host, imgName, digest))
 	if err != nil {
@@ -626,10 +623,10 @@ func getReferrers(sh *dockershell.Shell, regConfig registryConfig, imgName, dige
 
 func rebootContainerd(t *testing.T, sh *shell.Shell, customContainerdConfig, customSnapshotterConfig string) *testutil.LogMonitor {
 	var (
-		containerdRoot    = "/var/lib/containerd/"
+		containerdRoot    = "/var/lib/containerd"
 		containerdStatus  = "/run/containerd/"
 		snapshotterSocket = "/run/soci-snapshotter-grpc/soci-snapshotter-grpc.sock"
-		snapshotterRoot   = "/var/lib/soci-snapshotter-grpc/"
+		snapshotterRoot   = "/var/lib/soci-snapshotter-grpc"
 	)
 
 	// cleanup directories
@@ -725,7 +722,14 @@ func middleSizeLayerInfo(t *testing.T, sh *shell.Shell, image imageInfo) (int, i
 	if err != nil {
 		t.Fatalf("Failed to get manifest digest: %v", err)
 	}
-	imageManifestJSON := fetchContentByDigest(sh, imageManifestDigest)
+	dgst, err := digest.Parse(imageManifestDigest)
+	if err != nil {
+		t.Fatalf("Failed to parse manifest digest: %v", err)
+	}
+	imageManifestJSON, err := FetchContentByDigest(sh, store.ContainerdContentStoreType, dgst)
+	if err != nil {
+		t.Fatalf("Failed to fetch manifest: %v", err)
+	}
 	imageManifest := new(spec.Manifest)
 	if err := json.Unmarshal(imageManifestJSON, imageManifest); err != nil {
 		t.Fatalf("cannot unmarshal image manifest: %v", err)
@@ -762,6 +766,35 @@ func fetchContentFromPath(sh *shell.Shell, path string) []byte {
 	return sh.O("cat", path)
 }
 
-func fetchContentByDigest(sh *shell.Shell, digest string) []byte {
-	return sh.O("ctr", "content", "get", digest)
+func fetchSociContentStoreContentByDigest(sh *shell.Shell, dgst digest.Digest) []byte {
+	path := filepath.Join(store.DefaultSociContentStorePath, "blobs", dgst.Algorithm().String(), dgst.Encoded())
+	return sh.O("cat", path)
+}
+
+func fetchContainerdContentStoreContentByDigest(sh *shell.Shell, dgst digest.Digest) []byte {
+	return sh.O("ctr", "content", "get", dgst.String())
+}
+
+func FetchContentByDigest(sh *shell.Shell, contentStoreType store.ContentStoreType, dgst digest.Digest) ([]byte, error) {
+	contentStoreType, err := store.CanonicalizeContentStoreType(contentStoreType)
+	if err != nil {
+		return nil, err
+	}
+	switch contentStoreType {
+	case store.SociContentStoreType:
+		return fetchSociContentStoreContentByDigest(sh, dgst), nil
+	case store.ContainerdContentStoreType:
+		return fetchContainerdContentStoreContentByDigest(sh, dgst), nil
+	default:
+		return nil, store.ErrUnknownContentStoreType(contentStoreType)
+	}
+}
+
+func GetContentStoreConfigToml(opts ...store.Option) string {
+	storeConfig := store.NewStoreConfig(opts...)
+	configToml, err := toml.Marshal(storeConfig)
+	if err != nil {
+		return ""
+	}
+	return "\n[content_store]\n" + string(configToml)
 }

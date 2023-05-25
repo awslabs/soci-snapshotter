@@ -38,6 +38,10 @@
 
 package config
 
+import (
+	"github.com/containerd/containerd/namespaces"
+)
+
 type FSConfig struct {
 	HTTPCacheType                  string `toml:"http_cache_type"`
 	FSCacheType                    string `toml:"filesystem_cache_type"`
@@ -58,6 +62,8 @@ type FSConfig struct {
 	FuseConfig `toml:"fuse"`
 
 	BackgroundFetchConfig `toml:"background_fetch"`
+
+	ContentStoreConfig `toml:"content_store"`
 }
 
 // BlobConfig is config for layer blob management.
@@ -152,6 +158,12 @@ type RetryableHTTPClientConfig struct {
 	RetryConfig
 }
 
+// ContentStoreConfig chooses and configures the content store
+type ContentStoreConfig struct {
+	Type      string `toml:"type"`
+	Namespace string `toml:"namespace"`
+}
+
 func parseFSConfig(cfg *Config) {
 	// Parse top level fs config
 	if cfg.MountTimeoutSec == 0 {
@@ -161,7 +173,7 @@ func parseFSConfig(cfg *Config) {
 		cfg.FuseMetricsEmitWaitDurationSec = defaultFuseMetricsEmitWaitDurationSec
 	}
 	// Parse nested fs configs
-	parsers := []configParser{parseFuseConfig, parseBackgroundFetchConfig, parseRetryableHTTPClientConfig, parseBlobConfig}
+	parsers := []configParser{parseFuseConfig, parseBackgroundFetchConfig, parseRetryableHTTPClientConfig, parseBlobConfig, parseContentStoreConfig}
 	for _, p := range parsers {
 		p(cfg)
 	}
@@ -242,5 +254,14 @@ func parseBlobConfig(cfg *Config) {
 	}
 	if cfg.BlobConfig.MaxWaitMsec == 0 {
 		cfg.BlobConfig.MaxWaitMsec = cfg.RetryableHTTPClientConfig.RetryConfig.MaxWaitMsec
+	}
+}
+
+func parseContentStoreConfig(cfg *Config) {
+	if cfg.ContentStoreConfig.Type == "" {
+		cfg.ContentStoreConfig.Type = DefaultContentStoreType
+	}
+	if cfg.ContentStoreConfig.Namespace == "" {
+		cfg.ContentStoreConfig.Namespace = namespaces.Default
 	}
 }

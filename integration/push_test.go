@@ -18,10 +18,13 @@ package integration
 
 import (
 	"fmt"
+	"path/filepath"
 	"strings"
 	"testing"
 
+	"github.com/awslabs/soci-snapshotter/config"
 	"github.com/awslabs/soci-snapshotter/soci"
+	"github.com/awslabs/soci-snapshotter/soci/store"
 
 	"github.com/containerd/containerd/platforms"
 )
@@ -57,13 +60,19 @@ func TestSociArtifactsPushAndPull(t *testing.T) {
 			imageName := ubuntuImage
 			copyImage(sh, dockerhub(imageName, withPlatform(platform)), regConfig.mirror(imageName, withPlatform(platform)))
 			indexDigest := buildIndex(sh, regConfig.mirror(imageName, withPlatform(platform)), withMinLayerSize(0))
-			artifactsStoreContentDigest := getSociLocalStoreContentDigest(sh)
+			artifactsStoreContentDigest, err := getSociLocalStoreContentDigest(sh, config.DefaultContentStoreType)
+			if err != nil {
+				t.Fatalf("could not get digest of local content store: %v", err)
+			}
 
 			sh.X("soci", "push", "--user", regConfig.creds(), "--platform", tt.Platform, regConfig.mirror(imageName).ref)
-			sh.X("rm", "-rf", "/var/lib/soci-snapshotter-grpc/content/blobs/sha256")
+			sh.X("rm", "-rf", filepath.Join(store.DefaultSociContentStorePath, "blobs", "sha256"))
 			sh.X("soci", "image", "rpull", "--user", regConfig.creds(), "--soci-index-digest", indexDigest, "--platform", tt.Platform, regConfig.mirror(imageName).ref)
 
-			artifactsStoreContentDigestAfterRPull := getSociLocalStoreContentDigest(sh)
+			artifactsStoreContentDigestAfterRPull, err := getSociLocalStoreContentDigest(sh, config.DefaultContentStoreType)
+			if err != nil {
+				t.Fatalf("could not get digest of local content store: %v", err)
+			}
 
 			if artifactsStoreContentDigest != artifactsStoreContentDigestAfterRPull {
 				t.Fatalf("unexpected digests before and after rpull; before = %v, after = %v", artifactsStoreContentDigest, artifactsStoreContentDigestAfterRPull)
@@ -167,7 +176,7 @@ func TestLegacyOCI(t *testing.T) {
 				// if we have an error and we expected an error, the test is done
 				return
 			}
-			sh.X("rm", "-rf", "/var/lib/soci-snapshotter-grpc/content/blobs/sha256")
+			sh.X("rm", "-rf", filepath.Join(store.DefaultSociContentStorePath, "blobs", "sha256"))
 
 			sh.X("soci", "image", "rpull", "--user", regConfig.creds(), "--soci-index-digest", indexDigest, regConfig.mirror(imageName).ref)
 			if err := sh.Err(); err != nil {

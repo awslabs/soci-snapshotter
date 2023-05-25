@@ -24,15 +24,18 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"strconv"
 	"sync"
 	"time"
 
+	"github.com/awslabs/soci-snapshotter/soci/store"
 	"github.com/awslabs/soci-snapshotter/ztoc"
 	"github.com/awslabs/soci-snapshotter/ztoc/compression"
 	"github.com/containerd/containerd/content"
 	"github.com/containerd/containerd/images"
 	"github.com/containerd/containerd/log"
 	"github.com/containerd/containerd/platforms"
+	"github.com/hashicorp/go-multierror"
 	"github.com/opencontainers/go-digest"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 
@@ -515,7 +518,14 @@ func GetImageManifestDescriptor(ctx context.Context, cs content.Store, imageTarg
 }
 
 // WriteSociIndex writes the SociIndex manifest to oras `store`.
-func WriteSociIndex(ctx context.Context, indexWithMetadata *IndexWithMetadata, store orascontent.Storage, artifactsDb *ArtifactsDb) error {
+func WriteSociIndex(ctx context.Context, indexWithMetadata *IndexWithMetadata, contentStore store.Store, artifactsDb *ArtifactsDb) error {
+	// batch will prevent content from being garbage collected in the middle of the following operations
+	ctx, batchDone, err := contentStore.BatchOpen(ctx)
+	if err != nil {
+		return err
+	}
+	defer batchDone(ctx)
+
 	manifest, err := MarshalIndex(indexWithMetadata.Index)
 	if err != nil {
 		return err
@@ -525,7 +535,7 @@ func WriteSociIndex(ctx context.Context, indexWithMetadata *IndexWithMetadata, s
 	// empty config objct in the store as well. We will need to push this to the
 	// registry later.
 	if indexWithMetadata.Index.MediaType == ocispec.MediaTypeImageManifest {
-		err = store.Push(ctx, defaultConfigDescriptor, bytes.NewReader(defaultConfigContent))
+		err = contentStore.Push(ctx, defaultConfigDescriptor, bytes.NewReader(defaultConfigContent))
 		if err != nil && !errors.Is(err, errdef.ErrAlreadyExists) {
 			return fmt.Errorf("error creating OCI 1.0 empty config: %w", err)
 		}
@@ -533,17 +543,37 @@ func WriteSociIndex(ctx context.Context, indexWithMetadata *IndexWithMetadata, s
 
 	dgst := digest.FromBytes(manifest)
 	size := int64(len(manifest))
-
-	err = store.Push(ctx, ocispec.Descriptor{
+	desc := ocispec.Descriptor{
 		Digest: dgst,
 		Size:   size,
-	}, bytes.NewReader(manifest))
+	}
 
+	err = contentStore.Push(ctx, desc, bytes.NewReader(manifest))
 	if err != nil && !errors.Is(err, errdef.ErrAlreadyExists) {
 		return fmt.Errorf("cannot write SOCI index to local store: %w", err)
 	}
 
 	log.G(ctx).WithField("digest", dgst.String()).Debugf("soci index has been written")
+
+	err = store.LabelGCRoot(ctx, contentStore, desc)
+	if err != nil {
+		return fmt.Errorf("cannot apply garbage collection label to index %s: %w", desc.Digest.String(), err)
+	}
+	err = store.LabelGCRefContent(ctx, contentStore, desc, "config", defaultConfigDescriptor.Digest.String())
+	if err != nil {
+		return fmt.Errorf("cannot apply garbage collection label to index %s referencing default config: %w", desc.Digest.String(), err)
+	}
+
+	var allErr error
+	for i, blob := range indexWithMetadata.Index.Blobs {
+		err = store.LabelGCRefContent(ctx, contentStore, desc, "ztoc."+strconv.Itoa(i), blob.Digest.String())
+		if err != nil {
+			multierror.Append(allErr, err)
+		}
+	}
+	if allErr != nil {
+		return fmt.Errorf("cannot apply one or more garbage collection labels to index %s: %w", desc.Digest.String(), allErr)
+	}
 
 	refers := indexWithMetadata.Index.Subject
 

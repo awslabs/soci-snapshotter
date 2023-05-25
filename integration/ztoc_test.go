@@ -30,12 +30,15 @@ import (
 	"testing"
 	"time"
 
+	"github.com/awslabs/soci-snapshotter/config"
 	"github.com/awslabs/soci-snapshotter/soci"
+	"github.com/awslabs/soci-snapshotter/soci/store"
 	"github.com/awslabs/soci-snapshotter/util/dockershell"
 	"github.com/awslabs/soci-snapshotter/util/testutil"
 	"github.com/awslabs/soci-snapshotter/ztoc"
 	"github.com/awslabs/soci-snapshotter/ztoc/compression"
 	"github.com/google/go-cmp/cmp"
+	"github.com/opencontainers/go-digest"
 	v1 "github.com/opencontainers/image-spec/specs-go/v1"
 )
 
@@ -93,7 +96,7 @@ func TestSociZtocList(t *testing.T) {
 	})
 
 	t.Run("soci ztoc list --ztoc-digest ztocDigest should print a single ztoc", func(t *testing.T) {
-		target := testImages[0]
+		target := testImages[ubuntuImage]
 		sociIndex, err := sociIndexFromDigest(sh, target.sociIndexDigest)
 		if err != nil {
 			t.Fatal(err)
@@ -222,7 +225,15 @@ func TestSociZtocInfo(t *testing.T) {
 					if err != nil {
 						t.Fatalf("expected Info type got %s: %v", output, err)
 					}
-					ztocPath := filepath.Join(blobStorePath, trimSha256Prefix(tt.ztocDigest))
+					blobPath, err := testutil.GetContentStoreBlobPath(config.DefaultContentStoreType)
+					if err != nil {
+						t.Fatalf("cannot get local content store blob path: %v", err)
+					}
+					dgst, err := digest.Parse(tt.ztocDigest)
+					if err != nil {
+						t.Fatalf("cannot parse digest: %v", err)
+					}
+					ztocPath := filepath.Join(blobPath, dgst.Encoded())
 					ztoc, err := getFullZtoc(sh, ztocPath)
 					if err != nil {
 						t.Fatalf("failed getting original ztoc: %v", err)
@@ -298,7 +309,12 @@ func TestSociZtocGetFile(t *testing.T) {
 				break
 			}
 		}
-		layerContents := sh.O("cat", filepath.Join(containerdBlobStorePath, trimSha256Prefix(layerDigest)))
+		containerdStoreBlobPath, _ := testutil.GetContentStoreBlobPath(store.ContainerdContentStoreType)
+		dgst, err := digest.Parse(layerDigest)
+		if err != nil {
+			t.Fatalf("cannot parse digest: %v", err)
+		}
+		layerContents := sh.O("cat", filepath.Join(containerdStoreBlobPath, dgst.Encoded()))
 		files := getRandomFilePathsWithinZtoc(ztocDigest, 1)
 
 		testCases := []struct {

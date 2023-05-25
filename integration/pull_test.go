@@ -42,7 +42,9 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/awslabs/soci-snapshotter/config"
 	"github.com/awslabs/soci-snapshotter/soci"
+	"github.com/awslabs/soci-snapshotter/soci/store"
 	shell "github.com/awslabs/soci-snapshotter/util/dockershell"
 	"github.com/awslabs/soci-snapshotter/util/dockershell/compose"
 	"github.com/awslabs/soci-snapshotter/util/testutil"
@@ -107,44 +109,48 @@ func TestOptimizeConsistentSociArtifact(t *testing.T) {
 		},
 	}
 	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			rebootContainerd(t, sh, "", "")
-			copyImage(sh, dockerhub(tt.containerImage), regConfig.mirror(tt.containerImage))
-			// optimize for the first time
-			sh.
-				X("rm", "-rf", blobStorePath)
-			buildIndex(sh, regConfig.mirror(tt.containerImage), withMinLayerSize(0))
-			// move the artifact to a folder
-			sh.
-				X("rm", "-rf", "copy").
-				X("mkdir", "copy").
-				X("cp", "-r", blobStorePath, "copy") // move the contents of soci dir to another folder
-
-			// optimize for the second time
-			sh.
-				X("rm", "-rf", blobStorePath)
-			buildIndex(sh, regConfig.mirror(tt.containerImage), withMinLayerSize(0))
-
-			currContent := sh.O("ls", blobStorePath)
-			prevContent := sh.O("ls", "copy/sha256")
-			if !bytes.Equal(currContent, prevContent) {
-				t.Fatalf("local content store: previously generated artifact is different")
-			}
-
-			fileNames := strings.Fields(string(currContent))
-			for _, fn := range fileNames {
-				if fn == "artifacts.db" {
-					// skipping artifacts.db, since this is bbolt file and we have no control over its internals
-					continue
+		for _, contentStoreType := range store.ContentStoreTypes() {
+			t.Run(tt.name+" with "+string(contentStoreType+" content store"), func(t *testing.T) {
+				contentStorePath, err := store.GetContentStorePath(contentStoreType)
+				if err != nil {
+					t.Fatalf("cannot get local content store path: %v", err)
 				}
-				out, _ := sh.OLog("cmp", filepath.Join(blobStorePath, fn), filepath.Join("copy", "sha256", fn))
-				if string(out) != "" {
-					t.Fatalf("the artifact is different: %v", string(out))
-				}
-			}
+				// build artifacts from scratch
+				rebootContainerd(t, sh, "", getSnapshotterConfigToml(t, false, GetContentStoreConfigToml(store.WithType(contentStoreType))))
+				// ensure the image is in the local registry
+				copyImage(sh, dockerhub(tt.containerImage), regConfig.mirror(tt.containerImage))
+				buildIndex(sh, regConfig.mirror(tt.containerImage), withMinLayerSize(0), withContentStoreType(contentStoreType))
+				// copy the content store files
+				sh.
+					X("rm", "-rf", "copy").
+					X("cp", "-r", contentStorePath, "copy")
 
-			sh.X("rm", "-rf", blobStorePath).X("rm", "-rf", "copy")
-		})
+				// build artifacts from scratch again
+				rebootContainerd(t, sh, "", getSnapshotterConfigToml(t, false, GetContentStoreConfigToml(store.WithType(contentStoreType))))
+				copyImage(sh, dockerhub(tt.containerImage), regConfig.mirror(tt.containerImage))
+				buildIndex(sh, regConfig.mirror(tt.containerImage), withMinLayerSize(0), withContentStoreType(contentStoreType))
+
+				currContent := sh.O("ls", filepath.Join(contentStorePath, "blobs", "sha256"))
+				prevContent := sh.O("ls", filepath.Join("copy", "blobs", "sha256"))
+				if !bytes.Equal(currContent, prevContent) {
+					t.Fatalf("local content store: previously generated artifact listing is different")
+				}
+
+				fileNames := strings.Fields(string(currContent))
+				for _, fn := range fileNames {
+					if fn == "artifacts.db" {
+						// skipping artifacts.db, since this is bbolt file and we have no control over its internals
+						continue
+					}
+					out, _ := sh.OLog("cmp", filepath.Join(contentStorePath, "blobs", "sha256", fn), filepath.Join("copy", "blobs", "sha256", fn))
+					if string(out) != "" {
+						t.Fatalf("the artifact is different: %v", string(out))
+					}
+				}
+
+				sh.X("rm", "-rf", "copy")
+			})
+		}
 	}
 }
 
@@ -177,9 +183,17 @@ func TestLazyPullWithSparseIndex(t *testing.T) {
 
 	imageManifestDigest, err := getManifestDigest(sh, dockerhub(imageName).ref, dockerhub(imageName).platform)
 	if err != nil {
-		t.Fatalf("Failed to get manifest digest: %v", err)
+		t.Fatalf("failed to get manifest digest: %v", err)
 	}
-	imageManifestJSON := fetchContentByDigest(sh, imageManifestDigest)
+	dgst, err := digest.Parse(imageManifestDigest)
+	if err != nil {
+		t.Fatalf("failed to parse manifest digest: %v", err)
+	}
+
+	imageManifestJSON, err := FetchContentByDigest(sh, store.ContainerdContentStoreType, dgst)
+	if err != nil {
+		t.Fatalf("failed to fetch content %s: %v", dgst, err)
+	}
 	imageManifest := new(ocispec.Manifest)
 	if err := json.Unmarshal(imageManifestJSON, imageManifest); err != nil {
 		t.Fatalf("cannot unmarshal index manifest: %v", err)
@@ -230,7 +244,11 @@ func checkFuseMounts(t *testing.T, sh *shell.Shell, remoteSnapshotsExpectedCount
 
 func checkLayersInSnapshottersContentStore(t *testing.T, sh *shell.Shell, layers []ocispec.Descriptor) {
 	for _, layer := range layers {
-		layerPath := filepath.Join(blobStorePath, trimSha256Prefix(layer.Digest.String()))
+		contentStoreBlobPath, err := testutil.GetContentStoreBlobPath(config.DefaultContentStoreType)
+		if err != nil {
+			t.Fatalf("cannot get content store path: %v", err)
+		}
+		layerPath := filepath.Join(contentStoreBlobPath, layer.Digest.Encoded())
 		existenceResult := strings.TrimSuffix(string(sh.O("ls", layerPath)), "\n")
 		if layerPath != existenceResult {
 			t.Fatalf("layer file %s was not found in snapshotter's local content store, the result of ls=%s", layerPath, existenceResult)
@@ -424,7 +442,6 @@ func TestPullWithAribtraryBlobInvalidZtocFormat(t *testing.T) {
 	}
 
 	buildMaliciousIndex := func(sh *shell.Shell, imgDigest string) ([]byte, []ocispec.Descriptor, error) {
-		sh.X("mkdir", "-p", blobStorePath)
 		imgBytes := sh.O("ctr", "content", "get", imgDigest)
 		var manifest ocispec.Manifest
 		if err := json.Unmarshal(imgBytes, &manifest); err != nil {
@@ -435,11 +452,7 @@ func TestPullWithAribtraryBlobInvalidZtocFormat(t *testing.T) {
 		for _, layer := range manifest.Layers {
 			ztocBytes := testutil.RandomByteData(1000000)
 			ztocDgst := digest.FromBytes(ztocBytes)
-			ztocPath := fmt.Sprintf("%s/%s", blobStorePath, trimSha256Prefix(ztocDgst.String()))
-			if err := testutil.WriteFileContents(sh, ztocPath, ztocBytes, 0600); err != nil {
-				t.Fatalf("cannot write ztoc to path %s: %v", ztocPath, err)
-			}
-			ztocDescs = append(ztocDescs, ocispec.Descriptor{
+			desc := ocispec.Descriptor{
 				MediaType: soci.SociLayerMediaType,
 				Digest:    digest.FromBytes(ztocBytes),
 				Size:      100000,
@@ -447,7 +460,11 @@ func TestPullWithAribtraryBlobInvalidZtocFormat(t *testing.T) {
 					soci.IndexAnnotationImageLayerDigest:    layer.Digest.String(),
 					soci.IndexAnnotationImageLayerMediaType: layer.MediaType,
 				},
-			})
+			}
+			if err := testutil.InjectContentStoreContentFromBytes(sh, config.DefaultContentStoreType, desc, ztocBytes); err != nil {
+				t.Fatalf("cannot write ztoc %s to content store: %v", ztocDgst.String(), err)
+			}
+			ztocDescs = append(ztocDescs, desc)
 		}
 
 		subject := ocispec.Descriptor{
@@ -479,9 +496,12 @@ func TestPullWithAribtraryBlobInvalidZtocFormat(t *testing.T) {
 				}
 				sh.X("ctr", "i", "rm", image)
 				indexDigest := digest.FromBytes(indexBytes)
-				path := fmt.Sprintf("%s/%s", blobStorePath, trimSha256Prefix(indexDigest.String()))
-				if err := testutil.WriteFileContents(sh, path, indexBytes, 0600); err != nil {
-					t.Fatalf("cannot write index to path %s: %v", path, err)
+				desc := ocispec.Descriptor{
+					Digest: indexDigest,
+					Size:   int64(len(indexBytes)),
+				}
+				if err := testutil.InjectContentStoreContentFromBytes(sh, config.DefaultContentStoreType, desc, indexBytes); err != nil {
+					t.Fatalf("cannot write index %s to content store: %v", indexDigest.String(), err)
 				}
 				export(sh, image, indexDigest.String(), tarExportArgs)
 				checkFuseMounts(t, sh, 0)

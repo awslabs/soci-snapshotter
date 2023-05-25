@@ -22,13 +22,12 @@ import (
 	"io"
 	"os"
 
-	"github.com/awslabs/soci-snapshotter/config"
 	"github.com/awslabs/soci-snapshotter/soci"
+	"github.com/awslabs/soci-snapshotter/soci/store"
 
 	"github.com/opencontainers/go-digest"
 	v1 "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/urfave/cli"
-	"oras.land/oras-go/v2/content/oci"
 )
 
 var infoCommand = cli.Command{
@@ -52,13 +51,13 @@ var infoCommand = cli.Command{
 		if artifactType == soci.ArtifactEntryTypeLayer {
 			return fmt.Errorf("the provided digest is of ztoc not SOCI index. Use \"soci ztoc info\" command to get detailed info of ztoc")
 		}
-		storage, err := oci.New(config.SociContentStorePath)
+		ctx, cancel := context.WithTimeout(context.Background(), cliContext.GlobalDuration("timeout"))
+		defer cancel()
+		ctx, store, err := store.NewContentStore(ctx, store.WithType(store.ContentStoreType(cliContext.GlobalString("content-store"))), store.WithNamespace(cliContext.GlobalString("namespace")))
 		if err != nil {
 			return err
 		}
-		ctx, cancel := context.WithTimeout(context.Background(), cliContext.GlobalDuration("timeout"))
-		defer cancel()
-		reader, err := storage.Fetch(ctx, v1.Descriptor{Digest: digest})
+		reader, err := store.Fetch(ctx, v1.Descriptor{Digest: digest})
 		if err != nil {
 			return err
 		}

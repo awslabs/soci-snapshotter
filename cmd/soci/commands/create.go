@@ -23,9 +23,9 @@ import (
 	"github.com/awslabs/soci-snapshotter/cmd/soci/commands/internal"
 	"github.com/awslabs/soci-snapshotter/config"
 	"github.com/awslabs/soci-snapshotter/soci"
+	"github.com/awslabs/soci-snapshotter/soci/store"
 	"github.com/containerd/containerd/cmd/ctr/commands"
 	"github.com/urfave/cli"
-	"oras.land/oras-go/v2/content/oci"
 )
 
 const (
@@ -85,7 +85,8 @@ var CreateCommand = cli.Command{
 		} else if err != nil {
 			return err
 		}
-		blobStore, err := oci.New(config.SociContentStorePath)
+
+		ctx, blobStore, err := store.NewContentStore(ctx, store.WithType(store.ContentStoreType(cliContext.GlobalString("content-store"))), store.WithNamespace(cliContext.GlobalString("namespace")))
 		if err != nil {
 			return err
 		}

@@ -46,6 +46,10 @@ var listCommand = cli.Command{
 			Name:  "verbose, v",
 			Usage: "display extra debugging messages",
 		},
+		cli.BoolFlag{
+			Name:  "quiet, q",
+			Usage: "only display the index digests",
+		},
 	},
 	Action: func(cliContext *cli.Context) error {
 		db, err := soci.NewDB(soci.ArtifactsDbPath())
@@ -55,6 +59,7 @@ var listCommand = cli.Command{
 		ztocDgst := cliContext.String("ztoc-digest")
 		imgRef := cliContext.String("image-ref")
 		verbose := cliContext.Bool("verbose")
+		quiet := cliContext.Bool("quiet")
 
 		var artifacts []*soci.ArtifactEntry
 		if imgRef == "" {
@@ -118,6 +123,13 @@ var listCommand = cli.Command{
 			if ztocDgst != "" && len(artifacts) == 0 {
 				return fmt.Errorf("the specified ztoc doesn't exist or it's not with the specified image")
 			}
+		}
+
+		if quiet {
+			for _, ae := range artifacts {
+				os.Stdout.Write([]byte(fmt.Sprintf("%s\n", ae.Digest)))
+			}
+			return nil
 		}
 
 		writer := tabwriter.NewWriter(os.Stdout, 8, 8, 4, ' ', 0)

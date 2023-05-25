@@ -46,9 +46,6 @@ import (
 )
 
 const (
-	// Default path to OCI-compliant CAS
-	SociContentStorePath = "/var/lib/soci-snapshotter-grpc/content/"
-
 	// Default path to snapshotter root dir
 	SociSnapshotterRootPath = "/var/lib/soci-snapshotter-grpc/"
 
