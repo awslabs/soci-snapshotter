@@ -16,7 +16,7 @@ require (
 	go.etcd.io/bbolt v1.3.7
 	golang.org/x/sys v0.8.0
 	google.golang.org/grpc v1.55.0
-	oras.land/oras-go/v2 v2.1.0
+	oras.land/oras-go/v2 v2.2.0
 )
 
 require (
