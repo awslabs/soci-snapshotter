@@ -85,6 +85,7 @@ var (
 
 var (
 	ErrArtifactBucketNotFound = errors.New("soci_artifacts not found")
+	ErrWalkBailout            = errors.New("walk intentionally bailed out early")
 )
 
 // Get the default artifacts db path
@@ -334,6 +335,26 @@ func (db *ArtifactsDb) GetArtifactType(digest string) (ArtifactEntryType, error)
 	return ae.Type, nil
 }
 
+// RemoveArtifactEntryByZtocDigest removes a zTOC's artifact entry using its digest
+func (db *ArtifactsDb) RemoveArtifactEntryByZtocDigest(digest string) error {
+	return db.db.Update(func(tx *bolt.Tx) error {
+		bucket, err := getArtifactsBucket(tx)
+		if err != nil {
+			return err
+		}
+
+		dgstBucket := bucket.Bucket([]byte(digest))
+		if dgstBucket == nil {
+			return fmt.Errorf("the zTOC of the digest %v doesn't exist", digest)
+		}
+
+		if ztocBucket(dgstBucket) {
+			return bucket.DeleteBucket([]byte(digest))
+		}
+		return fmt.Errorf("the digest %v does not correspond to a zTOC", digest)
+	})
+}
+
 // RemoveArtifactEntryByIndexDigest removes an index's artifact entry using its digest
 func (db *ArtifactsDb) RemoveArtifactEntryByIndexDigest(digest string) error {
 	return db.db.Update(func(tx *bolt.Tx) error {
@@ -371,6 +392,12 @@ func (db *ArtifactsDb) RemoveArtifactEntryByImageDigest(digest string) error {
 		}
 		return nil
 	})
+}
+
+// Determines whether a bucket represents a zTOC, as opposed to an index
+func ztocBucket(b *bolt.Bucket) bool {
+	mt := string(b.Get(bucketKeyMediaType))
+	return mt == SociLayerMediaType
 }
 
 // Determines whether a bucket represents an index, as opposed to a zTOC
