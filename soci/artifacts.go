@@ -375,9 +375,9 @@ func (db *ArtifactsDb) RemoveArtifactEntryByIndexDigest(digest string) error {
 	})
 }
 
-// RemoveArtifactEntryByIndexDigest removes an index's artifact entry using the image digest
-func (db *ArtifactsDb) RemoveArtifactEntryByImageDigest(digest string) error {
-	return db.db.Update(func(tx *bolt.Tx) error {
+func (db *ArtifactsDb) GetIndexDigestsByImageDigest(digest string) (*[]string, error) {
+	indexDigests := make([]string, 0, 1)
+	err := db.db.View(func(tx *bolt.Tx) error {
 		bucket, err := getArtifactsBucket(tx)
 		if err != nil {
 			return err
@@ -387,11 +387,12 @@ func (db *ArtifactsDb) RemoveArtifactEntryByImageDigest(digest string) error {
 		for k, _ := c.First(); k != nil; k, _ = c.Next() {
 			artifactBucket := bucket.Bucket(k)
 			if indexBucket(artifactBucket) && hasImageDigest(artifactBucket, digest) {
-				bucket.DeleteBucket(k)
+				indexDigests = append(indexDigests, string(k))
 			}
 		}
 		return nil
 	})
+	return &indexDigests, err
 }
 
 // Determines whether a bucket represents a zTOC, as opposed to an index

@@ -27,6 +27,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/awslabs/soci-snapshotter/fs/config"
 	"github.com/awslabs/soci-snapshotter/ztoc"
 	"github.com/awslabs/soci-snapshotter/ztoc/compression"
 	"github.com/containerd/containerd/content"
@@ -37,6 +38,7 @@ import (
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 
 	orascontent "oras.land/oras-go/v2/content"
+	"oras.land/oras-go/v2/content/oci"
 	"oras.land/oras-go/v2/errdef"
 )
 
@@ -564,4 +566,108 @@ func WriteSociIndex(ctx context.Context, indexWithMetadata *IndexWithMetadata, s
 		CreatedAt:      indexWithMetadata.CreatedAt,
 	}
 	return artifactsDb.WriteArtifactEntry(entry)
+}
+
+// FetchIndex takes a digest string and returns the soci.Index with that digest
+func FetchIndex(ctx context.Context, storage *oci.Store, digestString string) (*Index, error) {
+	dgst, err := digest.Parse(digestString)
+	if err != nil {
+		return nil, err
+	}
+	reader, err := storage.Fetch(ctx, ocispec.Descriptor{Digest: dgst})
+	if err != nil {
+		return nil, err
+	}
+	defer reader.Close()
+
+	var index Index
+	if err := DecodeIndex(reader, &index); err != nil {
+		return nil, err
+	}
+
+	return &index, nil
+}
+
+// RemoveIndex takes a digest string and removes that index manifest from the artifact db and content store
+// It also optionally returns a list of zTOCs referenced by the removed index manifest
+func RemoveIndex(ctx context.Context, storage *oci.Store, digestString string, returnReferencedZtocs bool) (*map[digest.Digest]bool, error) {
+	index, err := FetchIndex(ctx, storage, digestString)
+	if err != nil {
+		return nil, err
+	}
+
+	var referencedZtocDigests map[digest.Digest]bool
+	if returnReferencedZtocs {
+		referencedZtocDigests = make(map[digest.Digest]bool)
+		for _, blob := range index.Blobs {
+			referencedZtocDigests[blob.Digest] = true
+		}
+	}
+
+	// TODO remove the index manifest file
+
+	// remove the index manifest artifact
+	err = db.RemoveArtifactEntryByIndexDigest(digestString)
+	if err != nil {
+		return nil, err
+	}
+
+	return &referencedZtocDigests, nil
+}
+
+func RemoveIndexes(ctx context.Context, digestStrings []string, removeOrphanedZtocs bool) error {
+	storage, err := oci.New(config.SociContentStorePath)
+	if err != nil {
+		return err
+	}
+
+	maybeOrphanZtocDigests := make(map[digest.Digest]bool)
+	for _, desc := range digestStrings {
+		referencedZtocDigests, err := RemoveIndex(ctx, storage, desc, removeOrphanedZtocs)
+		if err != nil {
+			return err
+		}
+		for k := range *referencedZtocDigests {
+			maybeOrphanZtocDigests[k] = true
+		}
+	}
+
+	if removeOrphanedZtocs {
+		err = db.Walk(func(ae *ArtifactEntry) error {
+			if ae.Type == ArtifactEntryTypeIndex {
+				index, err := FetchIndex(ctx, storage, ae.Digest)
+				if err != nil {
+					return err
+				}
+
+				// remove still-referenced ztocs from the list of potentially orphaned ztoc digests
+				for _, blob := range index.Blobs {
+					// FIXME why does go-staticcheck think this guard is unnecessary for just {delete()}?
+					if _, ok := maybeOrphanZtocDigests[blob.Digest]; ok {
+						fmt.Printf("keeping ztoc digest %s referenced by index manifest %s\n", blob.Digest.String(), ae.Digest)
+						delete(maybeOrphanZtocDigests, blob.Digest)
+						// bail out early if there are no more potential orphans
+						if len(maybeOrphanZtocDigests) == 0 {
+							return ErrWalkBailout
+						}
+					}
+				}
+			}
+			return nil
+		})
+		if err != nil && !errors.Is(err, ErrWalkBailout) {
+			return err
+		}
+
+		// all remaining potential orphans are actually orphaned
+		for dgst := range maybeOrphanZtocDigests {
+			fmt.Printf("removing orphaned ztoc digest %s\n", dgst.String())
+			err = db.RemoveArtifactEntryByZtocDigest(dgst.String())
+			if err != nil {
+				return err
+			}
+		}
+	}
+
+	return nil
 }
