@@ -1,5 +1,7 @@
 /out
 *.db
 .vscode/
+go.work
+go.work.sum
 /benchmark/*/output/
 /benchmark/bin/
