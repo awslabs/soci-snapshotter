@@ -24,6 +24,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"path/filepath"
 	"sync"
 	"time"
 
@@ -604,10 +605,14 @@ func RemoveIndex(ctx context.Context, storage *oci.Store, digestString string, r
 		}
 	}
 
-	// TODO remove the index manifest file
-
 	// remove the index manifest artifact
 	err = db.RemoveArtifactEntryByIndexDigest(digestString)
+	if err != nil {
+		return nil, err
+	}
+
+	// remove the index manifest file
+	err = RemoveContentStoreBlobByDigest(ctx, digestString)
 	if err != nil {
 		return nil, err
 	}
@@ -644,7 +649,7 @@ func RemoveIndexes(ctx context.Context, digestStrings []string, removeOrphanedZt
 				for _, blob := range index.Blobs {
 					// FIXME why does go-staticcheck think this guard is unnecessary for just {delete()}?
 					if _, ok := maybeOrphanZtocDigests[blob.Digest]; ok {
-						fmt.Printf("keeping ztoc digest %s referenced by index manifest %s\n", blob.Digest.String(), ae.Digest)
+						fmt.Printf("keeping ztoc %s referenced by index manifest %s\n", blob.Digest.String(), ae.Digest)
 						delete(maybeOrphanZtocDigests, blob.Digest)
 						// bail out early if there are no more potential orphans
 						if len(maybeOrphanZtocDigests) == 0 {
@@ -662,11 +667,34 @@ func RemoveIndexes(ctx context.Context, digestStrings []string, removeOrphanedZt
 		// all remaining potential orphans are actually orphaned
 		for dgst := range maybeOrphanZtocDigests {
 			fmt.Printf("removing orphaned ztoc digest %s\n", dgst.String())
+
+			// remove the ztoc artifact
 			err = db.RemoveArtifactEntryByZtocDigest(dgst.String())
 			if err != nil {
 				return err
 			}
+
+			// remove the ztoc file
+			err = RemoveContentStoreBlobByDigest(ctx, dgst.String())
+			if err != nil {
+				return err
+			}
 		}
+	}
+
+	return nil
+}
+
+func RemoveContentStoreBlobByDigest(ctx context.Context, digestString string) error {
+	dgst, err := digest.Parse(digestString)
+	if err != nil {
+		return err
+	}
+
+	// path defined by https://github.com/opencontainers/image-spec/blob/v1.0/image-layout.md
+	err = os.Remove(filepath.Join(config.SociContentStorePath, "blobs", dgst.Algorithm().String(), dgst.Encoded()))
+	if err != nil {
+		return err
 	}
 
 	return nil
