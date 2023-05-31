@@ -24,6 +24,7 @@ jobs:
       - run: unzip Linux.flatc.binary.g++-10.zip
       - run: ./scripts/install-check-tools.sh
       - run: ./scripts/check-ltag.sh
+      - run: ./scripts/check-dco.sh
       - run: ./scripts/check-lint.sh
       - run: PATH=$PATH:$(pwd) ./scripts/check-flatc.sh
   test:
