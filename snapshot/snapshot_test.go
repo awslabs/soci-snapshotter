@@ -47,6 +47,9 @@ import (
 	"github.com/containerd/containerd/snapshots"
 	"github.com/containerd/containerd/snapshots/storage"
 	"github.com/containerd/containerd/snapshots/testsuite"
+
+
+	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 )
 
 const (
@@ -384,6 +387,10 @@ type bindFs struct {
 	broken       map[string]bool
 }
 
+func (fs *bindFs) GetZtocForLayer(ctx context.Context, imageRef, indexDigest, imageManifestDigest, layerDigest string) (ocispec.Descriptor, error) {
+	return ocispec.Descriptor{}, nil
+}
+
 func (fs *bindFs) Mount(ctx context.Context, mountpoint string, labels map[string]string) error {
 	if _, ok := labels[brokenLabel]; ok {
 		fs.broken[mountpoint] = true
@@ -420,6 +427,10 @@ func (fs *bindFs) MountLocal(ctx context.Context, mountpoint string, labels map[
 func dummyFileSystem() FileSystem { return &dummyFs{} }
 
 type dummyFs struct{}
+
+func (fs *dummyFs) GetZtocForLayer(ctx context.Context, imageRef, indexDigest, imageManifestDigest, layerDigest string) (ocispec.Descriptor, error) {
+	return ocispec.Descriptor{}, fmt.Errorf("dummy")
+}
 
 func (fs *dummyFs) Mount(ctx context.Context, mountpoint string, labels map[string]string) error {
 	return fmt.Errorf("dummy")

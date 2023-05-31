@@ -98,7 +98,7 @@ func TestGetIndexArtifactEntries(t *testing.T) {
 }
 
 func TestArtifactDB_DoesNotExist(t *testing.T) {
-	_, err := NewDB(ArtifactsDbPath())
+	_, err := NewDB("/dev/null")
 	if err == nil {
 		t.Fatalf("getArtifactEntry should fail since artifacts.db doesn't exist")
 	}
