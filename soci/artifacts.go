@@ -21,6 +21,7 @@ import (
 	"errors"
 	"fmt"
 	"io/fs"
+	"io/ioutil"
 	"os"
 	"path"
 	"path/filepath"
@@ -50,6 +51,8 @@ import (
 //         - platform: <string>         : the platform for the index
 //         - location: <string>         : the location of the artifact
 //         - type: <string>             : the type of the artifact (can be either "soci_index" or "soci_layer")
+
+type BucketCheckFunc func(*bolt.Bucket) bool
 
 // ArtifactsDB is a store for SOCI artifact metadata
 type ArtifactsDb struct {
@@ -174,7 +177,7 @@ func (db *ArtifactsDb) Walk(f func(*ArtifactEntry) error) error {
 	return err
 }
 
-// SyncWithLocalStore will sync the artifacts databse with SOCIs local content store, either adding new or removing old artifacts.
+// SyncWithLocalStore will sync the artifacts database with SOCIs local content store, either adding new or removing old artifacts.
 func (db *ArtifactsDb) SyncWithLocalStore(ctx context.Context, blobStore *oci.Store, blobStorePath string, cs content.Store) error {
 	if err := db.removeOldArtifacts(blobStore); err != nil {
 		return fmt.Errorf("failed to remove old artifacts from db: %w", err)
@@ -182,6 +185,45 @@ func (db *ArtifactsDb) SyncWithLocalStore(ctx context.Context, blobStore *oci.St
 	if err := db.addNewArtifacts(ctx, blobStorePath, cs); err != nil {
 		return fmt.Errorf("failed to add new artifacts to db: %w", err)
 	}
+	return nil
+}
+
+// PruneLocalStore will remove local content store blobs that do not exist in the artifacts database
+func (db *ArtifactsDb) PruneLocalStore(ctx context.Context, contentStorePath string) error {
+	blobStorePath := filepath.Join(contentStorePath, "blobs")
+	algorithmDirs, err := ioutil.ReadDir(blobStorePath)
+	if err != nil {
+		return err
+	}
+	for _, d := range algorithmDirs {
+		if !d.IsDir() {
+			continue
+		}
+		algorithm := d.Name()
+
+		blobFiles, err := ioutil.ReadDir(filepath.Join(blobStorePath, algorithm))
+		if err != nil {
+			return err
+		}
+		for _, f := range blobFiles {
+			if f.IsDir() {
+				continue
+			}
+			encoded := f.Name()
+			if err != nil {
+				return err
+			}
+			digestString := algorithm + ":" + encoded
+			has, err := db.HasArtifactEntry(digestString)
+			if err != nil && !errors.Is(err, errdefs.ErrNotFound) {
+				return err
+			}
+			if !has {
+				RemoveContentStoreBlobByDigest(ctx, digestString)
+			}
+		}
+	}
+
 	return nil
 }
 
@@ -302,6 +344,27 @@ func (db *ArtifactsDb) addNewArtifacts(ctx context.Context, blobStorePath string
 		}
 		return nil
 	})
+}
+
+// HasArtifactEntry checks whether the ArtifactsDb contains an ArtifactEntry for the givendigest
+func (db *ArtifactsDb) HasArtifactEntry(digest string) (bool, error) {
+	result := false
+	err := db.db.View(func(tx *bolt.Tx) error {
+		bucket, err := getArtifactsBucket(tx)
+		if err != nil {
+			return err
+		}
+		entry, err := getArtifactEntryByDigest(bucket, digest)
+		if err != nil {
+			return err
+		}
+		if entry != nil {
+			result = true
+		}
+		return nil
+	})
+
+	return result, err
 }
 
 // GetArtifactEntry loads a single ArtifactEntry from the ArtifactsDB by digest
@@ -457,8 +520,8 @@ func loadArtifact(artifactBkt *bolt.Bucket, digest string) (*ArtifactEntry, erro
 	}
 	createdAt := time.Time{}
 	createdAtBytes := artifactBkt.Get(bucketKeyCreatedAt)
+	err = createdAt.UnmarshalBinary(createdAtBytes)
 	if createdAtBytes != nil {
-		err := createdAt.UnmarshalBinary(createdAtBytes)
 		if err != nil {
 			return nil, fmt.Errorf("cannot unmarshal CreatedAt time: %w", err)
 		}
@@ -512,6 +575,21 @@ func putArtifactEntry(artifacts *bolt.Bucket, ae *ArtifactEntry) error {
 		if err := artifactBkt.Put(update.key, update.val); err != nil {
 			return err
 		}
+	}
+
+	return nil
+}
+
+func RemoveContentStoreBlobByDigest(ctx context.Context, digestString string) error {
+	dgst, err := digest.Parse(digestString)
+	if err != nil {
+		return err
+	}
+
+	// path defined by https://github.com/opencontainers/image-spec/blob/v1.0/image-layout.md
+	err = os.Remove(filepath.Join(config.SociContentStorePath, "blobs", dgst.Algorithm().String(), dgst.Encoded()))
+	if err != nil {
+		return err
 	}
 
 	return nil

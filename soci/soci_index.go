@@ -24,7 +24,6 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"path/filepath"
 	"sync"
 	"time"
 
@@ -680,21 +679,6 @@ func RemoveIndexes(ctx context.Context, digestStrings []string, removeOrphanedZt
 				return err
 			}
 		}
-	}
-
-	return nil
-}
-
-func RemoveContentStoreBlobByDigest(ctx context.Context, digestString string) error {
-	dgst, err := digest.Parse(digestString)
-	if err != nil {
-		return err
-	}
-
-	// path defined by https://github.com/opencontainers/image-spec/blob/v1.0/image-layout.md
-	err = os.Remove(filepath.Join(config.SociContentStorePath, "blobs", dgst.Algorithm().String(), dgst.Encoded()))
-	if err != nil {
-		return err
 	}
 
 	return nil

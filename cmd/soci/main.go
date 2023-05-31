@@ -91,6 +91,7 @@ func main() {
 		commands.PushCommand,
 		run.Command,
 		commands.RebuildDBCommand,
+		commands.PruneContentStoreCommand,
 	}
 
 	if err := app.Run(os.Args); err != nil {
