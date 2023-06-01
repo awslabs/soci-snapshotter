@@ -244,6 +244,7 @@ func (db *ArtifactsDb) PruneLocalStore(ctx context.Context, contentStorePath str
 					}
 				}
 
+				fmt.Printf("removing content digest %s\n", digestString)
 				RemoveContentStoreBlobByDigest(ctx, digestString)
 			}
 		}
@@ -369,6 +370,63 @@ func (db *ArtifactsDb) addNewArtifacts(ctx context.Context, blobStorePath string
 		}
 		return nil
 	})
+}
+
+// RemoveOrphanZtocs will remove any zTOCs not referenced by any index manifests.
+func (db *ArtifactsDb) RemoveOrphanZtocs(ctx context.Context, contentStorePath string) error {
+	blobStore, err := oci.New(config.SociContentStorePath)
+	if err != nil {
+		return err
+	}
+
+	referencedZtocDigests := make(map[string]bool)
+	err = db.Walk(func(ae *ArtifactEntry) error {
+		if ae.Type == ArtifactEntryTypeIndex {
+			index, err := FetchIndex(ctx, blobStore, ae.Digest)
+			if err != nil {
+				return err
+			}
+
+			for _, blob := range index.Blobs {
+				referencedZtocDigests[blob.Digest.String()] = true
+			}
+		}
+		return nil
+	})
+	if err != nil {
+		return err
+	}
+
+	unreferencedZtocDigests := make(map[string]bool)
+	err = db.Walk(func(ae *ArtifactEntry) error {
+		if ae.Type == ArtifactEntryTypeLayer {
+			_, referenced := referencedZtocDigests[ae.Digest]
+			if !referenced {
+				unreferencedZtocDigests[ae.Digest] = true
+			}
+		}
+		return nil
+	})
+	if err != nil {
+		return err
+	}
+
+	for dgst := range unreferencedZtocDigests {
+		fmt.Printf("removing orphaned ztoc digest %s\n", dgst)
+		// remove the ztoc artifact
+		err = db.RemoveArtifactEntryByZtocDigest(dgst)
+		if err != nil {
+			return err
+		}
+
+		// remove the ztoc file
+		err = RemoveContentStoreBlobByDigest(ctx, dgst)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
 // HasArtifactEntry checks whether the ArtifactsDb contains an ArtifactEntry for the givendigest

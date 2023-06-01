@@ -25,5 +25,6 @@ var Command = cli.Command{
 		infoCommand,
 		getFileCommand,
 		listCommand,
+		removeOrphansCommand,
 	},
 }
