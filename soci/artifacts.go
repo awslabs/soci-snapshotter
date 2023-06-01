@@ -30,6 +30,7 @@ import (
 
 	"github.com/awslabs/soci-snapshotter/fs/config"
 	"github.com/awslabs/soci-snapshotter/util/dbutil"
+	"github.com/awslabs/soci-snapshotter/ztoc"
 	"github.com/containerd/containerd/content"
 	"github.com/containerd/containerd/errdefs"
 	"github.com/containerd/containerd/images"
@@ -205,6 +206,10 @@ func (db *ArtifactsDb) PruneLocalStore(ctx context.Context, contentStorePath str
 		if err != nil {
 			return err
 		}
+		storage, err := oci.New(contentStorePath)
+		if err != nil {
+			return err
+		}
 		for _, f := range blobFiles {
 			if f.IsDir() {
 				continue
@@ -219,6 +224,26 @@ func (db *ArtifactsDb) PruneLocalStore(ctx context.Context, contentStorePath str
 				return err
 			}
 			if !has {
+				dgst, err := digest.Parse(digestString)
+				if err != nil {
+					return err
+				}
+				// check if the content is a zTOC
+				reader, err := storage.Fetch(ctx, ocispec.Descriptor{Digest: dgst})
+				if err != nil {
+					return err
+				}
+				defer reader.Close()
+				_, err = ztoc.Unmarshal(reader)
+				if err != nil {
+					// not a zTOC, check if it's an index manifest
+					index, err := FetchIndex(ctx, storage, digestString)
+					if err != nil || index.MediaType != SociIndexArtifactType {
+						// not an index manifest, don't delete unrecognized content types
+						continue
+					}
+				}
+
 				RemoveContentStoreBlobByDigest(ctx, digestString)
 			}
 		}
