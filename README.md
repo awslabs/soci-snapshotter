@@ -1,6 +1,6 @@
 # SOCI Snapshotter (With Podman!)
 
-This is a fork of the [SOCI Snapshotter](https://github.com/awslabs/soci-snapshotter) that adds support for streaming images to podman. It was forked at [3b2cc1](https://github.com/awslabs/soci-snapshotter/commit/3b2cc11be4627b097f4b225bd105100f5f7957d1) without the intention of merging upstream, per [discussion](https://github.com/awslabs/soci-snapshotter/issues/486) with the SOCI Snapshotter maintainers.
+This is a fork of the [SOCI Snapshotter](https://github.com/awslabs/soci-snapshotter) that adds support for streaming images to podman. It was forked at [0fa2e8c](https://github.com/awslabs/soci-snapshotter/commit/0fa2e8c5d258d381fe029832ef04b514df59de07) without the intention of merging upstream, per [discussion](https://github.com/awslabs/soci-snapshotter/issues/486) with the SOCI Snapshotter maintainers.
 
 You can test this out by following the [Getting Started](https://github.com/awslabs/soci-snapshotter/blob/main/docs/getting-started.md) instructions over in the SOCI Snapshotter repository to create and push SOCI indices to your container registry. Once you've done that, you can build the code with `make`, run it with `./out/soci-store /var/lib/soci/soci-store`, update your `/etc/containers/storage.conf` to point to the soci-store:
 ```
@@ -15,10 +15,11 @@ additionallayerstores=["/var/lib/soci-store/store:ref"]
 And finally, run podman: `podman pull --storage-opt=additionallayerstore=/var/lib/soci-store/store:ref ubuntu:latest`.
 
 Quick list of things for me to look at / clean up at some point:
-- Still requires sudo :-( (fine for our use case for now)
-- What's the `diff1` file and why is it being read so much?
+- Update this README a lil bit.
+- Still requires sudo :-( (fine for our use case for now).
+- What's the `diff1` file and why is it being read so much? Looks like the stargz-snapshotter doesn't have any special treatment for it either.
 
-Below is the readme from the SOCI Snapshotter repository at 3b2cc1.
+Below is the readme from the SOCI Snapshotter repository at 0fa2e8c.
 
 # SOCI Snapshotter
 
