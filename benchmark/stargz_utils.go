@@ -126,12 +126,11 @@ func (proc *StargzProcess) StopProcess() {
 	}
 }
 
-func (proc *StargzContainerdProcess) StargzRpullImageFromECR(
+func (proc *StargzContainerdProcess) StargzRpullImageFromRegistry(
 	ctx context.Context,
-	imageRef string,
-	awsSecretFile string) (containerd.Image, error) {
+	imageRef string) (containerd.Image, error) {
 	image, err := proc.Client.Pull(ctx, imageRef, []containerd.RemoteOpt{
-		containerd.WithResolver(framework.GetECRResolver(ctx, awsSecretFile)),
+		containerd.WithResolver(framework.GetResolver(ctx, imageRef)),
 		//nolint:staticcheck
 		containerd.WithSchema1Conversion, //lint:ignore SA1019
 		containerd.WithPullUnpack,
