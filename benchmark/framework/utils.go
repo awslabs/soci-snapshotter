@@ -18,21 +18,22 @@ package framework
 
 import (
 	"context"
-	"os"
+	"io"
 
 	"github.com/containerd/containerd"
+	"github.com/containerd/containerd/reference"
 	"github.com/containerd/containerd/remotes"
 	"github.com/containerd/containerd/remotes/docker"
 	"github.com/containerd/containerd/remotes/docker/config"
+	dockercliconfig "github.com/docker/cli/cli/config"
 )
 
-func (proc *ContainerdProcess) PullImageFromECR(
+func (proc *ContainerdProcess) PullImageFromRegistry(
 	ctx context.Context,
 	imageRef string,
-	platform string,
-	awsSecretFile string) (containerd.Image, error) {
+	platform string) (containerd.Image, error) {
 	opts := GetRemoteOpts(ctx, platform)
-	opts = append(opts, containerd.WithResolver(GetECRResolver(ctx, awsSecretFile)))
+	opts = append(opts, containerd.WithResolver(GetResolver(ctx, imageRef)))
 	image, pullErr := proc.Client.Pull(ctx, imageRef, opts...)
 	if pullErr != nil {
 		return nil, pullErr
@@ -40,13 +41,22 @@ func (proc *ContainerdProcess) PullImageFromECR(
 	return image, nil
 }
 
-func GetECRResolver(ctx context.Context, awsSecretFile string) remotes.Resolver {
-	username := "AWS"
-	secretByteArray, err := os.ReadFile(awsSecretFile)
-	secret := string(secretByteArray)
+func GetResolver(ctx context.Context, imageRef string) remotes.Resolver {
+
+	var username string
+	var secret string
+	refspec, err := reference.Parse(imageRef)
 	if err != nil {
-		panic("Cannot read aws ecr login password")
+		panic("Failed to parse image ref")
 	}
+	cf := dockercliconfig.LoadDefaultConfigFile(io.Discard)
+	if cf.ContainsAuth() {
+		if ac, err := cf.GetAuthConfig(refspec.Hostname()); err == nil {
+			username = ac.Username
+			secret = ac.Password
+		}
+	}
+
 	hostOptions := config.HostOptions{}
 	hostOptions.Credentials = func(host string) (string, string, error) {
 		return username, secret, nil

@@ -38,20 +38,19 @@ var (
 	sociAddress            = "/tmp/soci-snapshotter-grpc/soci-snapshotter-grpc.sock"
 	sociRoot               = "/tmp/lib/soci-snapshotter-grpc"
 	sociConfig             = "../soci_config.toml"
-	awsSecretFile          = "../aws_secret"
 	stargzAddress          = "/tmp/containerd-stargz-grpc/containerd-stargz-grpc.sock"
 	stargzConfig           = "../stargz_config.toml"
 	stargzRoot             = "/tmp/lib/containerd-stargz-grpc"
 )
 
-func PullImageFromECR(ctx context.Context, b *testing.B, imageRef string) {
+func PullImageFromRegistry(ctx context.Context, b *testing.B, imageRef string) {
 	containerdProcess, err := getContainerdProcess(ctx, containerdSociConfig)
 	if err != nil {
 		b.Fatalf("Error Starting Containerd: %v\n", err)
 	}
 	defer containerdProcess.StopProcess()
 	b.ResetTimer()
-	_, err = containerdProcess.PullImageFromECR(ctx, imageRef, platform, awsSecretFile)
+	_, err = containerdProcess.PullImageFromRegistry(ctx, imageRef, platform)
 	if err != nil {
 		b.Fatalf("Error Pulling Image: %v\n", err)
 	}
@@ -79,7 +78,7 @@ func SociRPullPullImage(
 	defer sociProcess.StopProcess()
 	sociContainerdProc := SociContainerdProcess{containerdProcess}
 	b.ResetTimer()
-	_, err = sociContainerdProc.SociRPullImageFromECR(ctx, imageRef, indexDigest, awsSecretFile)
+	_, err = sociContainerdProc.SociRPullImageFromRegistry(ctx, imageRef, indexDigest)
 	if err != nil {
 		b.Fatalf("%s", err)
 	}
@@ -110,7 +109,7 @@ func SociFullRun(
 	b.ResetTimer()
 	log.G(ctx).WithField("benchmark", "Test").WithField("event", "Start").Infof("Start Test")
 	log.G(ctx).WithField("benchmark", "Pull").WithField("event", "Start").Infof("Start Pull Image")
-	image, err := sociContainerdProc.SociRPullImageFromECR(ctx, imageRef, indexDigest, awsSecretFile)
+	image, err := sociContainerdProc.SociRPullImageFromRegistry(ctx, imageRef, indexDigest)
 	log.G(ctx).WithField("benchmark", "Pull").WithField("event", "Stop").Infof("Stop Pull Image")
 	if err != nil {
 		b.Fatalf("%s", err)
@@ -174,7 +173,7 @@ func OverlayFSFullRun(
 	b.ResetTimer()
 	log.G(ctx).WithField("benchmark", "Test").WithField("event", "Start").Infof("Start Test")
 	log.G(ctx).WithField("benchmark", "Pull").WithField("event", "Start").Infof("Start Pull Image")
-	image, err := containerdProcess.PullImageFromECR(ctx, imageRef, platform, awsSecretFile)
+	image, err := containerdProcess.PullImageFromRegistry(ctx, imageRef, platform)
 	log.G(ctx).WithField("benchmark", "Pull").WithField("event", "Stop").Infof("Stop Pull Image")
 	if err != nil {
 		b.Fatalf("%s", err)
@@ -245,7 +244,7 @@ func StargzFullRun(
 	defer stargzProcess.StopProcess()
 	stargzContainerdProc := StargzContainerdProcess{containerdProcess}
 	b.ResetTimer()
-	image, err := stargzContainerdProc.StargzRpullImageFromECR(ctx, imageRef, awsSecretFile)
+	image, err := stargzContainerdProc.StargzRpullImageFromRegistry(ctx, imageRef)
 	if err != nil {
 		b.Fatalf("%s", err)
 	}

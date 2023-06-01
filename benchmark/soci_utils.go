@@ -134,13 +134,12 @@ func (proc *SociProcess) StopProcess() {
 	}
 }
 
-func (proc *SociContainerdProcess) SociRPullImageFromECR(
+func (proc *SociContainerdProcess) SociRPullImageFromRegistry(
 	ctx context.Context,
 	imageRef string,
-	sociIndexDigest string,
-	awsSecretFile string) (containerd.Image, error) {
+	sociIndexDigest string) (containerd.Image, error) {
 	image, err := proc.Client.Pull(ctx, imageRef, []containerd.RemoteOpt{
-		containerd.WithResolver(framework.GetECRResolver(ctx, awsSecretFile)),
+		containerd.WithResolver(framework.GetResolver(ctx, imageRef)),
 		//nolint:staticcheck
 		containerd.WithSchema1Conversion, //lint:ignore SA1019
 		containerd.WithPullUnpack,
