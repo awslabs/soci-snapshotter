@@ -25,6 +25,5 @@ var Command = cli.Command{
 		listCommand,
 		infoCommand,
 		rmCommand,
-		dumpCommand,
 	},
 }
