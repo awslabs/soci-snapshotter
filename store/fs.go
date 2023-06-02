@@ -173,7 +173,7 @@ func (fs *fs) newInodeWithID(ctx context.Context, p func(uint32) fusefs.InodeEmb
 	return ino.EmbeddedInode(), 0
 }
 
-// rootnode is the mountpoint node of stargz-store.
+// rootnode is the mountpoint node of soci-store.
 type rootnode struct {
 	fusefs.Inode
 	fs *fs

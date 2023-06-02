@@ -48,7 +48,6 @@ import (
 	"github.com/containerd/containerd/snapshots/storage"
 	"github.com/containerd/containerd/snapshots/testsuite"
 
-
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 )
 

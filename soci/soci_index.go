@@ -515,10 +515,10 @@ func GetImageManifestDescriptor(ctx context.Context, cs content.Store, imageTarg
 }
 
 // WriteSociIndex writes the SociIndex manifest to oras `store`.
-func WriteSociIndex(ctx context.Context, indexWithMetadata *IndexWithMetadata, store orascontent.Storage, artifactsDb *ArtifactsDb) (string, error) {
+func WriteSociIndex(ctx context.Context, indexWithMetadata *IndexWithMetadata, store orascontent.Storage, artifactsDb *ArtifactsDb) error {
 	manifest, err := MarshalIndex(indexWithMetadata.Index)
 	if err != nil {
-		return "", err
+		return err
 	}
 
 	// If we're serializing the SOCI index as an OCI 1.0 Manifest, create an
@@ -527,7 +527,7 @@ func WriteSociIndex(ctx context.Context, indexWithMetadata *IndexWithMetadata, s
 	if indexWithMetadata.Index.MediaType == ocispec.MediaTypeImageManifest {
 		err = store.Push(ctx, defaultConfigDescriptor, bytes.NewReader(defaultConfigContent))
 		if err != nil && !errors.Is(err, errdef.ErrAlreadyExists) {
-			return "", fmt.Errorf("error creating OCI 1.0 empty config: %w", err)
+			return fmt.Errorf("error creating OCI 1.0 empty config: %w", err)
 		}
 	}
 
@@ -540,7 +540,7 @@ func WriteSociIndex(ctx context.Context, indexWithMetadata *IndexWithMetadata, s
 	}, bytes.NewReader(manifest))
 
 	if err != nil && !errors.Is(err, errdef.ErrAlreadyExists) {
-		return "", fmt.Errorf("cannot write SOCI index to local store: %w", err)
+		return fmt.Errorf("cannot write SOCI index to local store: %w", err)
 	}
 
 	log.G(ctx).WithField("digest", dgst.String()).Debugf("soci index has been written")
@@ -548,7 +548,7 @@ func WriteSociIndex(ctx context.Context, indexWithMetadata *IndexWithMetadata, s
 	refers := indexWithMetadata.Index.Subject
 
 	if refers == nil {
-		return "", errors.New("cannot write soci index: the Refers field is nil")
+		return errors.New("cannot write soci index: the Refers field is nil")
 	}
 
 	// this entry is persisted to be used by cli push
@@ -563,5 +563,5 @@ func WriteSociIndex(ctx context.Context, indexWithMetadata *IndexWithMetadata, s
 		MediaType:      indexWithMetadata.Index.MediaType,
 		CreatedAt:      indexWithMetadata.CreatedAt,
 	}
-	return dgst.String(), artifactsDb.WriteArtifactEntry(entry)
+	return artifactsDb.WriteArtifactEntry(entry)
 }
