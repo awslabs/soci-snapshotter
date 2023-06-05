@@ -57,7 +57,7 @@ Registries that are not listed have not been tested by the SOCI maintainers or r
 | ----------------------------------------------------------------------------------------- | ----------- | ------------- | ---------------------------------------------------- |
 | [Docker Hub](https://hub.docker.com)                                                      | No          | N/A           | Does not support image manifests with subject fields |
 | [Amazon Elastic Container Registry (ECR)](https://aws.amazon.com/ecr/)                    | Yes         | Fallback      |                                                      |
-| [Amazon ECR Public Gallery](https://gallery.ecr.aws)                                      | No          | N/A           | Does not support image manifests with subject fields |
+| [Amazon ECR Public Gallery](https://gallery.ecr.aws)                                      | Yes         | Fallback      |                                                      |
 | [Azure Container Registry](https://azure.microsoft.com/en-us/products/container-registry) | Yes         | Referrers API |                                                      |
 | [GitHub Packages (GHCR)](https://github.com/features/packages)                            | Yes         | Fallback      |                                                      |
 | [Google Cloud Container Registry (GCR)](https://cloud.google.com/container-registry)      | Yes         | Fallback      |                                                      |
@@ -85,23 +85,6 @@ successfully pushed artifact with digest: sha256:44136fa355b3678a1146ad16f7e8649
 successfully pushed artifact with digest: sha256:cce4c7e12e01b32151d69348fcf52e0db7b44f6df6c23c511fa5c52eaf272c28
 pushing artifact with digest: sha256:d6ebffd218ead37e4862172b4f19491341e72aebc3cc6d9cf1a22297c40fb3c2
 soci: error pushing graph to remote: PUT "https://registry-1.docker.io/v2/####/busybox/manifests/sha256:d6ebffd218ead37e4862172b4f19491341e72aebc3cc6d9cf1a22297c40fb3c2": response status code 404: notfound: not found
-```
-
-The index manifest can't be pushed at all.
-
-**Amazon ECR Public Gallery**
-
-```
-$ sudo ./out/soci push --user $USERNAME:$PASSWORD public.ecr.aws/####/soci-test:latest
-checking if a soci index already exists in remote repository...
-pushing soci index with digest: sha256:e0577c07fd0f3aea9d300098239303f42f31356925d24fce7fe567ab6931655d
-pushing artifact with digest: sha256:44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a
-skipped artifact with digest: sha256:22a40b2c3d11581a1ff52a90a0eb7055162c794afa2c91f5e7c024b8f5455b12
-pushing artifact with digest: sha256:218fa7cd0f25a9c4ec400c322ce3aca31fac6f7f34730c323c9accf6a715eeec
-successfully pushed artifact with digest: sha256:218fa7cd0f25a9c4ec400c322ce3aca31fac6f7f34730c323c9accf6a715eeec
-successfully pushed artifact with digest: sha256:44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a
-pushing artifact with digest: sha256:e0577c07fd0f3aea9d300098239303f42f31356925d24fce7fe567ab6931655d
-soci: error pushing graph to remote: PUT "https://public.ecr.aws/v2/####/soci-test/manifests/sha256:e0577c07fd0f3aea9d300098239303f42f31356925d24fce7fe567ab6931655d": response status code 405: unsupported: Invalid parameter at 'ImageManifest' failed to satisfy constraint: 'Invalid JSON syntax'
 ```
 
 The index manifest can't be pushed at all.
