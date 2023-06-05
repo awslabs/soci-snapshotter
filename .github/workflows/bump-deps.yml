@@ -31,6 +31,7 @@ jobs:
       with:
         title: "Bump dependencies using scripts/bump-deps.sh"
         commit-message: "Bump dependencies using scripts/bump-deps.sh"
+        body: "This PR created by [create-pull-request](https://github.com/peter-evans/create-pull-request) must be closed and reopened manually to trigger automated checks."
         labels: dependencies
         delete-branch: true
         signoff: true
