@@ -21,7 +21,7 @@ require (
 	github.com/opencontainers/image-spec v1.1.0-rc3
 	github.com/prometheus/client_golang v1.15.1
 	github.com/rs/xid v1.5.0
-	github.com/sirupsen/logrus v1.9.0
+	github.com/sirupsen/logrus v1.9.3
 	go.etcd.io/bbolt v1.3.7
 	golang.org/x/crypto v0.9.0
 	golang.org/x/sync v0.2.0
