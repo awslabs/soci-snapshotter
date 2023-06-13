@@ -400,3 +400,25 @@ disable = true
 		})
 	}
 }
+
+// TestRootFolderPermissions tests that non-root users can read "/".
+// This is a regression test to verify that SOCI has the same behavior as the containerd
+// overlayfs snapshotter and the stargz-snapshotter https://github.com/awslabs/soci-snapshotter/issues/664
+func TestRootFolderPermission(t *testing.T) {
+	image := alpineImage
+	containerName := "TestRootFolderPermission"
+
+	regConfig := newRegistryConfig()
+	sh, done := newShellWithRegistry(t, regConfig)
+	defer done()
+
+	rebootContainerd(t, sh, getContainerdConfigToml(t, false), getSnapshotterConfigToml(t, false, tcpMetricsConfig))
+	sh.X("soci", "image", "rpull", dockerhub(image).ref)
+	// This should have all been pulled ahead of time.
+	checkFuseMounts(t, sh, 0)
+	// Verify that the mount permissions allow non-root to open "/"
+	subfolders := sh.O("soci", "run", "-d", "--snapshotter=soci", "--user", "1000", dockerhub(image).ref, containerName, "ls", "/")
+	if string(subfolders) == "" {
+		t.Fatal("non-root user should be able to `ls /`")
+	}
+}
