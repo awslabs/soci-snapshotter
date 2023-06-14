@@ -51,9 +51,13 @@ const (
 	IndexAnnotationImageLayerDigest = "com.amazon.soci.image-layer-digest"
 	// IndexAnnotationBuildToolIdentifier is the index annotation for build tool identifier
 	IndexAnnotationBuildToolIdentifier = "com.amazon.soci.build-tool-identifier"
+	// IndexAnnotationXattrPresent is the index annotation if the layer has
+        // extended attributes
+	IndexAnnotationXattrPresent = "com.amazon.soci.xattr-present"
 
 	defaultSpanSize            = int64(1 << 22) // 4MiB
 	defaultMinLayerSize        = 10 << 20       // 10MiB
+	defaultXAttr               = false 
 	defaultBuildToolIdentifier = "AWS SOCI CLI v0.1"
 	// emptyJSONObjectDigest is the digest of the content "{}".
 	emptyJSONObjectDigest = "sha256:44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a"
@@ -203,6 +207,7 @@ type buildConfig struct {
 	buildToolIdentifier string
 	artifactsDb         *ArtifactsDb
 	platform            ocispec.Platform
+        xattr               bool
 }
 
 // BuildOption specifies a config change to build soci indices.
@@ -220,6 +225,14 @@ func WithSpanSize(spanSize int64) BuildOption {
 func WithMinLayerSize(minLayerSize int64) BuildOption {
 	return func(c *buildConfig) error {
 		c.minLayerSize = minLayerSize
+		return nil
+	}
+}
+
+// WithXAttr  
+func WithXAttrOptimization(xattr bool) BuildOption {
+	return func(c *buildConfig) error {
+		c.xattr = xattr
 		return nil
 	}
 }
@@ -265,6 +278,7 @@ func NewIndexBuilder(contentStore content.Store, blobStore orascontent.Storage, 
 		minLayerSize:        defaultMinLayerSize,
 		buildToolIdentifier: defaultBuildToolIdentifier,
 		platform:            defaultPlatform,
+		xattr:               defaultXAttr,
 	}
 
 	for _, opt := range opts {
@@ -457,6 +471,9 @@ func (b *IndexBuilder) buildSociLayer(ctx context.Context, desc ocispec.Descript
 		IndexAnnotationImageLayerMediaType: desc.MediaType,
 		IndexAnnotationImageLayerDigest:    desc.Digest.String(),
 	}
+        if b.config.xattr {
+            ztocDesc.Annotations[IndexAnnotationXattrPresent] = doesZtocHaveXattr(toc)
+        }
 	return &ztocDesc, err
 }
 
@@ -564,4 +581,14 @@ func WriteSociIndex(ctx context.Context, indexWithMetadata *IndexWithMetadata, s
 		CreatedAt:      indexWithMetadata.CreatedAt,
 	}
 	return artifactsDb.WriteArtifactEntry(entry)
+}
+
+func doesZtocHaveXattr(ztoc *ztoc.Ztoc) string {
+    for _, md := range ztoc.TOC.FileMetadata {
+        if len(md.Xattrs) > 0 {
+            return "true"
+        }
+    }
+
+    return "false"
 }

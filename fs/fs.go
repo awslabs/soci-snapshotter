@@ -502,6 +502,7 @@ func (fs *filesystem) Mount(ctx context.Context, mountpoint string, labels map[s
 		AllowOther: true,   // allow users other than root&mounter to access fs
 		FsName:     "soci", // name this filesystem as "soci"
 		Debug:      fs.debug,
+                DisableXAttrs: l.NoXAttr(),
 	}
 	if _, err := exec.LookPath(fusermountBin); err == nil {
 		mountOpts.Options = []string{"suid"} // option for fusermount; allow setuid inside container

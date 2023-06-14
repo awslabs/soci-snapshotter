@@ -32,6 +32,7 @@ const (
 	buildToolIdentifier = "AWS SOCI CLI v0.1"
 	spanSizeFlag        = "span-size"
 	minLayerSizeFlag    = "min-layer-size"
+	xattrFlag           = "xattr-optimization"
 )
 
 // CreateCommand creates SOCI index for an image
@@ -54,6 +55,10 @@ var CreateCommand = cli.Command{
 			Usage: "Minimum layer size to build zTOC for. Smaller layers won't have zTOC and not lazy pulled. Default is 10 MiB.",
 			Value: 10 << 20,
 		},
+		cli.BoolFlag{
+			Name:  xattrFlag,
+			Usage: "If set to true layers without xattr will have xattr disabled, yielding a perfomrance benefit. Does not effect layers where is xattrs are present. Default is False.",
+		},
 	),
 	Action: func(cliContext *cli.Context) error {
 		srcRef := cliContext.Args().Get(0)
@@ -75,6 +80,7 @@ var CreateCommand = cli.Command{
 		}
 		spanSize := cliContext.Int64(spanSizeFlag)
 		minLayerSize := cliContext.Int64(minLayerSizeFlag)
+		xattr := cliContext.Bool(xattrFlag)
 		// Creating the snapshotter's root path first if it does not exist, since this ensures, that
 		// it has the limited permission set as drwx--x--x.
 		// The subsequent oci.New creates a root path dir with too broad permission set.
@@ -104,6 +110,7 @@ var CreateCommand = cli.Command{
 			soci.WithMinLayerSize(minLayerSize),
 			soci.WithSpanSize(spanSize),
 			soci.WithBuildToolIdentifier(buildToolIdentifier),
+			soci.WithXAttrOptimization(xattr),
 		}
 
 		for _, plat := range ps {
