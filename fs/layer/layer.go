@@ -45,6 +45,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"strconv"
 	"sync"
 	"time"
 
@@ -58,6 +59,7 @@ import (
 
 	spanmanager "github.com/awslabs/soci-snapshotter/fs/span-manager"
 	"github.com/awslabs/soci-snapshotter/metadata"
+	"github.com/awslabs/soci-snapshotter/soci"
 	"github.com/awslabs/soci-snapshotter/util/lrucache"
 	"github.com/awslabs/soci-snapshotter/util/namedmutex"
 	"github.com/awslabs/soci-snapshotter/ztoc"
@@ -103,6 +105,9 @@ type Layer interface {
 
 	// ReadAt reads this layer.
 	ReadAt([]byte, int64, ...remote.Option) (int, error)
+
+	//True if none of the files in the layer has an xattr
+	NoXAttr() bool
 
 	// Done releases the reference to this layer. The resources related to this layer will be
 	// discarded sooner or later. Queries after calling this function won't be serviced.
@@ -340,9 +345,9 @@ func (r *Resolver) Resolve(ctx context.Context, hosts []docker.RegistryHost, ref
 	if err != nil {
 		return nil, fmt.Errorf("failed to read layer: %w", err)
 	}
-
+	xattr := getXAttrAnnotation(sociDesc)
 	// Combine layer information together and cache it.
-	l := newLayer(r, desc, blobR, vr, bgLayerResolver, opCounter)
+	l := newLayer(r, desc, blobR, vr, bgLayerResolver, opCounter, xattr)
 	r.layerCacheMu.Lock()
 	cachedL, done2, added := r.layerCache.Add(name, l)
 	r.layerCacheMu.Unlock()
@@ -404,6 +409,7 @@ func newLayer(
 	vr *reader.VerifiableReader,
 	bgResolver backgroundfetcher.Resolver,
 	opCounter *FuseOperationCounter,
+	hasXAttr bool,
 ) *layer {
 	return &layer{
 		resolver:             resolver,
@@ -412,6 +418,7 @@ func newLayer(
 		verifiableReader:     vr,
 		bgResolver:           bgResolver,
 		fuseOperationCounter: opCounter,
+		hasXAttr:             hasXAttr,
 	}
 }
 
@@ -426,6 +433,7 @@ type layer struct {
 	r reader.Reader
 
 	fuseOperationCounter *FuseOperationCounter
+	hasXAttr             bool
 
 	closed   bool
 	closedMu sync.Mutex
@@ -495,6 +503,10 @@ func (l *layer) ReadAt(p []byte, offset int64, opts ...remote.Option) (int, erro
 	return l.blob.ReadAt(p, offset, opts...)
 }
 
+func (l *layer) NoXAttr() bool {
+	return !l.hasXAttr
+}
+
 func (l *layer) close() error {
 	l.closedMu.Lock()
 	defer l.closedMu.Unlock()
@@ -518,6 +530,19 @@ func (l *layer) isClosed() bool {
 	closed := l.closed
 	l.closedMu.Unlock()
 	return closed
+}
+
+func getXAttrAnnotation(desc ocispec.Descriptor) bool {
+	stringVal, present := desc.Annotations[soci.IndexAnnotationXattrPresent]
+	if !present {
+		return false
+	}
+	val, err := strconv.ParseBool(stringVal)
+	if err != nil {
+		return false
+	}
+
+	return val
 }
 
 // blobRef is a reference to the blob in the cache. Calling `done` decreases the reference counter

@@ -79,6 +79,7 @@ type breakableLayer struct {
 }
 
 func (l *breakableLayer) Info() layer.Info                                    { return layer.Info{} }
+func (l *breakableLayer) NoXAttr() bool                                       { return false }
 func (l *breakableLayer) RootNode(uint32) (fusefs.InodeEmbedder, error)       { return nil, nil }
 func (l *breakableLayer) Verify(tocDigest digest.Digest) error                { return nil }
 func (l *breakableLayer) SkipVerify()                                         {}
