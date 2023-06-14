@@ -504,10 +504,11 @@ func (fs *filesystem) Mount(ctx context.Context, mountpoint string, labels map[s
 		WithField("layerDigest", labels[ctdsnapshotters.TargetLayerDigestLabel]).
 		WriterLevel(logrus.TraceLevel)
 	mountOpts := &fuse.MountOptions{
-		AllowOther: true,   // allow users other than root&mounter to access fs
-		FsName:     "soci", // name this filesystem as "soci"
-		Debug:      fs.debug,
-		Logger:     golog.New(logger, "", 0),
+		AllowOther:    true,   // allow users other than root&mounter to access fs
+		FsName:        "soci", // name this filesystem as "soci"
+		Debug:         fs.debug,
+		Logger:        golog.New(logger, "", 0),
+		DisableXAttrs: l.NoXAttr(),
 	}
 	if _, err := exec.LookPath(fusermountBin); err == nil {
 		mountOpts.Options = []string{"suid"} // option for fusermount; allow setuid inside container
