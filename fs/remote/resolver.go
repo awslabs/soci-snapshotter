@@ -292,10 +292,7 @@ func redirect(ctx context.Context, blobURL string, tr http.RoundTripper, timeout
 	}()
 
 	if res.StatusCode/100 == 2 {
-		url = blobURL
-	} else if redir := res.Header.Get("Location"); redir != "" && res.StatusCode/100 == 3 {
-		// TODO: Support nested redirection
-		url = redir
+		url = res.Request.URL.String()
 	} else {
 		return "", fmt.Errorf("failed to access to the registry with code %v", res.StatusCode)
 	}

@@ -209,11 +209,10 @@ func (tr *sampleRoundTripper) RoundTrip(req *http.Request) (*http.Response, erro
 	}
 	for host, rurl := range tr.redirectURL {
 		if ok, _ := regexp.Match(host, []byte(req.URL.String())); ok {
-			header := make(http.Header)
-			header.Add("Location", rurl)
+			u, _ := url.Parse(rurl)
+			req.URL = u
 			return &http.Response{
-				StatusCode: http.StatusMovedPermanently,
-				Header:     header,
+				StatusCode: http.StatusOK,
 				Body:       io.NopCloser(bytes.NewReader([]byte{})),
 				Request:    req,
 			}, nil
