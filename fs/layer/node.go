@@ -99,6 +99,7 @@ const (
 	fuseOpLookup          = "node.Lookup"
 	fuseOpOpen            = "node.Open"
 	fuseOpReaddir         = "node.Readdir"
+	fuseOpReadLink        = "node.Readlink"
 	fuseOpFileRead        = "file.Read"
 	fuseOpFileGetattr     = "file.Getattr"
 	fuseOpWhiteoutGetattr = "whiteout.Getattr"
@@ -131,6 +132,7 @@ var FuseOpsList = []string{
 	fuseOpLookup,
 	fuseOpOpen,
 	fuseOpReaddir,
+	fuseOpReadLink,
 	fuseOpFileRead,
 	fuseOpFileGetattr,
 	fuseOpWhiteoutGetattr,
@@ -170,7 +172,7 @@ func (f *FuseOperationCounter) Run(ctx context.Context) {
 	case <-time.After(f.waitPeriod):
 		for op, opCount := range f.opCounts {
 			// We want both an aggregated metric (e.g. p90) and an image specific metric so that we can compare
-			// how a specific image is behaving to a larger dataset. When the image cardinatlity is small,
+			// how a specific image is behaving to a larger dataset. When the image cardinality is small,
 			// we can just include the image digest as a label on the metric itself, however, when the cardinality
 			// is large, this can be very expensive. Here we give consumers options by emitting both logs and
 			// metrics. A low cardinality use case can rely on metrics. A high cardinality use case can
@@ -548,7 +550,10 @@ func (n *node) Listxattr(ctx context.Context, dest []byte) (uint32, syscall.Errn
 var _ = (fusefs.NodeReadlinker)((*node)(nil))
 
 func (n *node) Readlink(ctx context.Context) ([]byte, syscall.Errno) {
-	n.logOperation(ctx, "ReadLink")
+	n.logOperation(ctx, fuseOpReadLink)
+	if n.fs.operationCounter != nil {
+		n.fs.operationCounter.Inc(fuseOpReadLink)
+	}
 	ent := n.attr
 	return []byte(ent.LinkName), 0
 }
