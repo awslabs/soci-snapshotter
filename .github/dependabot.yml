@@ -1,18 +1,27 @@
 version: 2
 updates:
-  
+ 
   # Automatic upgrade for go modules.
   - package-ecosystem: "gomod"
     directory: "/"
     schedule:
       interval: "daily"
-      
+    ignore:
+      # skip k8s deps since they use the latest go version/features that may not be in the go version soci uses
+      # Also ignored in /scripts/bump-deps.sh
+      - dependency-name: "k8s.io/*"
+
   # Automatic upgrade for go modules of cmd package.
   - package-ecosystem: "gomod"
     directory: "/cmd"
     schedule:
       interval: "daily"
-  
+    ignore:
+      # skip k8s deps and soci-snapshotter itself
+      # Also ignored in /scripts/bump-deps.sh
+      - dependency-name: "github.com/awslabs/soci-snapshotter"
+      - dependency-name: "k8s.io/*"
+
   # Automatic upgrade for base images used in the Dockerfile
   - package-ecosystem: "docker"
     directory: "/"
