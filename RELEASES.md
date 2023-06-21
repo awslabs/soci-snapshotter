@@ -80,21 +80,25 @@ The SOCI CLI (`bin/soci`) is the binary that can be used to create and inspect S
 ```
 Changelog
 soci-snapshotter-$VERSION-linux-amd64.tar.gz
-    soci-snapshotter-grpc
-    soci
-    THIRD_PARTY_LICENSES
-    NOTICE.md
 soci-snapshotter-$VERSION-linux-amd64.tar.gz.sha256sum
+soci-snapshotter-$VERSION-linux-amd64-static.tar.gz
+soci-snapshotter-$VERSION-linux-amd64-static.tar.gz.sha256sum
 soci-snapshotter-$VERSION-linux-arm64.tar.gz
-    soci-snapshotter-grpc
-    soci
-    THIRD_PARTY_LICENSES
-    NOTICE.md
 soci-snapshotter-$VERSION-linux-arm64.tar.gz.sha256sum
+soci-snapshotter-$VERSION-linux-arm64-static.tar.gz
+soci-snapshotter-$VERSION-linux-arm64-static.tar.gz.sha256sum
 Source code (zip)
 Source code (tar.gz)
 ```
 
+Each release tarball contains the following: 
+```
+soci-snapshotter-grpc
+soci
+THIRD_PARTY_LICENSES
+NOTICE.md
+```
+ 
 
 ## Next Release / Release Cadence
 
