@@ -17,9 +17,10 @@
 package main
 
 import (
+	"flag"
 	"fmt"
 	"os"
-	"strconv"
+	"os/exec"
 	"testing"
 
 	"github.com/awslabs/soci-snapshotter/benchmark"
@@ -27,17 +28,31 @@ import (
 )
 
 var (
-	outputDir = "./output"
+	outputDir = "../comparisonTest/output"
 )
 
 func main() {
-	commit := os.Args[1]
-	configCsv := os.Args[2]
-	numberOfTests, err := strconv.Atoi(os.Args[3])
-	if err != nil {
-		errMsg := fmt.Sprintf("Failed to parse number of test %s with error:%v\n", os.Args[3], err)
-		panic(errMsg)
+
+	var numberOfTests int
+	var configCsv string
+	var showCom bool
+	var parseFileAccessPatterns bool
+
+	flag.BoolVar(&parseFileAccessPatterns, "parseFileAccess", false, "Parse fuse file access patterns.")
+	flag.BoolVar(&showCom, "show-commit", false, "tag the commit hash to the benchmark results")
+	flag.IntVar(&numberOfTests, "count", 5, "Describes the number of runs a benchmarker should run. Default: 5")
+	flag.StringVar(&configCsv, "f", "../imageList.csv", "Path to a csv file describing image details in this order ['Name','Image ref', 'Ready line', 'manifest ref'].")
+
+	flag.Parse()
+
+	var commit string
+
+	if showCom {
+		commit, _ = getCommitHash()
+	} else {
+		commit = "N/A"
 	}
+
 	imageList, err := benchmark.GetImageListFromCsv(configCsv)
 	if err != nil {
 		errMsg := fmt.Sprintf("Failed to read csv file %s with error:%v\n", configCsv, err)
@@ -85,4 +100,13 @@ func main() {
 		Drivers:   drivers,
 	}
 	benchmarks.Run(ctx)
+}
+
+func getCommitHash() (string, error) {
+	cmd := exec.Command("git", "rev-parse", "HEAD")
+	output, err := cmd.Output()
+	if err != nil {
+		return "", err
+	}
+	return string(output), nil
 }
