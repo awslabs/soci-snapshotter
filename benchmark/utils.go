@@ -20,6 +20,7 @@ import (
 	"encoding/csv"
 	"errors"
 	"os"
+	"os/exec"
 )
 
 type ImageDescriptor struct {
@@ -54,4 +55,13 @@ func GetImageListFromCsv(csvLoc string) ([]ImageDescriptor, error) {
 			SociIndexManifestRef: sociIndexManifestRef})
 	}
 	return images, nil
+}
+
+func getCommitHash() (string, error) {
+	cmd := exec.Command("git", "rev-parse", "HEAD")
+	output, err := cmd.Output()
+	if err != nil {
+		return "", err
+	}
+	return string(output), nil
 }
