@@ -22,7 +22,10 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"os"
+	"path/filepath"
 
+	"github.com/awslabs/soci-snapshotter/fs/config"
 	"github.com/awslabs/soci-snapshotter/service/keychain/dockerconfig"
 	"github.com/awslabs/soci-snapshotter/soci"
 	socihttp "github.com/awslabs/soci-snapshotter/util/http"
@@ -106,21 +109,35 @@ func (f *artifactFetcher) constructRef(desc ocispec.Descriptor) string {
 // It first checks the local store for the artifact.
 // If not found, if constructs the ref and fetches it from remote.
 func (f *artifactFetcher) Fetch(ctx context.Context, desc ocispec.Descriptor) (io.ReadCloser, bool, error) {
+	// Try to read the requested artifact from the local filesystem first.
+	// This is faster and lets us bypass all of the container registry interaction when available.
+	localFilename := filepath.Join(config.SociContentStorePath, "blobs", "sha256", desc.Digest.Encoded())
+	if _, err := os.Stat(localFilename); err == nil {
+		file, err := os.Open(localFilename)
+		if err != nil {
+			return nil, false, fmt.Errorf("error reading local file %s: %w", localFilename, err)
+		}
+		log.G(ctx).WithField("digest", desc.Digest).Debug("fetched artifact on local filesystem, skipping local oras store and remote fetch")
+		return io.NopCloser(file), true, nil
+	} else {
+		log.G(ctx).WithField("digest", desc.Digest).Debug("failed to locate artifact on local filesystem, falling back to local oras store")
+	}
 
-	// Check local store first
+	// Check local oras store first
 	rc, err := f.localStore.Fetch(ctx, desc)
 	if err == nil {
+		log.G(ctx).WithField("digest", desc.Digest).Debug("fetched artifact from local oras store, skipping remote fetch")
 		return rc, true, nil
 	}
 
-	log.G(ctx).WithField("digest", desc.Digest.String()).Infof("fetching artifact from remote")
+	log.G(ctx).WithField("digest", desc.Digest.String()).Debug("fetching artifact from remote")
 	if desc.Size == 0 {
 		// Digest verification fails is desc.Size == 0
 		// Therefore, we try to use the resolver to resolve the descriptor
 		// and hopefully get the size.
 		// Note that the resolve would fail for size > 4MiB, since that's the limit
 		// for the manifest size when using the Docker resolver.
-		log.G(ctx).WithField("digest", desc.Digest).Warnf("size of descriptor is 0, trying to resolve it...")
+		log.G(ctx).WithField("digest", desc.Digest).Warn("size of descriptor is 0, trying to resolve it...")
 		desc, err = f.resolve(ctx, desc)
 		if err != nil {
 			return nil, false, fmt.Errorf("size of descriptor is 0; unable to resolve: %w", err)
@@ -159,7 +176,7 @@ func FetchSociArtifacts(ctx context.Context, refspec reference.Spec, indexDesc o
 		return nil, fmt.Errorf("could not create an artifact fetcher: %w", err)
 	}
 
-	log.G(ctx).WithField("digest", indexDesc.Digest).Infof("fetching SOCI index from remote registry")
+	log.G(ctx).WithField("digest", indexDesc.Digest).Debug("fetching SOCI index")
 
 	indexReader, local, err := fetcher.Fetch(ctx, indexDesc)
 	if err != nil {

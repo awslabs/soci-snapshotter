@@ -57,19 +57,19 @@
    This is needed to keep zinfo consistent across multiple architectures,
    ensuring that all integer fields will be stored in little endian.
 */
-inline offset_t encode_offset(offset_t source) {
+static offset_t encode_offset(offset_t source) {
     return htole64(source);
 }
 
-inline offset_t decode_offset(offset_t source) {
+static offset_t decode_offset(offset_t source) {
     return le64toh(source);
 }
 
-inline int32_t encode_int32(int32_t source) {
+static int32_t encode_int32(int32_t source) {
     return htole32(source);
 }
 
-inline int32_t decode_int32(int32_t source) {
+static int32_t decode_int32(int32_t source) {
     return le32toh(source);
 }
 

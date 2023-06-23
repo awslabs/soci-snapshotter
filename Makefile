@@ -40,7 +40,7 @@ FBS_FILE_PATH_COMPRESSION=$(CURDIR)/ztoc/compression/fbs/zinfo.fbs
 COMMIT=$(shell git rev-parse HEAD)
 STARGZ_BINARY?=/usr/local/bin/containerd-stargz-grpc
 
-CMD=soci-snapshotter-grpc soci
+CMD=soci-snapshotter-grpc soci soci-store
 
 CMD_BINARIES=$(addprefix $(OUTDIR)/,$(CMD))
 
@@ -57,6 +57,9 @@ soci-snapshotter-grpc: FORCE
 
 soci: FORCE
 	cd cmd/ ; GO111MODULE=$(GO111MODULE_VALUE) go build -o $(OUTDIR)/$@ $(GO_BUILD_FLAGS) $(GO_LD_FLAGS) $(GO_TAGS) ./soci
+
+soci-store: FORCE
+	cd cmd/ ; GO111MODULE=$(GO111MODULE_VALUE) go build -o $(OUTDIR)/$@ $(GO_BUILD_FLAGS) $(GO_LD_FLAGS) ./soci-store
 
 check:
 	cd scripts/ ; ./check-all.sh

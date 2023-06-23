@@ -45,7 +45,9 @@ package fs
 import (
 	"context"
 	"fmt"
+	"os"
 	"os/exec"
+	"strings"
 	"sync"
 	"syscall"
 	"time"
@@ -308,6 +310,17 @@ func (c *sociContext) Init(fsCtx context.Context, ctx context.Context, imageRef,
 		}
 
 		if indexDigest == "" {
+			index, err := os.ReadFile(config.SociIndexStorePath + strings.ReplaceAll(imageManifestDigest, "sha256:", ""))
+			if err == nil {
+				indexDigest = strings.TrimSpace(string(index))
+				indexDesc.Digest = digest.Digest(indexDigest)
+				log.G(ctx).Info("located index locally, bypassing Referrers API call")
+			} else {
+				log.G(ctx).Info("unable to locate soci index locally")
+			}
+		}
+
+		if indexDigest == "" {
 			log.G(ctx).Info("index digest not provided, making a Referrers API call to fetch list of indices")
 			imgDigest, err := digest.Parse(imageManifestDigest)
 			if err != nil {
@@ -369,6 +382,14 @@ type filesystem struct {
 	bgFetcher                   *bf.BackgroundFetcher
 	mountTimeout                time.Duration
 	fuseMetricsEmitWaitDuration time.Duration
+}
+
+func (fs *filesystem) GetZtocForLayer(ctx context.Context, imageRef, indexDigest, imageManifestDigest, layerDigest string) (ocispec.Descriptor, error) {
+	sociContext, err := fs.getSociContext(ctx, imageRef, indexDigest, imageManifestDigest)
+	if err != nil {
+		return ocispec.Descriptor{}, err
+	}
+	return sociContext.imageLayerToSociDesc[layerDigest], nil
 }
 
 func (fs *filesystem) MountLocal(ctx context.Context, mountpoint string, labels map[string]string, mounts []mount.Mount) error {

@@ -42,6 +42,9 @@ const (
 	// Default path to OCI-compliant CAS
 	SociContentStorePath = "/var/lib/soci-snapshotter-grpc/content/"
 
+	// Default path to local SOCI Index storage
+	SociIndexStorePath = "/var/lib/soci-snapshotter-grpc/indexes/"
+
 	// Default path to snapshotter root dir
 	SociSnapshotterRootPath = "/var/lib/soci-snapshotter-grpc/"
 )
