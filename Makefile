@@ -94,11 +94,13 @@ integration: build
 
 benchmarks:
 	@echo "$@"
-	@cd benchmark/performanceTest ; GO111MODULE=$(GO111MODULE_VALUE) go build -o ../bin/PerfTests . && sudo ../bin/PerfTests $(COMMIT) ../singleImage.csv 10
+	@cd benchmark/performanceTest ; GO111MODULE=$(GO111MODULE_VALUE) go build -o ../bin/PerfTests . && sudo ../bin/PerfTests
+	@cd benchmark/comparisonTest ;  GO111MODULE=$(GO111MODULE_VALUE) go build -o ../bin/CompTests . && sudo ../bin/CompTests
 
-benchmarks-comp:
+build-benchmarks:
 	@echo "$@"
-	@cd benchmark/comparisonTest ; GO111MODULE=$(GO111MODULE_VALUE) go build -o ../bin/CompTests . && sudo ../bin/CompTests $(COMMIT) ../singleImage.csv 10
+	@cd benchmark/performanceTest ; GO111MODULE=$(GO111MODULE_VALUE) go build -o ../bin/PerfTests .
+	@cd benchmark/comparisonTest ;  GO111MODULE=$(GO111MODULE_VALUE) go build -o ../bin/CompTests .
 
 benchmarks-stargz:
 	@echo "$@"
