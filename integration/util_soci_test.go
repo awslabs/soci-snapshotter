@@ -36,6 +36,7 @@ import (
 	"bytes"
 	"fmt"
 	"path/filepath"
+	"strconv"
 	"strings"
 
 	"github.com/awslabs/soci-snapshotter/config"
@@ -140,8 +141,8 @@ func buildIndex(sh *shell.Shell, src imageInfo, opt ...indexBuildOption) string 
 		"--namespace", indexBuildConfig.namespace,
 		"--content-store", string(indexBuildConfig.contentStoreType),
 		"create", src.ref,
-		"--min-layer-size", fmt.Sprintf("%d", indexBuildConfig.minLayerSize),
-		"--span-size", fmt.Sprintf("%d", indexBuildConfig.spanSize),
+		"--min-layer-size", strconv.FormatInt(indexBuildConfig.minLayerSize, 10),
+		"--span-size", strconv.FormatInt(indexBuildConfig.minLayerSize, 10),
 		"--platform", platforms.Format(src.platform),
 	}
 

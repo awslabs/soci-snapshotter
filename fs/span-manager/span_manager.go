@@ -23,6 +23,7 @@ import (
 	"fmt"
 	"io"
 	"runtime"
+	"strconv"
 
 	"github.com/awslabs/soci-snapshotter/cache"
 	"github.com/awslabs/soci-snapshotter/ztoc"
@@ -374,7 +375,7 @@ func (m *SpanManager) uncompressSpan(s *span, compressedBuf []byte) ([]byte, err
 // addSpanToCache adds contents of the span to the cache.
 // A non-nil error is returned if the data is not written to the cache.
 func (m *SpanManager) addSpanToCache(spanID compression.SpanID, contents []byte, opts ...cache.Option) error {
-	w, err := m.cache.Add(fmt.Sprintf("%d", spanID), opts...)
+	w, err := m.cache.Add(strconv.FormatInt(int64(spanID), 10), opts...)
 	if err != nil {
 		return err
 	}
@@ -394,7 +395,7 @@ func (m *SpanManager) addSpanToCache(spanID compression.SpanID, contents []byte,
 // `offset` is the offset of the requested contents within the span.
 // `size` is the size of the requested contents.
 func (m *SpanManager) getSpanFromCache(spanID compression.SpanID, offset, size compression.Offset) (io.Reader, error) {
-	r, err := m.cache.Get(fmt.Sprintf("%d", spanID))
+	r, err := m.cache.Get(strconv.FormatInt(int64(spanID), 10))
 	if err != nil {
 		return nil, fmt.Errorf("%w: %w", ErrSpanNotAvailable, err)
 	}

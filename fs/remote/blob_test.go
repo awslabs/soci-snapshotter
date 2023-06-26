@@ -383,7 +383,7 @@ func (c *callsCountRoundTripper) RoundTrip(req *http.Request) (res *http.Respons
 	time.Sleep(50 * time.Millisecond) // sleep for 50 milliseconds to emulate the http call and to make sure that we can run tests on parallel goroutines
 	convertBody := func(r io.ReadCloser) io.ReadCloser { return r }
 	header := make(http.Header)
-	header.Add("Content-Length", fmt.Sprintf("%d", len(c.content)))
+	header.Add("Content-Length", strconv.FormatInt(int64(len(c.content)), 10))
 	return &http.Response{
 		StatusCode: http.StatusOK,
 		Header:     header,
@@ -477,7 +477,7 @@ func multiRoundTripper(t *testing.T, contents []byte, opts ...interface{}) Round
 			if max >= int64(len(contents)-1) && !sparse {
 				t.Logf("serving whole range %q = %d", ranges, len(contents))
 				header := make(http.Header)
-				header.Add("Content-Length", fmt.Sprintf("%d", len(contents)))
+				header.Add("Content-Length", strconv.FormatInt(int64(len(contents)), 10))
 				return &http.Response{
 					StatusCode: http.StatusOK,
 					Header:     header,
@@ -501,7 +501,7 @@ func multiRoundTripper(t *testing.T, contents []byte, opts ...interface{}) Round
 				}
 			}
 			header := make(http.Header)
-			header.Add("Content-Length", fmt.Sprintf("%d", target.size()))
+			header.Add("Content-Length", strconv.FormatInt(target.size(), 10))
 			header.Add("Content-Range",
 				fmt.Sprintf("bytes %d-%d/%d", target.b, target.e, len(contents)))
 			header.Add("Content-Type", "application/octet-stream")
