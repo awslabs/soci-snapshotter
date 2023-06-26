@@ -20,7 +20,6 @@ import (
 	"flag"
 	"fmt"
 	"os"
-	"os/exec"
 	"testing"
 
 	"github.com/awslabs/soci-snapshotter/benchmark"
@@ -33,21 +32,26 @@ var (
 )
 
 func main() {
-	var numberOfTests int
-	var configCsv string
-	var showCom bool
-	var parseFileAccessPatterns bool
-	var commit string
 
-	flag.BoolVar(&parseFileAccessPatterns, "parseFileAccess", false, "Parse fuse file access patterns.")
+	var (
+		numberOfTests           int
+		configCsv               string
+		showCom                 bool
+		parseFileAccessPatterns bool
+		commit                  string
+		imageList               []benchmark.ImageDescriptor
+		err                     error
+	)
+
+	flag.BoolVar(&parseFileAccessPatterns, "parse-file-access", false, "Parse fuse file access patterns.")
 	flag.BoolVar(&showCom, "show-commit", false, "tag the commit hash to the benchmark results")
 	flag.IntVar(&numberOfTests, "count", 5, "Describes the number of runs a benchmarker should run. Default: 5")
-	flag.StringVar(&configCsv, "f", "../imageList.csv", "Path to a csv file describing image details in this order ['Name','Image ref', 'Ready line', 'manifest ref'].")
+	flag.StringVar(&configCsv, "f", "default", "Path to a csv file describing image details in this order ['Name','Image ref', 'Ready line', 'manifest ref'].")
 
 	flag.Parse()
 
 	if showCom {
-		commit, _ = getCommitHash()
+		commit, _ = benchmark.GetCommitHash()
 	} else {
 		commit = "N/A"
 	}
@@ -64,10 +68,14 @@ func main() {
 		}
 	}
 
-	imageList, err := benchmark.GetImageListFromCsv(configCsv)
-	if err != nil {
-		errMsg := fmt.Sprintf("Failed to read csv file %s with error:%v\n", configCsv, err)
-		panic(errMsg)
+	if configCsv == "default" {
+		imageList = benchmark.GetDefaultWorkloads()
+	} else {
+		imageList, err = benchmark.GetImageListFromCsv(configCsv)
+		if err != nil {
+			errMsg := fmt.Sprintf("Failed to read csv file %s with error:%v\n", configCsv, err)
+			panic(errMsg)
+		}
 	}
 
 	err = os.Mkdir(outputDir, 0755)
@@ -112,13 +120,4 @@ func main() {
 		Drivers:   drivers,
 	}
 	benchmarks.Run(ctx)
-}
-
-func getCommitHash() (string, error) {
-	cmd := exec.Command("git", "rev-parse", "HEAD")
-	output, err := cmd.Output()
-	if err != nil {
-		return "", err
-	}
-	return string(output), nil
 }
