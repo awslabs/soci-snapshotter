@@ -271,7 +271,22 @@ func (tr *transport) RoundTrip(req *http.Request) (*http.Response, error) {
 	if resp.StatusCode == http.StatusUnauthorized {
 		log.G(ctx).Infof("Received status code: %v. Refreshing creds...", resp.Status)
 
-		// prepare authorization for the target host using docker.Authorizer
+		// prepare authorization for the target host using docker.Authorizer.
+		// The docker authorizer only refreshes OAuth tokens after two
+		// successive 401 errors for the same URL. Rather than issue the same
+		// request multiple times to tickle the token-refreshing logic, just
+		// provide the same response twice to trick it into refreshing the
+		// cached OAuth token. Call AddResponses() twice, first to invalidate
+		// the existing token (with two respones), second to fetch a new one (
+		// with one response).
+		// TODO: fix after https://github.com/containerd/containerd/pull/8735
+		// is merged and released.
+		if err := tr.auth.AddResponses(ctx, []*http.Response{resp, resp}); err != nil {
+			if errdefs.IsNotImplemented(err) {
+				return resp, nil
+			}
+			return nil, err
+		}
 		if err := tr.auth.AddResponses(ctx, []*http.Response{resp}); err != nil {
 			if errdefs.IsNotImplemented(err) {
 				return resp, nil
