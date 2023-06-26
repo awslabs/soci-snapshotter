@@ -276,9 +276,16 @@ func (tr *transport) RoundTrip(req *http.Request) (*http.Response, error) {
 		// successive 401 errors for the same URL. Rather than issue the same
 		// request multiple times to tickle the token-refreshing logic, just
 		// provide the same response twice to trick it into refreshing the
-		// cached OAuth token.
+		// cached OAuth token. Call AddResponses() twice, first to invalidate
+		// the existing token, second to fetch a new one.
 		// TODO: fix after https://github.com/containerd/containerd/pull/8735
 		// is merged and released.
+		if err := tr.auth.AddResponses(ctx, []*http.Response{resp, resp}); err != nil {
+			if errdefs.IsNotImplemented(err) {
+				return resp, nil
+			}
+			return nil, err
+		}
 		if err := tr.auth.AddResponses(ctx, []*http.Response{resp, resp}); err != nil {
 			if errdefs.IsNotImplemented(err) {
 				return resp, nil
