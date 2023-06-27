@@ -184,8 +184,15 @@ func AppendDefaultLabelsHandlerWrapper(indexDigest string, wrapper func(images.H
 						c.Annotations[TargetSizeLabel] = fmt.Sprintf("%d", c.Size)
 						c.Annotations[TargetSociIndexDigestLabel] = indexDigest
 
+						remainingLayerDigestsCount := len(strings.Split(c.Annotations[ctdsnapshotters.TargetImageLayersLabel], ","))
+
 						var layerSizes string
-						for _, l := range children[i:] {
+						/*
+							We must ensure that the counts of layer sizes and layer digests are equal.
+							We will limit the # of neighboring label sizes to equal the # of neighboring
+							ayer digests for any given layer.
+						*/
+						for _, l := range children[i : i+remainingLayerDigestsCount] {
 							if images.IsLayerType(l.MediaType) {
 								ls := fmt.Sprintf("%d,", l.Size)
 								// This avoids the label hits the size limitation.
