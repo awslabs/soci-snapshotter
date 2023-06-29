@@ -91,9 +91,8 @@ can run these tests using the following `Makefile` targets:
 
 - `make test`: run all unit tests.
 - `make integration`: run all integration tests.
-- `make benchmarks` (experimental): run all benchmark tests. This requires some
-setup and preparation for public images with SOCI index which are used for benchmarking.
-It is tracked in [#245](https://github.com/awslabs/soci-snapshotter/issues/245).
+- `make benchmarks`: run all benchmark tests. Runs the benchmark tests on a set of publicly hosted images. Output results are available in the ouptut folder within the comparisonTest and performanceTest subfolders.
+- `make build-benchmarks`: generate benchmark binaries of perfomance and comparision Tests. The binaries are available for use within the benchmanrk/bin directory. Use `-f`, `-count`,`show-commit` flags to customize the benchmark test.
 
 To speed up develop-test cycle, you can run individual test(s) by utilizing `go test`'s
 `-run` flag. For example, suppose you only want to run a test named `TestFooBar`, you can:
