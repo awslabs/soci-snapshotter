@@ -22,6 +22,7 @@ FROM golang-base AS containerd-snapshotter-base
 ARG CONTAINERD_VERSION
 ARG RUNC_VERSION
 ARG NERDCTL_VERSION
+ARG TARGETARCH
 COPY . $GOPATH/src/github.com/awslabs/soci-snapshotter
 ENV GOPROXY direct
 RUN apt-get update -y && apt-get install -y libbtrfs-dev libseccomp-dev libz-dev gcc fuse pigz
