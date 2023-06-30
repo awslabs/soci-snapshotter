@@ -1,5 +1,6 @@
 /out
 *.db
+*.pb.go
 .vscode/
 /benchmark/*/output/
 /benchmark/bin/

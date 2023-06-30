@@ -48,6 +48,7 @@ import (
 	"github.com/awslabs/soci-snapshotter/metadata"
 	"github.com/awslabs/soci-snapshotter/service/keychain/dockerconfig"
 	"github.com/awslabs/soci-snapshotter/service/keychain/kubeconfig"
+	"github.com/awslabs/soci-snapshotter/service/keychain/local_keychain"
 	"github.com/awslabs/soci-snapshotter/service/resolver"
 	"github.com/awslabs/soci-snapshotter/store"
 	"github.com/awslabs/soci-snapshotter/ztoc"
@@ -126,7 +127,8 @@ func main() {
 	}
 
 	// Prepare kubeconfig-based keychain if required
-	credsFuncs := []resolver.Credential{dockerconfig.NewDockerConfigKeychain(ctx)}
+	credsFuncs := []resolver.Credential{local_keychain.Keychain(ctx)}
+	credsFuncs = append(credsFuncs, dockerconfig.NewDockerConfigKeychain(ctx))
 	if config.KubeconfigKeychainConfig.EnableKeychain {
 		var opts []kubeconfig.Option
 		if kcp := config.KubeconfigKeychainConfig.KubeconfigPath; kcp != "" {
