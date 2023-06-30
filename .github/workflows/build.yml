@@ -3,8 +3,20 @@ name: Build
 on:
   push:
     branches: [ main ]
+    paths:
+      - '**'
+      - '!docs/**' # ignore docs changes
+      - '!**.md' # ignore markdown changes
   pull_request:
     branches: [ main ]
+    paths:
+      - '**.go'
+      - 'go.*'
+      - 'cmd/go.*'
+      - 'Makefile'
+      - 'Dockerfile'
+      - 'integration/**'
+      - 'scripts/**'
 
 jobs:
   check:
