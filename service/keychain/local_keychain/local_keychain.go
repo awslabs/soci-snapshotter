@@ -51,7 +51,7 @@ import (
 
 var (
 	localKeychainPort = flag.Int("local_keychain_port", 0,
-		"port on which to expose the local_keychain gRPC service that accepts username/password credentials for private images. ")
+		"Port on which to expose the local_keychain gRPC service that accepts username/password credentials for private images. If 0, the local_keychain service is not started/exposed.")
 )
 
 type credentials struct {
