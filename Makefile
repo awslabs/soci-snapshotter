@@ -40,11 +40,11 @@ FBS_FILE_PATH_COMPRESSION=$(CURDIR)/ztoc/compression/fbs/zinfo.fbs
 COMMIT=$(shell git rev-parse HEAD)
 STARGZ_BINARY?=/usr/local/bin/containerd-stargz-grpc
 
-CMD=proto soci-snapshotter-grpc soci soci-store
+CMD=soci-store soci-snapshotter-grpc soci
 
 CMD_BINARIES=$(addprefix $(OUTDIR)/,$(CMD))
 
-.PHONY: all build check add-ltag install uninstall clean test integration
+.PHONY: all build check add-ltag install uninstall clean test integration proto
 
 all: build
 
@@ -61,7 +61,7 @@ soci: FORCE
 soci-store: proto
 	cd cmd/ ; GO111MODULE=$(GO111MODULE_VALUE) go build -o $(OUTDIR)/$@ $(GO_BUILD_FLAGS) $(GO_LD_FLAGS) ./soci-store
 
-proto: FORCE
+proto:
 	protoc --go_out=. --go_opt=paths=source_relative --go-grpc_out=. --go-grpc_opt=paths=source_relative proto/local_keychain.proto
 
 check:
