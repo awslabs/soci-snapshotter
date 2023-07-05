@@ -20,6 +20,7 @@ import (
 	"archive/tar"
 	"bytes"
 	"compress/gzip"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -250,7 +251,7 @@ func TestSociZtocGetFile(t *testing.T) {
 
 	var (
 		tempOutputStream = "test.txt"
-		randomFile       = string(testutil.RandomByteData(10))
+		randomFile       = base64.StdEncoding.EncodeToString(testutil.RandomByteData(12))
 		randomZtocDigest = testutil.RandomDigest()
 	)
 
