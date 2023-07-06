@@ -66,6 +66,7 @@ import (
 	rhttp "github.com/hashicorp/go-retryablehttp"
 	digest "github.com/opencontainers/go-digest"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
+	"github.com/pkg/errors"
 )
 
 const (
@@ -137,6 +138,12 @@ func (r *Resolver) resolveFetcher(ctx context.Context, hosts source.RegistryHost
 	hf, err := newHTTPFetcher(ctx, fc)
 	if err != nil {
 		return nil, 0, err
+	}
+	if desc.Size == 0 {
+		desc.Size, err = getLayerSize(ctx, hf)
+		if err != nil {
+			return nil, 0, fmt.Errorf("failed to retrieve layer size from %s after it was not found in labels: %w", hf.url, err)
+		}
 	}
 	if blobConfig.ForceSingleRangeMode {
 		hf.singleRangeMode()
@@ -301,6 +308,56 @@ func redirect(ctx context.Context, blobURL string, tr http.RoundTripper, timeout
 	}
 
 	return
+}
+
+func getLayerSize(ctx context.Context, hf *httpFetcher) (int64, error) {
+	if hf.timeout > 0 {
+		var cancel context.CancelFunc
+		ctx, cancel = context.WithTimeout(ctx, hf.timeout)
+		defer cancel()
+	}
+	req, err := http.NewRequestWithContext(ctx, "HEAD", hf.url, nil)
+	if err != nil {
+		return 0, err
+	}
+	req.Close = false
+	res, err := hf.tr.RoundTrip(req)
+	if err != nil {
+		return 0, err
+	}
+	defer res.Body.Close()
+	if res.StatusCode == http.StatusOK {
+		return strconv.ParseInt(res.Header.Get("Content-Length"), 10, 64)
+	}
+	headStatusCode := res.StatusCode
+
+	// Failed to do HEAD request. Fall back to GET.
+	// ghcr.io (https://github-production-container-registry.s3.amazonaws.com) doesn't allow
+	// HEAD request (2020).
+	req, err = http.NewRequestWithContext(ctx, "GET", hf.url, nil)
+	if err != nil {
+		return 0, errors.Wrapf(err, "failed to make request to the registry")
+	}
+	req.Close = false
+	req.Header.Set("Range", "bytes=0-1")
+	res, err = hf.tr.RoundTrip(req)
+	if err != nil {
+		return 0, errors.Wrapf(err, "failed to request")
+	}
+	defer func() {
+		io.Copy(io.Discard, res.Body)
+		res.Body.Close()
+	}()
+
+	if res.StatusCode == http.StatusOK {
+		return strconv.ParseInt(res.Header.Get("Content-Length"), 10, 64)
+	} else if res.StatusCode == http.StatusPartialContent {
+		_, size, err := parseRange(res.Header.Get("Content-Range"))
+		return size, err
+	}
+
+	return 0, fmt.Errorf("failed to get size with code (HEAD=%v, GET=%v)",
+		headStatusCode, res.StatusCode)
 }
 
 type httpFetcher struct {

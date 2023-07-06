@@ -81,7 +81,7 @@ const (
 	// TargetSizeLabel is a label which contains layer size.
 	TargetSizeLabel = "containerd.io/snapshot/remote/soci.size"
 
-	// targetImageLayersSizeLabel is a label which contains layer digests contained in
+	// targetImageLayersSizeLabel is a label which contains layer sizes contained in
 	// the target image.
 	targetImageLayersSizeLabel = "containerd.io/snapshot/remote/image.layers.size"
 
