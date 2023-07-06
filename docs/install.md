@@ -15,6 +15,7 @@ or [build them from source](./build.md).
 
 - [Dependencies](#dependencies)
 - [Configure soci-snapshotter (optional)](#configure-soci-snapshotter-optional)
+- [Confirm installation](#confirm-installation)
 - [Install soci-snapshotter for containerd with systemd](#install-soci-snapshotter-for-containerd-with-systemd)
 - [Config containerd](#config-containerd)
 
@@ -44,6 +45,16 @@ soci-snapshotter will use default values for all configurations.
 > Whenever you make changes to the config file, you need to stop the snapshotter
 > first before making changes, and restart the snapshotter after the changes.
 
+## Confirm installation
+
+To validate soci-snapshotter is installed, let's check the snapshotter's version.
+The output should show the version that you installed.
+
+```shell
+$ sudo soci-snapshotter-grpc --version
+soci-snapshotter-grpc version f855ff1.m f855ff1bcf7e161cf0e8d3282dc3d797e733ada0.m
+```
+
 ## Install soci-snapshotter for containerd with systemd
 
 If you plan to use systemd to manage your soci-snapshotter process, you can download
@@ -56,12 +67,10 @@ sudo systemctl daemon-reload
 sudo systemctl enable --now soci-snapshotter
 ```
 
-To validate soci-snapshotter is running, let's check the snapshotter's version.
-The output should show the version that you installed.
+To validate soci-snapshotter is now running:
 
 ```shell
-$ sudo soci-snapshotter-grpc --version
-soci-snapshotter-grpc version f855ff1.m f855ff1bcf7e161cf0e8d3282dc3d797e733ada0.m
+sudo systemctl status soci-snapshotter
 ```
 
 ## Config containerd
