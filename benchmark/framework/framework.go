@@ -41,22 +41,29 @@ type BenchmarkFramework struct {
 	Drivers   []BenchmarkTestDriver `json:"benchmarkTests"`
 }
 
+type BenchmarkTestStats struct {
+	BenchmarkTimes []float64 `json:"BenchmarkTimes"`
+	StdDev         float64   `json:"stdDev"`
+	Mean           float64   `json:"mean"`
+	Min            float64   `json:"min"`
+	Pct25          float64   `json:"pct25"`
+	Pct50          float64   `json:"pct50"`
+	Pct75          float64   `json:"pct75"`
+	Pct90          float64   `json:"pct90"`
+	Max            float64   `json:"max"`
+}
+
 type BenchmarkTestDriver struct {
-	TestName       string           `json:"testName"`
-	NumberOfTests  int              `json:"numberOfTests"`
-	BeforeFunction func()           `json:"-"`
-	TestFunction   func(*testing.B) `json:"-"`
-	AfterFunction  func() error     `json:"-"`
-	TestsRun       int              `json:"-"`
-	TestTimes      []float64        `json:"testTimes"`
-	StdDev         float64          `json:"stdDev"`
-	Mean           float64          `json:"mean"`
-	Min            float64          `json:"min"`
-	Pct25          float64          `json:"pct25"`
-	Pct50          float64          `json:"pct50"`
-	Pct75          float64          `json:"pct75"`
-	Pct90          float64          `json:"pct90"`
-	Max            float64          `json:"max"`
+	TestName       string             `json:"testName"`
+	NumberOfTests  int                `json:"numberOfTests"`
+	BeforeFunction func()             `json:"-"`
+	TestFunction   func(*testing.B)   `json:"-"`
+	AfterFunction  func() error       `json:"-"`
+	TestsRun       int                `json:"-"`
+	FullRunStats   BenchmarkTestStats `json:"fullRunStats"`
+	PullStats      BenchmarkTestStats `json:"pullStats"`
+	LazyTaskStats  BenchmarkTestStats `json:"lazyTaskStats"`
+	LocalTaskStats BenchmarkTestStats `json:"localTaskStats"`
 }
 
 func (frame *BenchmarkFramework) Run(ctx context.Context) {
@@ -73,7 +80,10 @@ func (frame *BenchmarkFramework) Run(ctx context.Context) {
 			log.G(ctx).WithField("test_name", testDriver.TestName).Infof("TestStart for " + testDriver.TestName + "_" + strconv.Itoa(j+1))
 			fmt.Printf("Running test %d of %d\n", j+1, testDriver.NumberOfTests)
 			res := testing.Benchmark(testDriver.TestFunction)
-			testDriver.TestTimes = append(testDriver.TestTimes, res.T.Seconds())
+			testDriver.FullRunStats.BenchmarkTimes = append(testDriver.FullRunStats.BenchmarkTimes, res.T.Seconds())
+			testDriver.PullStats.BenchmarkTimes = append(testDriver.PullStats.BenchmarkTimes, res.Extra["pullDuration"]/1000)
+			testDriver.LazyTaskStats.BenchmarkTimes = append(testDriver.LazyTaskStats.BenchmarkTimes, res.Extra["lazyTaskDuration"]/1000)
+			testDriver.LocalTaskStats.BenchmarkTimes = append(testDriver.LocalTaskStats.BenchmarkTimes, res.Extra["localTaskStats"]/1000)
 		}
 		testDriver.calculateStats()
 		if testDriver.AfterFunction != nil {
@@ -81,7 +91,6 @@ func (frame *BenchmarkFramework) Run(ctx context.Context) {
 			if err != nil {
 				fmt.Printf("After function error: %v\n", err)
 			}
-
 		}
 	}
 
@@ -101,45 +110,52 @@ func (frame *BenchmarkFramework) Run(ctx context.Context) {
 }
 
 func (driver *BenchmarkTestDriver) calculateStats() {
+	driver.FullRunStats.calculateTestStat()
+	driver.PullStats.calculateTestStat()
+	driver.LazyTaskStats.calculateTestStat()
+	driver.LocalTaskStats.calculateTestStat()
+}
+
+func (testStats *BenchmarkTestStats) calculateTestStat() {
 	var err error
-	driver.StdDev, err = stats.StandardDeviation(driver.TestTimes)
+	testStats.StdDev, err = stats.StandardDeviation(testStats.BenchmarkTimes)
 	if err != nil {
 		fmt.Printf("Error Calculating Std Dev: %v\n", err)
-		driver.StdDev = -1
+		testStats.StdDev = -1
 	}
-	driver.Mean, err = stats.Mean(driver.TestTimes)
+	testStats.Mean, err = stats.Mean(testStats.BenchmarkTimes)
 	if err != nil {
 		fmt.Printf("Error Calculating Mean: %v\n", err)
-		driver.Mean = -1
+		testStats.Mean = -1
 	}
-	driver.Min, err = stats.Min(driver.TestTimes)
+	testStats.Min, err = stats.Min(testStats.BenchmarkTimes)
 	if err != nil {
 		fmt.Printf("Error Calculating Min: %v\n", err)
-		driver.Min = -1
+		testStats.Min = -1
 	}
-	driver.Pct25, err = stats.Percentile(driver.TestTimes, 25)
+	testStats.Pct25, err = stats.Percentile(testStats.BenchmarkTimes, 25)
 	if err != nil {
 		fmt.Printf("Error Calculating 25th Pct: %v\n", err)
-		driver.Pct25 = -1
+		testStats.Pct25 = -1
 	}
-	driver.Pct50, err = stats.Percentile(driver.TestTimes, 50)
+	testStats.Pct50, err = stats.Percentile(testStats.BenchmarkTimes, 50)
 	if err != nil {
 		fmt.Printf("Error Calculating 50th Pct: %v\n", err)
-		driver.Pct50 = -1
+		testStats.Pct50 = -1
 	}
-	driver.Pct75, err = stats.Percentile(driver.TestTimes, 75)
+	testStats.Pct75, err = stats.Percentile(testStats.BenchmarkTimes, 75)
 	if err != nil {
 		fmt.Printf("Error Calculating 75th Pct: %v\n", err)
-		driver.Pct75 = -1
+		testStats.Pct75 = -1
 	}
-	driver.Pct90, err = stats.Percentile(driver.TestTimes, 90)
+	testStats.Pct90, err = stats.Percentile(testStats.BenchmarkTimes, 90)
 	if err != nil {
 		fmt.Printf("Error Calculating 90th Pct: %v\n", err)
-		driver.Pct90 = -1
+		testStats.Pct90 = -1
 	}
-	driver.Max, err = stats.Max(driver.TestTimes)
+	testStats.Max, err = stats.Max(testStats.BenchmarkTimes)
 	if err != nil {
 		fmt.Printf("Error Calculating Max: %v\n", err)
-		driver.Max = -1
+		testStats.Max = -1
 	}
 }
