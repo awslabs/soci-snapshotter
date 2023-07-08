@@ -19,6 +19,7 @@ package benchmark
 import (
 	"context"
 	"testing"
+	"time"
 
 	"github.com/awslabs/soci-snapshotter/benchmark/framework"
 	"github.com/containerd/containerd"
@@ -107,10 +108,13 @@ func SociFullRun(
 	defer sociProcess.StopProcess()
 	sociContainerdProc := SociContainerdProcess{containerdProcess}
 	b.ResetTimer()
+	pullStart := time.Now()
 	log.G(ctx).WithField("benchmark", "Test").WithField("event", "Start").Infof("Start Test")
 	log.G(ctx).WithField("benchmark", "Pull").WithField("event", "Start").Infof("Start Pull Image")
 	image, err := sociContainerdProc.SociRPullImageFromRegistry(ctx, imageRef, indexDigest)
 	log.G(ctx).WithField("benchmark", "Pull").WithField("event", "Stop").Infof("Stop Pull Image")
+	pullDuration := time.Since(pullStart)
+	b.ReportMetric(float64(pullDuration.Milliseconds()), "pullDuration")
 	if err != nil {
 		b.Fatalf("%s", err)
 	}
@@ -129,8 +133,11 @@ func SociFullRun(
 	}
 	defer cleanupTask()
 	log.G(ctx).WithField("benchmark", "RunTask").WithField("event", "Start").Infof("Start Run Task")
+	runTask1Start := time.Now()
 	cleanupRun, err := sociContainerdProc.RunContainerTaskForReadyLine(ctx, taskDetails, readyLine)
+	runTask1Duration := time.Since(runTask1Start)
 	log.G(ctx).WithField("benchmark", "RunTask").WithField("event", "Stop").Infof("Stop Run Task")
+	b.ReportMetric(float64(runTask1Duration.Milliseconds()), "runTask1Duration")
 	if err != nil {
 		b.Fatalf("%s", err)
 	}
@@ -146,8 +153,11 @@ func SociFullRun(
 	}
 	defer cleanupTaskSecondRun()
 	log.G(ctx).WithField("benchmark", "RunTaskTwice").WithField("event", "Start").Infof("Start Run Task Twice")
+	runTask2Start := time.Now()
 	cleanupRunSecond, err := sociContainerdProc.RunContainerTaskForReadyLine(ctx, taskDetailsSecondRun, readyLine)
+	runTask2Duration := time.Since(runTask2Start)
 	log.G(ctx).WithField("benchmark", "RunTaskTwice").WithField("event", "Stop").Infof("Stop Run Task Twice")
+	b.ReportMetric(float64(runTask2Duration.Milliseconds()), "runTask2Duration")
 	if err != nil {
 		b.Fatalf("%s", err)
 	}
@@ -173,8 +183,11 @@ func OverlayFSFullRun(
 	b.ResetTimer()
 	log.G(ctx).WithField("benchmark", "Test").WithField("event", "Start").Infof("Start Test")
 	log.G(ctx).WithField("benchmark", "Pull").WithField("event", "Start").Infof("Start Pull Image")
+	pullStart := time.Now()
 	image, err := containerdProcess.PullImageFromRegistry(ctx, imageRef, platform)
+	pullDuration := time.Since(pullStart)
 	log.G(ctx).WithField("benchmark", "Pull").WithField("event", "Stop").Infof("Stop Pull Image")
+	b.ReportMetric(float64(pullDuration.Milliseconds()), "pullDuration")
 	if err != nil {
 		b.Fatalf("%s", err)
 	}
@@ -185,8 +198,11 @@ func OverlayFSFullRun(
 		b.Fatalf("%s", err)
 	}
 	log.G(ctx).WithField("benchmark", "CreateContainer").WithField("event", "Start").Infof("Start Create Container")
+	createContainerStart := time.Now()
 	container, cleanupContainer, err := containerdProcess.CreateContainer(ctx, image)
+	createContainerDuration := time.Since(createContainerStart)
 	log.G(ctx).WithField("benchmark", "CreateContainer").WithField("event", "Stop").Infof("Stop Create Container")
+	b.ReportMetric(float64(createContainerDuration.Milliseconds()), "createContainerDuration")
 	if err != nil {
 		b.Fatalf("%s", err)
 	}
@@ -199,8 +215,11 @@ func OverlayFSFullRun(
 	}
 	defer cleanupTask()
 	log.G(ctx).WithField("benchmark", "RunTask").WithField("event", "Start").Infof("Start Run Task")
+	runTask1Start := time.Now()
 	cleanupRun, err := containerdProcess.RunContainerTaskForReadyLine(ctx, taskDetails, readyLine)
+	runTask1Duration := time.Since(runTask1Start)
 	log.G(ctx).WithField("benchmark", "RunTask").WithField("event", "Stop").Infof("Stop Run Task")
+	b.ReportMetric(float64(runTask1Duration.Milliseconds()), "runTask1Duration")
 	if err != nil {
 		b.Fatalf("%s", err)
 	}
@@ -216,8 +235,11 @@ func OverlayFSFullRun(
 	}
 	defer cleanupTaskSecondRun()
 	log.G(ctx).WithField("benchmark", "RunTaskTwice").WithField("event", "Start").Infof("Start Run Task Twice")
+	runTask2Start := time.Now()
 	cleanupRunSecond, err := containerdProcess.RunContainerTaskForReadyLine(ctx, taskDetailsSecondRun, readyLine)
+	runTask2Duration := time.Since(runTask2Start)
 	log.G(ctx).WithField("benchmark", "RunTaskTwice").WithField("event", "Stop").Infof("Stop Run Task Twice")
+	b.ReportMetric(float64(runTask2Duration.Milliseconds()), "runTask2Duration")
 	if err != nil {
 		b.Fatalf("%s", err)
 	}
