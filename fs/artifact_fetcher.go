@@ -81,7 +81,7 @@ func newRemoteStore(refspec reference.Spec) (*remote.Repository, error) {
 		Client: socihttp.NewRetryableClient(socihttp.NewRetryableClientConfig()),
 		Cache:  auth.DefaultCache,
 		Credential: func(ctx context.Context, host string) (auth.Credential, error) {
-			username, password, err := local_keychain.Keychain(ctx)(host, refspec)
+			username, password, err := local_keychain.Keychain(ctx).GetCredentials(host, refspec)
 			if err != nil {
 				return auth.Credential{
 					Username: username,

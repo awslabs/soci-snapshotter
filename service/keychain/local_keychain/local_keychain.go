@@ -42,7 +42,6 @@ import (
 	"time"
 
 	"github.com/awslabs/soci-snapshotter/proto"
-	"github.com/awslabs/soci-snapshotter/service/resolver"
 	"github.com/containerd/containerd/log"
 	"github.com/containerd/containerd/reference"
 	"google.golang.org/grpc"
@@ -61,6 +60,7 @@ type credentials struct {
 }
 
 type keychain struct {
+	mu sync.Mutex
 	cache map[string]credentials
 	proto.UnimplementedLocalKeychainServer
 }
@@ -94,6 +94,8 @@ func (kc *keychain) PutCredentials(ctx context.Context, req *proto.PutCredential
 			timeout := time.Now().Add(time.Duration(req.ExpiresInSeconds) * time.Second)
 			expirationTime = &timeout
 		}
+		kc.mu.Lock()
+		defer kc.mu.Unlock()
 		kc.cache[req.ImageName] = credentials{
 			username:   req.Credentials.Username,
 			password:   req.Credentials.Password,
@@ -103,7 +105,9 @@ func (kc *keychain) PutCredentials(ctx context.Context, req *proto.PutCredential
 	return &proto.PutCredentialsResponse{}, nil
 }
 
-func (kc *keychain) getCredentials(host string, refspec reference.Spec) (string, string, error) {
+func (kc *keychain) GetCredentials(host string, refspec reference.Spec) (string, string, error) {
+	kc.mu.Lock()
+	defer kc.mu.Unlock()
 	creds, found := kc.cache[refspec.String()]
 	if found && (creds.expiration == nil || creds.expiration.After(time.Now())) {
 		return creds.username, creds.password, nil
@@ -114,7 +118,7 @@ func (kc *keychain) getCredentials(host string, refspec reference.Spec) (string,
 	return "", "", errors.New("credentials not found")
 }
 
-func Keychain(ctx context.Context) resolver.Credential {
+func Keychain(ctx context.Context) *keychain {
 	lock.Lock()
 	defer lock.Unlock()
 	if singleton == nil {
@@ -123,8 +127,5 @@ func Keychain(ctx context.Context) resolver.Credential {
 		}
 		singleton.init()
 	}
-
-	return func(host string, refspec reference.Spec) (string, string, error) {
-		return singleton.getCredentials(host, refspec)
-	}
+	return singleton
 }
