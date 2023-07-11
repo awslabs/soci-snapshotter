@@ -27,6 +27,7 @@ import (
 
 	"github.com/awslabs/soci-snapshotter/fs/config"
 	"github.com/awslabs/soci-snapshotter/service/keychain/dockerconfig"
+	"github.com/awslabs/soci-snapshotter/service/keychain/local_keychain"
 	"github.com/awslabs/soci-snapshotter/soci"
 	socihttp "github.com/awslabs/soci-snapshotter/util/http"
 	"github.com/awslabs/soci-snapshotter/util/ioutils"
@@ -79,7 +80,14 @@ func newRemoteStore(refspec reference.Spec) (*remote.Repository, error) {
 	authClient := auth.Client{
 		Client: socihttp.NewRetryableClient(socihttp.NewRetryableClientConfig()),
 		Cache:  auth.DefaultCache,
-		Credential: func(_ context.Context, host string) (auth.Credential, error) {
+		Credential: func(ctx context.Context, host string) (auth.Credential, error) {
+			username, password, err := local_keychain.Keychain(ctx).GetCredentials(host, refspec)
+			if err != nil {
+				return auth.Credential{
+					Username: username,
+					Password: password,
+				}, nil
+			}
 			username, secret, err := dockerconfig.DockerCreds(host)
 			if err != nil {
 				return auth.EmptyCredential, err

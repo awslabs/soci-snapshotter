@@ -1,0 +1,23 @@
+syntax = "proto3";
+
+package local_keychain;
+
+option go_package = "github.com/awslabs/soci-snapshotter/proto/";
+
+message Credentials {
+    string username = 1;
+    string password = 2;
+  }
+
+message PutCredentialsRequest {
+    string image_name = 1;
+    Credentials credentials = 2;
+    int64 expires_in_seconds = 3;
+}
+
+message PutCredentialsResponse {
+}
+
+service LocalKeychain {
+    rpc PutCredentials(PutCredentialsRequest) returns (PutCredentialsResponse);
+}
