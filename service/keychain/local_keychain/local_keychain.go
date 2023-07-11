@@ -89,6 +89,7 @@ func (kc *keychain) init() {
 
 func (kc *keychain) PutCredentials(ctx context.Context, req *proto.PutCredentialsRequest) (res *proto.PutCredentialsResponse, err error) {
 	if req.ImageName != "" && req.Credentials != nil {
+		log.G(ctx).Infof("received credentials for image %s, caching for %d seconds", req.ImageName, req.ExpiresInSeconds)
 		var expirationTime *time.Time
 		if req.ExpiresInSeconds > 0 {
 			timeout := time.Now().Add(time.Duration(req.ExpiresInSeconds) * time.Second)
