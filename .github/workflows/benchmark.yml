@@ -1,0 +1,34 @@
+name: Benchmark
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - '**'
+      - '!docs/**' # ignore docs changes
+      - '!**.md' # ignore markdown changes
+  pull_request:
+    branches: [ main ]
+    paths:
+      - '**.go'
+      - 'go.*'
+      - 'cmd/go.*'
+      - 'Makefile'
+      - 'Dockerfile'
+      - 'integration/**'
+      - 'scripts/**'
+            
+jobs:
+  benchmark:
+    name: Performance regression check
+    runs-on: ubuntu-20.04
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/setup-go@v4
+        with:
+          go-version: '1.18.10'
+      - run: make
+      - name: Run benchmark
+        run: make benchmarks-perf-test
+      - run: cd benchmark/performanceTest && cat output/results.json
+      
