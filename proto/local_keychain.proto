@@ -2,7 +2,7 @@ syntax = "proto3";
 
 package local_keychain;
 
-option go_package = "github.com/awslabs/soci-snapshotter/proto/";
+option go_package = "github.com/awslabs/soci-snapshotter/proto";
 
 message Credentials {
     string username = 1;
