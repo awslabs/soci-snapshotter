@@ -105,7 +105,7 @@ build-benchmarks:
 benchmarks-test:
 	@echo "$@"
 	@cd benchmark/performanceTest ; sudo rm -rf output ; GO111MODULE=$(GO111MODULE_VALUE) go build -o ../bin/PerfTests . && sudo ../bin/PerfTests -show-commit
-	@cd benchmark/performanceTest ; cat output/results.json
+	@cd benchmark/performanceTest ; cat output/results.json ; cp output/results.json results.json
 
 benchmarks-stargz:
 	@echo "$@"
