@@ -367,10 +367,9 @@ func (fs *filesystem) Mount(ctx context.Context, mountpoint string, labels map[s
 	start := time.Now()
 	ctx = log.WithLogger(ctx, log.G(ctx).WithField("mountpoint", mountpoint))
 
-	sociIndexDigest, ok := labels[source.TargetSociIndexDigestLabel]
-	if !ok {
-		return fmt.Errorf("unable to get soci index digest from labels")
-	}
+	// If this is empty or the label doesn't exist, then we will use the referrers API later
+	// to get find an index digest.
+	sociIndexDigest := labels[source.TargetSociIndexDigestLabel]
 	imageRef, ok := labels[ctdsnapshotters.TargetRefLabel]
 	if !ok {
 		return fmt.Errorf("unable to get image ref from labels")
