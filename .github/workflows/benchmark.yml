@@ -17,7 +17,11 @@ on:
       - 'Dockerfile'
       - 'integration/**'
       - 'scripts/**'
-            
+
+permissions:
+  contents: write
+  deployments: write
+      
 jobs:
   benchmark:
     name: Performance regression check
