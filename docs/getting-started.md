@@ -54,8 +54,8 @@ directory (`/usr/local/bin`):
 > You can find other download link in the release page that matches your machine.
 
 ```shell
-wget https://github.com/awslabs/soci-snapshotter/releases/download/v0.1.0/soci-snapshotter-0.1.0-linux-amd64.tar.gz
-sudo tar -C /usr/local/bin -xvf soci-snapshotter-0.1.0-linux-amd64.tar.gz ./soci ./soci-snapshotter-grpc
+wget https://github.com/awslabs/soci-snapshotter/releases/download/v0.3.0/soci-snapshotter-0.3.0-linux-amd64.tar.gz
+sudo tar -C /usr/local/bin -xvf soci-snapshotter-0.3.0-linux-amd64.tar.gz ./soci ./soci-snapshotter-grpc
 ```
 
 Now you should be able to use the `soci` CLI (and `soci-snapshotter-grpc` containerd plugin shortly):
