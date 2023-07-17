@@ -111,36 +111,38 @@ func FromDefaultLabels(hosts RegistryHosts) GetSources {
 			return nil, err
 		}
 
+		var targetSize int64
 		targetSizeStr, ok := labels[TargetSizeLabel]
-		if !ok {
-			return nil, fmt.Errorf("layer size hasn't been passed")
-		}
-		targetSize, err := strconv.ParseInt(targetSizeStr, 10, 64)
-		if err != nil {
-			return nil, err
+		if ok {
+			targetSize, err = strconv.ParseInt(targetSizeStr, 10, 64)
+			if err != nil {
+				return nil, err
+			}
 		}
 
 		var neighboringLayers []ocispec.Descriptor
 		if l, ok := labels[ctdsnapshotters.TargetImageLayersLabel]; ok {
 			layerDigestsStr := strings.Split(l, ",")
-			layerSizes := strings.Split(labels[targetImageLayersSizeLabel], ",")
-			if len(layerDigestsStr) != len(layerSizes) {
-				return nil, fmt.Errorf("the lengths of layer digests and layer sizes don't match")
-			}
-
-			for i := 0; i < len(layerDigestsStr); i++ {
-				l := layerDigestsStr[i]
-				d, err := digest.Parse(l)
-				if err != nil {
-					return nil, err
+			if s, ok := labels[targetImageLayersSizeLabel]; ok {
+				layerSizes := strings.Split(s, ",")
+				if len(layerDigestsStr) != len(layerSizes) {
+					return nil, fmt.Errorf("the lengths of layer digests and layer sizes don't match")
 				}
-				if d.String() != target.String() {
-					size, err := strconv.ParseInt(layerSizes[i], 10, 64)
+
+				for i := 0; i < len(layerDigestsStr); i++ {
+					l := layerDigestsStr[i]
+					d, err := digest.Parse(l)
 					if err != nil {
 						return nil, err
 					}
-					desc := ocispec.Descriptor{Digest: d, Size: size}
-					neighboringLayers = append(neighboringLayers, desc)
+					if d.String() != target.String() {
+						size, err := strconv.ParseInt(layerSizes[i], 10, 64)
+						if err != nil {
+							return nil, err
+						}
+						desc := ocispec.Descriptor{Digest: d, Size: size}
+						neighboringLayers = append(neighboringLayers, desc)
+					}
 				}
 			}
 		}
