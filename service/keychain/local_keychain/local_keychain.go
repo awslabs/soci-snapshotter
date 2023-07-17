@@ -45,6 +45,7 @@ import (
 	"github.com/containerd/containerd/log"
 	"github.com/containerd/containerd/reference"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/keepalive"
 	"google.golang.org/grpc/reflection"
 )
 
@@ -60,7 +61,7 @@ type credentials struct {
 }
 
 type keychain struct {
-	mu sync.Mutex
+	mu    sync.Mutex
 	cache map[string]credentials
 	proto.UnimplementedLocalKeychainServer
 }
@@ -80,7 +81,12 @@ func (kc *keychain) init() {
 	} else {
 		log.G(context.Background()).Infof("started local keychain server on localhost:%d", *localKeychainPort)
 	}
-	var opts []grpc.ServerOption
+	// Set to avoid errors: Bandwidth exhausted HTTP/2 error code: ENHANCE_YOUR_CALM Received Goaway too_many_pings
+	opts := []grpc.ServerOption{
+		grpc.KeepaliveEnforcementPolicy(keepalive.EnforcementPolicy{
+			MinTime:             10 * time.Second, // If a client pings more than once every 10 seconds, terminate the connection
+			PermitWithoutStream: true,             // Allow pings even when there are no active streams
+		})}
 	grpcServer := grpc.NewServer(opts...)
 	proto.RegisterLocalKeychainServer(grpcServer, kc)
 	reflection.Register(grpcServer)
