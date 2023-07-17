@@ -66,7 +66,6 @@ import (
 	rhttp "github.com/hashicorp/go-retryablehttp"
 	digest "github.com/opencontainers/go-digest"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
-	"github.com/pkg/errors"
 )
 
 const (
@@ -336,13 +335,13 @@ func getLayerSize(ctx context.Context, hf *httpFetcher) (int64, error) {
 	// HEAD request (2020).
 	req, err = http.NewRequestWithContext(ctx, "GET", hf.url, nil)
 	if err != nil {
-		return 0, errors.Wrapf(err, "failed to make request to the registry")
+		return 0, fmt.Errorf("failed to make request to the registry: %w", err)
 	}
 	req.Close = false
 	req.Header.Set("Range", "bytes=0-1")
 	res, err = hf.tr.RoundTrip(req)
 	if err != nil {
-		return 0, errors.Wrapf(err, "failed to request")
+		return 0, fmt.Errorf("failed to request: %w", err)
 	}
 	defer func() {
 		io.Copy(io.Discard, res.Body)
