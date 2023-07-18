@@ -1,22 +1,22 @@
-# Getting Started With soci-snapshotter
+# Getting Started With the SOCI Snapshotter
 
-This document walks through how to use soci-snapshotter, including building SOCI
+This document walks through how to use the SOCI snapshotter, including building a SOCI
 index, pushing/pulling an image and associated SOCI index, and running a container
-with soci-snapshotter.
+with the SOCI snapshotter.
 
 <!-- START doctoc generated TOC please keep comment here to allow auto update -->
 <!-- DON'T EDIT THIS SECTION, INSTEAD RE-RUN doctoc TO UPDATE -->
 
 - [Dependencies](#dependencies)
-- [Install soci-snapshotter](#install-soci-snapshotter)
+- [Install the SOCI snapshotter](#install-the-soci-snapshotter)
 - [Push an image to your registry](#push-an-image-to-your-registry)
 - [Create and push SOCI index](#create-and-push-soci-index)
   - [Create SOCI index](#create-soci-index)
-  - [(Optional) Inspect SOCI index and ztoc](#optional-inspect-soci-index-and-ztoc)
+  - [(Optional) Inspect SOCI index and zTOC](#optional-inspect-soci-index-and-ztoc)
   - [Push SOCI index to registry](#push-soci-index-to-registry)
-- [Run container with soci-snapshotter](#run-container-with-soci-snapshotter)
+- [Run container with the SOCI snapshotter](#run-container-with-the-soci-snapshotter)
   - [Configure containerd](#configure-containerd)
-  - [Start soci-snapshotter](#start-soci-snapshotter)
+  - [Start the SOCI snapshotter](#start-the-soci-snapshotter)
   - [Lazily pull image](#lazily-pull-image)
   - [Run container](#run-container)
 
@@ -24,23 +24,24 @@ with soci-snapshotter.
 
 ## Dependencies
 
-soci-snapshotter has the following runtime dependencies. Please follow the links or commands
+The SOCI snapshotter has the following runtime dependencies. Please follow the links or commands
 to install them on your machine:
 
+> **Note**
 > We only mention the direct dependencies of the project. Some dependencies may
 > have their own dependencies (e.g., containerd depends on runc/cni). Please refer
 > to their doc for a complete installation guide (mainly containerd).
 
 - **[containerd](https://github.com/containerd/containerd/blob/main/docs/getting-started.md) >= 1.4** -
-required to run soci-snapshotter; to confirm please check with `sudo ctr version`.
+required to run the SOCI snapshotter; to confirm please check with `sudo ctr version`.
 - **[ctr](https://github.com/containerd/containerd/blob/main/docs/getting-started.md)** -
 required for this doc to interact with containerd/registry.
 - **fuse** - used for mounting without root access (`sudo yum install fuse` or
 other Linux package manager like `apt-get`, depending on your Linux distro).
 
-## Install soci-snapshotter
+## Install the SOCI snapshotter
 
-The soci-snapshotter project produces 2 binaries:
+The SOCI project produces 2 binaries:
 
 - `soci`: the CLI tool used to build/manage SOCI indices.
 - `soci-snapshotter-grpc`: the daemon (a containerd snapshotter plugin) used for lazy loading.
@@ -103,7 +104,7 @@ can use `aws ecr describe-images --repository-name rabbitmq --region $AWS_REGION
 
 ## Create and push SOCI index
 
-Instead of converting the image format, soci-snapshotter uses the SOCI index
+Instead of converting the image format, the SOCI snapshotter uses the SOCI index
 associated with an image to implement its lazy loading. For more details
 please see [README](../README.md#no-image-conversion).
 
@@ -139,7 +140,7 @@ the entire SOCI index to a particular image manifest (i.e. a particular image fo
 From the above output, we can see that SOCI creates ztocs for 3 layers and skips
 7 layers, which means only the 3 layers with ztocs will be lazily pulled.
 
-### (Optional) Inspect SOCI index and ztoc
+### (Optional) Inspect SOCI index and zTOC
 
 We can inspect one of these ztocs from the output of previous command (replace
 the digest with one in your command output). This command will print the ztoc,
@@ -173,11 +174,11 @@ sudo soci push --user $REGISTRY_USER:$REGISTRY_PASSWORD $REGISTRY/rabbitmq:lates
 
 Credentials here can be omitted if `docker login` has stored credentials for this registry.
 
-## Run container with soci-snapshotter
+## Run container with the SOCI snapshotter
 
 ### Configure containerd
 
-We need to reconfigure and restart containerd to enable soci-snapshotter. This
+We need to reconfigure and restart containerd to enable the SOCI snapshotter. This
 section assume your containerd is managed by `systemd`. First let's stop containerd:
 
 ```shell
@@ -185,7 +186,7 @@ sudo systemctl stop containerd
 ```
 
 Next we need to modify containerd's config file (`/etc/containerd/config.toml`).
-Let's add the following config to the file to enable soci-snapshotter as a plugin:
+Let's add the following config to the file to enable the SOCI snapshotter as a plugin:
 
 ```toml
 [proxy_plugins]
@@ -197,7 +198,7 @@ Let's add the following config to the file to enable soci-snapshotter as a plugi
 This config section tells containerd that there is a snapshot plugin named `soci`
 and to communicate with it via a socket file.
 
-Now let's restart containerd and confirm containerd knows about soci-snapshotter plugin:
+Now let's restart containerd and confirm containerd knows about the SOCI snapshotter plugin:
 
 ```shell
 sudo systemctl restart containerd
@@ -207,7 +208,7 @@ sudo ctr plugin ls id==soci
 `ctr plugin ls` lists all of the plugins from which you should see there is a
 `soci` plugin of type `io.containerd.snapshotter.v1`.
 
-### Start soci-snapshotter
+### Start the SOCI snapshotter
 
 First we need to start the snapshotter grpc service by running the `soci-snapshotter-grpc` binary in background and simply redirecting logs to an arbitrary file:
 
@@ -224,7 +225,7 @@ sudo soci-snapshotter-grpc 2> ~/soci-snapshotter-errors 1> ~/soci-snapshotter-lo
 ### Lazily pull image
 
 Once the snapshotter is running we can call the `rpull` command from SOCI CLI.
-This command reads the manifest from the registry and mounts FUSE filesystems
+This command reads the manifest from the registry and mounts a FUSE filesystem
 for each layer.
 
 > The optional flag `--soci-index-digest` needs to be the digest of the SOCI index manifest.

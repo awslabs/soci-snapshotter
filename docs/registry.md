@@ -4,6 +4,19 @@ SOCI is compatible with most registries. To check if your registry of choice is 
 
 For most use-cases, compatibility is the only concern. However, there is a difference in *how* registries work with SOCI that could cause surprising edge cases. The rest of this document is a technical dive into how SOCI indices are stored and retrieved from registries and the surprises you might encounter.
 
+<!-- START doctoc generated TOC please keep comment here to allow auto update -->
+<!-- DON'T EDIT THIS SECTION, INSTEAD RE-RUN doctoc TO UPDATE -->
+
+- [Registry Requirements](#registry-requirements)
+- [Referrers API vs Fallback](#referrers-api-vs-fallback)
+  - [Referrers API](#referrers-api)
+  - [Fallback](#fallback)
+- [How SOCI Indices Appear to Registries](#how-soci-indices-appear-to-registries)
+- [List of Registry Compatibility](#list-of-registry-compatibility)
+  - [Failure Examples](#failure-examples)
+
+<!-- END doctoc generated TOC please keep comment here to allow auto update -->
+
 ## Registry Requirements
 
 In order for a registry to be compatible SOCI it must support the following features of the OCI distribution and image specs:
@@ -18,17 +31,17 @@ This adds convenience around retrieving SOCI indices from the registry. If it is
 
 The SOCI snapshotter can retrieve SOCI indices and ztocs either through the [OCI referrers API](https://github.com/opencontainers/distribution-spec/blob/v1.1.0-rc1/spec.md#listing-referrers) or a [Fallback mechanism](https://github.com/opencontainers/distribution-spec/blob/v1.1.0-rc1/spec.md#unavailable-referrers-api). The referrers API is part of the not-yet-released [OCI Distribution Spec v1.1](https://github.com/opencontainers/distribution-spec/blob/v1.1.0-rc1/spec.md) so registry support is limited. The Fallback is supported by all registries, but has notable edge cases.
 
-The SOCI CLI and soci-snapshotter automatically uses the referrers API if the registry supports it or the fallback mechanism otherwise.
+The SOCI CLI and the SOCI snapshotter automatically uses the referrers API if the registry supports it or the fallback mechanism otherwise.
 
 ### Referrers API
 
-The [referrers API](https://github.com/opencontainers/distribution-spec/blob/v1.1.0-rc1/spec.md#listing-referrers) is a registry endpoint where an agent can query for all artifacts that reference a given image digest, optionally filtering by artifact type. The registry indexes artifacts for the referrers API when the artifact is pushed. When a container is launched, the soci-snapshotter can query this API to find SOCI indices that reference the digest of the image.
+The [referrers API](https://github.com/opencontainers/distribution-spec/blob/v1.1.0-rc1/spec.md#listing-referrers) is a registry endpoint where an agent can query for all artifacts that reference a given image digest, optionally filtering by artifact type. The registry indexes artifacts for the referrers API when the artifact is pushed. When a container is launched, the SOCI snapshotter can query this API to find SOCI indices that reference the digest of the image.
 
 ### Fallback
 
 If the referrers API is not available, the OCI distribution spec defines a [fallback mechanism that works with existing registries](https://github.com/opencontainers/distribution-spec/blob/v1.1.0-rc1/spec.md#unavailable-referrers-api). In this mechanism, the contents that would normally be returned by the referrers API are instead put into an [OCI Image Index](https://github.com/opencontainers/image-spec/blob/v1.1.0-rc2/image-index.md) which is tagged in the registry with the digest of the manifest to which it refers.
 
-For example, imagine you had an image `myregistry.com/image:latest` with digest `sha:123`. If you created and pushed a SOCI index for that image, there would also be a new image index `myregistry.com/image:sha-123` which contains the SOCI index' descriptor. At runtime, the soci-snapshotter will pull the `myregistry.com/image:sha-123` index and apply client side filtering to discover the SOCI index.
+For example, imagine you had an image `myregistry.com/image:latest` with digest `sha:123`. If you created and pushed a SOCI index for that image, there would also be a new image index `myregistry.com/image:sha-123` which contains the SOCI index' descriptor. At runtime, the SOCI snapshotter will pull the `myregistry.com/image:sha-123` index and apply client side filtering to discover the SOCI index.
 
 For clarity in the rest of this section, we will refer to `myregistry.com/image:sha-123` as the "fallback" (as opposed to image index) to distinguish it from the SOCI index.
 
