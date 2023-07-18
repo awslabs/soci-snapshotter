@@ -1,4 +1,4 @@
-name: Comparision Tests
+name: Comparison Tests
 
 on:
   schedule:

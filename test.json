@@ -1,0 +1,453 @@
+{
+    "commit": "N/A",
+    "benchmarkTests": [
+     {
+      "testName": "SociFullECR-public-ffmpeg",
+      "numberOfTests": 1,
+      "fullRunStats": {
+       "BenchmarkTimes": [
+        7.681071871
+       ],
+       "stdDev": 0,
+       "mean": 7.681071871,
+       "min": 7.681071871,
+       "pct25": 7.681071871,
+       "pct50": 7.681071871,
+       "pct75": 7.681071871,
+       "pct90": 7.681071871,
+       "max": 7.681071871
+      },
+      "pullStats": {
+       "BenchmarkTimes": [
+        7.523
+       ],
+       "stdDev": 0,
+       "mean": 7.523,
+       "min": 7.523,
+       "pct25": 7.523,
+       "pct50": 7.523,
+       "pct75": 7.523,
+       "pct90": 7.523,
+       "max": 7.523
+      },
+      "lazyTaskStats": {
+       "BenchmarkTimes": [
+        0.005
+       ],
+       "stdDev": 0,
+       "mean": 0.005,
+       "min": 0.005,
+       "pct25": 0.005,
+       "pct50": 0.005,
+       "pct75": 0.005,
+       "pct90": 0.005,
+       "max": 0.005
+      },
+      "localTaskStats": {
+       "BenchmarkTimes": [
+        0.005
+       ],
+       "stdDev": 0,
+       "mean": 0.005,
+       "min": 0.005,
+       "pct25": 0.005,
+       "pct50": 0.005,
+       "pct75": 0.005,
+       "pct90": 0.005,
+       "max": 0.005
+      }
+     },
+     {
+      "testName": "SociFullECR-public-tensorflow",
+      "numberOfTests": 1,
+      "fullRunStats": {
+       "BenchmarkTimes": [
+        12.328798902
+       ],
+       "stdDev": 0,
+       "mean": 12.328798902,
+       "min": 12.328798902,
+       "pct25": 12.328798902,
+       "pct50": 12.328798902,
+       "pct75": 12.328798902,
+       "pct90": 12.328798902,
+       "max": 12.328798902
+      },
+      "pullStats": {
+       "BenchmarkTimes": [
+        9.066
+       ],
+       "stdDev": 0,
+       "mean": 9.066,
+       "min": 9.066,
+       "pct25": 9.066,
+       "pct50": 9.066,
+       "pct75": 9.066,
+       "pct90": 9.066,
+       "max": 9.066
+      },
+      "lazyTaskStats": {
+       "BenchmarkTimes": [
+        1.563
+       ],
+       "stdDev": 0,
+       "mean": 1.563,
+       "min": 1.563,
+       "pct25": 1.563,
+       "pct50": 1.563,
+       "pct75": 1.563,
+       "pct90": 1.563,
+       "max": 1.563
+      },
+      "localTaskStats": {
+       "BenchmarkTimes": [
+        1.526
+       ],
+       "stdDev": 0,
+       "mean": 1.526,
+       "min": 1.526,
+       "pct25": 1.526,
+       "pct50": 1.526,
+       "pct75": 1.526,
+       "pct90": 1.526,
+       "max": 1.526
+      }
+     },
+     {
+      "testName": "SociFullECR-public-tensorflow_gpu",
+      "numberOfTests": 1,
+      "fullRunStats": {
+       "BenchmarkTimes": [
+        38.328401208
+       ],
+       "stdDev": 0,
+       "mean": 38.328401208,
+       "min": 38.328401208,
+       "pct25": 38.328401208,
+       "pct50": 38.328401208,
+       "pct75": 38.328401208,
+       "pct90": 38.328401208,
+       "max": 38.328401208
+      },
+      "pullStats": {
+       "BenchmarkTimes": [
+        34.567
+       ],
+       "stdDev": 0,
+       "mean": 34.567,
+       "min": 34.567,
+       "pct25": 34.567,
+       "pct50": 34.567,
+       "pct75": 34.567,
+       "pct90": 34.567,
+       "max": 34.567
+      },
+      "lazyTaskStats": {
+       "BenchmarkTimes": [
+        1.752
+       ],
+       "stdDev": 0,
+       "mean": 1.752,
+       "min": 1.752,
+       "pct25": 1.752,
+       "pct50": 1.752,
+       "pct75": 1.752,
+       "pct90": 1.752,
+       "max": 1.752
+      },
+      "localTaskStats": {
+       "BenchmarkTimes": [
+        1.617
+       ],
+       "stdDev": 0,
+       "mean": 1.617,
+       "min": 1.617,
+       "pct25": 1.617,
+       "pct50": 1.617,
+       "pct75": 1.617,
+       "pct90": 1.617,
+       "max": 1.617
+      }
+     },
+     {
+      "testName": "SociFullECR-public-node",
+      "numberOfTests": 1,
+      "fullRunStats": {
+       "BenchmarkTimes": [
+        3.845306099
+       ],
+       "stdDev": 0,
+       "mean": 3.845306099,
+       "min": 3.845306099,
+       "pct25": 3.845306099,
+       "pct50": 3.845306099,
+       "pct75": 3.845306099,
+       "pct90": 3.845306099,
+       "max": 3.845306099
+      },
+      "pullStats": {
+       "BenchmarkTimes": [
+        3.08
+       ],
+       "stdDev": 0,
+       "mean": 3.08,
+       "min": 3.08,
+       "pct25": 3.08,
+       "pct50": 3.08,
+       "pct75": 3.08,
+       "pct90": 3.08,
+       "max": 3.08
+      },
+      "lazyTaskStats": {
+       "BenchmarkTimes": [
+        0.306
+       ],
+       "stdDev": 0,
+       "mean": 0.306,
+       "min": 0.306,
+       "pct25": 0.306,
+       "pct50": 0.306,
+       "pct75": 0.306,
+       "pct90": 0.306,
+       "max": 0.306
+      },
+      "localTaskStats": {
+       "BenchmarkTimes": [
+        0.31
+       ],
+       "stdDev": 0,
+       "mean": 0.31,
+       "min": 0.31,
+       "pct25": 0.31,
+       "pct50": 0.31,
+       "pct75": 0.31,
+       "pct90": 0.31,
+       "max": 0.31
+      }
+     },
+     {
+      "testName": "SociFullECR-public-busybox",
+      "numberOfTests": 1,
+      "fullRunStats": {
+       "BenchmarkTimes": [
+        0.727854911
+       ],
+       "stdDev": 0,
+       "mean": 0.727854911,
+       "min": 0.727854911,
+       "pct25": 0.727854911,
+       "pct50": 0.727854911,
+       "pct75": 0.727854911,
+       "pct90": 0.727854911,
+       "max": 0.727854911
+      },
+      "pullStats": {
+       "BenchmarkTimes": [
+        0.579
+       ],
+       "stdDev": 0,
+       "mean": 0.579,
+       "min": 0.579,
+       "pct25": 0.579,
+       "pct50": 0.579,
+       "pct75": 0.579,
+       "pct90": 0.579,
+       "max": 0.579
+      },
+      "lazyTaskStats": {
+       "BenchmarkTimes": [
+        0.005
+       ],
+       "stdDev": 0,
+       "mean": 0.005,
+       "min": 0.005,
+       "pct25": 0.005,
+       "pct50": 0.005,
+       "pct75": 0.005,
+       "pct90": 0.005,
+       "max": 0.005
+      },
+      "localTaskStats": {
+       "BenchmarkTimes": [
+        0.005
+       ],
+       "stdDev": 0,
+       "mean": 0.005,
+       "min": 0.005,
+       "pct25": 0.005,
+       "pct50": 0.005,
+       "pct75": 0.005,
+       "pct90": 0.005,
+       "max": 0.005
+      }
+     },
+     {
+      "testName": "SociFullECR-public-mongo",
+      "numberOfTests": 1,
+      "fullRunStats": {
+       "BenchmarkTimes": [
+        2.529772606
+       ],
+       "stdDev": 0,
+       "mean": 2.529772606,
+       "min": 2.529772606,
+       "pct25": 2.529772606,
+       "pct50": 2.529772606,
+       "pct75": 2.529772606,
+       "pct90": 2.529772606,
+       "max": 2.529772606
+      },
+      "pullStats": {
+       "BenchmarkTimes": [
+        1.282
+       ],
+       "stdDev": 0,
+       "mean": 1.282,
+       "min": 1.282,
+       "pct25": 1.282,
+       "pct50": 1.282,
+       "pct75": 1.282,
+       "pct90": 1.282,
+       "max": 1.282
+      },
+      "lazyTaskStats": {
+       "BenchmarkTimes": [
+        0.547
+       ],
+       "stdDev": 0,
+       "mean": 0.547,
+       "min": 0.547,
+       "pct25": 0.547,
+       "pct50": 0.547,
+       "pct75": 0.547,
+       "pct90": 0.547,
+       "max": 0.547
+      },
+      "localTaskStats": {
+       "BenchmarkTimes": [
+        0.55
+       ],
+       "stdDev": 0,
+       "mean": 0.55,
+       "min": 0.55,
+       "pct25": 0.55,
+       "pct50": 0.55,
+       "pct75": 0.55,
+       "pct90": 0.55,
+       "max": 0.55
+      }
+     },
+     {
+      "testName": "SociFullECR-public-rabbitmq",
+      "numberOfTests": 1,
+      "fullRunStats": {
+       "BenchmarkTimes": [
+        10.389739901
+       ],
+       "stdDev": 0,
+       "mean": 10.389739901,
+       "min": 10.389739901,
+       "pct25": 10.389739901,
+       "pct50": 10.389739901,
+       "pct75": 10.389739901,
+       "pct90": 10.389739901,
+       "max": 10.389739901
+      },
+      "pullStats": {
+       "BenchmarkTimes": [
+        2
+       ],
+       "stdDev": 0,
+       "mean": 2,
+       "min": 2,
+       "pct25": 2,
+       "pct50": 2,
+       "pct75": 2,
+       "pct90": 2,
+       "max": 2
+      },
+      "lazyTaskStats": {
+       "BenchmarkTimes": [
+        4.152
+       ],
+       "stdDev": 0,
+       "mean": 4.152,
+       "min": 4.152,
+       "pct25": 4.152,
+       "pct50": 4.152,
+       "pct75": 4.152,
+       "pct90": 4.152,
+       "max": 4.152
+      },
+      "localTaskStats": {
+       "BenchmarkTimes": [
+        4.061
+       ],
+       "stdDev": 0,
+       "mean": 4.061,
+       "min": 4.061,
+       "pct25": 4.061,
+       "pct50": 4.061,
+       "pct75": 4.061,
+       "pct90": 4.061,
+       "max": 4.061
+      }
+     },
+     {
+      "testName": "SociFullECR-public-redis",
+      "numberOfTests": 1,
+      "fullRunStats": {
+       "BenchmarkTimes": [
+        1.514541741
+       ],
+       "stdDev": 0,
+       "mean": 1.514541741,
+       "min": 1.514541741,
+       "pct25": 1.514541741,
+       "pct50": 1.514541741,
+       "pct75": 1.514541741,
+       "pct90": 1.514541741,
+       "max": 1.514541741
+      },
+      "pullStats": {
+       "BenchmarkTimes": [
+        1.334
+       ],
+       "stdDev": 0,
+       "mean": 1.334,
+       "min": 1.334,
+       "pct25": 1.334,
+       "pct50": 1.334,
+       "pct75": 1.334,
+       "pct90": 1.334,
+       "max": 1.334
+      },
+      "lazyTaskStats": {
+       "BenchmarkTimes": [
+        0.013
+       ],
+       "stdDev": 0,
+       "mean": 0.013,
+       "min": 0.013,
+       "pct25": 0.013,
+       "pct50": 0.013,
+       "pct75": 0.013,
+       "pct90": 0.013,
+       "max": 0.013
+      },
+      "localTaskStats": {
+       "BenchmarkTimes": [
+        0.012
+       ],
+       "stdDev": 0,
+       "mean": 0.012,
+       "min": 0.012,
+       "pct25": 0.012,
+       "pct50": 0.012,
+       "pct75": 0.012,
+       "pct90": 0.012,
+       "max": 0.012
+      }
+     }
+    ]
+   }
