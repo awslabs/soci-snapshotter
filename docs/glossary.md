@@ -3,7 +3,7 @@ The SOCI project introduces several new terms that sometimes have subtle differe
 ## Terminology 
 
 * __SOCI__: Seekable OCI (pronounced so-CHEE). SOCI combines an unmodified
-  [OCI Image](https://github.com/opencontainers/image-spec/blob/v1.0.2/spec.md) (or Docker v2
+  [OCI Image](https://github.com/opencontainers/image-spec/blob/v1.1.0-rc4/spec.md) (or Docker v2
   image) with a SOCI index to enable the SOCI snapshotter to lazily pull the image at runtime.
 
 * __SOCI index__: An OCI artifact consisting of a SOCI index manifest and a set of zTOCs
@@ -12,8 +12,8 @@ The SOCI project introduces several new terms that sometimes have subtle differe
   layers.
 
 * __SOCI index manifest__: An
-  [OCI Artifact manifest](https://github.com/opencontainers/image-spec/blob/main/artifact.md)
-  containing the list of zTOCs in the SOCI Index as well as a reference to the image for
+  [OCI Image manifest](https://github.com/opencontainers/image-spec/blob/v1.1.0-rc4/manifest.md)
+  containing the list of zTOCs in the SOCI Index with a Subject reference to the image for
   which the manifest was generated.
 
 * __zTOC__: A Table of Contents for compressed data. A zTOC is composed of 2 parts. 1) a
