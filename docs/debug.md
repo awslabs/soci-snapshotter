@@ -1,4 +1,4 @@
-# Debugging SOCI snapshotter
+# Debugging the SOCI snapshotter
 
 This document outlines where to find/access logs and metrics for the snapshotter. It attempts to provide some common error paths that a user might run into while using the snapshotter and provides some guidance on how to either root-cause the issue or resolve it.
 
@@ -34,7 +34,7 @@ sudo journalctl -u soci-snapshotter.unit
 ```
 
 > **Note**
-> The command above assumes that you have used the unit file definition [soci-snapshotter.service](../soci-snapshotter.service) we have provided. If you have created your own unit file for SOCI replace `soci-snapshotter.unit` with the one you have made.
+> The command above assumes that you have used the unit file definition [soci-snapshotter.service](../soci-snapshotter.service) we have provided. If you have created your own unit file for `soci-snapshotter-grpc` and replace `soci-snapshotter.unit` with the one you have made.
  
 If you have started `soci-snapshotter-grpc` manually, logs will either be emitted to stderr/stdout or to the destination of your choice.
 
@@ -64,7 +64,6 @@ Below are a list of metrics emitted by the snapshotter:
 * Mount
     * **operation_duration_mount (ms)** - defines how long does it take to mount a layer during `rpull`. `rpull` should only take a couple of seconds. If this value is higher than 3-5 seconds this can indicate an issue while mounting.
     * **operation_duration_init_metadata_store (ms)** - measures the time it takes to parse a zTOC and prepare the respective metadata records in metadata bbolt db (it records layer digest as well). This is one of the components of `rpull`, therefore there should be a correlation between the time to parse a zTOC with updating of metadata db and the duration of layer mount operation. 
-
 * Fetch from remote registry
     * **operation_duration_remote_registry_get (ms)** - measures the time it takes to complete a `GET` operation from remote registry for a specific layer. This metric should help in identifying network issues, when lazily fetching layer data and seeing increased container start time.
 * FUSE
@@ -161,9 +160,9 @@ Look for  `failed to read the file` or `unexpected copied data size for on-deman
 
 **Network Failures**
 
-The snapshotter contains custom retry logic when fetching spans(data) from the remote registry. By default it will try to fetch from remote a maximum of 5 times before returning an error.
+The snapshotter contains custom retry logic when fetching spans(data) from the remote registry. By default it will try to fetch from remote a maximum of 9 times before returning an error.
 
-* You can look for `Retrying request` within the logs to determine the error and response returned from the remote registry.
+* You can look for `retrying request` within the logs to determine the error and response returned from the remote registry.
 * You can also check `operation_duration_remote_registry_get` metric to see how long it takes to complete `GET` from remote registry.
 
 # Debugging Tools

@@ -1,6 +1,6 @@
-# Pull modes of soci-snapshotter
+# Pull modes of the SOCI snapshotter
 
-soci-snapshotter is a remote snapshotter. It is able to lazily load the contents
+The SOCI snapshotter is a remote snapshotter. It is able to lazily load the contents
 of a container image when a *SOCI index* is present in the remote registry. If
 a SOCI index is not found, it will download and uncompress the image layers at
 launch time, just like the default snapshotter does.
@@ -9,15 +9,25 @@ SOCI indices can also be "sparse", meaning that any individual layer may not be
 indexed. In that case, that layer will be downloaded at launch time, while the
 indexed layers will be lazily loaded.
 
-A layer will be mounted as a fuse mountpoint if it's being lazily loaded, or as
+A layer will be mounted as a FUSE mountpoint if it's being lazily loaded, or as
 a normal overlay layer if it's not.
 
-Overall, lazily pulling a container image with soci-snapshotter
+Overall, lazily pulling a container image with the SOCI snapshotter
 (via the `soci image rpull` command) involves the following steps:
+
+<!-- START doctoc generated TOC please keep comment here to allow auto update -->
+<!-- DON'T EDIT THIS SECTION, INSTEAD RE-RUN doctoc TO UPDATE -->
+
+- [Pull modes of the SOCI snapshotter](#pull-modes-of-the-soci-snapshotter)
+  - [Step 1: specify SOCI index digest](#step-1-specify-soci-index-digest)
+  - [Step 2: fetch SOCI artifacts](#step-2-fetch-soci-artifacts)
+  - [Step 3: fetch image layers](#step-3-fetch-image-layers)
+
+<!-- END doctoc generated TOC please keep comment here to allow auto update -->
 
 ## Step 1: specify SOCI index digest
 
-To enable lazy pulling and loading an image with soci-snapshotter, first you need
+To enable lazy pulling and loading an image with the SOCI snapshotter, first you need
 to `rpull` the image via the [`soci` CLI](./getting-started.md#install-soci-snapshotter).
 The CLI accepts an optional flag `--soci-index-digest`, which is the sha256 of the
 SOCI index manifest and will be passed to the snapshotter.
@@ -29,6 +39,7 @@ If not provided, the snapshotter will use the OCI distribution-spec's
 to fetch a list of available indices. An index will be chosen from the list of available indices,
 but the selection process is undefined and it may not choose the same index every time.
 
+> **Note**
 > Check out [this doc](./getting-started.md#lazily-pull-image) for how to
 > validate if this step is successful or not, and [the debug doc](./debug.md#common-scenarios)
 > for the common scenarios where `rpull` might fail and how to debug/fix them.
@@ -45,7 +56,7 @@ fallback to default snapshotter configured (eg: overlayfs) entirely.
 
 ## Step 3: fetch image layers
 
-The SOCI index will instruct containerd and soci-snapshotter when to fetch/pull
+The SOCI index will instruct containerd and the SOCI snapshotter when to fetch/pull
 image layers. There can be two cases:
 
 1. There’s no zTOC for a specific layer. In this case, there will be an error log:
@@ -56,7 +67,7 @@ as a fuse mountpoint, and will be lazily loaded while a container is running.
 
 > Whether a layer belongs to 1 or 2 depends on its size. When creating a SOCI
 > index, SOCI only creates zTOC for layers larger than a given size which is
-> specificed by the `--min-layer-size` flag of
+> specified by the `--min-layer-size` flag of
 [`soci create` command](https://github.com/awslabs/soci-snapshotter/blob/9ff88817f3f2635b926f9fd32f6f05f389f7ecee/cmd/soci/commands/create.go#L56).
 
 With debug logging enabled, you can see an entry in logs for each layer.

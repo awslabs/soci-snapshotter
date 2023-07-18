@@ -1,7 +1,8 @@
-# Build soci-snapshotter from source
+# Build SOCI from source
 
 This document is helpful if you plan to contribute to the project (thanks!) or
-want to use the latest soci snapshotter/cli in the main branch.
+want to use the latest version of either `soci-snapshotter-grpc` or `soci` CLI 
+in the main branch.
 
 This document includes the following sections:
 
@@ -9,8 +10,8 @@ This document includes the following sections:
 <!-- DON'T EDIT THIS SECTION, INSTEAD RE-RUN doctoc TO UPDATE -->
 
 - [Dependencies](#dependencies)
-- [Build soci-snapshotter](#build-soci-snapshotter)
-- [Test soci-snapshotter](#test-soci-snapshotter)
+- [Build SOCI](#build-soci)
+- [Test SOCI](#test-soci)
 - [(Optional) Contribute your change](#optional-contribute-your-change)
 - [Development tooling](#development-tooling)
 
@@ -18,9 +19,10 @@ This document includes the following sections:
 
 ## Dependencies
 
-soci-snapshotter has the following dependencies. Please follow the links or commands
+The project binaries have the following dependencies. Please follow the links or commands
 to install them on your machine:
 
+> **Note**
 > We only mention the direct dependencies of the project. Some dependencies may
 > have their own dependencies (e.g., containerd depends on runc/cni). Please refer
 > to their doc for a complete installation guide (mainly containerd).
@@ -28,13 +30,13 @@ to install them on your machine:
 - **[go](https://go.dev/doc/install) >= 1.18** - required to build the project;
 to confirm please check with `go version`.
 - **[containerd](https://github.com/containerd/containerd/blob/main/docs/getting-started.md) >= 1.4** -
-required to run soci-snapshotter; to confirm please check with `sudo containerd --version`.
+required to run the SOCI snapshotter; to confirm please check with `sudo containerd --version`.
 - **fuse** - used for mounting without root access (`sudo yum install fuse`).
-- **zlib** - used for decompression and ztoc creation; soci builds zlib statically into its binaries
+- **zlib** - used for decompression and ztoc creation; Both the CLI and the SOCI snapshotter build zlib statically
 (`sudo yum install zlib-devel zlib-static`).
-- **gcc** - used for compiling SOCI's c code, gzip's zinfo implementation (`sudo yum install gcc`).
-- **[flatc](https://github.com/google/flatbuffers)** - used for compiling ztoc
-flatbuffer file and generating corresponding go code.
+- **gcc** - used for compiling C code, gzip's zinfo implementation (`sudo yum install gcc`).
+- **[flatc](https://github.com/google/flatbuffers)** - used for compiling zTOC
+flatbuffer file and generating corresponding Go code.
 
 For fuse/zlib/gcc, they can be installed by your Linux package manager (e.g., `yum` or `apt-get`).
 
@@ -47,7 +49,7 @@ sudo unzip Linux.flatc.binary.g++-10.zip -d /usr/local
 rm Linux.flatc.binary.g++-10.zip
 ```
 
-## Build soci-snapshotter
+## Build SOCI
 
 First you need `git` to clone the repository (if you intend to contribute, you
 can fork the repository and clone your own fork):
@@ -57,8 +59,8 @@ git clone https://github.com/awslabs/soci-snapshotter.git
 cd soci-snapshotter
 ```
 
-soci-snapshotter uses `make` as the build tool. Assuming you're in the root directory
-of the repository, you can build soci-snapshotter by:
+SOCI uses `make` as the build tool. Assuming you're in the root directory
+of the repository, you can build the CLI and the snapshotter by running:
 
 ```shell
 make
@@ -69,11 +71,13 @@ to a `PATH` directory (`/usr/local/bin`) with:
 
 ```shell
 sudo make install
-# check soci can be found in PATH
+# check to make sure the SOCI CLI can be found in PATH
 sudo soci --help
+# check to make sure the SOCI snapshotter can be found in PATH
+sudo soci-snapshotter-grpc --help
 ```
 
-When changing the ztoc's flatbuffer definition, you need to regenerate the generated
+When changing the zTOC flatbuffer definition, you need to regenerate the generated
 code package with:
 
 > It's rare to make such a change, especially delete a field which is a breaking
@@ -83,16 +87,16 @@ code package with:
 make flatc
 ```
 
-## Test soci-snapshotter
+## Test SOCI
 
 We have unit tests and integration tests as part of our automated CI, as well as
-benchmark tests that can be used to test the performance of soci-snapshotter. You
+benchmark tests that can be used to test the performance of the SOCI snapshotter. You
 can run these tests using the following `Makefile` targets:
 
 - `make test`: run all unit tests.
 - `make integration`: run all integration tests.
-- `make benchmarks`: run all benchmark tests. Runs the benchmark tests on a set of publicly hosted images. Output results are available in the ouptut folder within the comparisonTest and performanceTest subfolders.
-- `make build-benchmarks`: generate benchmark binaries of perfomance and comparision Tests. The binaries are available for use within the benchmanrk/bin directory. Use `-f`, `-count`,`show-commit` flags to customize the benchmark test.
+- `make benchmarks`: run all benchmark tests. Runs the benchmark tests on a set of publicly hosted images. Output results are available in the output folder within the comparisonTest and performanceTest subfolder's.
+- `make build-benchmarks`: generate benchmark binaries of performance and comparison Tests. The binaries are available for use within the benchmark/bin directory. Use `-f`, `-count`,`show-commit` flags to customize the benchmark test.
 
 To speed up develop-test cycle, you can run individual test(s) by utilizing `go test`'s
 `-run` flag. For example, suppose you only want to run a test named `TestFooBar`, you can:
@@ -122,6 +126,7 @@ provide a script (`./scripts/add-ltag.sh`) that can do this.
 
 4. As a final step, run `make check` to verify your change passes these checks.
 
+> **Note**
 > `make check` requires some checking tools (`golangci`, `ltag`,
 > `git-validation`). We provide a script (`./scripts/install-check-tools.sh`) to
 > help install all these checking tools.
@@ -130,4 +135,4 @@ Once you pass all the tests and checks. You're ready to make your PR!
 
 ## Development tooling
 
-This repository contains two go modules, one in the root directory and the other in [`cmd`](../cmd). To describe this arrangement to tools like `gopls` (and, by extension, vscode), you need a `go.work` file listing the module locations. An example such file is included in this repositiry as `go.work.example` which you could rename to `go.work` to use as-is.
+This repository contains two go modules, one in the root directory and the other in [`cmd`](../cmd). To describe this arrangement to tools like `gopls` (and, by extension, vscode), you need a `go.work` file listing the module locations. An example such file is included in this repository as `go.work.example` which you could rename to `go.work` to use as-is.
