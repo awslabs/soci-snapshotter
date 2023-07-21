@@ -1,0 +1,48 @@
+name: Visualize Benchmark
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - '**'
+      - '!docs/**' # ignore docs changes
+      - '!**.md' # ignore markdown changes
+
+permissions:
+  contents: write
+  deployments: write
+      
+jobs:
+  benchmark:
+    name: Run Benchmarks on approved PR
+    runs-on: ubuntu-20.04
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+          submodules: true
+      - uses: actions/setup-go@v4
+        with:
+          go-version: '1.18.10'
+      - run: make
+      # - name: Run benchmark
+      #   run: make benchmarks-perf-test
+      # - run: cd benchmark/performanceTest && cat output/results.json
+
+      # Download previous benchmark result from cache (if exists)
+      - name: Store benchmark result
+        uses: benchmark-action/github-action-benchmark@v1
+        with:
+          name: Soci Benchmark
+          tool: 'customSmallerIsBetter'
+          benchmark-data-dir-path: "dev/bench/perfTest"
+          output-file-path: ${{github.workspace}}/results.json
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          auto-push: true
+          # Show alert with commit comment on detecting possible performance regression
+          alert-threshold: '200%'
+          comment-on-alert: true
+          fail-on-alert: true
+      - name: Push benchmark result
+        run: git push 'https://github.com/coderbirju/soci-snapshotter.git' gh-pages:gh-pages
+      
