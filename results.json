@@ -2,25 +2,25 @@
     {
         "name": "SociFullECR-public-ffmpeg-lazyTaskDuration",
         "unit": "Seconds",
-        "value": 0.9644054305,
+        "value": 0.7644054305,
         "extra": "P90"
     },
     {
         "name": "SociFullECR-public-ffmpeg-localTaskStats",
         "unit": "Seconds",
-        "value": 2.539740195,
+        "value": 1.939740195,
         "extra": "P90"
     },
     {
         "name": "SociFullECR-public-ffmpeg-pullDuration",
         "unit": "Seconds",
-        "value": 11.575843491499995,
+        "value": 9.975843491499995,
         "extra": "P90"
     },
     {
         "name": "SociFullECR-public-ffmpeg-fullRun",
         "unit": "Seconds",
-        "value": 13.3150453825,
+        "value": 10.3150453825,
         "extra": "P90"
     }
 ]
