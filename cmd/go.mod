@@ -6,7 +6,7 @@ require (
 	github.com/awslabs/soci-snapshotter v0.0.0-local
 	github.com/containerd/containerd v1.7.2
 	github.com/coreos/go-systemd/v22 v22.5.0
-	github.com/docker/cli v24.0.4+incompatible
+	github.com/docker/cli v24.0.5+incompatible
 	github.com/docker/go-metrics v0.0.1
 	github.com/opencontainers/go-digest v1.0.0
 	github.com/opencontainers/image-spec v1.1.0-rc4
