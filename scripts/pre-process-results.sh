@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Read the input JSON file
-input_file="../benchmark/performanceTest/output/results.json"
+input_file="benchmark/performanceTest/output/results.json"
 
 # Check if the input file exists
 if [ ! -f "$input_file" ]; then
