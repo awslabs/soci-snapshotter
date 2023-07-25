@@ -1,7 +1,7 @@
 name: Regression test
 
 on:
-  push:
+  pull_request:
     branches:
       - main
 
@@ -21,34 +21,47 @@ jobs:
       - name: Run benchmark
         run: make benchmarks-perf-test
       - run: cd benchmark/performanceTest && cat output/results.json
-  generate_json_files:
+  # generate_json_files:
+  #   runs-on: ubuntu-latest
+  #   needs: benchmark
+  #   steps:
+  #     - uses: actions/checkout@v3
+  #     - name: Generate JSON files
+  #       run: sudo scripts/pre-process-results.sh
+
+  fetch_previous_json_files:
     runs-on: ubuntu-latest
-    needs: benchmark
     steps:
       - uses: actions/checkout@v3
-
-      - name: Generate JSON files (replace this with your script)
-        run: sudo scripts/pre-process-results.sh
-
+      - name: Download previous artifact
+        id: fetch_benchmark_files
+        uses: actions/download-artifact@v3
+        with:
+          name: benchmark-result
+          path: benchmark-result
+        continue-on-error: true
+      - name: Display structure of downloaded files
+        run: ls -R
+        # working-directory: benchmark-result
       # - name: Archive JSON files
       #   uses: actions/upload-artifact@v2
       #   with:
       #     name: results-artifacts
       #     path: ${{github.workspace}}/pre-processed-results
-  compare_json_files:
-    runs-on: ubuntu-latest
-    needs: generate_json_files
-    steps:
-      - name: Check out the source
-        uses: actions/checkout@v3
+  # compare_json_files:
+  #   runs-on: ubuntu-latest
+  #   needs: generate_json_files
+  #   steps:
+  #     - name: Check out the source
+  #       uses: actions/checkout@v3
 
-      - name: Download previous artifact
-        uses: actions/download-artifact@v2
-        with:
-          name: results-artifacts
-          path: previous_json_files
+  #     - name: Download previous artifact
+  #       uses: actions/download-artifact@v2
+  #       with:
+  #         name: results-artifacts
+  #         path: previous_json_files
 
-      - name: Compare JSON files
-        run: |
-          # Add your script/command to compare the JSON files
+  #     - name: Compare JSON files
+  #       run: |
+  #         # Add your script/command to compare the JSON files
           # For example: python compare_json_files.py previous_json_files path/to/your/json_files_directory
