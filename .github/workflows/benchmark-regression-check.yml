@@ -1,7 +1,7 @@
 name: Regression test
 
 on:
-  push:
+  pull_request:
     branches:
       - main
 
@@ -26,10 +26,23 @@ jobs:
     needs: benchmark
     steps:
       - uses: actions/checkout@v3
-
-      - name: Generate JSON files (replace this with your script)
+      - name: Generate JSON files
         run: sudo scripts/pre-process-results.sh
 
+  fetch_previous_json_files:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: Download previous artifact
+        id: fetch_benchmark_files
+        uses: actions/download-artifact@v3
+        with:
+          name: previous_benchmark-result
+          path: previous_benchmark-result
+        continue-on-error: true
+      - name: Display structure of downloaded files
+        run: ls -R
+        working-directory: previous_benchmark-result
       # - name: Archive JSON files
       #   uses: actions/upload-artifact@v2
       #   with:
