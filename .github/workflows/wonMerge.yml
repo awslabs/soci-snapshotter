@@ -1,0 +1,30 @@
+name: wonMerge
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  benchmark:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Setup go
+        uses: actions/setup-go@v4
+        with:
+          go-version: '1.18.10'
+
+      - name: Run Benchmark
+        run: echo "Benchmarking..."
+          # Replace this line with your actual benchmark command
+
+      # Step 3: Upload benchmark results as an artifact
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: benchmark-results
+          path: ${{github.workspace}}/results.json

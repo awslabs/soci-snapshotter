@@ -1,0 +1,24 @@
+name: wonPull
+
+on:
+  pull_request:
+    types: [opened, synchronize]
+
+jobs:
+  fetch_and_display:
+    runs-on: ubuntu-latest
+
+    steps:
+      # Step 1: Check out the code
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      # Step 2: Download the artifact from wonMerge workflow
+      - name: Download Artifact
+        uses: actions/download-artifact@v2
+        with:
+          name: benchmark-results  # The name of the artifact uploaded in wonMerge
+
+      # Step 3: Display the contents of the downloaded artifact
+      - name: Display Benchmark Results
+        run: cat benchmark-results
