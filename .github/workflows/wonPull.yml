@@ -17,8 +17,5 @@ jobs:
       - name: Download Artifact
         uses: actions/download-artifact@v2
         with:
-          name: benchmark-results  # The name of the artifact uploaded in wonMerge
-
-      # Step 3: Display the contents of the downloaded artifact
-      - name: Display Benchmark Results
-        run: cat benchmark-results
+          name: benchmark-results
+          path: downloads
