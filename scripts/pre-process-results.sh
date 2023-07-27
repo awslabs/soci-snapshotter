@@ -1,7 +1,13 @@
 #!/bin/bash
 
+
+if [ $# -ne 1 ]; then
+  echo "Usage: $0 <path_to_result.json>"
+  exit 1
+fi
+
 # Read the input JSON file
-input_file="benchmark/performanceTest/output/results.json"
+input_file="$1"
 
 # Check if the input file exists
 if [ ! -f "$input_file" ]; then
