@@ -15,7 +15,8 @@ jobs:
 
       # Step 2: Download the artifact from wonMerge workflow
       - name: Download Artifact
-        uses: actions/download-artifact@v2
+        id: download-artifact
+        uses: dawidd6/action-download-artifact@v2
         with:
           name: benchmark-results
           path: downloads
