@@ -136,10 +136,7 @@ func (r *reader) init(toc ztoc.TOC, rOpts Options) (retErr error) {
 		return fmt.Errorf("failed to get a unique id for metadata reader")
 	}
 
-	if err := r.initNodes(toc); err != nil {
-		return err
-	}
-	return nil
+	return r.initNodes(toc)
 }
 
 func (r *reader) initRootNode(fsID string) error {
