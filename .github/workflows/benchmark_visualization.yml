@@ -14,7 +14,7 @@ permissions:
       
 jobs:
   benchmark:
-    name: Run Benchmarks on PR
+    name: Run Benchmarks on PR Merge
     runs-on: ubuntu-20.04
     steps:
       - uses: actions/checkout@v3
@@ -38,8 +38,8 @@ jobs:
         - uses: actions/checkout@v3
         - uses: actions/upload-artifact@v3
           with:
-            name: benchmark-result
-            path: ${{github.workspace}}/results.json
+            name: benchmark-result-artifact
+            path: ${{github.workspace}}/benchmark-result.json
 
   # push-benchmark-result-gh-pages:
   #     name: Push benchmark result to Github-pages
