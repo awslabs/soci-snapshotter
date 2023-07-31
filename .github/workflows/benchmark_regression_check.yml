@@ -1,0 +1,82 @@
+name: Benchmark
+
+on:
+  pull_request:
+    branches: [ main ]
+    paths:
+      - '**.go'
+      - 'go.*'
+      - 'cmd/go.*'
+      - 'Makefile'
+      - 'Dockerfile'
+      - 'integration/**'
+      - 'scripts/**'
+            
+jobs:
+  benchmark:
+    name: Performance regression check
+    runs-on: ubuntu-20.04
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/setup-go@v4
+        with:
+          go-version: '1.18.10'
+      - run: make
+      # - name: Run benchmark
+      #   run: make benchmarks-perf-test
+  
+  fetch-previous-results_and_compare:
+    name: Fetch results
+    runs-on: ubuntu-20.04
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/setup-go@v4
+        with:
+          go-version: '1.18.10'
+      - run: make
+      - name: Download artifact
+        id: download-artifact
+        uses: dawidd6/action-download-artifact@v2
+        with:
+          github_token: ${{secrets.GITHUB_TOKEN}}
+          branch: main
+          name: benchmark-result
+          name_is_regexp: true
+          path: ${{ github.workspace }}
+          repo: ${{ github.repository }}
+          check_artifacts: false
+          search_artifacts: false
+          skip_unpack: false
+          if_no_artifact_found: fail
+      - name: Run Compare and handle result
+        id: run-compare
+        run: |
+            if sudo ${{ github.workspace }}/scripts/check_regression.sh ${{ github.workspace }}/benchmark-result ${{ github.workspace }}/benchmark/performanceTest/output/results.json; then
+              echo "Comparison successful. All P90 values are within the acceptable range."
+            else
+              echo "Comparison failed. Current P90 values exceed 110% of the corresponding past values."
+              echo "Adding a comment to the Pull Request."
+              echo "::set-output name=regression-detected::true"
+            fi
+        
+      - name: Comment on PR if regression detected
+        if: steps.run-compare.outputs.regression-detected == 'true'
+        uses: actions/github-script@v4
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const { context, github } = require('@actions/github');
+
+            const prNumber = context.payload.pull_request.number;
+            const comment = `
+              :warning: **Regression Detected** :warning:
+
+              The benchmark comparison indicates that there has been a performance regression.
+              Please investigate and address the issue.
+            `;
+
+            github.issues.createComment({
+              ...context.repo,
+              issue_number: prNumber,
+              body: comment
+            });
