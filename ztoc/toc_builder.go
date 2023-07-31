@@ -124,9 +124,8 @@ func metadataFromTarReader(r io.Reader) ([]FileMetadata, compression.Offset, err
 		if err != nil {
 			if err == io.EOF {
 				break
-			} else {
-				return nil, 0, fmt.Errorf("error while reading tar header: %w", err)
 			}
+			return nil, 0, fmt.Errorf("error while reading tar header: %w", err)
 		}
 
 		fileType, err := getType(hdr)
