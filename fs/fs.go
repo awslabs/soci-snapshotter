@@ -47,6 +47,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strings"
 	"sync"
 	"syscall"
@@ -310,7 +311,9 @@ func (c *sociContext) Init(fsCtx context.Context, ctx context.Context, imageRef,
 		}
 
 		if indexDigest == "" {
-			index, err := os.ReadFile(config.SociIndexStorePath + strings.ReplaceAll(imageManifestDigest, "sha256:", ""))
+			imageManifestHash := strings.Trim(imageManifestDigest, "sha256:")
+			log.G(ctx).Debugf("soci index digest for image %s not provided, attempting to retrieve locally/remotely", imageManifestHash)
+			index, err := os.ReadFile(filepath.Join(config.SociIndexStorePath, imageManifestHash))
 			if err == nil {
 				indexDigest = strings.TrimSpace(string(index))
 				indexDesc.Digest = digest.Digest(indexDigest)
