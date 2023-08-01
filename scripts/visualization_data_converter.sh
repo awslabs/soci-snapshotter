@@ -1,13 +1,14 @@
 #!/bin/bash
 
 
-if [ $# -ne 1 ]; then
-  echo "Usage: $0 <path_to_result.json>"
-  exit 1
+if [ $# -ne 2 ]; then
+    echo "Usage: $0 <path_to_results.json> <path_to_output_dir.json>"
+    exit 1
 fi
 
 # Read the input JSON file
 input_file="$1"
+output_dir="$2"
 
 # Check if the input file exists
 if [ ! -f "$input_file" ]; then
@@ -22,9 +23,9 @@ create_json_file() {
   local local_task_value="$3"
   local pull_task_value="$4"
 
-  mkdir -p ../pre-processed-results
+#   mkdir -p ../pre-processed-results
   # Define the output JSON file name
-  local output_file="../pre-processed-results/${test_name}.json"
+  local output_file="${output_dir}/${test_name}.json"
 
   # Create the JSON content
   local json_content='[{
