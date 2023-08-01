@@ -38,7 +38,6 @@ import (
 	"fmt"
 	"io"
 	golog "log"
-	"math/rand"
 	"net"
 	"net/http"
 	"os"
@@ -93,7 +92,6 @@ var (
 )
 
 func main() {
-	rand.Seed(time.Now().UnixNano())
 	flag.Parse()
 	lvl, err := logrus.ParseLevel(*logLevel)
 	if err != nil {

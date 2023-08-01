@@ -21,7 +21,6 @@ import (
 	"compress/gzip"
 	"fmt"
 	"io"
-	"math/rand"
 	"os"
 	"reflect"
 	"testing"
@@ -30,10 +29,6 @@ import (
 	"github.com/awslabs/soci-snapshotter/ztoc/compression"
 	"github.com/opencontainers/go-digest"
 )
-
-func init() {
-	rand.Seed(100)
-}
 
 // buildTarGZ creates a temp tar gz file with the given `tarEntries`.
 // It returns the created tar gz filename, entry->content map, and the name of

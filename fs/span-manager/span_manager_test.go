@@ -22,7 +22,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"math/rand"
 	"testing"
 
 	"github.com/awslabs/soci-snapshotter/cache"
@@ -30,10 +29,6 @@ import (
 	"github.com/awslabs/soci-snapshotter/ztoc"
 	"github.com/awslabs/soci-snapshotter/ztoc/compression"
 )
-
-func init() {
-	rand.Seed(100)
-}
 
 func TestSpanManager(t *testing.T) {
 	var spanSize compression.Offset = 65536 // 64 KiB

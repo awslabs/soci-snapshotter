@@ -45,7 +45,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"math/rand"
 	"os"
 	"path/filepath"
 	"strings"
@@ -596,8 +595,8 @@ func hasStateFile(t *testing.T, id string) check {
 		}
 
 		// wanted data
-		rand.Seed(time.Now().UnixNano())
-		wantErr := fmt.Errorf("test-%d", rand.Int63())
+		r := testutil.NewThreadsafeRandom()
+		wantErr := fmt.Errorf("test-%d", r.Int63())
 
 		// report the data
 		root.fs.s.report(wantErr)
