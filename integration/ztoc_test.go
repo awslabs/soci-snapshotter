@@ -24,12 +24,10 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"math/rand"
 	"path/filepath"
 	"strconv"
 	"strings"
 	"testing"
-	"time"
 
 	"github.com/awslabs/soci-snapshotter/config"
 	"github.com/awslabs/soci-snapshotter/soci"
@@ -267,7 +265,7 @@ func TestSociZtocGetFile(t *testing.T) {
 	)
 
 	getRandomFilePathsWithinZtoc := func(ztocDigest string, numFilesPerSpan int) []string {
-		rand.Seed(time.Now().UnixNano())
+		r := testutil.NewThreadsafeRandom()
 		var (
 			zinfo     Info
 			randPaths []string
@@ -282,7 +280,7 @@ func TestSociZtocGetFile(t *testing.T) {
 		}
 		for _, regPaths := range regPathsBySpan {
 			for i := 0; i < numFilesPerSpan; i++ {
-				randPaths = append(randPaths, regPaths[rand.Intn(len(regPaths))])
+				randPaths = append(randPaths, regPaths[r.Intn(len(regPaths))])
 			}
 		}
 		return randPaths

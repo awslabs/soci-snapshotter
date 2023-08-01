@@ -42,6 +42,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"sync"
 
 	"github.com/opencontainers/go-digest"
 )
@@ -96,6 +97,50 @@ func GetProjectRoot() (string, error) {
 	return pRoot, nil
 }
 
+const TestRandomSeed = 1658503010463818386
+
+// ThreadsafeRandom is like rand.Rand with thread safety.
+// rand.Rand is not threadsafe except for the global rand.Rand which is only accessible through
+// the exported function on the rand package (e.g. rand.Int63()). This is done by special casing
+// a non-exported rand.lockedSource which is locked before doing any modification of the source or rand.
+// It's not possible to create our own lockedSource that implements `rand.Source` because `rand.Rand`
+// itself is not threadsafe. The actual implementation gets around this by locking the `rand.Rand`'s source
+// which effectively locks the `rand.Rand` as well.
+// There is an expermiental version of rand that exports `rand.LockedSource`. If that ever lands, then we can
+// remove all of this code and just use `r := rand.New(rand.NewLockedSource(seed))`.
+// https://pkg.go.dev/golang.org/x/exp@v0.0.0-20230801115018-d63ba01acd4b/rand#LockedSource
+type ThreadsafeRandom struct {
+	l sync.Mutex
+	r *rand.Rand
+}
+
+func NewThreadsafeRandom() *ThreadsafeRandom {
+	return &ThreadsafeRandom{
+		l: sync.Mutex{},
+		r: rand.New(rand.NewSource(TestRandomSeed)),
+	}
+}
+
+func (tsr *ThreadsafeRandom) Intn(n int) int {
+	tsr.l.Lock()
+	defer tsr.l.Unlock()
+	return tsr.r.Intn(n)
+}
+
+func (tsr *ThreadsafeRandom) Int63() int64 {
+	tsr.l.Lock()
+	defer tsr.l.Unlock()
+	return tsr.r.Int63()
+}
+
+func (tsr *ThreadsafeRandom) Read(b []byte) (int, error) {
+	tsr.l.Lock()
+	defer tsr.l.Unlock()
+	return tsr.r.Read(b)
+}
+
+var r = NewThreadsafeRandom()
+
 // RandomUInt64 returns a random uint64 value generated from /dev/uramdom.
 func RandomUInt64() (uint64, error) {
 	f, err := os.Open("/dev/urandom")
@@ -113,7 +158,7 @@ func RandomUInt64() (uint64, error) {
 // RandomByteData returns a byte slice with `size` populated with random generated data
 func RandomByteData(size int64) []byte {
 	b := make([]byte, size)
-	rand.Read(b)
+	r.Read(b)
 	return b
 }
 
@@ -121,13 +166,12 @@ func RandomByteData(size int64) []byte {
 func RandomByteDataRange(minBytes int, maxBytes int) []byte {
 	const charset = "abcdefghijklmnopqrstuvwxyz" +
 		"ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789" + " "
-	const randSeed = 1658503010463818386
 
-	rand.Seed(randSeed)
-	randByteNum := rand.Intn(maxBytes-minBytes) + minBytes
+	r := NewThreadsafeRandom()
+	randByteNum := r.Intn(maxBytes-minBytes) + minBytes
 	randBytes := make([]byte, randByteNum)
 	for i := range randBytes {
-		randBytes[i] = charset[rand.Intn(len(charset))]
+		randBytes[i] = charset[r.Intn(len(charset))]
 	}
 	return randBytes
 }
