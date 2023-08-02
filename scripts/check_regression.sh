@@ -22,16 +22,20 @@ compare_stat_p90() {
     local stat_name="$4"
 
     # Calculate 110% of the past value
-    local threshold=$(awk -v past="$past_value" 'BEGIN { print past * 1.1 }')
+    local threshold=$(calculate_threshold "$past_value")
 
     # Compare the current value with the threshold
     if (( $(awk 'BEGIN {print ("'"$current_value"'" > "'"$threshold"'")}') )); then
-        echo "Test '$test_name' - Threshold: $threshold"
-        echo "ERROR: Test '$test_name' - Current P90 value ($current_value) exceeds 110% of past $stat_name P90 value ($past_value)"
+        echo "ERROR: $stat_name - Current P90 value ($current_value) exceeds the 110% threshold ($threshold) of the past P90 value ($past_value)"
         return 1
     fi
 
     return 0
+}
+
+calculate_threshold() {
+    local past_value="$1"
+    awk -v past="$past_value" 'BEGIN { print past * 1.1 }'
 }
 
 # Loop through each object in past.json and compare P90 values with current.json for all statistics
@@ -42,6 +46,7 @@ compare_p90_values() {
     local test_names=$(echo "$past_json" | jq -r '.benchmarkTests[].testName')
 
     for test_name in $test_names; do
+        echo "Testing - '$test_name'"
         for stat_name in "fullRunStats" "pullStats" "lazyTaskStats" "localTaskStats"; do
             local past_p90=$(echo "$past_json" | jq -r --arg test "$test_name" '.benchmarkTests[] | select(.testName == $test) | .'"$stat_name"'.pct90')
             local current_p90=$(echo "$current_json" | jq -r --arg test "$test_name" '.benchmarkTests[] | select(.testName == $test) | .'"$stat_name"'.pct90')
@@ -57,9 +62,9 @@ compare_p90_values "$past_data" "$current_data"
 
 # Check the return status and display appropriate message
 if [ $? -eq 0 ]; then
-    echo "Comparison successful. All P90 values are within the acceptable range."
+    echo "Comparison successful. No Regression detected, all P90 values are within the acceptable range."
     exit 0
 else
-    echo "Comparison failed. Current P90 values exceed 110% of the corresponding past values."
+    echo "Comparison failed. Regression detected."
     exit 1
 fi
