@@ -14,10 +14,10 @@ permissions:
       
 jobs:
   benchmark:
-    name: Run Benchmarks on PR Merge
     runs-on: ubuntu-20.04
     steps:
-      - uses: actions/checkout@v3
+      - name: Run Benchmarks on PR Merge
+        uses: actions/checkout@v3
         with:
           fetch-depth: 0
           submodules: true
@@ -27,21 +27,30 @@ jobs:
       - run: make
       - name: Run benchmark
         run: echo "Benchmarking..."
-      # - run: make benchmarks-perf-test 
-
+      - run: make benchmarks-perf-test 
+      - name: Update latest benchmark result
+        uses: actions/upload-artifact@v3
+        with:
+          name: benchmark-result-artifact
+          path: ${{github.workspace}}/benchmark/performanceTest/output/results.json
+      - name: Convert the data to required format    
+        run:  chmod +x ${{ github.workspace }}/scripts/visualization_data_converter.sh && mkdir ${{github.workspace}}/current && ${{ github.workspace }}/scripts/visualization_data_converter.sh ${{github.workspace}}/benchmark/performanceTest/output/results.json ${{github.workspace}}/current
         
-  update-benchmark-result:
-      name: Update latest benchmark result
-      needs: benchmark
-      runs-on: ubuntu-20.04
-      steps:
-        - uses: actions/checkout@v3
-        - uses: actions/upload-artifact@v3
-          with:
-            name: benchmark-result-artifact
-            path: ${{github.workspace}}/benchmark-result.json
-
-  # push-benchmark-result-gh-pages:
+  
+  download-and-push-benchmark-result-gh-pages:
+    runs-on: ubuntu-20.04
+    needs: benchmark
+    steps:
+      - name: Download latest benchmark result
+        uses: actions/download-artifact@v3
+        with:
+          name: benchmark-result-artifact
+          path: ${{github.workspace}}
+      - name: Display structure of downloaded files
+        run: ls -R
+      
+    
+        # push-benchmark-result-gh-pages:
   #     name: Push benchmark result to Github-pages
   #     runs-on: ubuntu-20.04
   #     steps:
