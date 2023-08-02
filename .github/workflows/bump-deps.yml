@@ -34,4 +34,5 @@ jobs:
         body: "This PR created by [create-pull-request](https://github.com/peter-evans/create-pull-request) must be closed and reopened manually to trigger automated checks."
         labels: dependencies
         delete-branch: true
+        author: "GitHub <no-reply@github.com>"
         signoff: true
