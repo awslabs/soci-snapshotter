@@ -14,6 +14,14 @@ linters:
   disable:
     - errcheck
 
+issues:
+  exclude-rules:
+    - linters:
+        - revive
+      # Ignore unused parameter rule. It's not enforced by go and it can make it hard
+      # to understand what the unused parameter was supposed to be used for.
+      text: "unused-parameter:"
+
 run:
   deadline: 4m
   skip-dirs:
