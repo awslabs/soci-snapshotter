@@ -42,12 +42,12 @@ jobs:
     needs: benchmark
     steps:
       - name: Download latest benchmark result
-        uses: actions/download-artifact@v2
+        uses: actions/download-artifact@v3
         with:
           name: benchmark-result-artifact
           path: ${{github.workspace}}
-      - name: Display the benchmark result
-        run: cat ${{github.workspace}}
+      - name: Display structure of downloaded files
+        run: ls -R
       
     
         # push-benchmark-result-gh-pages:
