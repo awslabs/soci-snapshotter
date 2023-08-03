@@ -296,7 +296,7 @@ func TestRetry(t *testing.T) {
 	}
 
 	if tr.retryCount != 4 {
-		t.Fatalf("unxpected retryCount; expected=4 got=%d", tr.retryCount)
+		t.Fatalf("unexpected retryCount; expected=4 got=%d", tr.retryCount)
 	}
 }
 
@@ -334,4 +334,38 @@ func (r *retryRoundTripper) RoundTrip(req *http.Request) (res *http.Response, er
 		}
 	}
 	return
+}
+
+func TestCustomUserAgent(t *testing.T) {
+	rt := &userAgentRoundTripper{expectedUserAgent: socihttp.UserAgent}
+	f := &httpFetcher{
+		url: "dummyregistry",
+		tr:  rt,
+	}
+	regions := []region{{b: 0, e: 1}}
+	_, err := f.fetch(context.Background(), regions, true)
+	if err != nil {
+		t.Fatalf("unexpected error = %v", err)
+	}
+	if rt.roundTripUserAgent != rt.expectedUserAgent {
+		t.Fatalf("unexpected User-Agent; expected %s; got %s", rt.expectedUserAgent, rt.roundTripUserAgent)
+	}
+}
+
+type userAgentRoundTripper struct {
+	expectedUserAgent  string
+	roundTripUserAgent string
+}
+
+func (u *userAgentRoundTripper) RoundTrip(req *http.Request) (*http.Response, error) {
+	u.roundTripUserAgent = req.UserAgent()
+
+	header := make(http.Header)
+	header.Add("Content-Length", "4")
+	return &http.Response{
+		StatusCode: http.StatusOK,
+		Request:    req,
+		Header:     header,
+		Body:       io.NopCloser(bytes.NewReader([]byte("test"))),
+	}, nil
 }

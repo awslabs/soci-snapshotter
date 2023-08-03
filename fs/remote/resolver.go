@@ -429,6 +429,7 @@ func (f *httpFetcher) fetch(ctx context.Context, rs []region, retry bool) (multi
 	}
 	req.Header.Add("Range", fmt.Sprintf("bytes=%s", ranges[:len(ranges)-1]))
 	req.Header.Add("Accept-Encoding", "identity")
+	req.Header.Add("User-Agent", socihttp.UserAgent)
 	req.Close = false
 
 	// Recording the roundtrip latency for remote registry GET operation.
