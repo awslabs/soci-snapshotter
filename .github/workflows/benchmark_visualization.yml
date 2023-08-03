@@ -33,10 +33,7 @@ jobs:
         with:
           name: benchmark-result-artifact
           path: ${{github.workspace}}/benchmark/performanceTest/output/results.json
-      - name: Convert the data to required format    
-        run:  chmod +x ${{ github.workspace }}/scripts/visualization_data_converter.sh && mkdir ${{github.workspace}}/current && ${{ github.workspace }}/scripts/visualization_data_converter.sh ${{github.workspace}}/benchmark/performanceTest/output/results.json ${{github.workspace}}/current
-        
-  
+      
   download-and-push-benchmark-result-gh-pages:
     runs-on: ubuntu-20.04
     needs: benchmark
@@ -48,28 +45,61 @@ jobs:
           path: ${{github.workspace}}
       - name: Display structure of downloaded files
         run: ls -R
-      
-    
-        # push-benchmark-result-gh-pages:
-  #     name: Push benchmark result to Github-pages
-  #     runs-on: ubuntu-20.04
-  #     steps:
-  #       - uses: actions/checkout@v3
-  #         with:
-  #           ref: main
-  #       - uses: benchmark-action/github-action-benchmark@v1
-  #         with:
-  #           name: Soci Benchmark
-  #           tool: 'customSmallerIsBetter'
-  #           benchmark-data-dir-path: "dev/bench/perfTest"
-  #           output-file-path: ${{github.workspace}}/results.json
-  #           github-token: ${{ secrets.GITHUB_TOKEN }}
-  #           auto-push: true
-  #           # Show alert with commit comment on detecting possible performance regression
-  #           alert-threshold: '200%'
-  #           comment-on-alert: true
-  #           fail-on-alert: true
-  #       - name: Push benchmark result
-  #         run: git push 'https://github.com/awslabs/soci-snapshotter.git' gh-pages:gh-pages
+      - name: Make new Directory
+        run: mkdir ${{github.workspace}}/current
+      - name: Change permission of visualization_data_converter.sh
+        run: chmod +x ${{github.workspace}}/scripts/visualization_data_converter.sh
+      - name: Convert benchmark result to visualization data
+        run: ${{github.workspace}}/scripts/visualization_data_converter.sh ${{github.workspace}}/results.json ${{github.workspace}}/current  
+      - name: Set matrix
+        id: set-matrix
+         # Create a JSON array with the file paths and store it in the 'files' output
+        run: echo "::set-output name=files::$(find ${{github.workspace}}/current -type f -name '*.json' -printf '%p\n' | jq -R . | jq -cs .)"
+      - name: Upload files to matrix
+        uses: actions/upload-artifact@v3
+        with:
+          name: benchmark-gh-pages-artifact
+          path: ${{github.workspace}}/current
+    outputs:
+      matrix: ${{ steps.set-matrix.outputs.files }}
 
-# $ {{github.workspace}}/benchmark/performanceTest/output/results.json
+  push-benchmark-result-gh-pages:
+    name: Push benchmark result to Github-pages
+    runs-on: ubuntu-20.04
+    needs: download-and-push-benchmark-result-gh-pages
+    strategy:
+      matrix:
+        file: ${{ fromJson(needs.download-and-push-benchmark-result-gh-pages.outputs.matrix) }}
+    steps:
+      - name: Checkout main branch
+        uses: actions/checkout@v3
+        with:
+          ref: main
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v2
+        with:
+          node-version: '14'
+
+      - name: Install dependencies
+        run: npm install # Replace this with the necessary command to install your dependencies.
+
+      - name: Create current folder
+        run: mkdir ${{github.workspace}}/current
+
+      - name: Download latest benchmark result
+        uses: actions/download-artifact@v3
+        with:
+          name: benchmark-gh-pages-artifact
+          path: ${{github.workspace}}/current
+
+      - name: Run benchmark action
+        uses: benchmark-action/github-action-benchmark@v1
+        with:
+          name: Soci Benchmark
+          tool: 'customSmallerIsBetter'
+          benchmark-data-dir-path: "dev/benchmarks/perfTest/${{ matrix.file }}"
+          output-file-path: ${{github.workspace}}/current/${{ matrix.file }}.json
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          auto-push: true
+          # Show alert with commit comment on detecting possible performance regression
