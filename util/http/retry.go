@@ -18,15 +18,21 @@ package http
 
 import (
 	"context"
+	"fmt"
 	"math/rand"
 	"net"
 	"net/http"
 	"time"
 
 	"github.com/awslabs/soci-snapshotter/config"
+	"github.com/awslabs/soci-snapshotter/version"
 	"github.com/containerd/containerd/log"
 	rhttp "github.com/hashicorp/go-retryablehttp"
 	"github.com/sirupsen/logrus"
+)
+
+var (
+	UserAgent = fmt.Sprintf("soci-snapshotter/%s", version.Version)
 )
 
 // NewRetryableClient creates a go http.Client which will automatically
