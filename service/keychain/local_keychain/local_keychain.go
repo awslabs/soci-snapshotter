@@ -34,7 +34,6 @@ package local_keychain
 
 import (
 	"context"
-	"errors"
 	"flag"
 	"fmt"
 	"net"
@@ -122,7 +121,7 @@ func (kc *keychain) GetCredentials(host string, refspec reference.Spec) (string,
 		// Credentials were cached but have expired, remove them.
 		delete(kc.cache, refspec.String())
 	}
-	return "", "", errors.New("credentials not found")
+	return "", "", nil
 }
 
 func Keychain(ctx context.Context) *keychain {
