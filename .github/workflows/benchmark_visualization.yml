@@ -33,10 +33,7 @@ jobs:
         with:
           name: benchmark-result-artifact
           path: ${{github.workspace}}/benchmark/performanceTest/output/results.json
-      # - name: Convert the data to required format    
-      #   run:  chmod +x ${{ github.workspace }}/scripts/visualization_data_converter.sh && mkdir ${{github.workspace}}/current && ${{ github.workspace }}/scripts/visualization_data_converter.sh ${{github.workspace}}/benchmark/performanceTest/output/results.json ${{github.workspace}}/current
-        
-  
+      
   download-and-push-benchmark-result-gh-pages:
     runs-on: ubuntu-20.04
     needs: benchmark
@@ -48,11 +45,12 @@ jobs:
           path: ${{github.workspace}}
       - name: Display structure of downloaded files
         run: ls -R
-      - name: Generate files for visualization
-        run: |
-          chmod +x ${{github.workspace}}/scripts/visualization_data_converter.sh
-          mkdir ${{github.workspace}}/current
-          ${{github.workspace}}/scripts/visualization_data_converter.sh ${{github.workspace}}/results.json ${{github.workspace}}/current  
+      - name: Make new Directory
+        run: mkdir ${{github.workspace}}/current
+      - name: Change permission of visualization_data_converter.sh
+        run: chmod +x ${{github.workspace}}/scripts/visualization_data_converter.sh
+      - name: Convert benchmark result to visualization data
+        run: ${{github.workspace}}/scripts/visualization_data_converter.sh ${{github.workspace}}/results.json ${{github.workspace}}/current  
       - name: Set matrix
         id: set-matrix
          # Create a JSON array with the file paths and store it in the 'files' output
