@@ -85,6 +85,8 @@ jobs:
           name: benchmark-gh-pages-artifact
           path: ${{github.workspace}}/current
 
+      - name: Display structure of downloaded files
+        run: cd ${{github.workspace}}/current && ls -R
       - name: Run benchmark action
         uses: benchmark-action/github-action-benchmark@v1
         with:
