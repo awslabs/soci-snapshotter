@@ -48,30 +48,30 @@ jobs:
           skip_unpack: false
           if_no_artifact_found: fail
           workflow: benchmark_visualization.yml
-      # - name: Run Compare and handle result
-      #   id: run-compare
-      #   run: |
-      #       sudo chmod +x ${{ github.workspace }}/scripts/check_regression.sh
-      #       if sudo ${{ github.workspace }}/scripts/check_regression.sh ${{ github.workspace }}/benchmark-result.json ${{ github.workspace }}/benchmark-result-current.json; then
-      #         echo "Comparison successful. All P90 values are within the acceptable range."
-      #       else
-      #         echo "Comparison failed. Current P90 values exceed 110% of the corresponding past values."
-      #         echo "Adding a comment to the Pull Request."
-      #         echo "::set-output name=regression-detected::true"
-      #         echo "regression-detected=true" >> "$GITHUB_ENV"
-      #       fi
+      - name: Run Compare and handle result
+        id: run-compare
+        run: |
+            sudo chmod +x ${{ github.workspace }}/scripts/check_regression.sh
+            if sudo ${{ github.workspace }}/scripts/check_regression.sh ${{ github.workspace }}/benchmark-result.json ${{ github.workspace }}/benchmark-result-current.json; then
+              echo "Comparison successful. All P90 values are within the acceptable range."
+            else
+              echo "Comparison failed. Current P90 values exceed 110% of the corresponding past values."
+              # echo "Adding a comment to the Pull Request."
+              # echo "::set-output name=regression-detected::true"
+              echo "regression-detected=true" >> $GITHUB_OUTPUT
+            fi
         
-      # - name: Comment on PR if regression detected
-      #   if: steps.run-compare.outputs.regression-detected == 'true'
-      #   uses: actions/github-script@v6
-      #   with:
-      #     github-token: ${{ secrets.GITHUB_TOKEN }}
-      #     script: |
-      #       const comment = `
-      #         :warning: **Regression Detected** :warning:
+      - name: Comment on PR if regression detected
+        if: steps.run-compare.outputs.regression-detected == 'true'
+        uses: actions/github-script@v6
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const comment = `
+              :warning: **Regression Detected** :warning:
 
-      #         The benchmark comparison indicates that there has been a performance regression.
-      #         Please investigate and address the issue.
-      #       `;
+              The benchmark comparison indicates that there has been a performance regression.
+              Please investigate and address the issue.
+            `;
 
-      #       core.setFailed(comment);
+            core.setFailed(comment);
