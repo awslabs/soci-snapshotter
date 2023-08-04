@@ -38,6 +38,8 @@ jobs:
     runs-on: ubuntu-20.04
     needs: benchmark
     steps:
+      - name: Checkout main branch
+        uses: actions/checkout@v3
       - name: Download latest benchmark result
         uses: actions/download-artifact@v3
         with:
@@ -73,16 +75,6 @@ jobs:
     steps:
       - name: Checkout main branch
         uses: actions/checkout@v3
-        with:
-          ref: main
-
-      - name: Set up Node.js
-        uses: actions/setup-node@v2
-        with:
-          node-version: '14'
-
-      - name: Install dependencies
-        run: npm install # Replace this with the necessary command to install your dependencies.
 
       - name: Create current folder
         run: mkdir ${{github.workspace}}/current
