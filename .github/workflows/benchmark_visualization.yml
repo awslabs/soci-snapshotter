@@ -87,6 +87,11 @@ jobs:
 
       - name: Display structure of downloaded files
         run: cd ${{github.workspace}}/current && ls -R -l
+
+      - name: Display file content
+        run: cat ${{github.workspace}}/current/${{ matrix.file }}
+          
+
       - name: Run benchmark action
         uses: benchmark-action/github-action-benchmark@v1
         with:
