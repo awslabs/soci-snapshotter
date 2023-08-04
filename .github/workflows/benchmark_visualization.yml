@@ -86,10 +86,10 @@ jobs:
           path: ${{github.workspace}}/current
 
       - name: Display structure of downloaded files
-        run: cd ${{github.workspace}}/current && ls -R -l
+        run: ls -R -l ${{github.workspace}}/current
 
       - name: Display file content
-        run: cat ${{github.workspace}}/current/${{ matrix.file }}
+        run: cat ${{ matrix.file }}
           
 
       - name: Run benchmark action
