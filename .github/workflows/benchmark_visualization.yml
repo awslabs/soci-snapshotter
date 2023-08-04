@@ -89,7 +89,7 @@ jobs:
         run: ls -R -l ${{github.workspace}}/current
 
       - name: Display file content
-        run: cat ${{github.workspace}}/current/${{ matrix.file }}
+        run: cat ${{ matrix.file }}
           
 
       - name: Run benchmark action
