@@ -85,7 +85,7 @@ vendor:
 
 test:
 	@echo "$@"
-	@GO111MODULE=$(GO111MODULE_VALUE) go test $(GO_TEST_FLAGS) -race ./...
+	@GO111MODULE=$(GO111MODULE_VALUE) go test $(GO_TEST_FLAGS) $(GO_LD_FLAGS) -race ./...
 
 integration: build
 	@echo "$@"

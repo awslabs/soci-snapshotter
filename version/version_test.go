@@ -32,12 +32,10 @@
 
 package version
 
-const Unset = "<unknown>"
+import "testing"
 
-var (
-	// Version is the version number. Filled in at linking time (via Makefile).
-	Version = Unset
-
-	// Revision is the VCS (e.g. git) revision. Filled in at linking time (via Makefile).
-	Revision = Unset
-)
+func TestVersion(t *testing.T) {
+	if Version == Unset {
+		t.Fatalf("version is unset")
+	}
+}
