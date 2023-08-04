@@ -98,7 +98,7 @@ jobs:
           name: Soci Benchmark
           tool: 'customSmallerIsBetter'
           benchmark-data-dir-path: "dev/benchmarks/perfTest/${{ matrix.file }}"
-          output-file-path: ${{github.workspace}}/current/${{ matrix.file }}
+          output-file-path: ${{ matrix.file }}
           github-token: ${{ secrets.GITHUB_TOKEN }}
           auto-push: true
           # Show alert with commit comment on detecting possible performance regression
