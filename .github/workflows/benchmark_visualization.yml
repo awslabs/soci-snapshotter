@@ -1,4 +1,4 @@
-name: Visualize Benchmark
+name: Visualize Benchmark and upload results
 
 on:
   push:
@@ -26,9 +26,8 @@ jobs:
           go-version: '1.18.10'
       - run: make
       - name: Run benchmark
-        run: echo "Benchmarking..."
-      - run: make benchmarks-perf-test 
-      - name: Update latest benchmark result
+        run: make benchmarks-perf-test 
+      - name: Upload latest benchmark result
         uses: actions/upload-artifact@v3
         with:
           name: benchmark-result-artifact
@@ -45,19 +44,17 @@ jobs:
         with:
           name: benchmark-result-artifact
           path: ${{github.workspace}}
-      - name: Display structure of downloaded files
-        run: ls -R
-      - name: Make new Directory
+      - name: Make current directory
         run: mkdir ${{github.workspace}}/current
       - name: Change permission of visualization_data_converter.sh
         run: chmod +x ${{github.workspace}}/scripts/visualization_data_converter.sh
       - name: Convert benchmark result to visualization data
         run: ${{github.workspace}}/scripts/visualization_data_converter.sh ${{github.workspace}}/results.json ${{github.workspace}}/current  
-      - name: Set matrix
+      - name: Build matrix of filepaths
         id: set-matrix
          # Create a JSON array with the file paths and store it in the 'files' output
-        run: echo "::set-output name=files::$(find ${{github.workspace}}/current -type f -name '*.json' -printf '%p\n' | jq -R . | jq -cs .)"
-      - name: Upload files to matrix
+        run: echo "files=$(find ${{github.workspace}}/current -type f -name '*.json' -printf '%p\n' | jq -R . | jq -cs .)" >> $GITHUB_OUTPUT
+      - name: Upload visualization files as github artifacts
         uses: actions/upload-artifact@v3
         with:
           name: benchmark-gh-pages-artifact
@@ -79,27 +76,20 @@ jobs:
       - name: Create current folder
         run: mkdir ${{github.workspace}}/current
 
-      - name: Download latest benchmark result
+      - name: Download latest benchmark visualization files
         uses: actions/download-artifact@v3
         with:
           name: benchmark-gh-pages-artifact
           path: ${{github.workspace}}/current
-
-      - name: Display structure of downloaded files
-        run: ls -R -l ${{github.workspace}}/current
-
-      - name: Display file content
-        run: cat ${{ matrix.file }}
       
-      - name: Extract file name without extension
+      - name: Extract file names
         id: get_filename
         run: |
           # Get the filename without the path
           filename=$(basename "${{ matrix.file }}")
           # Remove the .json extension
           filename_without_extension="${filename%.json}"
-          echo "::set-output name=filename::$filename_without_extension"    
-
+          echo "filename=$filename_without_extension" >> $GITHUB_OUTPUT    
 
       - name: Run benchmark action
         uses: benchmark-action/github-action-benchmark@v1

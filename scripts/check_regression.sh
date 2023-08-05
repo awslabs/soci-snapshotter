@@ -1,5 +1,7 @@
 #!/bin/bash
 
+set -eu -o pipefail
+
 # Check if two arguments are provided (paths to past.json and current.json)
 if [ $# -ne 2 ]; then
     echo "Usage: $0 <path_to_past.json> <path_to_current.json>"
@@ -18,8 +20,7 @@ current_data=$(cat "$current_json_path")
 compare_stat_p90() {
     local past_value="$1"
     local current_value="$2"
-    local test_name="$3"
-    local stat_name="$4"
+    local stat_name="$3"
 
     # Calculate 110% of the past value
     local threshold=$(calculate_threshold "$past_value")
@@ -45,26 +46,36 @@ compare_p90_values() {
 
     local test_names=$(echo "$past_json" | jq -r '.benchmarkTests[].testName')
 
+    # Use a flag to indicate if any regression has been detected
+    local regression_detected=0
+
     for test_name in $test_names; do
-        echo "Testing - '$test_name'"
+        echo "Checking for regression in '$test_name'"
         for stat_name in "fullRunStats" "pullStats" "lazyTaskStats" "localTaskStats"; do
             local past_p90=$(echo "$past_json" | jq -r --arg test "$test_name" '.benchmarkTests[] | select(.testName == $test) | .'"$stat_name"'.pct90')
             local current_p90=$(echo "$current_json" | jq -r --arg test "$test_name" '.benchmarkTests[] | select(.testName == $test) | .'"$stat_name"'.pct90')
 
-            compare_stat_p90 "$past_p90" "$current_p90" "$test_name" "$stat_name" || return 1
+            # Call the compare_stat_p90 function
+            compare_stat_p90 "$past_p90" "$current_p90" "$stat_name" || regression_detected=1
         done
     done
 
-    return 0
+    # Check if any regression has been detected and return the appropriate exit code
+    return $regression_detected
 }
 
+# ... (remaining code)
+
+# Call compare_p90_values and store the exit code in a variable
 compare_p90_values "$past_data" "$current_data"
+exit_code=$?
 
 # Check the return status and display appropriate message
-if [ $? -eq 0 ]; then
-    echo "Comparison successful. No Regression detected, all P90 values are within the acceptable range."
-    exit 0
+if [ $exit_code -eq 0 ]; then
+    echo "Comparison successful. No regressions detected, all P90 values are within the acceptable range."
 else
     echo "Comparison failed. Regression detected."
-    exit 1
 fi
+
+# Set the final exit code to indicate if any regression occurred
+exit $exit_code

@@ -11,10 +11,11 @@ on:
       - 'Dockerfile'
       - 'integration/**'
       - 'scripts/**'
+      - '.github/workflows/**'
             
 jobs:
   benchmark:
-    name: Performance regression check
+    name: Run Benchmark on current Branch
     runs-on: ubuntu-20.04
     steps:
       - uses: actions/checkout@v3
@@ -22,11 +23,12 @@ jobs:
         with:
           go-version: '1.18.10'
       - run: make
-      # - name: Run benchmark
-      #   run: make benchmarks-perf-test
+      - name: Run benchmark
+        run: make benchmarks-perf-test
   
   fetch-previous-results_and_compare:
-    name: Fetch results
+    name: Fetch results from previous run
+    needs: benchmark
     runs-on: ubuntu-20.04
     steps:
       - uses: actions/checkout@v3
@@ -48,30 +50,30 @@ jobs:
           skip_unpack: false
           if_no_artifact_found: fail
           workflow: benchmark_visualization.yml
-      # - name: Run Compare and handle result
-      #   id: run-compare
-      #   run: |
-      #       sudo chmod +x ${{ github.workspace }}/scripts/check_regression.sh
-      #       if sudo ${{ github.workspace }}/scripts/check_regression.sh ${{ github.workspace }}/benchmark-result.json ${{ github.workspace }}/benchmark-result-current.json; then
-      #         echo "Comparison successful. All P90 values are within the acceptable range."
-      #       else
-      #         echo "Comparison failed. Current P90 values exceed 110% of the corresponding past values."
-      #         echo "Adding a comment to the Pull Request."
-      #         echo "::set-output name=regression-detected::true"
-      #         echo "regression-detected=true" >> "$GITHUB_ENV"
-      #       fi
+      - name: Perform Comparison and log results
+        id: run-compare
+        run: |
+            sudo chmod +x ${{ github.workspace }}/scripts/check_regression.sh
+            if sudo ${{ github.workspace }}/scripts/check_regression.sh ${{ github.workspace }}/benchmark-result.json ${{ github.workspace }}/benchmark-result-current.json; then
+              echo "Comparison successful. All P90 values are within the acceptable range."
+            else
+              echo "Comparison failed. Current P90 values exceed 110% of the corresponding past values."
+              # echo "Adding a comment to the Pull Request."
+              # echo "::set-output name=regression-detected::true"
+              echo "regression-detected=true" >> $GITHUB_OUTPUT
+            fi
         
-      # - name: Comment on PR if regression detected
-      #   if: steps.run-compare.outputs.regression-detected == 'true'
-      #   uses: actions/github-script@v6
-      #   with:
-      #     github-token: ${{ secrets.GITHUB_TOKEN }}
-      #     script: |
-      #       const comment = `
-      #         :warning: **Regression Detected** :warning:
+      - name: Stop the workflow if regression is detected
+        if: steps.run-compare.outputs.regression-detected == 'true'
+        uses: actions/github-script@v6
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const comment = `
+              :warning: **Regression Detected** :warning:
 
-      #         The benchmark comparison indicates that there has been a performance regression.
-      #         Please investigate and address the issue.
-      #       `;
+              The benchmark comparison indicates that there has been a performance regression.
+              Please investigate and address the issue.
+            `;
 
-      #       core.setFailed(comment);
+            core.setFailed(comment);
