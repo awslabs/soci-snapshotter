@@ -16,7 +16,7 @@ ARG CONTAINERD_VERSION=1.6.17
 ARG RUNC_VERSION=1.1.5
 ARG NERDCTL_VERSION=1.3.0
 
-FROM golang:1.20.6-bookworm AS golang-base
+FROM golang:1.21.0-bookworm AS golang-base
 
 FROM golang-base AS containerd-snapshotter-base
 ARG CONTAINERD_VERSION
