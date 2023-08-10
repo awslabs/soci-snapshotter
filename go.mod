@@ -3,7 +3,7 @@ module github.com/awslabs/soci-snapshotter
 go 1.20
 
 require (
-	github.com/containerd/containerd v1.7.2
+	github.com/containerd/containerd v1.7.3
 	github.com/containerd/continuity v0.4.1
 	github.com/docker/cli v24.0.4+incompatible
 	github.com/docker/go-metrics v0.0.1
