@@ -1,0 +1,102 @@
+name: Visualize Benchmark and upload results
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - '**'
+      - '!docs/**' # ignore docs changes
+      - '!**.md' # ignore markdown changes
+
+permissions:
+  contents: write
+  deployments: write
+      
+jobs:
+  benchmark:
+    runs-on: ubuntu-20.04
+    steps:
+      - name: Checkout main branch
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+          submodules: true
+      - uses: actions/setup-go@v4
+        with:
+          go-version: '1.20.6'
+      - run: make
+      - name: Run benchmark
+        run: make benchmarks-perf-test 
+      - name: Upload latest benchmark result
+        uses: actions/upload-artifact@v3
+        with:
+          name: benchmark-result-artifact
+          path: ${{github.workspace}}/benchmark/performanceTest/output/results.json
+      
+  download-and-convert-benchmark-result-to-visualization-data:
+    runs-on: ubuntu-20.04
+    needs: benchmark
+    steps:
+      - name: Checkout main branch
+        uses: actions/checkout@v3
+      - name: Download latest benchmark result
+        uses: actions/download-artifact@v3
+        with:
+          name: benchmark-result-artifact
+          path: ${{github.workspace}}
+      - name: Make temporary folder
+        run: mkdir ${{github.workspace}}/current
+      - name: Change permission of visualization_data_converter.sh
+        run: chmod +x ${{github.workspace}}/scripts/visualization_data_converter.sh
+      - name: Convert benchmark result to visualization data
+        run: ${{github.workspace}}/scripts/visualization_data_converter.sh ${{github.workspace}}/results.json ${{github.workspace}}/current  
+      - name: Build matrix of filepaths
+        id: set-matrix
+         # Create a JSON array with the file paths and store it in the 'files' output
+        run: echo "files=$(find ${{github.workspace}}/current -type f -name '*.json' -printf '%p\n' | jq -R . | jq -cs .)" >> $GITHUB_OUTPUT
+      - name: Upload visualization files as github artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: benchmark-gh-pages-artifact
+          path: ${{github.workspace}}/current
+    outputs:
+      matrix: ${{ steps.set-matrix.outputs.files }}
+
+  push-benchmark-result-gh-pages:
+    name: Push benchmark result to Github-pages
+    runs-on: ubuntu-20.04
+    needs: download-and-convert-benchmark-result-to-visualization-data
+    strategy:
+      matrix:
+        file: ${{ fromJson(needs.download-and-convert-benchmark-result-to-visualization-data.outputs.matrix) }}
+    steps:
+      - name: Checkout main branch
+        uses: actions/checkout@v3
+
+      - name: Create current folder
+        run: mkdir ${{github.workspace}}/current
+
+      - name: Download latest benchmark visualization files
+        uses: actions/download-artifact@v3
+        with:
+          name: benchmark-gh-pages-artifact
+          path: ${{github.workspace}}/current
+      
+      - name: Extract file names
+        id: get_filename
+        run: |
+          # Get the filename without the path
+          filename=$(basename "${{ matrix.file }}")
+          # Remove the .json extension
+          filename_without_extension="${filename%.json}"
+          echo "filename=$filename_without_extension" >> $GITHUB_OUTPUT    
+
+      - name: Run benchmark action
+        uses: benchmark-action/github-action-benchmark@v1
+        with:
+          name: Soci Benchmark
+          tool: 'customSmallerIsBetter'
+          benchmark-data-dir-path: "dev/benchmarks/performanceTest/${{ steps.get_filename.outputs.filename }}"
+          output-file-path: ${{ matrix.file }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          auto-push: true
