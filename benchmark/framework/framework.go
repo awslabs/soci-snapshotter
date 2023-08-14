@@ -129,6 +129,8 @@ func (testStats *BenchmarkTestStats) calculateTestStat() {
 		fmt.Printf("Error Calculating Mean: %v\n", err)
 		testStats.Mean = -1
 	}
+
+	print("testStats.BenchmarkTimes: ", testStats.BenchmarkTimes)
 	testStats.Min, err = stats.Min(testStats.BenchmarkTimes)
 	if err != nil {
 		fmt.Printf("Error Calculating Min: %v\n", err)
