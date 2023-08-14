@@ -132,10 +132,11 @@ if they are available in the snapshotter's local content store.
 			}, nil
 		}
 
-		ctx, src, err := store.NewContentStore(ctx, store.WithType(store.ContentStoreType(cliContext.GlobalString("content-store"))), store.WithNamespace(cliContext.GlobalString("namespace")))
+		ctx, src, done, err := store.NewContentStore(ctx, store.WithType(store.ContentStoreType(cliContext.GlobalString("content-store"))), store.WithNamespace(cliContext.GlobalString("namespace")))
 		if err != nil {
 			return fmt.Errorf("cannot create local content store: %w", err)
 		}
+		defer done(ctx)
 
 		dst.Client = authClient
 		dst.PlainHTTP = cliContext.Bool("plain-http")

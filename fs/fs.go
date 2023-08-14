@@ -141,10 +141,12 @@ func NewFilesystem(ctx context.Context, root string, cfg config.FSConfig, opts .
 			return docker.ConfigureDefaultRegistries(docker.WithPlainHTTP(docker.MatchLocalhost))(refspec.Hostname())
 		})
 	}
-	ctx, store, err := store.NewContentStore(ctx, store.WithType(store.ContentStoreType(cfg.ContentStoreConfig.Type)), store.WithNamespace(cfg.ContentStoreConfig.Namespace))
+	ctx, store, done, err := store.NewContentStore(ctx, store.WithType(store.ContentStoreType(cfg.ContentStoreConfig.Type)), store.WithNamespace(cfg.ContentStoreConfig.Namespace))
 	if err != nil {
 		return nil, fmt.Errorf("cannot create content store: %w", err)
 	}
+	// FIXME: This runs far too soon. Writing index.json for the soci content store should happen after each change to the store and/or when the snapshotter shuts down.
+	defer done(ctx)
 
 	var bgFetcher *bf.BackgroundFetcher
 

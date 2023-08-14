@@ -136,12 +136,12 @@ type CleanupFunc func(context.Context) error
 
 func nopCleanup(context.Context) error { return nil }
 
-func NewContentStore(ctx context.Context, opts ...Option) (context.Context, Store, error) {
+func NewContentStore(ctx context.Context, opts ...Option) (context.Context, Store, CleanupFunc, error) {
 	storeConfig := NewStoreConfig(opts...)
 
 	contentStoreType, err := CanonicalizeContentStoreType(ContentStoreType(storeConfig.Type))
 	if err != nil {
-		return ctx, nil, err
+		return ctx, nil, nopCleanup, err
 	}
 	switch contentStoreType {
 	case ContainerdContentStoreType:
@@ -149,7 +149,7 @@ func NewContentStore(ctx context.Context, opts ...Option) (context.Context, Stor
 	case SociContentStoreType:
 		return NewSociStore(ctx)
 	}
-	return ctx, nil, errors.New("unexpectedly reached end of NewContentStore")
+	return ctx, nil, nopCleanup, errors.New("unexpectedly reached end of NewContentStore")
 }
 
 // SociStore wraps oci.Store and adds or stubs additional functionality of the Store interface.
@@ -161,9 +161,18 @@ type SociStore struct {
 var _ Store = (*SociStore)(nil)
 
 // NewSociStore creates a sociStore.
-func NewSociStore(ctx context.Context) (context.Context, *SociStore, error) {
+func NewSociStore(ctx context.Context) (context.Context, *SociStore, CleanupFunc, error) {
 	store, err := oci.New(DefaultSociContentStorePath)
-	return ctx, &SociStore{store}, err
+	return ctx, &SociStore{store}, func(_ context.Context) error { return store.SaveIndex() }, err
+}
+
+// Push adds a new content item to the sociStore then tags it for indexing
+func (s *SociStore) Push(ctx context.Context, expected ocispec.Descriptor, reader io.Reader) error {
+	if err := s.Store.Push(ctx, expected, reader); err != nil {
+		return err
+	}
+
+	return s.Tag(ctx, expected, expected.Digest.String())
 }
 
 // Label is a no-op for sociStore until sociStore and ArtifactsDb are better integrated.
@@ -181,6 +190,11 @@ func (s *SociStore) BatchOpen(ctx context.Context) (context.Context, CleanupFunc
 	return ctx, nopCleanup, nil
 }
 
+// Cleanup on a sociStore will update the content/index.json file
+func (s *SociStore) Cleanup(ctx context.Context) error {
+	return s.SaveIndex()
+}
+
 type ContainerdStore struct {
 	config.ContentStoreConfig
 	client *containerd.Client
@@ -189,10 +203,10 @@ type ContainerdStore struct {
 // assert that ContainerdStore implements Store
 var _ Store = (*ContainerdStore)(nil)
 
-func NewContainerdStore(ctx context.Context, storeConfig config.ContentStoreConfig) (context.Context, *ContainerdStore, error) {
+func NewContainerdStore(ctx context.Context, storeConfig config.ContentStoreConfig) (context.Context, *ContainerdStore, CleanupFunc, error) {
 	client, err := containerd.New(config.DefaultImageServiceAddress)
 	if err != nil {
-		return ctx, nil, fmt.Errorf("could not connect to containerd socket for content store access: %w", err)
+		return ctx, nil, nopCleanup, fmt.Errorf("could not connect to containerd socket for content store access: %w", err)
 	}
 
 	ctx = namespaces.WithNamespace(ctx, storeConfig.Namespace)
@@ -203,7 +217,7 @@ func NewContainerdStore(ctx context.Context, storeConfig config.ContentStoreConf
 
 	containerdStore.ContentStoreConfig = storeConfig
 
-	return ctx, &containerdStore, nil
+	return ctx, &containerdStore, nopCleanup, nil
 }
 
 // Exists returns true iff the described content exists.
@@ -332,4 +346,9 @@ func (s *ContainerdStore) BatchOpen(ctx context.Context) (context.Context, Clean
 		return ctx, nopCleanup, fmt.Errorf("unable to open batch: %w", err)
 	}
 	return ctx, leaseDone, nil
+}
+
+// Cleanup is a no-op for ContainerdStore
+func (s *ContainerdStore) Cleanup(ctx context.Context) error {
+	return nil
 }

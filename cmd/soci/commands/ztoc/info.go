@@ -72,10 +72,13 @@ var infoCommand = cli.Command{
 		}
 		ctx, cancel := context.WithTimeout(context.Background(), cliContext.GlobalDuration("timeout"))
 		defer cancel()
-		ctx, store, err := store.NewContentStore(ctx, store.WithType(store.ContentStoreType(cliContext.GlobalString("content-store"))), store.WithNamespace(cliContext.GlobalString("namespace")))
+
+		ctx, store, done, err := store.NewContentStore(ctx, store.WithType(store.ContentStoreType(cliContext.GlobalString("content-store"))), store.WithNamespace(cliContext.GlobalString("namespace")))
 		if err != nil {
 			return err
 		}
+		defer done(ctx)
+
 		reader, err := store.Fetch(ctx, v1.Descriptor{Digest: digest})
 		if err != nil {
 			return err
