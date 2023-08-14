@@ -47,7 +47,6 @@ func main() {
 	flag.BoolVar(&showCom, "show-commit", false, "tag the commit hash to the benchmark results")
 	flag.IntVar(&numberOfTests, "count", 5, "Describes the number of runs a benchmarker should run. Default: 5")
 	flag.StringVar(&configCsv, "f", "default", "Path to a csv file describing image details in this order ['Name','Image ref', 'Ready line', 'manifest ref'].")
-
 	flag.Parse()
 
 	if showCom {
