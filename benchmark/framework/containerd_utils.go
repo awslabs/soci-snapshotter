@@ -209,6 +209,8 @@ func (proc *ContainerdProcess) RunContainerTaskForReadyLine(
 	stdoutScanner := bufio.NewScanner(taskDetails.stdoutReader)
 	stderrScanner := bufio.NewScanner(taskDetails.stderrReader)
 
+	time.Sleep(10 * time.Second)
+
 	exitStatusC, err := taskDetails.task.Wait(ctx)
 	if err != nil {
 		return nil, err
