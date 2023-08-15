@@ -12,40 +12,47 @@ on:
       - 'integration/**'
       - 'scripts/**'
       - '.github/workflows/**'
-            
+
 jobs:
-  benchmark-and-fetch-previous-results_and_compare:
-    name: Run Benchmark on current Branch
+  test-twice:
     runs-on: ubuntu-20.04
+
     steps:
-      - uses: actions/checkout@v3
       - uses: actions/setup-go@v4
         with:
           go-version: '1.18.10'
+      - name: Checkout main
+        uses: actions/checkout@v3
+        with:
+          ref: main
       - run: make
       - name: Run benchmark
-        run: make benchmarks-perf-test      
+        run: make benchmarks-perf-test
       - name: Make previous directory
         run: mkdir -v ${{ github.workspace }}/previous
-      - name: Download previous run artifact
-        id: download-artifact
-        uses: dawidd6/action-download-artifact@v2
+      - name: Copy results to previous directory
+        run: cp -r ${{ github.workspace }}/benchmark/performanceTest/output ${{ github.workspace }}/previous
+      - name: Check out PR
+        uses: actions/checkout@v3
         with:
-          github_token: ${{secrets.GITHUB_TOKEN}}
-          name: benchmark-result-artifact
-          name_is_regexp: true
-          path: ${{ github.workspace }}/previous
-          repo: ${{ github.repository }}
-          check_artifacts: false
-          search_artifacts: true
-          skip_unpack: false
-          if_no_artifact_found: fail
-          workflow: benchmark_visualization.yml
+          ref: ${{ github.event.pull_request.head.sha }}
+      - run: make
+      - name: Run benchmark
+        run: make benchmarks-perf-test
+      - name: Make current directory
+        run: mkdir -v ${{ github.workspace }}/current
+      - name: Stash uncommitted changes
+        run: git stash push --keep-index --include-untracked -m "Stashing changes for tests"
+        # If you're using Git version 2.28 or later, use this line instead:
+        # run: git stash push --keep-index --include-untracked -m "Stashing changes for tests"
+        # This will ensure that uncommitted changes do not interfere with the tests.
+      - name: Copy results to current directory
+        run: cp -r ${{ github.workspace }}/benchmark/performanceTest/output ${{ github.workspace }}/current
       - name: Perform Comparison and log results
         id: run-compare
         run: |
             sudo chmod +x ${{ github.workspace }}/scripts/check_regression.sh
-            if sudo ${{ github.workspace }}/scripts/check_regression.sh ${{ github.workspace }}/previous/benchmark-result-artifact/results.json ${{github.workspace}}/benchmark/performanceTest/output/results.json; then
+            if sudo ${{ github.workspace }}/scripts/check_regression.sh ${{ github.workspace }}/previous/results.json ${{github.workspace}}/current/results.json; then
               echo "Comparison successful. All P90 values are within the acceptable range."
             else
               echo "Comparison failed. Current P90 values exceed 110% of the corresponding past values."
