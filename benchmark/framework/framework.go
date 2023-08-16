@@ -94,6 +94,7 @@ func (frame *BenchmarkFramework) Run(ctx context.Context) {
 		}
 	}
 
+	print("should We add timeout here for testing?")
 	json, err := json.MarshalIndent(frame, "", " ")
 	if err != nil {
 		fmt.Printf("JSON Marshalling Error: %v\n", err)
@@ -128,6 +129,8 @@ func (testStats *BenchmarkTestStats) calculateTestStat() {
 		fmt.Printf("Error Calculating Mean: %v\n", err)
 		testStats.Mean = -1
 	}
+
+	print("testStats.BenchmarkTimes: ", testStats.BenchmarkTimes)
 	testStats.Min, err = stats.Min(testStats.BenchmarkTimes)
 	if err != nil {
 		fmt.Printf("Error Calculating Min: %v\n", err)

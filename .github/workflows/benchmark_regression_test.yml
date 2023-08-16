@@ -16,7 +16,6 @@ on:
 jobs:
   run_benchmark_twice:
     runs-on: ubuntu-20.04
-
     steps:
       - uses: actions/setup-go@v4
         with:
@@ -37,6 +36,7 @@ jobs:
         run:  sudo rm -rf ${{ github.workspace }}/benchmark/performanceTest/output
       - name: Stash uncommitted changes
         run: git stash push --keep-index --include-untracked -m "Stashing changes for tests"
+
       - name: Check out PR
         uses: actions/checkout@v3
         with:
