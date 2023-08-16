@@ -14,7 +14,7 @@ on:
       - '.github/workflows/**'
 
 jobs:
-  test-twice:
+  run_benchmark_twice:
     runs-on: ubuntu-20.04
 
     steps:
@@ -52,7 +52,7 @@ jobs:
 
   download_and_perform_comparison:
         runs-on: ubuntu-20.04
-        needs: test-twice
+        needs: run_benchmark_twice
         steps:
           - uses: actions/setup-go@v4
             with:
@@ -62,6 +62,8 @@ jobs:
             with:
               ref: main
           - run: make
+          - name: Install basic calculator
+            run: sudo apt-get install bc
 
           - name: Create previous directory
             run: mkdir -v ${{ github.workspace }}/previous
