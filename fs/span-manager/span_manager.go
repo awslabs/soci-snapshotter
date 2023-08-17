@@ -38,6 +38,30 @@ var (
 	ErrExceedMaxSpan       = errors.New("span id larger than max span id")
 )
 
+type MultiReaderCloser struct {
+	c []io.Closer
+	io.Reader
+}
+
+func (mrc *MultiReaderCloser) Close() error {
+	errs := []error{}
+	for _, c := range mrc.c {
+		if err := c.Close(); err != nil {
+			errs = append(errs, err)
+		}
+	}
+	return errors.Join(errs...)
+}
+
+type SectionReaderCloser struct {
+	c io.Closer
+	*io.SectionReader
+}
+
+func (src *SectionReaderCloser) Close() error {
+	return src.c.Close()
+}
+
 // SpanManager fetches and caches spans of a given layer.
 type SpanManager struct {
 	cache                             cache.BlobCache
@@ -145,10 +169,11 @@ func (m *SpanManager) resolveSpan(spanID compression.SpanID) error {
 
 // GetContents returns a reader for the requested contents. The contents may be
 // across multiple spans.
-func (m *SpanManager) GetContents(startUncompOffset, endUncompOffset compression.Offset) (io.Reader, error) {
+func (m *SpanManager) GetContents(startUncompOffset, endUncompOffset compression.Offset) (io.ReadCloser, error) {
 	si := m.getSpanInfo(startUncompOffset, endUncompOffset)
 	numSpans := si.spanEnd - si.spanStart + 1
 	spanReaders := make([]io.Reader, numSpans)
+	spanClosers := make([]io.Closer, numSpans)
 
 	eg, _ := errgroup.WithContext(context.Background())
 	var i compression.SpanID
@@ -161,14 +186,14 @@ func (m *SpanManager) GetContents(startUncompOffset, endUncompOffset compression
 				return err
 			}
 			spanReaders[j] = r
+			spanClosers[j] = r
 			return nil
 		})
 	}
 	if err := eg.Wait(); err != nil {
 		return nil, err
 	}
-
-	return io.MultiReader(spanReaders...), nil
+	return &MultiReaderCloser{spanClosers, io.MultiReader(spanReaders...)}, nil
 }
 
 // getSpanInfo returns spanInfo from the offsets of the requested file
@@ -216,7 +241,7 @@ func (m *SpanManager) getSpanInfo(offsetStart, offsetEnd compression.Offset) *sp
 //  3. For `unrequested` span, fetch-uncompress-cache the span data, return the reader
 //     from the uncompressed span
 //  4. No span state lock will be acquired in `requested` state.
-func (m *SpanManager) getSpanContent(spanID compression.SpanID, offsetStart, offsetEnd compression.Offset) (io.Reader, error) {
+func (m *SpanManager) getSpanContent(spanID compression.SpanID, offsetStart, offsetEnd compression.Offset) (io.ReadCloser, error) {
 	s := m.spans[spanID]
 	size := offsetEnd - offsetStart
 
@@ -240,6 +265,7 @@ func (m *SpanManager) getSpanContent(spanID compression.SpanID, offsetStart, off
 		if err != nil {
 			return nil, err
 		}
+		defer r.Close()
 
 		// read compressed span
 		compressedBuf, err := io.ReadAll(r)
@@ -260,7 +286,7 @@ func (m *SpanManager) getSpanContent(spanID compression.SpanID, offsetStart, off
 		if err := s.setState(uncompressed); err != nil {
 			return nil, err
 		}
-		return bytes.NewReader(uncompSpanBuf[offsetStart : offsetStart+size]), nil
+		return io.NopCloser(bytes.NewReader(uncompSpanBuf[offsetStart : offsetStart+size])), nil
 	}
 
 	// fetch-uncompress-cache span: span state can only be `unrequested` since
@@ -270,7 +296,7 @@ func (m *SpanManager) getSpanContent(spanID compression.SpanID, offsetStart, off
 		return nil, err
 	}
 	buf := bytes.NewBuffer(uncompBuf[offsetStart : offsetStart+size])
-	return io.Reader(buf), nil
+	return io.NopCloser(buf), nil
 }
 
 // fetchAndCacheSpan fetches a span, uncompresses the span if `uncompress == true`,
@@ -393,18 +419,15 @@ func (m *SpanManager) addSpanToCache(spanID compression.SpanID, contents []byte,
 // getSpanFromCache returns the cached span content as an `io.Reader`.
 // `offset` is the offset of the requested contents within the span.
 // `size` is the size of the requested contents.
-func (m *SpanManager) getSpanFromCache(spanID compression.SpanID, offset, size compression.Offset) (io.Reader, error) {
+func (m *SpanManager) getSpanFromCache(spanID compression.SpanID, offset, size compression.Offset) (io.ReadCloser, error) {
 	r, err := m.cache.Get(fmt.Sprintf("%d", spanID))
 	if err != nil {
 		return nil, fmt.Errorf("%w: %w", ErrSpanNotAvailable, err)
 	}
-	runtime.SetFinalizer(r, func(r cache.Reader) {
-		r.Close()
-	})
-	return io.NewSectionReader(r, int64(offset), int64(size)), nil
+	return &SectionReaderCloser{r, io.NewSectionReader(r, int64(offset), int64(size))}, nil
 }
 
-// verifySpanContents caculates span digest from its compressed bytes, and compare
+// verifySpanContents calculates span digest from its compressed bytes, and compare
 // with the digest stored in ztoc.
 func (m *SpanManager) verifySpanContents(compressedData []byte, spanID compression.SpanID) error {
 	actual := digest.FromBytes(compressedData)
