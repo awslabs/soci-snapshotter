@@ -225,6 +225,7 @@ func (sf *file) ReadAt(p []byte, offset int64) (int, error) {
 	if err != nil {
 		return 0, fmt.Errorf("failed to read the file: %w", err)
 	}
+	defer r.Close()
 
 	// TODO this is not the right place for this metric to be. It needs to go down the BlobReader, when the HTTP request is issued
 	commonmetrics.IncOperationCount(commonmetrics.SynchronousReadRegistryFetchCount, sf.gr.layerSha) // increment the number of on demand file fetches from remote registry
@@ -234,6 +235,7 @@ func (sf *file) ReadAt(p []byte, offset int64) (int, error) {
 	if err != nil {
 		return 0, fmt.Errorf("unexpected copied data size for on-demand fetch. read = %d, expected = %d", n, expectedSize)
 	}
+
 	commonmetrics.AddBytesCount(commonmetrics.SynchronousBytesServed, sf.gr.layerSha, int64(n)) // measure the number of bytes served synchronously
 
 	return n, nil
