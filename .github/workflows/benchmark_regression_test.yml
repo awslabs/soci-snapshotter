@@ -1,6 +1,7 @@
 name: Benchmark Regression Check
 
 on:
+  workflow_dispatch:
   pull_request:
     branches: [ main ]
     paths:
@@ -14,13 +15,12 @@ on:
       - '.github/workflows/**'
 
 jobs:
-  test-twice:
+  run_benchmark_twice:
     runs-on: ubuntu-20.04
-
     steps:
       - uses: actions/setup-go@v4
         with:
-          go-version: '1.18.10'
+          go-version: '1.20.6'
       - name: Checkout main
         uses: actions/checkout@v3
         with:
@@ -28,10 +28,16 @@ jobs:
       - run: make
       - name: Run benchmark
         run: make benchmarks-perf-test
-      - name: Make previous directory
-        run: mkdir -v ${{ github.workspace }}/previous
-      - name: Copy results to previous directory
-        run: cp -r ${{ github.workspace }}/benchmark/performanceTest/output ${{ github.workspace }}/previous
+      - name: Upload latest benchmark result
+        uses: actions/upload-artifact@v3
+        with:
+          name: benchmark-result-artifact-main
+          path: ${{github.workspace}}/benchmark/performanceTest/output/results.json
+      - name: remove output directory
+        run:  sudo rm -rf ${{ github.workspace }}/benchmark/performanceTest/output
+      - name: Stash uncommitted changes
+        run: git stash push --keep-index --include-untracked -m "Stashing changes for tests"
+
       - name: Check out PR
         uses: actions/checkout@v3
         with:
@@ -39,32 +45,63 @@ jobs:
       - run: make
       - name: Run benchmark
         run: make benchmarks-perf-test
-      - name: Make current directory
-        run: mkdir -v ${{ github.workspace }}/current
-      - name: Copy results to current directory
-        run: cp -r ${{ github.workspace }}/benchmark/performanceTest/output ${{ github.workspace }}/current
-      - name: Perform Comparison and log results
-        id: run-compare
-        run: |
-            sudo chmod +x ${{ github.workspace }}/scripts/check_regression.sh
-            if sudo ${{ github.workspace }}/scripts/check_regression.sh ${{ github.workspace }}/previous/results.json ${{github.workspace}}/current/results.json; then
-              echo "Comparison successful. All P90 values are within the acceptable range."
-            else
-              echo "Comparison failed. Current P90 values exceed 110% of the corresponding past values."
-              echo "regression-detected=true" >> $GITHUB_OUTPUT
-            fi
-      - name: Stop the workflow if regression is detected
-        if: steps.run-compare.outputs.regression-detected == 'true'
-        uses: actions/github-script@v6
+      - name: Upload latest benchmark result
+        uses: actions/upload-artifact@v3
         with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          script: |
-            const comment = `
-              :warning: **Regression Detected** :warning:
+          name: benchmark-result-artifact-pr
+          path: ${{github.workspace}}/benchmark/performanceTest/output/results.json
 
-              The benchmark comparison indicates that there has been a performance regression.
-              Please investigate and address the issue.
-              To Investigate check logs of the previous job above.
-            `;
+  download_and_perform_comparison:
+        runs-on: ubuntu-20.04
+        needs: run_benchmark_twice
+        steps:
+          - uses: actions/setup-go@v4
+            with:
+              go-version: '1.18.10'
+          - name: Checkout main
+            uses: actions/checkout@v3
+            with:
+              ref: main
+          - run: make
+          - name: Install basic calculator
+            run: sudo apt-get install bc
 
-            core.setFailed(comment);
+          - name: Create previous directory
+            run: mkdir -v ${{ github.workspace }}/previous
+          - name: Create current directory
+            run: mkdir -v ${{ github.workspace }}/current
+          - name: Download previous benchmark result
+            uses: actions/download-artifact@v3
+            with:
+              name: benchmark-result-artifact-main
+              path: ${{github.workspace}}/previous
+          - name: Download current benchmark result
+            uses: actions/download-artifact@v3
+            with:
+              name: benchmark-result-artifact-pr
+              path: ${{github.workspace}}/current
+          - name: Perform Comparison and log results
+            id: run-compare
+            run: |
+                sudo chmod +x ${{ github.workspace }}/scripts/check_regression.sh
+                if sudo ${{ github.workspace }}/scripts/check_regression.sh ${{ github.workspace }}/previous/results.json ${{github.workspace}}/current/results.json; then
+                  echo "Comparison successful. All P90 values are within the acceptable range."
+                else
+                  echo "Comparison failed. Current P90 values exceed 150% threshold of the corresponding past values."
+                  echo "regression-detected=true" >> $GITHUB_OUTPUT
+                fi
+          - name: Stop the workflow if regression is detected
+            if: steps.run-compare.outputs.regression-detected == 'true'
+            uses: actions/github-script@v6
+            with:
+              github-token: ${{ secrets.GITHUB_TOKEN }}
+              script: |
+                const comment = `
+                  :warning: **Regression Detected** :warning:
+
+                  The benchmark comparison indicates that there has been a performance regression.
+                  Please investigate and address the issue.
+                  To Investigate check logs of the previous job above.
+                `;
+
+                core.setFailed(comment);
