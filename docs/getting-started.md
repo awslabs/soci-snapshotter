@@ -33,9 +33,8 @@ to install them on your machine:
 > to their doc for a complete installation guide (mainly containerd).
 
 - **[containerd](https://github.com/containerd/containerd/blob/main/docs/getting-started.md) >= 1.4** -
-required to run the SOCI snapshotter; to confirm please check with `sudo ctr version`.
-- **[ctr](https://github.com/containerd/containerd/blob/main/docs/getting-started.md)** -
-required for this doc to interact with containerd/registry.
+required to run the SOCI snapshotter; to confirm please check with `sudo nerdctl system info`.
+- **[nerdctl](https://github.com/containerd/nerdctl#install) >= v1.5.0** - required for this doc to interact with containerd/registry. You do not need any of the additional components mentioned in the install documentation for this getting started, but you might if you want complex networking in the future. Please note that SOCI will not work with rootless nerdctl.
 - **fuse** - used for mounting without root access (`sudo yum install fuse` or
 other Linux package manager like `apt-get`, depending on your Linux distro).
 
@@ -93,9 +92,13 @@ export AWS_REGION=us-east-1
 export REGISTRY_USER=AWS
 export REGISTRY_PASSWORD=$(aws ecr get-login-password --region $AWS_REGION)
 export REGISTRY=$AWS_ACCOUNT.dkr.ecr.$AWS_REGION.amazonaws.com
-sudo ctr i pull docker.io/library/rabbitmq:latest
-sudo ctr i tag docker.io/library/rabbitmq:latest $REGISTRY/rabbitmq:latest
-sudo ctr i push --user $REGISTRY_USER:$REGISTRY_PASSWORD --platform linux/amd64 $REGISTRY/rabbitmq:latest
+# needed for pushing images / SOCI indexes which run as the current user
+echo $REGISTRY_PASSWORD | nerdctl login -u $REGISTRY_USER --password-stdin $REGISTRY
+# needed the SOCI snapshotter which runs as root
+echo $REGISTRY_PASSWORD | sudo nerdctl login -u $REGISTRY_USER --password-stdin $REGISTRY
+sudo nerdctl pull docker.io/library/rabbitmq:latest
+sudo nerdctl image tag docker.io/library/rabbitmq:latest $REGISTRY/rabbitmq:latest
+sudo nerdctl push --platform linux/amd64 $REGISTRY/rabbitmq:latest
 ```
 
 After this step, please check your registry to confirm the image is present.
@@ -172,7 +175,7 @@ This will push all of the SOCI related artifacts (index manifest, ztoc):
 sudo soci push --user $REGISTRY_USER:$REGISTRY_PASSWORD $REGISTRY/rabbitmq:latest
 ```
 
-Credentials here can be omitted if `docker login` has stored credentials for this registry.
+Credentials here can be omitted if `nerdctl login` has stored credentials for this registry.
 
 ## Run container with the SOCI snapshotter
 
@@ -202,11 +205,10 @@ Now let's restart containerd and confirm containerd knows about the SOCI snapsho
 
 ```shell
 sudo systemctl restart containerd
-sudo ctr plugin ls id==soci
+sudo nerdctl system info
 ```
 
-`ctr plugin ls` lists all of the plugins from which you should see there is a
-`soci` plugin of type `io.containerd.snapshotter.v1`.
+You should see `soci` under Server -> Plugins -> Storage
 
 ### Start the SOCI snapshotter
 
@@ -224,33 +226,26 @@ sudo soci-snapshotter-grpc 2> ~/soci-snapshotter-errors 1> ~/soci-snapshotter-lo
 
 ### Lazily pull image
 
-Once the snapshotter is running we can call the `rpull` command from SOCI CLI.
+Once the snapshotter is running we can call the `pull` command from nerdctl.
 This command reads the manifest from the registry and mounts a FUSE filesystem
 for each layer.
 
-> The optional flag `--soci-index-digest` needs to be the digest of the SOCI index manifest.
-> If not provided, the snapshotter will use the OCI distribution-spec's [Referrers API](https://github.com/opencontainers/distribution-spec/blob/main/spec.md#listing-referrers)
+> The snapshotter will use the OCI distribution-spec's [Referrers API](https://github.com/opencontainers/distribution-spec/blob/main/spec.md#listing-referrers)
 > (if available, otherwise the spec's [fallback mechanism](https://github.com/opencontainers/distribution-spec/blob/main/spec.md#unavailable-referrers-api)) to fetch a list of available indices.
 
 ```shell
-sudo soci image rpull --user $REGISTRY_USER:$REGISTRY_PASSWORD --soci-index-digest sha256:f5f2a8558d0036c0a316638c5575607c01d1fa1588dbe56c6a5a7253e30ce107 $REGISTRY/rabbitmq:latest
+sudo nerdctl pull --snapshotter soci $REGISTRY/rabbitmq:latest
 
-# output
-fetching sha256:a9072496... application/vnd.docker.distribution.manifest.v2+json
-fetching sha256:4027609f... application/vnd.docker.container.image.v1+json
-fetching sha256:9e3ecea6... application/vnd.docker.image.rootfs.diff.tar.gzip
-fetching sha256:32a25b60... application/vnd.docker.image.rootfs.diff.tar.gzip
-fetching sha256:7ed5ffe2... application/vnd.docker.image.rootfs.diff.tar.gzip
-fetching sha256:e02f149b... application/vnd.docker.image.rootfs.diff.tar.gzip
-fetching sha256:9f1239da... application/vnd.docker.image.rootfs.diff.tar.gzip
-fetching sha256:0d64e0d6... application/vnd.docker.image.rootfs.diff.tar.gzip
-fetching sha256:6d7e0f86... application/vnd.docker.image.rootfs.diff.tar.gzip
+#output
+$Registry/rabbitmq:latest:   resolved       |++++++++++++++++++++++++++++++++++++++|
+manifest-sha256:a9072496...: done           |++++++++++++++++++++++++++++++++++++++|
+config-sha256:4027609f...:   done           |++++++++++++++++++++++++++++++++++++++|
+elapsed: 9.8 s               total:  10.3 K (1.1 KiB/s)
 ```
 
 After running this command you will see a minimal output as the example, because
 with lazy pulling, not all layers are pulled during the `pull` step. From
-previous step we created 3 ztocs for 3 layers and skipped 7 layers. Here we see
-exactly 7 layers are pulled during `pull` step and not the 3 layers with ztocs.
+previous step we created 3 ztocs for 3 layers.
 
 Now let's check the mounts for the FUSE filesystems. There should be one mount per layer
 for layers with ztoc. In our rabbitmq example, there should be 3 mounts.
@@ -268,10 +263,10 @@ fusectl on /sys/fs/fuse/connections type fusectl (rw,relatime)
 ### Run container
 
 Now that all of the mounts are set up we can run the image using the following
-command in ctr.  We need to specify which snapshotter we shall use and we will
-use the `--net-host` binary flag.  Then we pass in the two main arguments, our
+command in nerdctl.  We need to specify which snapshotter we shall use and we will
+use the `--net host` flag.  Then we pass in the two main arguments, our
 image registry and the id of the container:
 
 ```shell
-sudo ctr run --snapshotter soci --net-host $REGISTRY/rabbitmq:latest sociExample
+sudo nerdctl run --snapshotter soci --net host --rm $REGISTRY/rabbitmq:latest
 ```
