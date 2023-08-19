@@ -41,6 +41,7 @@ package remote
 import (
 	"context"
 	"crypto/sha256"
+	"errors"
 	"fmt"
 	"io"
 	"mime"
@@ -62,7 +63,6 @@ import (
 	"github.com/containerd/containerd/log"
 	"github.com/containerd/containerd/reference"
 	"github.com/containerd/containerd/remotes/docker"
-	"github.com/hashicorp/go-multierror"
 	rhttp "github.com/hashicorp/go-retryablehttp"
 	digest "github.com/opencontainers/go-digest"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
@@ -120,7 +120,7 @@ func (r *Resolver) resolveFetcher(ctx context.Context, hosts source.RegistryHost
 		// TODO: allow to configure the selection of readers based on the hostname in refspec
 		r, size, err := p.Handle(ctx, desc)
 		if err != nil {
-			handlersErr = multierror.Append(handlersErr, err)
+			handlersErr = errors.Join(handlersErr, err)
 			continue
 		}
 		log.G(ctx).WithField("handler name", name).WithField("ref", refspec.String()).WithField("digest", desc.Digest).

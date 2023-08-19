@@ -34,6 +34,7 @@ package compose
 
 import (
 	"bufio"
+	"errors"
 	"io"
 	"os"
 	"os/exec"
@@ -41,7 +42,6 @@ import (
 	"strings"
 
 	dexec "github.com/awslabs/soci-snapshotter/util/dockershell/exec"
-	"github.com/hashicorp/go-multierror"
 	"github.com/rs/xid"
 )
 
@@ -297,7 +297,7 @@ func (c *Compose) List() (l []string) {
 func (c *Compose) Cleanup() (retErr error) {
 	for _, f := range c.cleanups {
 		if err := f(); err != nil {
-			retErr = multierror.Append(retErr, err)
+			retErr = errors.Join(retErr, err)
 		}
 	}
 	return
