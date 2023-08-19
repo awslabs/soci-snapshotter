@@ -39,6 +39,7 @@
 package reader
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"sync"
@@ -50,7 +51,6 @@ import (
 	spanmanager "github.com/awslabs/soci-snapshotter/fs/span-manager"
 	"github.com/awslabs/soci-snapshotter/metadata"
 	"github.com/awslabs/soci-snapshotter/ztoc/compression"
-	"github.com/hashicorp/go-multierror"
 	digest "github.com/opencontainers/go-digest"
 )
 
@@ -188,7 +188,7 @@ func (gr *reader) Close() (retErr error) {
 	}
 	gr.closed = true
 	if err := gr.r.Close(); err != nil {
-		retErr = multierror.Append(retErr, err)
+		retErr = errors.Join(retErr, err)
 	}
 	return
 }

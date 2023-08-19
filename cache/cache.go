@@ -34,6 +34,7 @@ package cache
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -42,7 +43,6 @@ import (
 
 	"github.com/awslabs/soci-snapshotter/util/lrucache"
 	"github.com/awslabs/soci-snapshotter/util/namedmutex"
-	"github.com/hashicorp/go-multierror"
 )
 
 const (
@@ -291,9 +291,9 @@ func (dc *directoryCache) Add(key string, opts ...Option) (Writer, error) {
 			if err := os.MkdirAll(filepath.Dir(c), os.ModePerm); err != nil {
 				var allErr error
 				if err := os.Remove(wip.Name()); err != nil {
-					allErr = multierror.Append(allErr, err)
+					allErr = errors.Join(allErr, err)
 				}
-				return multierror.Append(allErr,
+				return errors.Join(allErr,
 					fmt.Errorf("failed to create cache directory %q: %w", c, err))
 			}
 			return os.Rename(wip.Name(), c)

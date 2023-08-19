@@ -34,6 +34,7 @@ package metadata
 
 import (
 	"compress/gzip"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -45,7 +46,6 @@ import (
 
 	"github.com/awslabs/soci-snapshotter/util/testutil"
 	"github.com/awslabs/soci-snapshotter/ztoc"
-	"github.com/hashicorp/go-multierror"
 )
 
 var allowedPrefix = [4]string{"", "./", "/", "../"}
@@ -217,7 +217,7 @@ func newCalledTelemetry() (telemetry *Telemetry, check func() error) {
 		}, func() error {
 			var allErr error
 			if !initMetadataStoreLatencyCalled {
-				allErr = multierror.Append(allErr, fmt.Errorf("metrics initMetadataStoreLatency isn't called"))
+				allErr = errors.Join(allErr, fmt.Errorf("metrics initMetadataStoreLatency isn't called"))
 			}
 			return allErr
 		}
