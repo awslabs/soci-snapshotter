@@ -18,6 +18,7 @@ package ztoc
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"io"
 	"sort"
@@ -30,6 +31,8 @@ import (
 	"github.com/opencontainers/go-digest"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 )
+
+var ErrInvalidTOCEntry = errors.New("invalid toc entry")
 
 // Marshal serializes Ztoc to its flatbuffers schema and returns a reader along with the descriptor (digest and size only).
 // If not successful, it will return an error.
@@ -76,17 +79,37 @@ func flatbufToZtoc(flatbuffer []byte) (z *Ztoc, err error) {
 	ztoc.UncompressedArchiveSize = compression.Offset(ztocFlatbuf.UncompressedArchiveSize())
 
 	// ztoc - toc
-	toc := new(ztoc_flatbuffers.TOC)
-	ztocFlatbuf.Toc(toc)
+	fbtoc := new(ztoc_flatbuffers.TOC)
+	ztocFlatbuf.Toc(fbtoc)
 
-	metadata := make([]FileMetadata, toc.MetadataLength())
-	ztoc.TOC = TOC{
+	toc, err := flatbufferToTOC(fbtoc)
+	if err != nil {
+		return nil, err
+	}
+	ztoc.TOC = toc
+
+	// ztoc - zinfo
+	compressionInfo := new(ztoc_flatbuffers.CompressionInfo)
+	ztocFlatbuf.CompressionInfo(compressionInfo)
+	ztoc.MaxSpanID = compression.SpanID(compressionInfo.MaxSpanId())
+	ztoc.SpanDigests = make([]digest.Digest, compressionInfo.SpanDigestsLength())
+	for i := 0; i < compressionInfo.SpanDigestsLength(); i++ {
+		dgst, _ := digest.Parse(string(compressionInfo.SpanDigests(i)))
+		ztoc.SpanDigests[i] = dgst
+	}
+	ztoc.Checkpoints = compressionInfo.CheckpointsBytes()
+	ztoc.CompressionAlgorithm = strings.ToLower(compressionInfo.CompressionAlgorithm().String())
+	return ztoc, nil
+}
+
+func flatbufferToTOC(fbtoc *ztoc_flatbuffers.TOC) (TOC, error) {
+	metadata := make([]FileMetadata, fbtoc.MetadataLength())
+	toc := TOC{
 		FileMetadata: metadata,
 	}
-
-	for i := 0; i < toc.MetadataLength(); i++ {
+	for i := 0; i < fbtoc.MetadataLength(); i++ {
 		metadataEntry := new(ztoc_flatbuffers.FileMetadata)
-		toc.Metadata(metadataEntry, i)
+		fbtoc.Metadata(metadataEntry, i)
 		var me FileMetadata
 		me.Name = string(metadataEntry.Name())
 		me.Type = string(metadataEntry.Type())
@@ -112,21 +135,27 @@ func flatbufToZtoc(flatbuffer []byte) (z *Ztoc, err error) {
 			me.Xattrs[key] = value
 		}
 
-		ztoc.FileMetadata[i] = me
+		toc.FileMetadata[i] = me
 	}
 
-	// ztoc - zinfo
-	compressionInfo := new(ztoc_flatbuffers.CompressionInfo)
-	ztocFlatbuf.CompressionInfo(compressionInfo)
-	ztoc.MaxSpanID = compression.SpanID(compressionInfo.MaxSpanId())
-	ztoc.SpanDigests = make([]digest.Digest, compressionInfo.SpanDigestsLength())
-	for i := 0; i < compressionInfo.SpanDigestsLength(); i++ {
-		dgst, _ := digest.Parse(string(compressionInfo.SpanDigests(i)))
-		ztoc.SpanDigests[i] = dgst
+	sort.Slice(toc.FileMetadata, func(i, j int) bool {
+		mi := &toc.FileMetadata[i]
+		mj := &toc.FileMetadata[j]
+		return mi.UncompressedOffset < mj.UncompressedOffset
+	})
+
+	// The first tar header is at offset 0
+	nextTarHeader := compression.Offset(0)
+	for i := range toc.FileMetadata {
+		tocEntry := &toc.FileMetadata[i]
+		if nextTarHeader > tocEntry.UncompressedOffset {
+			return toc, ErrInvalidTOCEntry
+		}
+		tocEntry.TarHeaderOffset = nextTarHeader
+		// The next tar header can be found immediately after the current file + padding
+		nextTarHeader = AlignToTarBlock(tocEntry.UncompressedOffset + tocEntry.UncompressedSize)
 	}
-	ztoc.Checkpoints = compressionInfo.CheckpointsBytes()
-	ztoc.CompressionAlgorithm = strings.ToLower(compressionInfo.CompressionAlgorithm().String())
-	return ztoc, nil
+	return toc, nil
 }
 
 func ztocToFlatbuffer(ztoc *Ztoc) (fb []byte, err error) {
@@ -143,21 +172,7 @@ func ztocToFlatbuffer(ztoc *Ztoc) (fb []byte, err error) {
 	buildToolIdentifier := builder.CreateString(ztoc.BuildToolIdentifier)
 
 	// ztoc - toc
-	metadataOffsetList := make([]flatbuffers.UOffsetT, len(ztoc.FileMetadata))
-	for i := len(ztoc.FileMetadata) - 1; i >= 0; i-- {
-		me := ztoc.FileMetadata[i]
-		// preparing the individual file medatada element
-		metadataOffsetList[i] = prepareMetadataOffset(builder, me)
-	}
-	ztoc_flatbuffers.TOCStartMetadataVector(builder, len(ztoc.FileMetadata))
-	for i := len(metadataOffsetList) - 1; i >= 0; i-- {
-		builder.PrependUOffsetT(metadataOffsetList[i])
-	}
-	metadata := builder.EndVector(len(ztoc.FileMetadata))
-
-	ztoc_flatbuffers.TOCStart(builder)
-	ztoc_flatbuffers.TOCAddMetadata(builder, metadata)
-	toc := ztoc_flatbuffers.TOCEnd(builder)
+	toc := tocToFlatbuffer(&ztoc.TOC, builder)
 
 	// ztoc - zinfo
 	checkpointsVector := builder.CreateByteVector(ztoc.Checkpoints)
@@ -198,6 +213,24 @@ func ztocToFlatbuffer(ztoc *Ztoc) (fb []byte, err error) {
 	ztocFlatbuf := ztoc_flatbuffers.ZtocEnd(builder)
 	builder.Finish(ztocFlatbuf)
 	return builder.FinishedBytes(), nil
+}
+
+func tocToFlatbuffer(toc *TOC, builder *flatbuffers.Builder) flatbuffers.UOffsetT {
+	metadataOffsetList := make([]flatbuffers.UOffsetT, len(toc.FileMetadata))
+	for i := len(toc.FileMetadata) - 1; i >= 0; i-- {
+		me := toc.FileMetadata[i]
+		// preparing the individual file medatada element
+		metadataOffsetList[i] = prepareMetadataOffset(builder, me)
+	}
+	ztoc_flatbuffers.TOCStartMetadataVector(builder, len(toc.FileMetadata))
+	for i := len(metadataOffsetList) - 1; i >= 0; i-- {
+		builder.PrependUOffsetT(metadataOffsetList[i])
+	}
+	metadata := builder.EndVector(len(toc.FileMetadata))
+
+	ztoc_flatbuffers.TOCStart(builder)
+	ztoc_flatbuffers.TOCAddMetadata(builder, metadata)
+	return ztoc_flatbuffers.TOCEnd(builder)
 }
 
 func prepareMetadataOffset(builder *flatbuffers.Builder, me FileMetadata) flatbuffers.UOffsetT {

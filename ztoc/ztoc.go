@@ -75,6 +75,7 @@ type FileMetadata struct {
 	Type               string
 	UncompressedOffset compression.Offset
 	UncompressedSize   compression.Offset
+	TarHeaderOffset    compression.Offset
 	Linkname           string // Target name of link (valid for TypeLink or TypeSymlink)
 	Mode               int64  // Permission and mode bits
 	UID                int    // User ID of owner
@@ -107,6 +108,34 @@ func (src FileMetadata) FileMode() (m os.FileMode) {
 		m |= os.ModeNamedPipe
 	}
 	return m
+}
+
+func (src FileMetadata) Equal(o FileMetadata) bool {
+	if src.Name != o.Name ||
+		src.Type != o.Type ||
+		src.UncompressedOffset != o.UncompressedOffset ||
+		src.UncompressedSize != o.UncompressedSize ||
+		src.TarHeaderOffset != o.TarHeaderOffset ||
+		src.Linkname != o.Linkname ||
+		src.Mode != o.Mode ||
+		src.UID != o.UID ||
+		src.GID != o.GID ||
+		src.Uname != o.Uname ||
+		src.Gname != o.Gname ||
+		src.ModTime != o.ModTime ||
+		src.Devmajor != o.Devmajor ||
+		src.Devminor != o.Devminor {
+		return false
+	}
+	if len(src.Xattrs) != len(o.Xattrs) {
+		return false
+	}
+	for k, v := range src.Xattrs {
+		if o.Xattrs[k] != v {
+			return false
+		}
+	}
+	return true
 }
 
 // MetadataEntry is used to locate a file based on its metadata.

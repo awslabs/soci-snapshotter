@@ -251,7 +251,10 @@ func (r *reader) initNodes(toc ztoc.TOC) error {
 				if md[id] == nil {
 					md[id] = &metadataEntry{}
 				}
+				md[id].Name = ent.Name
 				md[id].UncompressedOffset = ent.UncompressedOffset
+				md[id].TarHeaderOffset = ent.TarHeaderOffset
+				md[id].TarHeaderSize = ent.UncompressedOffset - ent.TarHeaderOffset
 			}
 		}
 		return nil
@@ -504,7 +507,7 @@ func (r *reader) ForeachChild(id uint32, f func(name string, id uint32, mode os.
 // OpenFile returns a section reader of the specified node.
 func (r *reader) OpenFile(id uint32) (File, error) {
 	var size int64
-	var uncompressedOffset compression.Offset
+	var mde metadataEntry
 
 	if err := r.view(func(tx *bolt.Tx) error {
 		nodes, err := getNodes(tx, r.fsID)
@@ -525,23 +528,25 @@ func (r *reader) OpenFile(id uint32) (File, error) {
 			return fmt.Errorf("metadata bucket of %q not found for opening %d: %w", r.fsID, id, err)
 		}
 		if md, err := getMetadataBucketByID(metadataEntries, id); err == nil {
-			uncompressedOffset = getUncompressedOffset(md)
+			mde = getMetadataEntry(md)
 		}
 		return nil
 	}); err != nil {
 		return nil, err
 	}
-	return &file{uncompressedOffset, compression.Offset(size)}, nil
-}
-
-func getUncompressedOffset(md *bolt.Bucket) compression.Offset {
-	ucompOffset, _ := binary.Varint(md.Get(bucketKeyUncompressedOffset))
-	return compression.Offset(ucompOffset)
+	return &file{mde.Name, mde.UncompressedOffset, compression.Offset(size), mde.TarHeaderOffset, mde.TarHeaderSize}, nil
 }
 
 type file struct {
+	name               string
 	uncompressedOffset compression.Offset
 	uncompressedSize   compression.Offset
+	tarHeaderOffset    compression.Offset
+	tarHeaderSize      compression.Offset
+}
+
+func (fr *file) Name() string {
+	return fr.name
 }
 
 func (fr *file) GetUncompressedFileSize() compression.Offset {
@@ -550,6 +555,14 @@ func (fr *file) GetUncompressedFileSize() compression.Offset {
 
 func (fr *file) GetUncompressedOffset() compression.Offset {
 	return fr.uncompressedOffset
+}
+
+func (fr *file) TarHeaderOffset() compression.Offset {
+	return fr.tarHeaderOffset
+}
+
+func (fr *file) TarHeaderSize() compression.Offset {
+	return fr.tarHeaderSize
 }
 
 func attrFromZtocEntry(src *ztoc.FileMetadata, dst *Attr) *Attr {

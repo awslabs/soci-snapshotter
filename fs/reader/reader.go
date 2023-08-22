@@ -39,6 +39,7 @@
 package reader
 
 import (
+	"archive/tar"
 	"errors"
 	"fmt"
 	"io"
@@ -50,6 +51,7 @@ import (
 	commonmetrics "github.com/awslabs/soci-snapshotter/fs/metrics/common"
 	spanmanager "github.com/awslabs/soci-snapshotter/fs/span-manager"
 	"github.com/awslabs/soci-snapshotter/metadata"
+	"github.com/awslabs/soci-snapshotter/util/ioutils"
 	"github.com/awslabs/soci-snapshotter/ztoc/compression"
 	digest "github.com/opencontainers/go-digest"
 )
@@ -201,13 +203,18 @@ func (gr *reader) isClosed() bool {
 }
 
 type file struct {
-	id uint32
-	fr metadata.File
-	gr *reader
+	id       uint32
+	fr       metadata.File
+	gr       *reader
+	verified atomic.Bool
+	lock     sync.Mutex
 }
 
 // ReadAt reads the file when the file is requested by the container
 func (sf *file) ReadAt(p []byte, offset int64) (int, error) {
+	if err := sf.Verify(); err != nil {
+		return 0, err
+	}
 	if len(p) == 0 {
 		return 0, nil
 	}
@@ -239,6 +246,95 @@ func (sf *file) ReadAt(p []byte, offset int64) (int, error) {
 	commonmetrics.AddBytesCount(commonmetrics.SynchronousBytesServed, sf.gr.layerSha, int64(n)) // measure the number of bytes served synchronously
 
 	return n, nil
+}
+
+// Verify verifies that the file's attributes match the tar header in the image layer
+func (sf *file) Verify() (retErr error) {
+	if sf.verified.Load() {
+		return nil
+	}
+	sf.lock.Lock()
+	defer sf.lock.Unlock()
+	if sf.verified.Load() {
+		return nil
+	}
+	defer func() {
+		if retErr == nil {
+			sf.verified.Store(true)
+		}
+	}()
+
+	attr, err := sf.gr.r.GetAttr(sf.id)
+	if err != nil {
+		return err
+	}
+
+	tarHeaderOffset := sf.fr.TarHeaderOffset()
+	tarHeaderSize := sf.fr.TarHeaderSize()
+	if sf.fr.TarHeaderSize() < 0 {
+		return fmt.Errorf("invalid tar header size: %d", sf.fr.TarHeaderSize())
+	}
+	tarHeaderReader, err := sf.gr.spanManager.GetContents(tarHeaderOffset, tarHeaderOffset+tarHeaderSize)
+	if err != nil {
+		return err
+	}
+	counterReader := ioutils.NewPositionTrackerReader(tarHeaderReader)
+	tarReader := tar.NewReader(counterReader)
+	tarHeader, err := tarReader.Next()
+	if err != nil {
+		return fmt.Errorf("error reading tar header at %d, size %d: %w", tarHeaderOffset, tarHeaderSize, err)
+	}
+	if counterReader.CurrentPos() != int64(tarHeaderSize) {
+		return fmt.Errorf("incorrect tar header size: expected %d, actual %d", tarHeaderSize, counterReader.CurrentPos())
+	}
+	if !attrMatchesTarHeader(attr, tarHeader) {
+		return errors.New("file attributes do not match tar header")
+	}
+	if sf.fr.Name() != tarHeader.Name {
+		return errors.New("file name does not match tar header")
+	}
+
+	return nil
+}
+
+func attrMatchesTarHeader(attr metadata.Attr, tarh *tar.Header) bool {
+	// specifically, we don't look at attr.NumLink because it doesn't exist in a tar header
+	if attr.Size != tarh.Size ||
+		!attr.ModTime.Equal(tarh.ModTime) ||
+		attr.LinkName != tarh.Linkname ||
+		attr.Mode != tarh.FileInfo().Mode() ||
+		attr.UID != tarh.Uid ||
+		attr.GID != tarh.Gid ||
+		attr.DevMajor != int(tarh.Devmajor) ||
+		attr.DevMinor != int(tarh.Devminor) {
+		return false
+	}
+
+	// TODO: This is probably not correct. PAXRecords are a generic
+	// key value pair in the tar header. Posix Xattrs can be encoded
+	// into PAX headers in a number of ways.
+	//
+	// We do it this way because the TOC builder is incorrectly
+	// dumping all PAXRecords into the file metadata's Xattrs.
+	// Fixing this is not backwards compatible, so we might end
+	// up filtering to Posix xattrs in the fuse GetXAttrs implementation.
+	if len(attr.Xattrs) != len(tarh.PAXRecords) {
+		return false
+	}
+	for k := range attr.Xattrs {
+		attrV := attr.Xattrs[k]
+		tarV := tarh.PAXRecords[k]
+		if len(attrV) != len(tarV) {
+			return false
+		}
+		for i := 0; i < len(attrV); i++ {
+			if attrV[i] != tarV[i] {
+				return false
+			}
+		}
+	}
+
+	return true
 }
 
 type CacheOption func(*cacheOptions)

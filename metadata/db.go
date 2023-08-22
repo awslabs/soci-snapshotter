@@ -67,7 +67,10 @@ import (
 //         - childID   : <node id>          : id of the first child
 //         - childrenExtra                  : 2nd and following child nodes of directory.
 //           - *basename* : <node id>       : map of basename string to the child node id
+//         - name                           : the name of the file
 //         - uncompressedOffset : <varint>  : the offset in the uncompressed data, where the node is stored.
+//         - tarHeaderOffset : <varint>     : the offset of the tar header
+//         - tarHeaderSize : <varint>       : the size of the tar header
 
 var (
 	bucketKeyFilesystems = []byte("filesystems")
@@ -91,7 +94,10 @@ var (
 	bucketKeyChildID       = []byte("childID")
 	bucketKeyChildrenExtra = []byte("childrenExtra")
 
+	bucketKeyName               = []byte("name")
 	bucketKeyUncompressedOffset = []byte("uncompressedOffset")
+	bucketKeyTarHeaderOffset    = []byte("tarHeaderOffset")
+	bucketKeyTarHeaderSize      = []byte("tarHeaderSize")
 )
 
 type childEntry struct {
@@ -101,8 +107,11 @@ type childEntry struct {
 
 type metadataEntry struct {
 	children           map[string]childEntry
+	Name               string
 	UncompressedOffset compression.Offset
 	UncompressedSize   compression.Offset
+	TarHeaderOffset    compression.Offset
+	TarHeaderSize      compression.Offset
 }
 
 func getNodes(tx *bolt.Tx, fsID string) (*bolt.Bucket, error) {
@@ -350,8 +359,30 @@ func writeMetadataEntry(md *bolt.Bucket, m *metadataEntry) error {
 	if err := putFileSize(md, bucketKeyUncompressedOffset, m.UncompressedOffset); err != nil {
 		return fmt.Errorf("failed to set UncompressedOffset value %d: %w", m.UncompressedOffset, err)
 	}
+	if err := putFileSize(md, bucketKeyTarHeaderOffset, m.TarHeaderOffset); err != nil {
+		return fmt.Errorf("failed to set TarHeaderOffset value %d: %w", m.TarHeaderOffset, err)
+	}
+	if err := putFileSize(md, bucketKeyTarHeaderSize, m.TarHeaderSize); err != nil {
+		return fmt.Errorf("failed to set TarHeaderSize value %d: %w", m.TarHeaderSize, err)
+	}
+	if err := md.Put(bucketKeyName, []byte(m.Name)); err != nil {
+		return fmt.Errorf("failed to put name value %s: %w", m.Name, err)
+	}
 
 	return nil
+}
+
+func getMetadataEntry(md *bolt.Bucket) metadataEntry {
+	ucompOffset, _ := binary.Varint(md.Get(bucketKeyUncompressedOffset))
+	tarHeaderOffset, _ := binary.Varint(md.Get(bucketKeyTarHeaderOffset))
+	tarHeaderSize, _ := binary.Varint(md.Get(bucketKeyTarHeaderSize))
+	name := md.Get(bucketKeyName)
+	return metadataEntry{nil,
+		string(name),
+		compression.Offset(ucompOffset),
+		0,
+		compression.Offset(tarHeaderOffset),
+		compression.Offset(tarHeaderSize)}
 }
 
 func putFileSize(b *bolt.Bucket, k []byte, v compression.Offset) error {
