@@ -23,6 +23,7 @@ import (
 	"io"
 	"os"
 
+	"github.com/awslabs/soci-snapshotter/util/ioutils"
 	"github.com/awslabs/soci-snapshotter/ztoc/compression"
 	"github.com/klauspost/compress/zstd"
 )
@@ -115,10 +116,11 @@ func (tb TocBuilder) getFileMetadata(algorithm, filename string) ([]FileMetadata
 // metadataFromTarReader reads every file from tar reader `sr` and creates
 // `FileMetadata` for each file.
 func metadataFromTarReader(r io.Reader) ([]FileMetadata, compression.Offset, error) {
-	pt := &positionTrackerReader{r: r}
+	pt := ioutils.NewPositionTrackerReader(r)
 	tarRdr := tar.NewReader(pt)
 	var md []FileMetadata
-
+	// the first tar header occurs at offset 0
+	var tarHeaderOffset compression.Offset
 	for {
 		hdr, err := tarRdr.Next()
 		if err != nil {
@@ -136,8 +138,9 @@ func metadataFromTarReader(r io.Reader) ([]FileMetadata, compression.Offset, err
 		metadataEntry := FileMetadata{
 			Name:               hdr.Name,
 			Type:               fileType,
-			UncompressedOffset: pt.CurrentPos(),
+			UncompressedOffset: compression.Offset(pt.CurrentPos()),
 			UncompressedSize:   compression.Offset(hdr.Size),
+			TarHeaderOffset:    tarHeaderOffset,
 			Linkname:           hdr.Linkname,
 			Mode:               hdr.Mode,
 			UID:                hdr.Uid,
@@ -150,8 +153,10 @@ func metadataFromTarReader(r io.Reader) ([]FileMetadata, compression.Offset, err
 			Xattrs:             hdr.PAXRecords,
 		}
 		md = append(md, metadataEntry)
+		// The next file's tar header can be found immediately after the current file + padding
+		tarHeaderOffset = AlignToTarBlock(metadataEntry.UncompressedOffset + metadataEntry.UncompressedSize)
 	}
-	return md, pt.CurrentPos(), nil
+	return md, compression.Offset(pt.CurrentPos()), nil
 }
 
 func getType(header *tar.Header) (fileType string, e error) {
@@ -174,19 +179,4 @@ func getType(header *tar.Header) (fileType string, e error) {
 		return "", fmt.Errorf("unsupported input tar entry %q", header.Typeflag)
 	}
 	return
-}
-
-type positionTrackerReader struct {
-	r   io.Reader
-	pos compression.Offset
-}
-
-func (p *positionTrackerReader) Read(b []byte) (int, error) {
-	n, err := p.r.Read(b)
-	p.pos += compression.Offset(n)
-	return n, err
-}
-
-func (p *positionTrackerReader) CurrentPos() compression.Offset {
-	return p.pos
 }
