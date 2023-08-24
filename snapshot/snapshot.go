@@ -339,16 +339,16 @@ func (o *snapshotter) Prepare(ctx context.Context, key, parent string, opts ...s
 			// count also AlreadyExists as "success"
 			// there's no need to provide any details on []mount.Mount because mounting is already taken care of
 			// by snapshotter
-			log.G(lCtx).WithField(remoteSnapshotLogKey, prepareSucceeded).Info("local snapshot successfully prepared")
+			log.G(lCtx).Info("local snapshot successfully prepared")
 			return nil, fmt.Errorf("target snapshot %q: %w", target, errdefs.ErrAlreadyExists)
 		}
-		log.G(lCtx).WithField(remoteSnapshotLogKey, prepareFailed).WithError(err).Warn("failed to internally commit local snapshot")
+		log.G(lCtx).WithError(err).Warn("failed to internally commit local snapshot")
 		// Don't fallback here (= prohibit to use this key again) because the FileSystem
 		// possible has done some work on this "upper" directory.
 		return nil, err
 	}
 
-	log.G(lCtx).WithField(remoteSnapshotLogKey, prepareFailed).WithError(err).Warn("failed to prepare snapshot; deferring to container runtime")
+	log.G(lCtx).WithError(err).Warn("failed to prepare snapshot; deferring to container runtime")
 	return mounts, nil
 }
 
