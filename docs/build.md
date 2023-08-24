@@ -95,8 +95,10 @@ can run these tests using the following `Makefile` targets:
 
 - `make test`: run all unit tests.
 - `make integration`: run all integration tests.
-- `make benchmarks`: run all benchmark tests. Runs the benchmark tests on a set of publicly hosted images. Output results are available in the output folder within the comparisonTest and performanceTest subfolder's.
-- `make build-benchmarks`: generate benchmark binaries of performance and comparison Tests. The binaries are available for use within the benchmark/bin directory. Use `-f`, `-count`,`show-commit` flags to customize the benchmark test.
+
+### Benchmark SOCI
+We now have a benchmark framework available at [SOCI Benchmarking](/docs/benchmark.md)
+
 
 To speed up develop-test cycle, you can run individual test(s) by utilizing `go test`'s
 `-run` flag. For example, suppose you only want to run a test named `TestFooBar`, you can:
