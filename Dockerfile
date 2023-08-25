@@ -44,5 +44,3 @@ RUN curl -sSL --output /tmp/nerdctl.tgz https://github.com/containerd/nerdctl/re
     rm -f /tmp/nerdctl.tgz
 
 FROM registry:2 AS registry2
-
-FROM ghcr.io/oci-playground/registry:v3.0.0-alpha.1 AS registry3alpha1

@@ -48,6 +48,7 @@ import (
 	shell "github.com/awslabs/soci-snapshotter/util/dockershell"
 	"github.com/awslabs/soci-snapshotter/util/dockershell/compose"
 	"github.com/awslabs/soci-snapshotter/util/testutil"
+	"github.com/containerd/containerd/platforms"
 	"github.com/opencontainers/go-digest"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 )
@@ -419,12 +420,12 @@ func TestPullWithAribtraryBlobInvalidZtocFormat(t *testing.T) {
 	defer done()
 
 	images := []struct {
-		name   string
-		digest string
+		name string
+		ref  string
 	}{
 		{
-			name:   "rabbitmq",
-			digest: "sha256:603be6b7fd5f1d8c6eab8e7a234ed30d664b9356ec1b87833f3a46bb6725458e",
+			name: "rabbitmq",
+			ref:  pinnedRabbitmqImage,
 		},
 	}
 
@@ -483,14 +484,16 @@ func TestPullWithAribtraryBlobInvalidZtocFormat(t *testing.T) {
 	for _, img := range images {
 		t.Run(img.name, func(t *testing.T) {
 			rebootContainerd(t, sh, getContainerdConfigToml(t, false), getSnapshotterConfigToml(t, false))
-			imgRef := fmt.Sprintf("%s@%s", img.name, img.digest)
-			sociImage := regConfig.mirror(imgRef)
-			copyImage(sh, dockerhub(imgRef), sociImage)
+			sociImage := regConfig.mirror(img.ref)
+			copyImage(sh, dockerhub(img.ref), sociImage)
+			pushedPlatformDigest, _ := sh.OLog("nerdctl", "image", "convert", "--platform",
+				platforms.Format(sociImage.platform), sociImage.ref, "test")
+			sociImage.ref = fmt.Sprintf("%s/%s@%s", regConfig.host, img.name, strings.TrimSpace(string(pushedPlatformDigest)))
 
 			want := fromNormalSnapshotter(sociImage.ref)
 			test := func(t *testing.T, tarExportArgs ...string) {
 				image := sociImage.ref
-				indexBytes, imgLayers, err := buildMaliciousIndex(sh, img.digest)
+				indexBytes, imgLayers, err := buildMaliciousIndex(sh, image[strings.IndexByte(image, '@')+1:])
 				if err != nil {
 					t.Fatal(err)
 				}
@@ -643,12 +646,14 @@ func TestMirror(t *testing.T) {
 
 	// Run testing environment on docker compose
 	s, err := testutil.ApplyTextTemplate(composeRegistryAltTemplate, dockerComposeYaml{
-		TargetStage:     targetStage,
-		ServiceName:     serviceName,
-		ImageContextDir: pRoot,
-		RegistryHost:    regConfig.host,
-		RegistryAltHost: regAltConfig.host,
-		AuthDir:         authDir,
+		TargetStage:         targetStage,
+		ServiceName:         serviceName,
+		ImageContextDir:     pRoot,
+		RegistryImageRef:    oci10RegistryImage,
+		RegistryAltImageRef: oci10RegistryImage,
+		RegistryHost:        regConfig.host,
+		RegistryAltHost:     regAltConfig.host,
+		AuthDir:             authDir,
 	})
 	if err != nil {
 		t.Fatal(err)
