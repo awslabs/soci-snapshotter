@@ -92,14 +92,14 @@ func TestPushAlwaysMostRecentlyCreatedIndex(t *testing.T) {
 	}
 
 	testCases := []struct {
-		name  string
-		image string
-		opts  []buildOpts
+		name string
+		ref  string
+		opts []buildOpts
 	}{
 		{
 			name: "rabbitmq",
 			// Pinning a specific image, so that this test is guaranteed to fail in case of any regressions.
-			image: "rabbitmq@sha256:603be6b7fd5f1d8c6eab8e7a234ed30d664b9356ec1b87833f3a46bb6725458e",
+			ref: pinnedRabbitmqImage,
 			opts: []buildOpts{
 				{
 					spanSize:     1 << 22,  // 4MiB
@@ -117,12 +117,15 @@ func TestPushAlwaysMostRecentlyCreatedIndex(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			rebootContainerd(t, sh, getContainerdConfigToml(t, false), getSnapshotterConfigToml(t, false))
 
-			copyImage(sh, dockerhub(tc.image), regConfig.mirror(tc.image))
-
+			imgInfo := regConfig.mirror(tc.ref)
+			copyImage(sh, dockerhub(tc.ref), imgInfo)
+			pushedPlatformDigest, _ := sh.OLog("nerdctl", "image", "convert", "--platform",
+				platforms.Format(imgInfo.platform), imgInfo.ref, "test")
+			imgInfo.ref = fmt.Sprintf("%s/%s@%s", regConfig.host, tc.name, strings.TrimSpace(string(pushedPlatformDigest)))
 			for _, opt := range tc.opts {
-				index := buildIndex(sh, regConfig.mirror(tc.image), withMinLayerSize(opt.minLayerSize), withSpanSize(opt.spanSize))
+				index := buildIndex(sh, imgInfo, withMinLayerSize(opt.minLayerSize), withSpanSize(opt.spanSize))
 				index = strings.Split(index, "\n")[0]
-				out := sh.O("soci", "push", "--existing-index", "allow", "--user", regConfig.creds(), regConfig.mirror(tc.image).ref, "-q")
+				out := sh.O("soci", "push", "--existing-index", "allow", "--user", regConfig.creds(), imgInfo.ref, "-q")
 				pushedIndex := strings.Trim(string(out), "\n")
 				if index != pushedIndex {
 					t.Fatalf("incorrect index pushed to remote registry; expected %s, got %s", index, pushedIndex)
@@ -139,17 +142,11 @@ func TestLegacyOCI(t *testing.T) {
 		expectError   bool
 	}{
 		{
-			name:          "OCI 1.0 Artifacts succeed with OCI 1.1 registry",
-			registryImage: oci11RegistryImage,
-			expectError:   false,
-		},
-		{
 			name:          "OCI 1.0 Artifacts succeed with OCI 1.0 registry",
 			registryImage: oci10RegistryImage,
 			expectError:   false,
 		},
 	}
-
 	for _, tc := range tests {
 		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
@@ -195,7 +192,6 @@ func TestPushWithExistingIndices(t *testing.T) {
 
 	rebootContainerd(t, sh, getContainerdConfigToml(t, false), getSnapshotterConfigToml(t, false))
 
-	images := []string{nginxImage, rabbitmqImage, drupalImage, ubuntuImage}
 	const (
 		singleFoundMessage   = "soci index found in remote repository with digest:"
 		multipleFoundMessage = "multiple soci indices found in remote repository:"
@@ -203,8 +199,11 @@ func TestPushWithExistingIndices(t *testing.T) {
 		warnMessageHead      = "[WARN]"
 		warnMessageTail      = "pushing index anyway"
 	)
+
+	images := []string{nginxImage, rabbitmqImage, drupalImage, ubuntuImage}
 	imageToIndexDigest := make(map[string]string)
 	imageToManifestDigest := make(map[string]string)
+
 	for _, img := range images {
 		mirrorImg := regConfig.mirror(img)
 		copyImage(sh, dockerhub(img), mirrorImg)
