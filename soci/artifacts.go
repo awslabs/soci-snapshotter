@@ -89,7 +89,7 @@ var (
 
 // Get the default artifacts db path
 func ArtifactsDbPath() string {
-	return path.Join(config.SociSnapshotterRootPath, artifactsDbName)
+	return path.Join(config.DefaultSociSnapshotterRootPath, artifactsDbName)
 }
 
 // ArtifactEntry is a metadata object for a SOCI artifact.

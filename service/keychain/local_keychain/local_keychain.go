@@ -34,7 +34,6 @@ package local_keychain
 
 import (
 	"context"
-	"flag"
 	"fmt"
 	"net"
 	"sync"
@@ -46,11 +45,6 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/keepalive"
 	"google.golang.org/grpc/reflection"
-)
-
-var (
-	localKeychainPort = flag.Int("local_keychain_port", 0,
-		"Port on which to expose the local_keychain gRPC service that accepts username/password credentials for private images. If 0, the local_keychain service is not started/exposed.")
 )
 
 type credentials struct {
@@ -68,17 +62,17 @@ type keychain struct {
 var singleton *keychain
 var lock = &sync.Mutex{}
 
-func (kc *keychain) init() {
-	if *localKeychainPort == 0 {
+func (kc *keychain) init(port int) {
+	if port == 0 {
 		log.G(context.Background()).Info("no local_keychain_port specified, not starting local_keychain gRPC server")
 		return
 	}
 
-	lis, err := net.Listen("tcp", fmt.Sprintf("localhost:%d", *localKeychainPort))
+	lis, err := net.Listen("tcp", fmt.Sprintf("localhost:%d", port))
 	if err != nil {
 		log.G(context.Background()).Fatalf("failed to listen: %v", err)
 	} else {
-		log.G(context.Background()).Infof("started local keychain server on localhost:%d", *localKeychainPort)
+		log.G(context.Background()).Infof("started local keychain server on localhost:%d", port)
 	}
 	// Set to avoid errors: Bandwidth exhausted HTTP/2 error code: ENHANCE_YOUR_CALM Received Goaway too_many_pings
 	opts := []grpc.ServerOption{
@@ -124,14 +118,24 @@ func (kc *keychain) GetCredentials(host string, refspec reference.Spec) (string,
 	return "", "", nil
 }
 
-func Keychain(ctx context.Context) *keychain {
+func Keychain(ctx context.Context, port int) *keychain {
 	lock.Lock()
 	defer lock.Unlock()
 	if singleton == nil {
 		singleton = &keychain{
 			cache: map[string]credentials{},
 		}
-		singleton.init()
+		singleton.init(port)
 	}
 	return singleton
+}
+
+// Returns the singleton keychain, or an error if it hasn't been initialized.
+func Get() (*keychain, error) {
+	lock.Lock()
+	defer lock.Unlock()
+	if singleton == nil {
+		return nil, fmt.Errorf("local keychain must be initialized (with Keychain()) before being gotten (with Get())")
+	}
+	return singleton, nil
 }

@@ -88,7 +88,7 @@ var getFileCommand = cli.Command{
 }
 
 func getZtoc(ctx context.Context, d digest.Digest) (*ztoc.Ztoc, error) {
-	blobStore, err := oci.New(config.SociContentStorePath)
+	blobStore, err := oci.New(config.DefaultSociContentStorePath)
 	if err != nil {
 		return nil, err
 	}

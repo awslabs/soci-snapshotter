@@ -71,7 +71,10 @@ func NewLayerManager(ctx context.Context, root string, hosts source.RegistryHost
 	if maxConcurrency == 0 {
 		maxConcurrency = defaultMaxConcurrency
 	}
-	store, err := oci.New(config.SociContentStorePath)
+	if cfg.ContentStorePath == "" {
+		return nil, fmt.Errorf("config store path is empty")
+	}
+	store, err := oci.New(cfg.ContentStorePath)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create SOCI store: %w", err)
 	}

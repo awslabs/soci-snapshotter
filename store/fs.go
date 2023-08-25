@@ -73,7 +73,7 @@ const (
 	fusermountBin = "fusermount"
 )
 
-func Mount(ctx context.Context, mountpoint string, layerManager *LayerManager, debug bool) error {
+func Mount(ctx context.Context, mountpoint string, layerManager *LayerManager, debug bool) (*fuse.Server, error) {
 	timeSec := time.Second
 	rawFS := fusefs.NewNodeFS(&rootnode{
 		fs: &fs{
@@ -99,10 +99,10 @@ func Mount(ctx context.Context, mountpoint string, layerManager *LayerManager, d
 	}
 	server, err := fuse.NewServer(rawFS, mountpoint, mountOpts)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	go server.Serve()
-	return server.WaitMount()
+	return server, server.WaitMount()
 }
 
 type fs struct {

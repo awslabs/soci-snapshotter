@@ -38,7 +38,6 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
-	"syscall"
 	"time"
 
 	socifs "github.com/awslabs/soci-snapshotter/fs"
@@ -68,9 +67,11 @@ const (
 )
 
 var (
-	configPath = flag.String("config", defaultConfigPath, "path to the configuration file")
-	logLevel   = flag.String("log-level", defaultLogLevel.String(), "set the logging level [trace, debug, info, warn, error, fatal, panic]")
-	rootDir    = flag.String("root", defaultRootDir, "path to the root directory for this snapshotter")
+	configPath        = flag.String("config", defaultConfigPath, "path to the configuration file")
+	logLevel          = flag.String("log-level", defaultLogLevel.String(), "set the logging level [trace, debug, info, warn, error, fatal, panic]")
+	rootDir           = flag.String("root", defaultRootDir, "path to the root directory for this snapshotter")
+	localKeychainPort = flag.Int("local_keychain_port", 0,
+		"Port on which to expose the local_keychain gRPC service that accepts username/password credentials for private images. If 0, the local_keychain service is not started/exposed.")
 )
 
 type Config struct {
@@ -127,7 +128,7 @@ func main() {
 	}
 
 	// Prepare kubeconfig-based keychain if required
-	credsFuncs := []resolver.Credential{local_keychain.Keychain(ctx).GetCredentials}
+	credsFuncs := []resolver.Credential{local_keychain.Keychain(ctx, *localKeychainPort).GetCredentials}
 	credsFuncs = append(credsFuncs, dockerconfig.NewDockerConfigKeychain(ctx))
 	if config.KubeconfigKeychainConfig.EnableKeychain {
 		var opts []kubeconfig.Option
@@ -160,7 +161,7 @@ func main() {
 	var fsOpts []socifs.Option
 	opq := layer.OverlayOpaqueTrusted
 	fsOpts = append(fsOpts, socifs.WithGetSources(
-		source.FromDefaultLabels(hosts),    // provides source info based on default labels
+		source.FromDefaultLabels(hosts), // provides source info based on default labels
 	), socifs.WithOverlayOpaqueType(opq))
 	fs, err := socifs.NewFilesystem(ctx, defaultRootDir, config.Config, fsOpts...)
 	if err != nil {
@@ -171,11 +172,12 @@ func main() {
 	if err != nil {
 		log.G(ctx).WithError(err).Fatalf("failed to prepare pool")
 	}
-	if err := store.Mount(ctx, mountPoint, layerManager, config.Config.Debug); err != nil {
+	server, err := store.Mount(ctx, mountPoint, layerManager, config.Config.Debug)
+	if err != nil {
 		log.G(ctx).WithError(err).Fatalf("failed to mount fs at %q", mountPoint)
 	}
 	defer func() {
-		syscall.Unmount(mountPoint, 0)
+		server.Unmount()
 		log.G(ctx).Info("Exiting")
 	}()
 
