@@ -56,6 +56,7 @@ import (
 	"github.com/awslabs/soci-snapshotter/util/dockershell/compose"
 	dexec "github.com/awslabs/soci-snapshotter/util/dockershell/exec"
 	"github.com/awslabs/soci-snapshotter/util/testutil"
+	"github.com/containerd/containerd/images"
 	"github.com/containerd/containerd/platforms"
 	"github.com/opencontainers/go-digest"
 	spec "github.com/opencontainers/image-spec/specs-go/v1"
@@ -72,7 +73,6 @@ const (
 	dockerLibrary                = "public.ecr.aws/docker/library/"
 	// Registry images to use in the test infrastructure. These are not intended to be used
 	// as images in the test itself, but just when we're setting up docker compose.
-	oci11RegistryImage = "ghcr:soci_test"
 	oci10RegistryImage = "registry2:soci_test"
 )
 
@@ -84,6 +84,8 @@ const (
 	ubuntuImage   = "ubuntu:23.04"
 	drupalImage   = "drupal:10.0.2"
 	rabbitmqImage = "rabbitmq:3.11.7"
+	// Pinned version of rabbitmq that points to a multi architecture index.
+	pinnedRabbitmqImage = "rabbitmq@sha256:19e69a7a65fa6b1d0a5c658bad8ec03d2c9900a98ebbc744c34d49179ff517bf"
 	// These 2 images enable us to test cases where 2 different images
 	// have shared layers (thus shared ztocs if built with the same parameters).
 	nginxAlpineImage  = "nginx:1.22-alpine3.17"
@@ -171,6 +173,7 @@ services:
    - REGISTRY_HTTP_TLS_CERTIFICATE=/auth/domain.crt
    - REGISTRY_HTTP_TLS_KEY=/auth/domain.key
    - REGISTRY_HTTP_ADDR={{.RegistryHost}}:443
+   - REGISTRY_STORAGE_DELETE_ENABLED=true
   volumes:
    - {{.AuthDir}}:/auth:ro
 {{.NetworkConfig}}
@@ -192,7 +195,7 @@ services:
     volumes:
     - /dev/fuse:/dev/fuse
   registry:
-    image: ghcr:soci_test
+    image: {{.RegistryImageRef}}
     container_name: {{.RegistryHost}}
     environment:
     - REGISTRY_AUTH=htpasswd
@@ -201,10 +204,11 @@ services:
     - REGISTRY_HTTP_TLS_CERTIFICATE=/auth/domain.crt
     - REGISTRY_HTTP_TLS_KEY=/auth/domain.key
     - REGISTRY_HTTP_ADDR={{.RegistryHost}}:443
+    - REGISTRY_STORAGE_DELETE_ENABLED=true
     volumes:
     - {{.AuthDir}}:/auth:ro
   registry-alt:
-    image: registry2:soci_test
+    image: {{.RegistryAltImageRef}}
     container_name: {{.RegistryAltHost}}
 `
 
@@ -219,11 +223,6 @@ services:
    args:
     - SNAPSHOTTER_BUILD_FLAGS="-race"
  registry:
-  image: ghcr:soci_test
-  build:
-   context: {{.ImageContextDir}}
-   target: {{.Registry3Alpha1Stage}}
- registry-alt:
   image: registry2:soci_test
   build:
    context: {{.ImageContextDir}}
@@ -231,16 +230,16 @@ services:
 `
 
 type dockerComposeYaml struct {
-	ServiceName          string
-	ImageContextDir      string
-	TargetStage          string
-	Registry2Stage       string
-	Registry3Alpha1Stage string
-	RegistryHost         string
-	RegistryImageRef     string
-	RegistryAltHost      string
-	AuthDir              string
-	NetworkConfig        string
+	ServiceName         string
+	ImageContextDir     string
+	TargetStage         string
+	Registry2Stage      string
+	RegistryImageRef    string
+	RegistryAltImageRef string
+	RegistryHost        string
+	RegistryAltHost     string
+	AuthDir             string
+	NetworkConfig       string
 }
 
 // getContainerdConfigToml creates a containerd config yaml, by appending all
@@ -417,7 +416,7 @@ type registryOptions struct {
 func defaultRegistryOptions() registryOptions {
 	return registryOptions{
 		network:          "",
-		registryImageRef: oci11RegistryImage,
+		registryImageRef: oci10RegistryImage,
 	}
 }
 
@@ -613,6 +612,15 @@ func getReferrers(sh *shell.Shell, regConfig registryConfig, imgName, digest str
 	output, err := sh.OLog("curl", "-u", regConfig.creds(), fmt.Sprintf("https://%s:443/v2/%s/referrers/%s", regConfig.host, imgName, digest))
 	if err != nil {
 		return nil, fmt.Errorf("failed to get referrers: %w", err)
+	}
+	// If the referrers API returns a 404, try the fallback.
+	if strings.Contains(string(output), "404") {
+		referrersTag := strings.Replace(digest, ":", "-", 1)
+		output, err = sh.OLog("curl", "--header", fmt.Sprintf("Accept: %s, %s", spec.MediaTypeImageIndex, images.MediaTypeDockerSchema2ManifestList), "-u", regConfig.creds(),
+			fmt.Sprintf("https://%s:443/v2/%s/manifests/%s", regConfig.host, imgName, referrersTag))
+		if err != nil {
+			return nil, fmt.Errorf("failed to get referrers: %w", err)
+		}
 	}
 	err = json.Unmarshal(output, &index)
 	if err != nil {
