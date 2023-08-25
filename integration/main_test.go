@@ -107,10 +107,9 @@ func TestMain(m *testing.M) {
 // setup can be used to initialize things before integration tests start (as of now it only builds the services used by the integration tests so they can be referenced)
 func setup() ([]func() error, error) {
 	var (
-		serviceName          = "testing"
-		targetStage          = "containerd-snapshotter-base"
-		registry2Stage       = "registry2"
-		registry3alpha1Stage = "registry3alpha1"
+		serviceName    = "testing"
+		targetStage    = "containerd-snapshotter-base"
+		registry2Stage = "registry2"
 	)
 	pRoot, err := testutil.GetProjectRoot()
 	if err != nil {
@@ -122,11 +121,10 @@ func setup() ([]func() error, error) {
 	}
 
 	composeYaml, err := testutil.ApplyTextTemplate(composeBuildTemplate, dockerComposeYaml{
-		ServiceName:          serviceName,
-		ImageContextDir:      pRoot,
-		TargetStage:          targetStage,
-		Registry2Stage:       registry2Stage,
-		Registry3Alpha1Stage: registry3alpha1Stage,
+		ServiceName:     serviceName,
+		ImageContextDir: pRoot,
+		TargetStage:     targetStage,
+		Registry2Stage:  registry2Stage,
 	})
 	if err != nil {
 		return nil, err
