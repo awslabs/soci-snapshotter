@@ -104,8 +104,8 @@ func main() {
 		TimestampFormat: log.RFC3339NanoFixed,
 	})
 	var (
-		ctx    = log.WithLogger(context.Background(), log.L)
-		config Config
+		ctx = log.WithLogger(context.Background(), log.L)
+		cfg Config
 	)
 	// Streams log of standard lib (go-fuse uses this) into debug log
 	// Snapshotter should use "github.com/containerd/containerd/log" otherwise
@@ -116,13 +116,23 @@ func main() {
 		log.G(ctx).Fatalf("mount point must be specified")
 	}
 
+	if cfg.Config.RootPath == "" {
+		cfg.Config.RootPath = config.DefaultSociSnapshotterRootPath
+	}
+	if cfg.Config.ContentStorePath == "" {
+		cfg.Config.ContentStorePath = config.DefaultSociContentStorePath
+	}
+	if cfg.Config.IndexStorePath == "" {
+		cfg.Config.IndexStorePath = config.DefaultSociIndexStorePath
+	}
+
 	// Get configuration from specified file
 	if *configPath != "" {
 		tree, err := toml.LoadFile(*configPath)
 		if err != nil && !(os.IsNotExist(err) && *configPath == defaultConfigPath) {
 			log.G(ctx).WithError(err).Fatalf("failed to load config file %q", *configPath)
 		}
-		if err := tree.Unmarshal(&config); err != nil {
+		if err := tree.Unmarshal(&cfg); err != nil {
 			log.G(ctx).WithError(err).Fatalf("failed to unmarshal config file %q", *configPath)
 		}
 	}
@@ -130,16 +140,16 @@ func main() {
 	// Prepare kubeconfig-based keychain if required
 	credsFuncs := []resolver.Credential{local_keychain.Init(ctx, *localKeychainPort).GetCredentials}
 	credsFuncs = append(credsFuncs, dockerconfig.NewDockerConfigKeychain(ctx))
-	if config.KubeconfigKeychainConfig.EnableKeychain {
+	if cfg.KubeconfigKeychainConfig.EnableKeychain {
 		var opts []kubeconfig.Option
-		if kcp := config.KubeconfigKeychainConfig.KubeconfigPath; kcp != "" {
+		if kcp := cfg.KubeconfigKeychainConfig.KubeconfigPath; kcp != "" {
 			opts = append(opts, kubeconfig.WithKubeconfigPath(kcp))
 		}
 		credsFuncs = append(credsFuncs, kubeconfig.NewKubeconfigKeychain(ctx, opts...))
 	}
 
 	// Use RegistryHosts based on ResolverConfig and keychain
-	hosts := resolver.RegistryHostsFromConfig(resolver.Config(config.ResolverConfig), credsFuncs...)
+	hosts := resolver.RegistryHostsFromConfig(resolver.Config(cfg.ResolverConfig), credsFuncs...)
 
 	// Configure and mount filesystem
 	if _, err := os.Stat(mountPoint); err != nil {
@@ -148,11 +158,11 @@ func main() {
 				Fatalf("failed to prepare mountpoint %q", mountPoint)
 		}
 	}
-	if !config.Config.DisableVerification {
+	if !cfg.Config.DisableVerification {
 		log.G(ctx).Warnf("content verification is not supported; switching to non-verification mode")
-		config.Config.DisableVerification = true
+		cfg.Config.DisableVerification = true
 	}
-	mt, err := getMetadataStore(*rootDir, config)
+	mt, err := getMetadataStore(*rootDir, cfg)
 	if err != nil {
 		log.G(ctx).WithError(err).Fatalf("failed to configure metadata store")
 	}
@@ -163,16 +173,16 @@ func main() {
 	fsOpts = append(fsOpts, socifs.WithGetSources(
 		source.FromDefaultLabels(hosts), // provides source info based on default labels
 	), socifs.WithOverlayOpaqueType(opq))
-	fs, err := socifs.NewFilesystem(ctx, defaultRootDir, config.Config, fsOpts...)
+	fs, err := socifs.NewFilesystem(ctx, defaultRootDir, cfg.Config, fsOpts...)
 	if err != nil {
 		log.G(ctx).WithError(err).Fatalf("failed to prepare fs")
 	}
 
-	layerManager, err := store.NewLayerManager(ctx, *rootDir, hosts, mt, fs, config.Config)
+	layerManager, err := store.NewLayerManager(ctx, *rootDir, hosts, mt, fs, cfg.Config)
 	if err != nil {
 		log.G(ctx).WithError(err).Fatalf("failed to prepare pool")
 	}
-	server, err := store.Mount(ctx, mountPoint, layerManager, config.Config.Debug)
+	server, err := store.Mount(ctx, mountPoint, layerManager, cfg.Config.Debug)
 	if err != nil {
 		log.G(ctx).WithError(err).Fatalf("failed to mount fs at %q", mountPoint)
 	}
