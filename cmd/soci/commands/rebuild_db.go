@@ -40,11 +40,11 @@ var RebuildDBCommand = cli.Command{
 		if err != nil {
 			return err
 		}
-		blobStore, err := oci.New(config.SociContentStorePath)
+		blobStore, err := oci.New(config.DefaultSociContentStorePath)
 		if err != nil {
 			return err
 		}
-		blobStorePath := filepath.Join(config.SociContentStorePath, "blobs")
+		blobStorePath := filepath.Join(config.DefaultSociContentStorePath, "blobs")
 		return artifactsDb.SyncWithLocalStore(ctx, blobStore, blobStorePath, containerdContentStore)
 	},
 }

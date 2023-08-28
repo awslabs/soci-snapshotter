@@ -52,7 +52,7 @@ var infoCommand = cli.Command{
 		if artifactType == soci.ArtifactEntryTypeLayer {
 			return fmt.Errorf("the provided digest is of ztoc not SOCI index. Use \"soci ztoc info\" command to get detailed info of ztoc")
 		}
-		storage, err := oci.New(config.SociContentStorePath)
+		storage, err := oci.New(config.DefaultSociContentStorePath)
 		if err != nil {
 			return err
 		}

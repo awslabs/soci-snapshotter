@@ -52,10 +52,10 @@ build: $(CMD)
 
 FORCE:
 
-soci-snapshotter-grpc: FORCE
+soci-snapshotter-grpc: proto
 	cd cmd/ ; GO111MODULE=$(GO111MODULE_VALUE) go build -o $(OUTDIR)/$@ $(GO_BUILD_FLAGS) $(GO_LD_FLAGS) $(GO_TAGS) ./soci-snapshotter-grpc
 
-soci: FORCE
+soci: proto
 	cd cmd/ ; GO111MODULE=$(GO111MODULE_VALUE) go build -o $(OUTDIR)/$@ $(GO_BUILD_FLAGS) $(GO_LD_FLAGS) $(GO_TAGS) ./soci
 
 soci-store: proto

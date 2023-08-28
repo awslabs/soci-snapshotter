@@ -78,14 +78,14 @@ var CreateCommand = cli.Command{
 		// Creating the snapshotter's root path first if it does not exist, since this ensures, that
 		// it has the limited permission set as drwx--x--x.
 		// The subsequent oci.New creates a root path dir with too broad permission set.
-		if _, err := os.Stat(config.SociSnapshotterRootPath); os.IsNotExist(err) {
-			if err = os.Mkdir(config.SociSnapshotterRootPath, 0711); err != nil {
+		if _, err := os.Stat(config.DefaultSociSnapshotterRootPath); os.IsNotExist(err) {
+			if err = os.Mkdir(config.DefaultSociSnapshotterRootPath, 0711); err != nil {
 				return err
 			}
 		} else if err != nil {
 			return err
 		}
-		blobStore, err := oci.New(config.SociContentStorePath)
+		blobStore, err := oci.New(config.DefaultSociContentStorePath)
 		if err != nil {
 			return err
 		}

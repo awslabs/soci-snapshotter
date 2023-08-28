@@ -195,7 +195,7 @@ func NewFilesystem(ctx context.Context, root string, cfg config.Config, opts ...
 		bgEmitMetricPeriod = defaultBgMetricEmitPeriod
 	}
 
-	store, err := oci.New(config.SociContentStorePath)
+	store, err := oci.New(cfg.ContentStorePath)
 	if err != nil {
 		return nil, fmt.Errorf("cannot create local store: %w", err)
 	}
@@ -266,6 +266,8 @@ func NewFilesystem(ctx context.Context, root string, cfg config.Config, opts ...
 		entryTimeout:                entryTimeout,
 		negativeTimeout:             negativeTimeout,
 		orasStore:                   store,
+		indexStorePath:              cfg.IndexStorePath,
+		contentStorePath:            cfg.ContentStorePath,
 		bgFetcher:                   bgFetcher,
 		mountTimeout:                mountTimeout,
 		fuseMetricsEmitWaitDuration: fuseMetricsEmitWaitDuration,
@@ -282,7 +284,7 @@ type sociContext struct {
 	fuseOperationCounter *layer.FuseOperationCounter
 }
 
-func (c *sociContext) Init(fsCtx context.Context, ctx context.Context, imageRef, indexDigest, imageManifestDigest string, store orascontent.Storage, fuseOpEmitWaitDuration time.Duration) error {
+func (c *sociContext) Init(fsCtx context.Context, ctx context.Context, imageRef, indexDigest, imageManifestDigest string, store orascontent.Storage, indexStorePath, contentStorePath string, fuseOpEmitWaitDuration time.Duration) error {
 	var retErr error
 	c.fetchOnce.Do(func() {
 		defer func() {
@@ -313,7 +315,7 @@ func (c *sociContext) Init(fsCtx context.Context, ctx context.Context, imageRef,
 		if indexDigest == "" {
 			imageManifestHash := strings.TrimPrefix(imageManifestDigest, "sha256:")
 			log.G(ctx).Debugf("soci index digest for image %s not provided, attempting to retrieve locally/remotely", imageManifestHash)
-			index, err := os.ReadFile(filepath.Join(config.SociIndexStorePath, imageManifestHash))
+			index, err := os.ReadFile(filepath.Join(indexStorePath, imageManifestHash))
 			if err == nil {
 				indexDigest = strings.TrimSpace(string(index))
 				indexDesc.Digest = digest.Digest(indexDigest)
@@ -340,7 +342,7 @@ func (c *sociContext) Init(fsCtx context.Context, ctx context.Context, imageRef,
 
 		log.G(ctx).WithField("digest", indexDesc.Digest.String()).Infof("fetching SOCI artifacts using index descriptor")
 
-		index, err := FetchSociArtifacts(ctx, refspec, indexDesc, store, remoteStore)
+		index, err := FetchSociArtifacts(ctx, refspec, indexDesc, store, remoteStore, contentStorePath)
 		if err != nil {
 			retErr = fmt.Errorf("error trying to fetch SOCI artifacts: %w", err)
 			return
@@ -382,6 +384,8 @@ type filesystem struct {
 	negativeTimeout             time.Duration
 	sociContexts                sync.Map
 	orasStore                   orascontent.Storage
+	indexStorePath              string
+	contentStorePath            string
 	bgFetcher                   *bf.BackgroundFetcher
 	mountTimeout                time.Duration
 	fuseMetricsEmitWaitDuration time.Duration
@@ -418,7 +422,7 @@ func (fs *filesystem) MountLocal(ctx context.Context, mountpoint string, labels 
 	if err != nil {
 		return fmt.Errorf("cannot create remote store: %w", err)
 	}
-	fetcher, err := newArtifactFetcher(refspec, fs.orasStore, remoteStore)
+	fetcher, err := newArtifactFetcher(refspec, fs.orasStore, remoteStore, fs.contentStorePath)
 	if err != nil {
 		return fmt.Errorf("cannot create fetcher: %w", err)
 	}
@@ -438,7 +442,7 @@ func (fs *filesystem) getSociContext(ctx context.Context, imageRef, indexDigest,
 	if !ok {
 		return nil, fmt.Errorf("could not load index: fs soci context is invalid type for %s", indexDigest)
 	}
-	err := c.Init(fs.ctx, ctx, imageRef, indexDigest, imageManifestDigest, fs.orasStore, fs.fuseMetricsEmitWaitDuration)
+	err := c.Init(fs.ctx, ctx, imageRef, indexDigest, imageManifestDigest, fs.orasStore, fs.indexStorePath, fs.contentStorePath, fs.fuseMetricsEmitWaitDuration)
 	return c, err
 }
 

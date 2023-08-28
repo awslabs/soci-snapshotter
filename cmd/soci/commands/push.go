@@ -133,7 +133,7 @@ if they are available in the snapshotter's local content store.
 			}, nil
 		}
 
-		src, err := oci.New(config.SociContentStorePath)
+		src, err := oci.New(config.DefaultSociContentStorePath)
 		if err != nil {
 			return fmt.Errorf("cannot create OCI local store: %w", err)
 		}

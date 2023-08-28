@@ -71,7 +71,7 @@ var infoCommand = cli.Command{
 		if entry.MediaType == soci.SociIndexArtifactType {
 			return fmt.Errorf("the provided digest belongs to a SOCI index. Use `soci index info` to get the detailed information about it")
 		}
-		storage, err := oci.New(config.SociContentStorePath)
+		storage, err := oci.New(config.DefaultSociContentStorePath)
 		if err != nil {
 			return err
 		}

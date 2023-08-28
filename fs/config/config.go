@@ -40,13 +40,13 @@ package config
 
 const (
 	// Default path to OCI-compliant CAS
-	SociContentStorePath = "/var/lib/soci-snapshotter-grpc/content/"
+	DefaultSociContentStorePath = "/var/lib/soci-snapshotter-grpc/content/"
 
 	// Default path to local SOCI Index storage
-	SociIndexStorePath = "/var/lib/soci-snapshotter-grpc/indexes/"
+	DefaultSociIndexStorePath = "/var/lib/soci-snapshotter-grpc/indexes/"
 
 	// Default path to snapshotter root dir
-	SociSnapshotterRootPath = "/var/lib/soci-snapshotter-grpc/"
+	DefaultSociSnapshotterRootPath = "/var/lib/soci-snapshotter-grpc/"
 )
 
 type Config struct {
@@ -60,6 +60,10 @@ type Config struct {
 	NoPrometheus                   bool   `toml:"no_prometheus"`
 	MountTimeoutSec                int64  `toml:"mount_timeout_sec"`
 	FuseMetricsEmitWaitDurationSec int64  `toml:"fuse_metrics_emit_wait_duration_sec"`
+
+	RootPath         string `toml:"root_path"`
+	ContentStorePath string `toml:"content_store_path"`
+	IndexStorePath   string `toml:"index_store_path"`
 
 	// BlobConfig is config for layer blob management.
 	BlobConfig `toml:"blob"`
