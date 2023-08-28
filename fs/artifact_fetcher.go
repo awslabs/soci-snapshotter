@@ -87,7 +87,7 @@ func newRemoteStore(refspec reference.Spec) (*remote.Repository, error) {
 				return auth.EmptyCredential, err
 			}
 			username, password, err := keychain.GetCredentials(host, refspec)
-			if err != nil {
+			if err == nil {
 				return auth.Credential{
 					Username: username,
 					Password: password,
