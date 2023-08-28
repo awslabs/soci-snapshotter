@@ -82,7 +82,7 @@ func newRemoteStore(refspec reference.Spec) (*remote.Repository, error) {
 		Cache:  auth.DefaultCache,
 		Credential: func(ctx context.Context, host string) (auth.Credential, error) {
 			username, password, err := local_keychain.Keychain(ctx).GetCredentials(host, refspec)
-			if err != nil {
+			if err == nil {
 				return auth.Credential{
 					Username: username,
 					Password: password,
