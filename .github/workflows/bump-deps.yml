@@ -16,7 +16,7 @@ jobs:
     name: Bump Deps
 
     # Don't bother bumping deps on forks.
-    if: ${{ github.repository == 'awslabs/soci-snapshotter' }}
+    if: ${{ github.repository == 'awslabs/soci-snapshotter' || github.event_name == 'workflow_dispatch' }}
     runs-on: ubuntu-20.04
 
     steps:
