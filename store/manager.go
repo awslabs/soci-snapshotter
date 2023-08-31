@@ -194,8 +194,15 @@ func (r *LayerManager) getLayer(ctx context.Context, refspec reference.Spec, dgs
 		}
 		preResolve = append(preResolve, l)
 	}
+
+	// Additional debug string for
+	// https://github.com/buildbuddy-io/buildbuddy-internal/issues/2570
 	if !found {
-		return nil, fmt.Errorf("unknown digest %v for ref %q", target, refspec.String())
+		layers := []string{}
+		for _, l := range manifest.Layers {
+			layers = append(layers, l.Digest.String())
+		}
+		return nil, fmt.Errorf("unknown digest %v for ref %q (known digests: [%s])", target, refspec.String(), strings.Join(layers, ","))
 	}
 	for _, l := range append([]ocispec.Descriptor{target}, preResolve...) {
 		l := l
