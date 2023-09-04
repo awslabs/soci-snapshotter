@@ -10,7 +10,7 @@ jobs:
   check:
     runs-on: ubuntu-20.04
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         with:
           # check-dco will check the last 20 commits, but commit ranges
           # exclude the start commit in the result, but need that commit
