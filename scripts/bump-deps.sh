@@ -22,16 +22,20 @@ SOCI_SNAPSHOTTER_PROJECT_ROOT="${CUR_DIR}/.."
 pushd ${SOCI_SNAPSHOTTER_PROJECT_ROOT}
 
 # skip k8s deps since they use the latest go version/features that may not be in the go version soci uses
+# skip grpc because it's not compatible with containerd 1.7
 # Also ignored in /dependabot.yml
-go get -u $(go list -m -f '{{if not (or .Indirect .Main)}}{{.Path}}{{end}}' all | \
+go get $(go list -m -f '{{if not (or .Indirect .Main)}}{{.Path}}{{end}}' all | \
+    grep -v "^google.golang.org/grpc" | \
     grep -v "^k8s.io/")
 make vendor
 
 pushd ./cmd
 # skip k8s deps and soci-snapshotter itself
+# skip grpc because it's not compatible with containerd 1.7
 # Also ignored in /dependabot.yml
-go get -u $(go list -m -f '{{if not (or .Indirect .Main)}}{{.Path}}{{end}}' all | \
+go get $(go list -m -f '{{if not (or .Indirect .Main)}}{{.Path}}{{end}}' all | \
     grep -v "^github.com/awslabs/soci-snapshotter" | \
+    grep -v "^google.golang.org/grpc" | \
     grep -v "^k8s.io/")
 popd
 make vendor
