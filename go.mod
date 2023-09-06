@@ -5,7 +5,7 @@ go 1.20
 require (
 	github.com/containerd/containerd v1.7.2
 	github.com/containerd/continuity v0.4.1
-	github.com/docker/cli v24.0.4+incompatible
+	github.com/docker/cli v24.0.6+incompatible
 	github.com/docker/go-metrics v0.0.1
 	github.com/golang/groupcache v0.0.0-20210331224755-41bb18bfe9da
 	github.com/google/flatbuffers v23.5.26+incompatible
