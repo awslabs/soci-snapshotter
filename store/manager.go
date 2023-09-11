@@ -179,6 +179,7 @@ func (r *LayerManager) getLayer(ctx context.Context, refspec reference.Spec, dgs
 		errChan    = make(chan error)
 	)
 	manifest, _, err := r.refPool.loadRef(ctx, refspec)
+	log.G(ctx).Debugf("fetched manifest with config digest %s for %s", manifest.Config.Digest.String(), refspec.String())
 	if err != nil {
 		return nil, fmt.Errorf("failed to get manifest and config: %w", err)
 	}
@@ -202,7 +203,7 @@ func (r *LayerManager) getLayer(ctx context.Context, refspec reference.Spec, dgs
 		for _, l := range manifest.Layers {
 			layers = append(layers, l.Digest.String())
 		}
-		return nil, fmt.Errorf("unknown digest %v for ref %q (known digests: [%s])", target, refspec.String(), strings.Join(layers, ","))
+		return nil, fmt.Errorf("unknown digest %s for ref %q (known digests: [%s])", dgst.String(), refspec.String(), strings.Join(layers, ","))
 	}
 	for _, l := range append([]ocispec.Descriptor{target}, preResolve...) {
 		l := l

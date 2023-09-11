@@ -61,6 +61,9 @@ soci: proto
 soci-store: proto
 	cd cmd/ ; GO111MODULE=$(GO111MODULE_VALUE) go build -o $(OUTDIR)/$@ $(GO_BUILD_FLAGS) $(GO_LD_FLAGS) ./soci-store
 
+soci-store-race: proto
+	cd cmd/ ; GO111MODULE=$(GO111MODULE_VALUE) go build -race -o $(OUTDIR)/$@ $(GO_BUILD_FLAGS) $(GO_LD_FLAGS) ./soci-store
+
 proto:
 	protoc --go_out=. --go_opt=paths=source_relative --go-grpc_out=. --go-grpc_opt=paths=source_relative proto/local_keychain.proto
 
