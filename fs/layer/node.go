@@ -303,7 +303,9 @@ func (n *node) readdir() ([]fuse.DirEntry, syscall.Errno) {
 
 	n.entsMu.Lock()
 	if n.entsCached {
-		return n.ents, 0
+		ents := n.ents
+		n.entsMu.Unlock()
+		return ents, 0
 	}
 	n.entsMu.Unlock()
 
@@ -428,6 +430,7 @@ func (n *node) Lookup(ctx context.Context, name string, out *fuse.EntryOut) (*fu
 			}
 		}
 		if !found {
+			n.entsMu.Unlock()
 			return nil, syscall.ENOENT
 		}
 	}
