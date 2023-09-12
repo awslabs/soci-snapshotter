@@ -17,6 +17,9 @@ This document outlines where to find/access logs and metrics for the snapshotter
     - [Background Fetching](#background-fetching)
   - [Running Container](#running-container)
     - [FUSE Read Failures](#fuse-read-failures)
+  - [Removing an image](#removing-an-image)
+  - [Restarting the snapshotter](#restarting-the-snapshotter)
+  - [Creating a clean slate](#creating-a-clean-slate)
 - [Debugging Tools](#debugging-tools)
   - [CLI](#cli)
   - [CPU Profiling](#cpu-profiling)
@@ -164,6 +167,30 @@ The snapshotter contains custom retry logic when fetching spans(data) from the r
 
 * You can look for `retrying request` within the logs to determine the error and response returned from the remote registry.
 * You can also check `operation_duration_remote_registry_get` metric to see how long it takes to complete `GET` from remote registry.
+
+## Removing an image
+Removing an image additionally removes any associated snapshots. A simple `sudo nerdctl image rm [image tag]` should remove all snapshots associated with the image before the image itself is removed. You can confirm the image is gone by ensuring it is no longer present in `sudo nerdctl image ls`.
+
+## Restarting the snapshotter
+While a graceful stop/restart of the process is preferred, sometimes it is not possible or simply easier to just kill the process. However, oftentimes it comes with a multitude of issues that do not allow you to start the snapshotter properly, particularly if a previously loaded snapshot is still present. For instance, if you pull from a repository that requires credentials and stop the snapshotter, if credentials are expired upon the daemon's startup, the snapshotter will fail to start properly.
+
+Many errors related to loaded snapshots can be surpassed by setting `allow_invalid_mounts_on_restart=true` in `/etc/soci-snapshotter-grpc/config.toml`. Note that using the snapshotter will likely load in a broken state and you will be unable to do common functionality (such as pulling another image) until the currently loaded snapshot is removed.
+
+## Creating a clean slate
+If all else fails, a clean slate can help to get you back to square one. These steps should bring you to a clean slate. (NOTE: This includes wiping your entire container store clean, so be sure to back up any important files.)
+
+```bash
+sudo killall -2 soci-snapshotter-grpc # SIGINT allows for a more graceful cleanup, can omit the -2 flag to send a SIGTERM
+
+# If necessary, unmount any remaining fuse mounts, though a SIGINT to the daemon should automatically handle that
+
+sudo rm -rf /var/lib/containerd
+sudo rm -rf /var/lib/soci-snapshotter-grpc
+
+sudo systemctl restart containerd
+
+sudo soci-snapshotter-grpc
+```
 
 # Debugging Tools
 
