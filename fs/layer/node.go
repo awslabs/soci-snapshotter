@@ -250,11 +250,13 @@ func (fs *fs) inodeOfID(id uint32) (uint64, error) {
 // node is a filesystem inode abstraction.
 type node struct {
 	fusefs.Inode
-	fs         *fs
-	id         uint32
-	attr       metadata.Attr
+	fs   *fs
+	id   uint32
+	attr metadata.Attr
+
 	ents       []fuse.DirEntry
 	entsCached bool
+	entsMu     sync.Mutex
 }
 
 func (n *node) logOperation(ctx context.Context, operationName string) {
@@ -298,9 +300,13 @@ func (n *node) readdir() ([]fuse.DirEntry, syscall.Errno) {
 	start := time.Now() // set start time
 	defer commonmetrics.MeasureLatencyInMicroseconds(commonmetrics.NodeReaddir, n.fs.layerDigest, start)
 
+	n.entsMu.Lock()
 	if n.entsCached {
-		return n.ents, 0
+		ents := n.ents
+		n.entsMu.Unlock()
+		return ents, 0
 	}
+	n.entsMu.Unlock()
 
 	var ents []fuse.DirEntry
 	whiteouts := map[string]uint32{}
@@ -359,6 +365,8 @@ func (n *node) readdir() ([]fuse.DirEntry, syscall.Errno) {
 	sort.Slice(ents, func(i, j int) bool {
 		return ents[i].Name < ents[j].Name
 	})
+	n.entsMu.Lock()
+	defer n.entsMu.Unlock()
 	n.ents, n.entsCached = ents, true // cache it
 
 	return ents, 0
@@ -412,6 +420,7 @@ func (n *node) Lookup(ctx context.Context, name string, out *fuse.EntryOut) (*fu
 	}
 
 	// early return if this entry doesn't exist
+	n.entsMu.Lock()
 	if n.entsCached {
 		var found bool
 		for _, e := range n.ents {
@@ -420,9 +429,11 @@ func (n *node) Lookup(ctx context.Context, name string, out *fuse.EntryOut) (*fu
 			}
 		}
 		if !found {
+			n.entsMu.Unlock()
 			return nil, syscall.ENOENT
 		}
 	}
+	n.entsMu.Unlock()
 
 	id, ce, err := n.fs.r.Metadata().GetChild(n.id, name)
 	if err != nil {
