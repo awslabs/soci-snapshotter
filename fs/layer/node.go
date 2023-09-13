@@ -66,13 +66,16 @@ import (
 )
 
 const (
-	blockSize         = 4096
-	whiteoutPrefix    = ".wh."
-	whiteoutOpaqueDir = whiteoutPrefix + whiteoutPrefix + ".opq"
-	opaqueXattrValue  = "y"
-	stateDirName      = ".soci-snapshotter"
-	statFileMode      = syscall.S_IFREG | 0400 // -r--------
-	stateDirMode      = syscall.S_IFDIR | 0500 // dr-x------
+	blockSize = 4096
+	// physicalBlockRatio is the ratio of blockSize to 512. It's used as a multiplier
+	// to convert # of blockSize-byte blocks to # of 512 byte blocks.
+	physicalBlockRatio = blockSize / 512
+	whiteoutPrefix     = ".wh."
+	whiteoutOpaqueDir  = whiteoutPrefix + whiteoutPrefix + ".opq"
+	opaqueXattrValue   = "y"
+	stateDirName       = ".soci-snapshotter"
+	statFileMode       = syscall.S_IFREG | 0400 // -r--------
+	stateDirMode       = syscall.S_IFDIR | 0500 // dr-x------
 )
 
 // OverlayOpaqueType enum possible types.
@@ -814,10 +817,7 @@ func entryToAttr(ino uint64, e metadata.Attr, out *fuse.Attr) fusefs.StableAttr 
 		out.Size = uint64(len(e.LinkName))
 	}
 	out.Blksize = blockSize
-	out.Blocks = out.Size / uint64(out.Blksize)
-	if out.Size%uint64(out.Blksize) > 0 {
-		out.Blocks++
-	}
+	out.Blocks = (out.Size + blockSize - 1) / blockSize * physicalBlockRatio
 	mtime := e.ModTime
 	out.SetTimes(nil, &mtime, nil)
 	out.Mode = fileModeToSystemMode(e.Mode)
@@ -894,7 +894,7 @@ func (fs *fs) statFileToAttr(size uint64, out *fuse.Attr) fusefs.StableAttr {
 	out.Ino = fs.inodeOfStatFile()
 	out.Size = size
 	out.Blksize = blockSize
-	out.Blocks = out.Size / uint64(out.Blksize)
+	out.Blocks = (out.Size + blockSize - 1) / blockSize * physicalBlockRatio
 	out.Nlink = 1
 
 	// Root can read it ("-r-------- root root").
