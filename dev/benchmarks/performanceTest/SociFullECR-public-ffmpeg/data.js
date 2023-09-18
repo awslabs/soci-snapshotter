@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1694131832809,
+  "lastUpdate": 1695065089400,
   "repoUrl": "https://github.com/awslabs/soci-snapshotter",
   "entries": {
     "Soci Benchmark": [
@@ -664,6 +664,48 @@ window.BENCHMARK_DATA = {
           {
             "name": "SociFullECR-public-ffmpeg-pullTaskDuration",
             "value": 34.6905,
+            "unit": "Seconds",
+            "extra": "P90"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "walster@amazon.com",
+            "name": "Kern Walster",
+            "username": "Kern--"
+          },
+          "committer": {
+            "email": "kern.walster@gmail.com",
+            "name": "Kern Walster",
+            "username": "Kern--"
+          },
+          "distinct": true,
+          "id": "b06aad0ad53dcd7a0c08e92b56a6237bad969e8f",
+          "message": "Set fuse.Attr.Blocks to # of 512-byte blocks\n\nBefore this change, SOCI set fuse.Attr.Blocks to the number of\nblockSize-byte blocks instead of the expected number of 512-byte blocks.\nThis caused the files to appear sparse and uncovered a bug in go-fuse.\nOnce the go-fuse bug is fixed, there shouldn't be any functional\ndifference, but it causes unnecessary lseeks which we can eliminate.\n\nSigned-off-by: Kern Walster <walster@amazon.com>",
+          "timestamp": "2023-09-18T11:57:23-07:00",
+          "tree_id": "ec128ba9f372c53384d67b818f2ad248ddec6512",
+          "url": "https://github.com/awslabs/soci-snapshotter/commit/b06aad0ad53dcd7a0c08e92b56a6237bad969e8f"
+        },
+        "date": 1695065087033,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "SociFullECR-public-ffmpeg-lazyTaskDuration",
+            "value": 0.0165,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-ffmpeg-localTaskDuration",
+            "value": 0.0125,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-ffmpeg-pullTaskDuration",
+            "value": 39.227000000000004,
             "unit": "Seconds",
             "extra": "P90"
           }
