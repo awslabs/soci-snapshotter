@@ -103,7 +103,7 @@ func newKeychain(ctx context.Context, kubeconfigPath string) *keychain {
 					break
 				} else if !os.IsNotExist(err) {
 					log.G(ctx).WithError(err).
-						Warnf("failed to read; Disabling syncing")
+						Errorf("failed to read; Disabling syncing")
 					return
 				}
 				time.Sleep(10 * time.Second)
