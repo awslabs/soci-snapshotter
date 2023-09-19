@@ -43,16 +43,17 @@ import (
 	"github.com/containerd/containerd/log"
 	"github.com/containerd/containerd/reference"
 	distribution "github.com/containerd/containerd/reference/docker"
-	runtime_alpha "github.com/containerd/containerd/third_party/k8s.io/cri-api/pkg/apis/runtime/v1alpha2"
+	runtime "k8s.io/cri-api/pkg/apis/runtime/v1"
 )
 
 // NewCRIKeychain provides creds passed through CRI PullImage API.
 // This also returns a CRI image service server that works as a proxy backed by the specified CRI service.
 // This server reads all PullImageRequest and uses PullImageRequest.AuthConfig for authenticating snapshots.
-func NewCRIKeychain(ctx context.Context, connectCRI func() (runtime_alpha.ImageServiceClient, error)) (resolver.Credential, runtime_alpha.ImageServiceServer) {
-	server := &instrumentedService{config: make(map[string]*runtime_alpha.AuthConfig)}
+func NewCRIKeychain(ctx context.Context, connectCRI func() (runtime.ImageServiceClient, error)) (resolver.Credential, runtime.ImageServiceServer) {
+	server := &instrumentedService{config: make(map[string]*runtime.AuthConfig)}
 	go func() {
-		log.G(ctx).Debugf("Waiting for CRI service is started...")
+		log.G(ctx).Debugf("Waiting for CRI service to start...")
+		// Attempt to establish a gRPC connection with the CRI backend.
 		for i := 0; i < 100; i++ {
 			client, err := connectCRI()
 			if err == nil {
@@ -65,18 +66,18 @@ func NewCRIKeychain(ctx context.Context, connectCRI func() (runtime_alpha.ImageS
 			log.G(ctx).WithError(err).Warnf("failed to connect to CRI")
 			time.Sleep(10 * time.Second)
 		}
-		log.G(ctx).Warnf("no connection is available to CRI")
+		log.G(ctx).Errorf("no connection is available to CRI")
 	}()
 	return server.credentials, server
 }
 
 type instrumentedService struct {
-	runtime_alpha.UnimplementedImageServiceServer
+	runtime.UnimplementedImageServiceServer
 
-	cri   runtime_alpha.ImageServiceClient
+	cri   runtime.ImageServiceClient
 	criMu sync.Mutex
 
-	config   map[string]*runtime_alpha.AuthConfig
+	config   map[string]*runtime.AuthConfig
 	configMu sync.Mutex
 }
 
@@ -93,14 +94,14 @@ func (in *instrumentedService) credentials(host string, refspec reference.Spec) 
 	return "", "", nil
 }
 
-func (in *instrumentedService) getCRI() (c runtime_alpha.ImageServiceClient) {
+func (in *instrumentedService) getCRI() (c runtime.ImageServiceClient) {
 	in.criMu.Lock()
 	c = in.cri
 	in.criMu.Unlock()
 	return
 }
 
-func (in *instrumentedService) ListImages(ctx context.Context, r *runtime_alpha.ListImagesRequest) (res *runtime_alpha.ListImagesResponse, err error) {
+func (in *instrumentedService) ListImages(ctx context.Context, r *runtime.ListImagesRequest) (res *runtime.ListImagesResponse, err error) {
 	cri := in.getCRI()
 	if cri == nil {
 		return nil, errors.New("server is not initialized yet")
@@ -108,7 +109,7 @@ func (in *instrumentedService) ListImages(ctx context.Context, r *runtime_alpha.
 	return cri.ListImages(ctx, r)
 }
 
-func (in *instrumentedService) ImageStatus(ctx context.Context, r *runtime_alpha.ImageStatusRequest) (res *runtime_alpha.ImageStatusResponse, err error) {
+func (in *instrumentedService) ImageStatus(ctx context.Context, r *runtime.ImageStatusRequest) (res *runtime.ImageStatusResponse, err error) {
 	cri := in.getCRI()
 	if cri == nil {
 		return nil, errors.New("server is not initialized yet")
@@ -116,7 +117,7 @@ func (in *instrumentedService) ImageStatus(ctx context.Context, r *runtime_alpha
 	return cri.ImageStatus(ctx, r)
 }
 
-func (in *instrumentedService) PullImage(ctx context.Context, r *runtime_alpha.PullImageRequest) (res *runtime_alpha.PullImageResponse, err error) {
+func (in *instrumentedService) PullImage(ctx context.Context, r *runtime.PullImageRequest) (res *runtime.PullImageResponse, err error) {
 	cri := in.getCRI()
 	if cri == nil {
 		return nil, errors.New("server is not initialized yet")
@@ -131,7 +132,7 @@ func (in *instrumentedService) PullImage(ctx context.Context, r *runtime_alpha.P
 	return cri.PullImage(ctx, r)
 }
 
-func (in *instrumentedService) RemoveImage(ctx context.Context, r *runtime_alpha.RemoveImageRequest) (_ *runtime_alpha.RemoveImageResponse, err error) {
+func (in *instrumentedService) RemoveImage(ctx context.Context, r *runtime.RemoveImageRequest) (_ *runtime.RemoveImageResponse, err error) {
 	cri := in.getCRI()
 	if cri == nil {
 		return nil, errors.New("server is not initialized yet")
@@ -146,7 +147,7 @@ func (in *instrumentedService) RemoveImage(ctx context.Context, r *runtime_alpha
 	return cri.RemoveImage(ctx, r)
 }
 
-func (in *instrumentedService) ImageFsInfo(ctx context.Context, r *runtime_alpha.ImageFsInfoRequest) (res *runtime_alpha.ImageFsInfoResponse, err error) {
+func (in *instrumentedService) ImageFsInfo(ctx context.Context, r *runtime.ImageFsInfoRequest) (res *runtime.ImageFsInfoResponse, err error) {
 	cri := in.getCRI()
 	if cri == nil {
 		return nil, errors.New("server is not initialized yet")

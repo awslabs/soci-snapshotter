@@ -42,7 +42,8 @@ import (
 
 	"github.com/awslabs/soci-snapshotter/config"
 	"github.com/awslabs/soci-snapshotter/service"
-	"github.com/awslabs/soci-snapshotter/service/keychain/cri"
+	"github.com/awslabs/soci-snapshotter/service/keychain/cri/v1"
+	crialpha "github.com/awslabs/soci-snapshotter/service/keychain/cri/v1alpha"
 	"github.com/awslabs/soci-snapshotter/service/keychain/dockerconfig"
 	"github.com/awslabs/soci-snapshotter/service/keychain/kubeconfig"
 	"github.com/awslabs/soci-snapshotter/service/resolver"
@@ -55,6 +56,7 @@ import (
 	grpc "google.golang.org/grpc"
 	"google.golang.org/grpc/backoff"
 	"google.golang.org/grpc/credentials/insecure"
+	runtime "k8s.io/cri-api/pkg/apis/runtime/v1"
 )
 
 // Config represents configuration for the soci snapshotter plugin.
@@ -109,30 +111,35 @@ func init() {
 				if criAddr == "" {
 					return nil, errors.New("backend CRI service address is not specified")
 				}
-				connectCRI := func() (runtime_alpha.ImageServiceClient, error) {
-					// TODO: make gRPC options configurable from config.toml
-					backoffConfig := backoff.DefaultConfig
-					backoffConfig.MaxDelay = 3 * time.Second
-					connParams := grpc.ConnectParams{
-						Backoff: backoffConfig,
-					}
-					gopts := []grpc.DialOption{
-						grpc.WithTransportCredentials(insecure.NewCredentials()),
-						grpc.WithConnectParams(connParams),
-						grpc.WithContextDialer(dialer.ContextDialer),
-						grpc.WithDefaultCallOptions(grpc.MaxCallRecvMsgSize(defaults.DefaultMaxRecvMsgSize)),
-						grpc.WithDefaultCallOptions(grpc.MaxCallSendMsgSize(defaults.DefaultMaxSendMsgSize)),
-					}
-					conn, err := grpc.Dial(dialer.DialAddress(criAddr), gopts...)
+				// Create a gRPC server
+				rpc := grpc.NewServer()
+
+				connectV1AlphaCRI := func() (runtime_alpha.ImageServiceClient, error) {
+					criConn, err := getCriConn(config.CRIKeychainConfig.ImageServicePath)
 					if err != nil {
 						return nil, err
 					}
-					return runtime_alpha.NewImageServiceClient(conn), nil
+					return runtime_alpha.NewImageServiceClient(criConn), nil
 				}
-				criCreds, criServer := cri.NewCRIKeychain(ctx, connectCRI)
-				// Create a gRPC server
-				rpc := grpc.NewServer()
-				runtime_alpha.RegisterImageServiceServer(rpc, criServer)
+
+				connectV1CRI := func() (runtime.ImageServiceClient, error) {
+					criConn, err := getCriConn(config.CRIKeychainConfig.ImageServicePath)
+					if err != nil {
+						return nil, err
+					}
+					return runtime.NewImageServiceClient(criConn), nil
+				}
+
+				// register v1alpha2 CRI server with the gRPC server
+				fAlpha, criServerAlpha := crialpha.NewCRIAlphaKeychain(ctx, connectV1AlphaCRI)
+				runtime_alpha.RegisterImageServiceServer(rpc, criServerAlpha)
+				credsFuncs = append(credsFuncs, fAlpha)
+
+				// register v1 CRI server with the gRPC server
+				f, criServer := cri.NewCRIKeychain(ctx, connectV1CRI)
+				runtime.RegisterImageServiceServer(rpc, criServer)
+				credsFuncs = append(credsFuncs, f)
+
 				// Prepare the directory for the socket
 				if err := os.MkdirAll(filepath.Dir(addr), 0700); err != nil {
 					return nil, fmt.Errorf("failed to create directory %q: %w", filepath.Dir(addr), err)
@@ -151,7 +158,6 @@ func init() {
 						log.G(ctx).WithError(err).Warnf("error on serving via socket %q", addr)
 					}
 				}()
-				credsFuncs = append(credsFuncs, criCreds)
 			}
 
 			// TODO(ktock): print warn if old configuration is specified.
@@ -160,4 +166,21 @@ func init() {
 				service.WithCustomRegistryHosts(resolver.RegistryHostsFromCRIConfig(ctx, config.Registry, credsFuncs...)))
 		},
 	})
+}
+
+// getCriConn gets the gRPC client connection to the backend CRI service (defaults to containerd socket).
+func getCriConn(criAddr string) (*grpc.ClientConn, error) {
+	backoffConfig := backoff.DefaultConfig
+	backoffConfig.MaxDelay = 3 * time.Second
+	connParams := grpc.ConnectParams{
+		Backoff: backoffConfig,
+	}
+	gopts := []grpc.DialOption{
+		grpc.WithTransportCredentials(insecure.NewCredentials()),
+		grpc.WithConnectParams(connParams),
+		grpc.WithContextDialer(dialer.ContextDialer),
+		grpc.WithDefaultCallOptions(grpc.MaxCallRecvMsgSize(defaults.DefaultMaxRecvMsgSize)),
+		grpc.WithDefaultCallOptions(grpc.MaxCallSendMsgSize(defaults.DefaultMaxSendMsgSize)),
+	}
+	return grpc.Dial(dialer.DialAddress(criAddr), gopts...)
 }
