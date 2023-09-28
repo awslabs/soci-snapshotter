@@ -94,6 +94,7 @@ type Layer interface {
 
 	// Verify verifies this layer using the passed TOC Digest.
 	// Nop if Verify() or SkipVerify() was already called.
+	// NOTE: Legacy stargz code, this is never called.
 	Verify(tocDigest digest.Digest) (err error)
 
 	// SkipVerify skips verification for this layer.
@@ -456,6 +457,7 @@ func (l *layer) Refresh(ctx context.Context, hosts source.RegistryHosts, refspec
 	return l.blob.Refresh(ctx, hosts, refspec, desc)
 }
 
+// Never used, should probably just have it return nil.
 func (l *layer) Verify(tocDigest digest.Digest) (err error) {
 	if l.isClosed() {
 		return fmt.Errorf("layer is already closed")
