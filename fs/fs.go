@@ -466,6 +466,8 @@ func (fs *filesystem) Mount(ctx context.Context, mountpoint string, labels map[s
 	// Verification is needed to instantiate reader
 	l.SkipVerify()
 	log.G(ctx).Infof("Verification forcefully skipped")
+	// Maybe we should reword the log here or remove it entirely,
+	// since the old Verify() function no longer serves any purpose.
 
 	node, err := l.RootNode(0)
 	if err != nil {
