@@ -124,12 +124,13 @@ func (vr *VerifiableReader) isClosed() bool {
 }
 
 // NewReader creates a Reader based on the given soci blob and Span Manager.
-func NewReader(r metadata.Reader, layerSha digest.Digest, spanManager *spanmanager.SpanManager) (*VerifiableReader, error) {
+func NewReader(r metadata.Reader, layerSha digest.Digest, spanManager *spanmanager.SpanManager, disableVerification bool) (*VerifiableReader, error) {
 	vr := &reader{
-		spanManager: spanManager,
-		r:           r,
-		layerSha:    layerSha,
-		verifier:    digestVerifier,
+		spanManager:         spanManager,
+		r:                   r,
+		layerSha:            layerSha,
+		verifier:            digestVerifier,
+		disableVerification: disableVerification,
 	}
 	return &VerifiableReader{r: vr, verifier: digestVerifier}, nil
 }
@@ -145,8 +146,9 @@ type reader struct {
 	closed   bool
 	closedMu sync.Mutex
 
-	verify   bool
-	verifier func(uint32, string) (digest.Verifier, error)
+	verify              bool
+	verifier            func(uint32, string) (digest.Verifier, error)
+	disableVerification bool
 }
 
 func (gr *reader) Metadata() metadata.Reader {
@@ -212,8 +214,10 @@ type file struct {
 
 // ReadAt reads the file when the file is requested by the container
 func (sf *file) ReadAt(p []byte, offset int64) (int, error) {
-	if err := sf.Verify(); err != nil {
-		return 0, err
+	if !sf.gr.disableVerification {
+		if err := sf.Verify(); err != nil {
+			return 0, err
+		}
 	}
 	if len(p) == 0 {
 		return 0, nil

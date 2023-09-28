@@ -197,7 +197,7 @@ func NewFilesystem(ctx context.Context, root string, cfg config.FSConfig, opts .
 		debug:                       cfg.Debug,
 		layer:                       make(map[string]layer.Layer),
 		allowNoVerification:         cfg.AllowNoVerification,
-		disableVerification:         true,
+		disableVerification:         cfg.DisableVerification,
 		metricsController:           c,
 		attrTimeout:                 attrTimeout,
 		entryTimeout:                entryTimeout,
@@ -408,7 +408,7 @@ func (fs *filesystem) Mount(ctx context.Context, mountpoint string, labels map[s
 				break
 			}
 
-			l, err := fs.resolver.Resolve(ctx, s.Hosts, s.Name, s.Target, sociDesc, c.fuseOperationCounter)
+			l, err := fs.resolver.Resolve(ctx, s.Hosts, s.Name, s.Target, sociDesc, c.fuseOperationCounter, fs.disableVerification)
 			if err == nil {
 				resultChan <- l
 				return
@@ -431,7 +431,7 @@ func (fs *filesystem) Mount(ctx context.Context, mountpoint string, labels map[s
 				return
 			}
 
-			l, err := fs.resolver.Resolve(ctx, preResolve.Hosts, preResolve.Name, desc, sociDesc, c.fuseOperationCounter)
+			l, err := fs.resolver.Resolve(ctx, preResolve.Hosts, preResolve.Name, desc, sociDesc, c.fuseOperationCounter, fs.disableVerification)
 			if err != nil {
 				log.G(ctx).WithError(err).Debug("failed to pre-resolve")
 				return
@@ -463,12 +463,9 @@ func (fs *filesystem) Mount(ctx context.Context, mountpoint string, labels map[s
 		}
 	}()
 
-	// Verify layer's content
-	if fs.disableVerification {
-		// Skip if verification is disabled completely
-		l.SkipVerify()
-		log.G(ctx).Infof("Verification forcefully skipped")
-	}
+	// Verification is needed to instantiate reader
+	l.SkipVerify()
+	log.G(ctx).Infof("Verification forcefully skipped")
 
 	node, err := l.RootNode(0)
 	if err != nil {
