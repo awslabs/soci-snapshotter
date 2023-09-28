@@ -229,7 +229,7 @@ func newCache(root string, cacheType string, cfg config.FSConfig) (cache.BlobCac
 }
 
 // Resolve resolves a layer based on the passed layer blob information.
-func (r *Resolver) Resolve(ctx context.Context, hosts source.RegistryHosts, refspec reference.Spec, desc, sociDesc ocispec.Descriptor, opCounter *FuseOperationCounter, metadataOpts ...metadata.Option) (_ Layer, retErr error) {
+func (r *Resolver) Resolve(ctx context.Context, hosts source.RegistryHosts, refspec reference.Spec, desc, sociDesc ocispec.Descriptor, opCounter *FuseOperationCounter, disableVerification bool, metadataOpts ...metadata.Option) (_ Layer, retErr error) {
 	name := refspec.String() + "/" + desc.Digest.String()
 
 	// Wait if resolving this layer is already running. The result
@@ -334,7 +334,7 @@ func (r *Resolver) Resolve(ctx context.Context, hosts source.RegistryHosts, refs
 		bgLayerResolver = backgroundfetcher.NewSequentialResolver(desc.Digest, spanManager)
 		r.bgFetcher.Add(bgLayerResolver)
 	}
-	vr, err := reader.NewReader(meta, desc.Digest, spanManager)
+	vr, err := reader.NewReader(meta, desc.Digest, spanManager, disableVerification)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read layer: %w", err)
 	}
