@@ -137,7 +137,7 @@ services:
    image: soci_base:soci_test
    privileged: true
    init: true
-   entrypoint: [ "sleep", "infinity" ]
+   entrypoint: [ "/integ_entrypoint.sh" ]
    environment:
     - NO_PROXY=127.0.0.1,localhost
    tmpfs:
@@ -154,7 +154,7 @@ services:
   image: soci_base:soci_test
   privileged: true
   init: true
-  entrypoint: [ "sleep", "infinity" ]
+  entrypoint: [ "/integ_entrypoint.sh" ]
   environment:
    - NO_PROXY=127.0.0.1,localhost,{{.RegistryHost}}:443
   tmpfs:
@@ -185,7 +185,7 @@ services:
     image: soci_base:soci_test
     privileged: true
     init: true
-    entrypoint: [ "sleep", "infinity" ]
+    entrypoint: [ "/integ_entrypoint.sh" ]
     environment:
     - NO_PROXY=127.0.0.1,localhost,{{.RegistryHost}}:443
     tmpfs:
