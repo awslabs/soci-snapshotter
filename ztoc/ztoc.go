@@ -87,7 +87,7 @@ type FileMetadata struct {
 	Devmajor int64     // Major device number (valid for TypeChar or TypeBlock)
 	Devminor int64     // Minor device number (valid for TypeChar or TypeBlock)
 
-	Xattrs map[string]string
+	PAXHeaders map[string]string
 }
 
 // FileMode gets file mode for the file metadata
@@ -127,15 +127,19 @@ func (src FileMetadata) Equal(o FileMetadata) bool {
 		src.Devminor != o.Devminor {
 		return false
 	}
-	if len(src.Xattrs) != len(o.Xattrs) {
+	if len(src.PAXHeaders) != len(o.PAXHeaders) {
 		return false
 	}
-	for k, v := range src.Xattrs {
-		if o.Xattrs[k] != v {
+	for k, v := range src.PAXHeaders {
+		if o.PAXHeaders[k] != v {
 			return false
 		}
 	}
 	return true
+}
+
+func (src FileMetadata) Xattrs() map[string]string {
+	return Xattrs(src.PAXHeaders)
 }
 
 // MetadataEntry is used to locate a file based on its metadata.

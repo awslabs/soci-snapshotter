@@ -264,7 +264,7 @@ func testExistenceWithOpaque(t *testing.T, factory metadata.Store, opaque Overla
 			},
 			want: []check{
 				hasOpaque("foo/"),
-				hasNodeXattrs("foo/", "SCHILY.xattr.foo", "bar"),
+				hasNodeXattrs("foo/", "foo", "bar"),
 				fileNotExist("foo/.wh..wh..opq"),
 			},
 		},

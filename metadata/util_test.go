@@ -92,7 +92,7 @@ func testReader(t *testing.T, factory readerFactory) {
 				hasModTime("xxx.txt", sampleTime),
 				hasFile("y.txt", 0),
 				// For details on the keys of Xattrs, see https://pkg.go.dev/archive/tar#Header
-				hasXattrs("y.txt", map[string]string{"SCHILY.xattr.testkey": "testval"}),
+				hasXattrs("y.txt", map[string]string{"testkey": "testval"}),
 			},
 		},
 		{
@@ -116,7 +116,7 @@ func testReader(t *testing.T, factory readerFactory) {
 				hasMode("foo", os.ModeDir|0600|os.ModeSticky),
 				hasOwner("foo/bar", 1000, 1000),
 				hasModTime("foo/a", sampleTime),
-				hasXattrs("foo/a/1", map[string]string{"SCHILY.xattr.testkey": "testval"}),
+				hasXattrs("foo/a/1", map[string]string{"testkey": "testval"}),
 				hasFile("foo/bar/baz.txt", 8),
 				hasFile("foo/bar/xxxx", 1),
 				hasFile("foo/bar/yyy", 3),

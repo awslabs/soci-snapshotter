@@ -22,7 +22,7 @@ table FileMetadata {
 	devmajor : long;		// Major device number (valid for TypeChar or TypeBlock)
 	devminor : long;		// Minor device number (valid for TypeChar or TypeBlock)
 
-	xattrs : [Xattr];
+	xattrs : [Xattr];       // Raw PAXRecords from the tar file. The name is wrong, but changing it is backwards incompatible
 }
 
 enum CompressionAlgorithm : byte { Gzip = 1, Uncompressed }

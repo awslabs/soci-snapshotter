@@ -575,7 +575,7 @@ func attrFromZtocEntry(src *ztoc.FileMetadata, dst *Attr) *Attr {
 	dst.DevMajor = int(src.Devmajor)
 	dst.DevMinor = int(src.Devminor)
 	xattrs := make(map[string][]byte)
-	for k, v := range src.Xattrs {
+	for k, v := range src.Xattrs() {
 		xattrs[k] = []byte(v)
 	}
 	dst.Xattrs = xattrs

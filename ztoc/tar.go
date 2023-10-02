@@ -16,10 +16,18 @@
 
 package ztoc
 
-import "github.com/awslabs/soci-snapshotter/ztoc/compression"
+import (
+	"strings"
 
-// TarBlockSize is the size of a tar block
-const TarBlockSize = 512
+	"github.com/awslabs/soci-snapshotter/ztoc/compression"
+)
+
+const (
+	// TarBlockSize is the size of a tar block
+	TarBlockSize = 512
+
+	schilyXattrPrefix string = "SCHILY.xattr."
+)
 
 // AlignToTarBlock aligns an offset to the next larger multiple of TarBlockSize
 func AlignToTarBlock(o compression.Offset) compression.Offset {
@@ -28,4 +36,21 @@ func AlignToTarBlock(o compression.Offset) compression.Offset {
 		o += TarBlockSize - offset
 	}
 	return o
+}
+
+// Xattrs converts a set of tar PAXRecords to a set of Xattrs.
+// Specifically, it looks for PAXRecords where the key is prefixed
+// by `SCHILY.xattr.` - the prefix for Xattrs used by go and GNU tar.
+// Those keys are kept with the prefix stripped. Other keys are dropped.
+func Xattrs(paxHeaders map[string]string) map[string]string {
+	if len(paxHeaders) == 0 {
+		return nil
+	}
+	m := make(map[string]string)
+	for k, v := range paxHeaders {
+		if strings.HasPrefix(k, schilyXattrPrefix) {
+			m[k[len(schilyXattrPrefix):]] = v
+		}
+	}
+	return m
 }
