@@ -126,13 +126,13 @@ func flatbufferToTOC(fbtoc *ztoc_flatbuffers.TOC) (TOC, error) {
 		me.ModTime = *modTime
 		me.Devmajor = metadataEntry.Devmajor()
 		me.Devminor = metadataEntry.Devminor()
-		me.Xattrs = make(map[string]string)
+		me.PAXHeaders = make(map[string]string)
 		for j := 0; j < metadataEntry.XattrsLength(); j++ {
 			xattrEntry := new(ztoc_flatbuffers.Xattr)
 			metadataEntry.Xattrs(xattrEntry, j)
 			key := string(xattrEntry.Key())
 			value := string(xattrEntry.Value())
-			me.Xattrs[key] = value
+			me.PAXHeaders[key] = value
 		}
 
 		toc.FileMetadata[i] = me
@@ -266,16 +266,16 @@ func prepareMetadataOffset(builder *flatbuffers.Builder, me FileMetadata) flatbu
 }
 
 func prepareXattrsOffset(me FileMetadata, builder *flatbuffers.Builder) flatbuffers.UOffsetT {
-	keys := make([]string, 0, len(me.Xattrs))
-	for k := range me.Xattrs {
+	keys := make([]string, 0, len(me.PAXHeaders))
+	for k := range me.PAXHeaders {
 		keys = append(keys, k)
 	}
 	sort.Strings(keys)
 
-	xattrOffsetList := make([]flatbuffers.UOffsetT, 0, len(me.Xattrs))
+	xattrOffsetList := make([]flatbuffers.UOffsetT, 0, len(me.PAXHeaders))
 	for _, key := range keys {
 		keyOffset := builder.CreateString(key)
-		valueOffset := builder.CreateString(me.Xattrs[key])
+		valueOffset := builder.CreateString(me.PAXHeaders[key])
 		ztoc_flatbuffers.XattrStart(builder)
 		ztoc_flatbuffers.XattrAddKey(builder, keyOffset)
 		ztoc_flatbuffers.XattrAddValue(builder, valueOffset)
@@ -286,7 +286,7 @@ func prepareXattrsOffset(me FileMetadata, builder *flatbuffers.Builder) flatbuff
 	for j := len(xattrOffsetList) - 1; j >= 0; j-- {
 		builder.PrependUOffsetT(xattrOffsetList[j])
 	}
-	xattrs := builder.EndVector(len(me.Xattrs))
+	xattrs := builder.EndVector(len(me.PAXHeaders))
 	return xattrs
 }
 

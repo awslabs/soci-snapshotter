@@ -502,8 +502,8 @@ func testZtocSerialization(t *testing.T, compressionAlgo string, generator tarGe
 			// append xattrs
 			for i := 0; i < len(createdZtoc.FileMetadata); i++ {
 				for key := range tc.xattrs {
-					createdZtoc.FileMetadata[i].Xattrs = make(map[string]string)
-					createdZtoc.FileMetadata[i].Xattrs[key] = tc.xattrs[key]
+					createdZtoc.FileMetadata[i].PAXHeaders = make(map[string]string)
+					createdZtoc.FileMetadata[i].PAXHeaders[key] = tc.xattrs[key]
 				}
 			}
 

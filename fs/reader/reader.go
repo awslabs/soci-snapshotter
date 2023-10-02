@@ -52,6 +52,7 @@ import (
 	spanmanager "github.com/awslabs/soci-snapshotter/fs/span-manager"
 	"github.com/awslabs/soci-snapshotter/metadata"
 	"github.com/awslabs/soci-snapshotter/util/ioutils"
+	"github.com/awslabs/soci-snapshotter/ztoc"
 	"github.com/awslabs/soci-snapshotter/ztoc/compression"
 	digest "github.com/opencontainers/go-digest"
 )
@@ -314,20 +315,13 @@ func attrMatchesTarHeader(attr metadata.Attr, tarh *tar.Header) bool {
 		return false
 	}
 
-	// TODO: This is probably not correct. PAXRecords are a generic
-	// key value pair in the tar header. Posix Xattrs can be encoded
-	// into PAX headers in a number of ways.
-	//
-	// We do it this way because the TOC builder is incorrectly
-	// dumping all PAXRecords into the file metadata's Xattrs.
-	// Fixing this is not backwards compatible, so we might end
-	// up filtering to Posix xattrs in the fuse GetXAttrs implementation.
-	if len(attr.Xattrs) != len(tarh.PAXRecords) {
+	tarXattrs := ztoc.Xattrs(tarh.PAXRecords)
+	if len(attr.Xattrs) != len(tarXattrs) {
 		return false
 	}
 	for k := range attr.Xattrs {
 		attrV := attr.Xattrs[k]
-		tarV := tarh.PAXRecords[k]
+		tarV := tarXattrs[k]
 		if len(attrV) != len(tarV) {
 			return false
 		}

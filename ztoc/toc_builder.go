@@ -150,7 +150,7 @@ func metadataFromTarReader(r io.Reader) ([]FileMetadata, compression.Offset, err
 			ModTime:            hdr.ModTime,
 			Devmajor:           hdr.Devmajor,
 			Devminor:           hdr.Devminor,
-			Xattrs:             hdr.PAXRecords,
+			PAXHeaders:         hdr.PAXRecords,
 		}
 		md = append(md, metadataEntry)
 		// The next file's tar header can be found immediately after the current file + padding

@@ -155,7 +155,7 @@ log_fuse_operations = true
 		for i, md := range zt.FileMetadata {
 			md.UncompressedOffset += 2
 			md.UncompressedSize = math.MaxInt64
-			md.Xattrs = map[string]string{"foo": "bar"}
+			md.PAXHeaders = map[string]string{"foo": "bar"}
 			zt.FileMetadata[i] = md
 		}
 	}
