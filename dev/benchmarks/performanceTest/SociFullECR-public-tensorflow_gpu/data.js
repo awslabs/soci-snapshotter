@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1696286138099,
+  "lastUpdate": 1696345626353,
   "repoUrl": "https://github.com/awslabs/soci-snapshotter",
   "entries": {
     "Soci Benchmark": [
@@ -751,6 +751,48 @@ window.BENCHMARK_DATA = {
           {
             "name": "SociFullECR-public-tensorflow_gpu-pullTaskDuration",
             "value": 159.5795,
+            "unit": "Seconds",
+            "extra": "P90"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "turyasin@amazon.com",
+            "name": "Yasin Turan",
+            "username": "turan18"
+          },
+          "committer": {
+            "email": "66654647+turan18@users.noreply.github.com",
+            "name": "Yasin Turan",
+            "username": "turan18"
+          },
+          "distinct": true,
+          "id": "342eff60b4eee144fe7b92a125a79a301e53725a",
+          "message": "Upgrade go-fuse to address LSEEK bug\n\nUpgrade go-fuse to commit fc2c4d3, as it contains the\nfix for the LSEEK bug that caused cp/mv/install on sparse\nfiles to hang.\n\nSigned-off-by: Yasin Turan <turyasin@amazon.com>",
+          "timestamp": "2023-10-03T10:45:56-04:00",
+          "tree_id": "b5d2b3bbc1496359609d8f6a1eb5a0a3de2ad572",
+          "url": "https://github.com/awslabs/soci-snapshotter/commit/342eff60b4eee144fe7b92a125a79a301e53725a"
+        },
+        "date": 1696345621650,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "SociFullECR-public-tensorflow_gpu-lazyTaskDuration",
+            "value": 4.587,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-tensorflow_gpu-localTaskDuration",
+            "value": 2.1420000000000003,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-tensorflow_gpu-pullTaskDuration",
+            "value": 161.043,
             "unit": "Seconds",
             "extra": "P90"
           }
