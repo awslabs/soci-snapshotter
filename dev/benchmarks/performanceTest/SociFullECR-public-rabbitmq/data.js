@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1696345622131,
+  "lastUpdate": 1696345643916,
   "repoUrl": "https://github.com/awslabs/soci-snapshotter",
   "entries": {
     "Soci Benchmark": [
@@ -752,6 +752,48 @@ window.BENCHMARK_DATA = {
           {
             "name": "SociFullECR-public-rabbitmq-pullTaskDuration",
             "value": 5.830500000000001,
+            "unit": "Seconds",
+            "extra": "P90"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "turyasin@amazon.com",
+            "name": "Yasin Turan",
+            "username": "turan18"
+          },
+          "committer": {
+            "email": "66654647+turan18@users.noreply.github.com",
+            "name": "Yasin Turan",
+            "username": "turan18"
+          },
+          "distinct": true,
+          "id": "f72ea9ceea656c4b1e0c1c9745550cf732c26cb2",
+          "message": "Add support for CRI v1 API\n\nSigned-off-by: Yasin Turan <turyasin@amazon.com>",
+          "timestamp": "2023-10-03T10:46:20-04:00",
+          "tree_id": "65f15d1f31e3edf0aee01a339adb75ea246601ad",
+          "url": "https://github.com/awslabs/soci-snapshotter/commit/f72ea9ceea656c4b1e0c1c9745550cf732c26cb2"
+        },
+        "date": 1696345642224,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "SociFullECR-public-rabbitmq-lazyTaskDuration",
+            "value": 7.4719999999999995,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-rabbitmq-localTaskDuration",
+            "value": 7.258,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-rabbitmq-pullTaskDuration",
+            "value": 9.109,
             "unit": "Seconds",
             "extra": "P90"
           }
