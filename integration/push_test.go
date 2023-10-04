@@ -146,6 +146,11 @@ func TestLegacyOCI(t *testing.T) {
 			registryImage: oci10RegistryImage,
 			expectError:   false,
 		},
+		{
+			name:          "OCI 1.0 Artifacts succeed with OCI 1.1 registry",
+			registryImage: oci11RegistryImage,
+			expectError:   false,
+		},
 	}
 	for _, tc := range tests {
 		tc := tc
