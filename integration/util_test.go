@@ -45,6 +45,7 @@ import (
 	"math/big"
 	"os"
 	"path/filepath"
+	"runtime"
 	"sort"
 	"strings"
 	"testing"
@@ -74,6 +75,7 @@ const (
 	// Registry images to use in the test infrastructure. These are not intended to be used
 	// as images in the test itself, but just when we're setting up docker compose.
 	oci10RegistryImage = "registry2:soci_test"
+	oci11RegistryImage = "ghcr.io/project-zot/zot-linux-" + runtime.GOARCH + ":v2.0.0-rc6"
 )
 
 // These are images that we use in our integration tests
@@ -175,7 +177,8 @@ services:
    - REGISTRY_HTTP_ADDR={{.RegistryHost}}:443
    - REGISTRY_STORAGE_DELETE_ENABLED=true
   volumes:
-   - {{.AuthDir}}:/auth:ro
+   - {{.HostVolumeMount}}/auth:/auth:ro
+   - {{.HostVolumeMount}}/etc/zot/config.json:/etc/zot/config.json:ro
 {{.NetworkConfig}}
 `
 const composeRegistryAltTemplate = `
@@ -206,7 +209,7 @@ services:
     - REGISTRY_HTTP_ADDR={{.RegistryHost}}:443
     - REGISTRY_STORAGE_DELETE_ENABLED=true
     volumes:
-    - {{.AuthDir}}:/auth:ro
+    - {{.HostVolumeMount}}/auth:/auth:ro
   registry-alt:
     image: {{.RegistryAltImageRef}}
     container_name: {{.RegistryAltHost}}
@@ -229,6 +232,28 @@ services:
    target: {{.Registry2Stage}}
 `
 
+const zotConfigTemplate = `
+{
+	"storage": {
+		"rootDirectory": "/tmp/zot"
+	},
+	"http": {
+		"address": "{{.Address}}",
+		"port": "443",
+		"realm": "Registry Realm",
+		"auth": {
+			"htpasswd": {
+				"path": "/auth/htpasswd"
+			}
+		},
+		"tls": {
+			"cert": "/auth/domain.crt",
+			"key": "/auth/domain.key"
+		}
+	}
+}
+`
+
 type dockerComposeYaml struct {
 	ServiceName         string
 	ImageContextDir     string
@@ -238,8 +263,12 @@ type dockerComposeYaml struct {
 	RegistryAltImageRef string
 	RegistryHost        string
 	RegistryAltHost     string
-	AuthDir             string
+	HostVolumeMount     string
 	NetworkConfig       string
+}
+
+type zotConfigStruct struct {
+	Address string
 }
 
 // getContainerdConfigToml creates a containerd config yaml, by appending all
@@ -447,7 +476,13 @@ func newShellWithRegistry(t *testing.T, r registryConfig, opts ...registryOpt) (
 	if err != nil {
 		t.Fatalf("failed to generate htpasswd: %v", err)
 	}
-	authDir := t.TempDir()
+
+	hostVolumeMount := t.TempDir()
+	authDir := filepath.Join(hostVolumeMount, "auth")
+	if err := os.Mkdir(authDir, 0777); err != nil {
+		t.Fatalf("failed to create auth folder in tempdir: %v", err)
+	}
+
 	if err := os.WriteFile(filepath.Join(authDir, "domain.key"), key, 0666); err != nil {
 		t.Fatalf("failed to prepare key file")
 	}
@@ -483,11 +518,26 @@ networks:
 `, nw)
 	}
 
+	zotDir := filepath.Join(hostVolumeMount, "etc/zot")
+	if err := os.MkdirAll(zotDir, 0777); err != nil {
+		t.Fatalf("failed to create zot folder in tempdir: %v", err)
+	}
+	zotConfigFile, err := testutil.ApplyTextTemplate(zotConfigTemplate, zotConfigStruct{
+		Address: r.host,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if err := os.WriteFile(filepath.Join(hostVolumeMount, "etc/zot/config.json"), []byte(zotConfigFile), 0666); err != nil {
+		t.Fatalf("failed to prepare config.json: %v", err)
+	}
+
 	s, err := testutil.ApplyTextTemplate(composeRegistryTemplate, dockerComposeYaml{
 		ServiceName:      serviceName,
 		RegistryHost:     r.host,
 		RegistryImageRef: rOpts.registryImageRef,
-		AuthDir:          authDir,
+		HostVolumeMount:  hostVolumeMount,
 		NetworkConfig:    networkConfig,
 	})
 	if err != nil {

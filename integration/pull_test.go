@@ -631,7 +631,12 @@ func TestMirror(t *testing.T) {
 		t.Fatalf("failed to generate htpasswd: %v", err)
 	}
 
-	authDir := t.TempDir()
+	hostVolumeMount := t.TempDir()
+	authDir := filepath.Join(hostVolumeMount, "auth")
+	if err := os.Mkdir(authDir, 0777); err != nil {
+		t.Fatalf("failed to create auth folder in tempdir: %v", err)
+	}
+
 	if err := os.WriteFile(filepath.Join(authDir, "domain.key"), key, 0666); err != nil {
 		t.Fatalf("failed to prepare key file")
 	}
@@ -653,7 +658,7 @@ func TestMirror(t *testing.T) {
 		RegistryAltImageRef: oci10RegistryImage,
 		RegistryHost:        regConfig.host,
 		RegistryAltHost:     regAltConfig.host,
-		AuthDir:             authDir,
+		HostVolumeMount:     hostVolumeMount,
 	})
 	if err != nil {
 		t.Fatal(err)
