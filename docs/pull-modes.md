@@ -18,10 +18,9 @@ Overall, lazily pulling a container image with the SOCI snapshotter
 <!-- START doctoc generated TOC please keep comment here to allow auto update -->
 <!-- DON'T EDIT THIS SECTION, INSTEAD RE-RUN doctoc TO UPDATE -->
 
-- [Pull modes of the SOCI snapshotter](#pull-modes-of-the-soci-snapshotter)
-  - [Step 1: specify SOCI index digest](#step-1-specify-soci-index-digest)
-  - [Step 2: fetch SOCI artifacts](#step-2-fetch-soci-artifacts)
-  - [Step 3: fetch image layers](#step-3-fetch-image-layers)
+- [Step 1: specify SOCI index digest](#step-1-specify-soci-index-digest)
+- [Step 2: fetch SOCI artifacts](#step-2-fetch-soci-artifacts)
+- [Step 3: fetch image layers](#step-3-fetch-image-layers)
 
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
 
@@ -68,7 +67,9 @@ as a fuse mountpoint, and will be lazily loaded while a container is running.
 > Whether a layer belongs to 1 or 2 depends on its size. When creating a SOCI
 > index, SOCI only creates zTOC for layers larger than a given size which is
 > specified by the `--min-layer-size` flag of
-[`soci create` command](https://github.com/awslabs/soci-snapshotter/blob/9ff88817f3f2635b926f9fd32f6f05f389f7ecee/cmd/soci/commands/create.go#L56).
+> [`soci create` command](https://github.com/awslabs/soci-snapshotter/blob/9ff88817f3f2635b926f9fd32f6f05f389f7ecee/cmd/soci/commands/create.go#L56),
+> which is used under the hood with the value of  `--soci-min-layer-size` flag in
+> [`nerdctl push` command](https://github.com/containerd/nerdctl/blob/ff684d5a8c2bd40c459d555b395ded7c80e3f23c/pkg/snapshotterutil/sociutil.go#L65C31-L65C31)
 
 With debug logging enabled, you can see an entry in logs for each layer.
 `checking mount point` indicates that the layer will be lazily loaded.
