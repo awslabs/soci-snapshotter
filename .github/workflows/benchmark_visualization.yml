@@ -46,10 +46,10 @@ jobs:
           path: ${{github.workspace}}
       - name: Make temporary folder
         run: mkdir ${{github.workspace}}/current
-      - name: Change permission of visualization_data_converter.sh
-        run: chmod +x ${{github.workspace}}/scripts/visualization_data_converter.sh
+      - name: Change permission of visualization-data-converter.sh
+        run: chmod +x ${{github.workspace}}/scripts/visualization-data-converter.sh
       - name: Convert benchmark result to visualization data
-        run: ${{github.workspace}}/scripts/visualization_data_converter.sh ${{github.workspace}}/results.json ${{github.workspace}}/current  
+        run: ${{github.workspace}}/scripts/visualization-data-converter.sh ${{github.workspace}}/results.json ${{github.workspace}}/current  
       - name: Build matrix of filepaths
         id: set-matrix
          # Create a JSON array with the file paths and store it in the 'files' output
