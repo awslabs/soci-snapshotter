@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1696345641809,
+  "lastUpdate": 1696612162944,
   "repoUrl": "https://github.com/awslabs/soci-snapshotter",
   "entries": {
     "Soci Benchmark": [
@@ -999,6 +999,48 @@ window.BENCHMARK_DATA = {
           {
             "name": "SociFullECR-public-redis-pullTaskDuration",
             "value": 2.7515,
+            "unit": "Seconds",
+            "extra": "P90"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "walster@amazon.com",
+            "name": "Kern Walster",
+            "username": "Kern--"
+          },
+          "committer": {
+            "email": "kern.walster@gmail.com",
+            "name": "Kern Walster",
+            "username": "Kern--"
+          },
+          "distinct": true,
+          "id": "b5c2e7a05e6df6963f58da810d182245d60931ba",
+          "message": "Support xattrs\n\nBefore this change, SOCI stored all PAX header records as linux xattrs.\nPAX header records are a generic key-value pair for TAR files, not\nspecifically linux xattrs. While go does support linux xattrs by\nprefixing them with SCHILY.xattr, since we didn't parse them back to\nlinux xattrs, they did not behave correctly with SOCI. The most likely\nway users would experience this is that file capabilities don't work\nwith SOCI.\n\nThis change keeps all PAX header records in the ztoc format, but parses\nout just the linux xattrs without the prefix when creating the\nfilesystem metadata from a ztoc.\n\nDocker, buildkit, buildah/podman, and kaniko all use the go\ntarHeader.Xattrs to add xattrs which uses the `SCHILY.xattr.` prefix.\nWhile there are technically other ways to encode xattrs (e.g.\n`LIBARCHIVE.xattr.`) it doesn't seem common.\n\nSigned-off-by: Kern Walster <walster@amazon.com>",
+          "timestamp": "2023-10-06T09:51:51-07:00",
+          "tree_id": "ef8d0d55dc9b97763e485f351de050886fd5ea52",
+          "url": "https://github.com/awslabs/soci-snapshotter/commit/b5c2e7a05e6df6963f58da810d182245d60931ba"
+        },
+        "date": 1696612159995,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "SociFullECR-public-redis-lazyTaskDuration",
+            "value": 0.02,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-redis-localTaskDuration",
+            "value": 0.0215,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-redis-pullTaskDuration",
+            "value": 3.782,
             "unit": "Seconds",
             "extra": "P90"
           }
