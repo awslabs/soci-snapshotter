@@ -53,7 +53,6 @@ create_json_file() {
 }
 
 # Parse the JSON using jq
-commit=$(jq -r '.commit' "$input_file")
 tests=$(jq -r '.benchmarkTests | length' "$input_file")
 
 # Loop through each test and extract the required data

@@ -24,9 +24,11 @@ SOCI_SNAPSHOTTER_PROJECT_ROOT="${CUR_DIR}/.."
 LICENSE_FILE=${SOCI_SNAPSHOTTER_PROJECT_ROOT}/THIRD_PARTY_LICENSES
 
 # Remove content from the license file
-truncate -s 0 ${LICENSE_FILE}
+truncate -s 0 "${LICENSE_FILE}"
 # The apache 2.0 license doesn't get modified with a copywrite. To reduce duplication, add attribution for each project using the license, but include the license text just once.
-go-licenses report --template="${SOCI_SNAPSHOTTER_PROJECT_ROOT}/scripts/third_party_licenses/apache.tpl" --ignore github.com/awslabs/soci ${SOCI_SNAPSHOTTER_PROJECT_ROOT}/... >> ${LICENSE_FILE}
-cat ${SOCI_SNAPSHOTTER_PROJECT_ROOT}/scripts/third_party_licenses/APACHE_LICENSE >> ${LICENSE_FILE}
-# For other licenses, just use the entire license text from the package.
-go-licenses report --template=${SOCI_SNAPSHOTTER_PROJECT_ROOT}/scripts/third_party_licenses/other.tpl --ignore github.com/awslabs/soci ${SOCI_SNAPSHOTTER_PROJECT_ROOT}/... >> ${LICENSE_FILE}
+{
+    go-licenses report --template="${SOCI_SNAPSHOTTER_PROJECT_ROOT}/scripts/third_party_licenses/apache.tpl" --ignore github.com/awslabs/soci "${SOCI_SNAPSHOTTER_PROJECT_ROOT}/..."
+    cat "${SOCI_SNAPSHOTTER_PROJECT_ROOT}/scripts/third_party_licenses/APACHE_LICENSE"
+    # For other licenses, just use the entire license text from the package.
+    go-licenses report --template="${SOCI_SNAPSHOTTER_PROJECT_ROOT}/scripts/third_party_licenses/other.tpl" --ignore github.com/awslabs/soci "${SOCI_SNAPSHOTTER_PROJECT_ROOT}/..."
+} >> "${LICENSE_FILE}"

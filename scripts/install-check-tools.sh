@@ -17,6 +17,6 @@
 echo "Install soci check tools"
 set -eux -o pipefail
 
-curl -sfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(go env GOPATH)/bin v1.53.3
+curl -sfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b "$(go env GOPATH)/bin" v1.53.3
 go install github.com/kunalkushwaha/ltag@v0.2.4
 go install github.com/vbatts/git-validation@v1.2.0
