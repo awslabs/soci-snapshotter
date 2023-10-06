@@ -27,3 +27,5 @@ pushd ./cmd
 GO111MODULE=${GO111MODULE_VALUE} "$(go env GOPATH)/bin/golangci-lint" run
 popd
 popd
+
+find . -type f \( -name '*.sh' \) -print0 | xargs -0 shellcheck

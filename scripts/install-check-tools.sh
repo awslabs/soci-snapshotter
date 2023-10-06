@@ -20,3 +20,9 @@ set -eux -o pipefail
 curl -sfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b "$(go env GOPATH)/bin" v1.53.3
 go install github.com/kunalkushwaha/ltag@v0.2.4
 go install github.com/vbatts/git-validation@v1.2.0
+
+scversion="v0.9.0"
+arch=$(uname -p)
+wget -qO- "https://github.com/koalaman/shellcheck/releases/download/${scversion?}/shellcheck-${scversion?}.linux.${arch?}.tar.xz" \
+    | tar -xJv
+shellcheck --version
