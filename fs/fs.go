@@ -45,6 +45,7 @@ package fs
 import (
 	"context"
 	"fmt"
+	golog "log"
 	"os/exec"
 	"sync"
 	"syscall"
@@ -494,10 +495,16 @@ func (fs *filesystem) Mount(ctx context.Context, mountpoint string, labels map[s
 		NegativeTimeout: &fs.negativeTimeout,
 		NullPermissions: true,
 	})
+	// Pass in a logger to go-fuse with the layer digest
+	// The go-fuse logs are useful for tracing exactly what's happening at the fuse level.
+	logger := log.L.
+		WithField("layerDigest", labels[ctdsnapshotters.TargetLayerDigestLabel]).
+		WriterLevel(logrus.TraceLevel)
 	mountOpts := &fuse.MountOptions{
 		AllowOther: true,   // allow users other than root&mounter to access fs
 		FsName:     "soci", // name this filesystem as "soci"
 		Debug:      fs.debug,
+		Logger:     golog.New(logger, "", 0),
 	}
 	if _, err := exec.LookPath(fusermountBin); err == nil {
 		mountOpts.Options = []string{"suid"} // option for fusermount; allow setuid inside container
