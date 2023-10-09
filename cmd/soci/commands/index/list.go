@@ -24,8 +24,8 @@ import (
 	"text/tabwriter"
 	"time"
 
+	"github.com/awslabs/soci-snapshotter/cmd/soci/commands/internal"
 	"github.com/awslabs/soci-snapshotter/soci"
-	"github.com/containerd/containerd/cmd/ctr/commands"
 	"github.com/containerd/containerd/images"
 	"github.com/containerd/containerd/platforms"
 	specs "github.com/opencontainers/image-spec/specs-go/v1"
@@ -92,7 +92,7 @@ var listCommand = cli.Command{
 			plats = append(plats, pp)
 		}
 
-		client, ctx, cancel, err := commands.NewClient(cliContext)
+		client, ctx, cancel, err := internal.NewClient(cliContext)
 		if err != nil {
 			return err
 		}

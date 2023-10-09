@@ -19,9 +19,9 @@ package commands
 import (
 	"path/filepath"
 
+	"github.com/awslabs/soci-snapshotter/cmd/soci/commands/internal"
 	"github.com/awslabs/soci-snapshotter/soci"
 	"github.com/awslabs/soci-snapshotter/soci/store"
-	"github.com/containerd/containerd/cmd/ctr/commands"
 	"github.com/urfave/cli"
 )
 
@@ -29,7 +29,7 @@ var RebuildDBCommand = cli.Command{
 	Name:  "rebuild-db",
 	Usage: `rebuild the artifacts database. You should use this command after "rpull" so that indices/ztocs can be discovered by commands like "soci index list", and after "index rm" when using the containerd content store so that deleted orphaned zTOCs will be forgotten`,
 	Action: func(cliContext *cli.Context) error {
-		client, ctx, cancel, err := commands.NewClient(cliContext)
+		client, ctx, cancel, err := internal.NewClient(cliContext)
 		if err != nil {
 			return err
 		}

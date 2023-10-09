@@ -24,7 +24,6 @@ import (
 	"github.com/awslabs/soci-snapshotter/config"
 	"github.com/awslabs/soci-snapshotter/soci"
 	"github.com/awslabs/soci-snapshotter/soci/store"
-	"github.com/containerd/containerd/cmd/ctr/commands"
 	"github.com/urfave/cli"
 )
 
@@ -61,7 +60,7 @@ var CreateCommand = cli.Command{
 			return errors.New("source image needs to be specified")
 		}
 
-		client, ctx, cancel, err := commands.NewClient(cliContext)
+		client, ctx, cancel, err := internal.NewClient(cliContext)
 		if err != nil {
 			return err
 		}
