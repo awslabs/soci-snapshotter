@@ -64,9 +64,9 @@ After pulling an image, it should be ready to use the same reference in a run
 command. 
 `,
 	Flags: append(append(append(
-		commands.RegistryFlags,
-		commands.LabelFlag),
-		commands.SnapshotterFlags...),
+		internal.RegistryFlags,
+		internal.LabelFlag),
+		internal.SnapshotterFlags...),
 		cli.BoolFlag{
 			Name:  skipContentVerifyOpt,
 			Usage: "Skip content verification for layers contained in this image.",
@@ -92,7 +92,7 @@ command.
 
 		config.indexDigest = context.String("soci-index-digest")
 
-		client, ctx, cancel, err := commands.NewClient(context)
+		client, ctx, cancel, err := internal.NewClient(context)
 		if err != nil {
 			return err
 		}

@@ -29,7 +29,6 @@ import (
 	"github.com/awslabs/soci-snapshotter/fs"
 	"github.com/awslabs/soci-snapshotter/soci"
 	"github.com/awslabs/soci-snapshotter/soci/store"
-	"github.com/containerd/containerd/cmd/ctr/commands"
 	"github.com/containerd/containerd/reference"
 	dockercliconfig "github.com/docker/cli/cli/config"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
@@ -50,10 +49,9 @@ If multiple soci indices exist for the given image, the most recent one will be 
 After pushing the soci artifacts, they should be available in the registry. Soci artifacts will be pushed only
 if they are available in the snapshotter's local content store.
 `,
-	Flags: append(append(append(append(
-		commands.RegistryFlags,
-		commands.LabelFlag),
-		commands.SnapshotterFlags...),
+	Flags: append(append(append(
+		internal.RegistryFlags,
+		internal.SnapshotterFlags...),
 		internal.PlatformFlags...),
 		internal.ExistingIndexFlag,
 		cli.Uint64Flag{
@@ -73,7 +71,7 @@ if they are available in the snapshotter's local content store.
 			return fmt.Errorf("please provide an image reference to push")
 		}
 
-		client, ctx, cancel, err := commands.NewClient(cliContext)
+		client, ctx, cancel, err := internal.NewClient(cliContext)
 		if err != nil {
 			return err
 		}

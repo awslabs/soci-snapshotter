@@ -20,9 +20,9 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/awslabs/soci-snapshotter/cmd/soci/commands/internal"
 	"github.com/awslabs/soci-snapshotter/soci"
 	"github.com/awslabs/soci-snapshotter/soci/store"
-	"github.com/containerd/containerd/cmd/ctr/commands"
 	"github.com/opencontainers/go-digest"
 	"github.com/urfave/cli"
 )
@@ -66,7 +66,7 @@ var rmCommand = cli.Command{
 				return err
 			}
 		} else {
-			client, ctx, cancel, err := commands.NewClient(cliContext)
+			client, ctx, cancel, err := internal.NewClient(cliContext)
 			if err != nil {
 				return err
 			}

@@ -23,10 +23,10 @@ import (
 	"io"
 	"os"
 
+	"github.com/awslabs/soci-snapshotter/cmd/soci/commands/internal"
 	"github.com/awslabs/soci-snapshotter/soci"
 	"github.com/awslabs/soci-snapshotter/soci/store"
 	"github.com/awslabs/soci-snapshotter/ztoc"
-	"github.com/containerd/containerd/cmd/ctr/commands"
 	"github.com/containerd/containerd/content"
 	"github.com/opencontainers/go-digest"
 	v1 "github.com/opencontainers/image-spec/specs-go/v1"
@@ -54,7 +54,7 @@ var getFileCommand = cli.Command{
 		}
 		file := cliContext.Args()[1]
 
-		client, ctx, cancel, err := commands.NewClient(cliContext)
+		client, ctx, cancel, err := internal.NewClient(cliContext)
 		if err != nil {
 			return err
 		}
