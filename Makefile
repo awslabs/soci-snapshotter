@@ -44,7 +44,7 @@ CMD=soci-snapshotter-grpc soci
 
 CMD_BINARIES=$(addprefix $(OUTDIR)/,$(CMD))
 
-.PHONY: all build check add-ltag install uninstall clean test integration benchmarks build-benchmarks benchmarks-perf-test benchmarks-comparison-test
+.PHONY: all build check add-ltag install uninstall clean test integration release benchmarks build-benchmarks benchmarks-perf-test benchmarks-comparison-test
 
 all: build
 
@@ -91,6 +91,10 @@ integration: build
 	@echo "$@"
 	@echo "SOCI_SNAPSHOTTER_PROJECT_ROOT=$(SOCI_SNAPSHOTTER_PROJECT_ROOT)"
 	@GO111MODULE=$(GO111MODULE_VALUE) SOCI_SNAPSHOTTER_PROJECT_ROOT=$(SOCI_SNAPSHOTTER_PROJECT_ROOT) ENABLE_INTEGRATION_TEST=true go test $(GO_TEST_FLAGS) -v -timeout=0 ./integration
+
+release:
+	@echo "$@"
+	@$(SOCI_SNAPSHOTTER_PROJECT_ROOT)/scripts/create-releases.sh $(RELEASE_TAG)
 
 benchmarks: benchmarks-perf-test benchmarks-comparison-test
 
