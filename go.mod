@@ -12,7 +12,7 @@ require (
 	github.com/docker/go-metrics v0.0.1
 	github.com/golang/groupcache v0.0.0-20210331224755-41bb18bfe9da
 	github.com/google/flatbuffers v23.5.26+incompatible
-	github.com/google/go-cmp v0.5.9
+	github.com/google/go-cmp v0.6.0
 	github.com/google/uuid v1.3.1
 	github.com/hanwen/go-fuse/v2 v2.4.1-0.20231001162222-fc2c4d3da0a0
 	github.com/hashicorp/go-retryablehttp v0.7.4
