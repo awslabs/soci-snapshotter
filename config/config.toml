@@ -1,0 +1,126 @@
+# An example config showing all of the toml variables used.
+
+# Copy to /etc/soci-snapshotter-grpc/config.toml
+# to use on your system.
+
+# NOTE: Many variables set to zero are just an indicator
+# to use the built-in default. These values may change over time,
+# which is why the config uses zeroes.
+
+# TODO: Can we put these inside dedicated TOML vars to refer to them?
+
+# config/fs.go FSConfig
+http_cache_type=""
+filesystem_cache_type=""
+resolve_result_entry=0 # Actually zero
+debug=false
+allow_no_verification=true
+# disable_verification=false
+# Causes TestRunWithDefaultConfig to break, but
+# fine to use in /etc/soci-snapshotter-grpc-config.toml
+max_concurrency=0  # Actually zero
+no_prometheus=false
+mount_timeout_sec=0
+fuse_metrics_emit_wait_duration_sec=0
+
+## config/config.go Config
+
+metrics_address=""
+metrics_network="" # Uses default metrics network
+# no_prometheus=true # Defined above, can't be redeclared
+debug_address=""
+metadata_store="db"
+
+[http]
+MaxRetries=0
+MinWaitMsec=0
+MaxWaitMsec=0
+DialTimeoutMsec=0
+ResponseHeaderTimeoutMsec=0
+RequestTimeoutMsec=0
+
+#
+## config/fs.go
+#
+
+[blob]
+valid_interval=0
+check_always=false
+fetching_timeout_sec=0
+force_single_range_mode=false
+# max_retries=0 # Set by http.
+# min_wait_msec=0 # Set by http.
+# max_wait_msec=0 # Set by http.
+max_span_verification_retries=0 # Actually zero
+
+[directory_cache]
+max_lru_cache_entry=0 # Actually zero
+max_cache_fds=0 # Actually zero
+sync_add=false
+direct=true
+
+[fuse]
+attr_timeout=0
+entry_timeout=0
+negative_timeout=0
+log_fuse_operations=false
+
+[background_fetch]
+disable=false
+silence_period_msec=0
+fetch_period_msec=0
+max_queue_size=0
+emit_metric_period_sec=0
+
+[content_store]
+type="" # will set to 'soci' by default
+namespace="" # will set to 'default' by default
+   
+#
+## config/resolver.go
+#
+
+[resolver]
+  [resolver.host]
+
+#
+## config/service.go
+#
+
+[kubeconfig_keychain]
+enable_keychain=false
+kubeconfig_path=""
+
+[cri_keychain]
+enable_keychain=false
+image_service_path="" # Uses default image service address
+
+[snapshotter]
+min_layer_size=0 # Actually zero
+allow_invalid_mounts_on_restart=false
+
+#
+## service/resolver/cri.go
+#
+
+[registry]
+config_path=""
+mirrors={}
+configs={}
+
+[Mirror]
+endpoint={}
+
+[RegistryConfig]
+
+[auth]
+username=""
+password=""
+auth=""
+identitytoken=""
+
+[tls]
+insecure_skip_verify=false
+ca_file=""
+cert_file=""
+key_file=""
