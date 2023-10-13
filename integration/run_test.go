@@ -39,6 +39,7 @@ import (
 	"fmt"
 	"io"
 	"math"
+	"os"
 	"regexp"
 	"strconv"
 	"strings"
@@ -48,6 +49,21 @@ import (
 	"github.com/awslabs/soci-snapshotter/soci/store"
 	shell "github.com/awslabs/soci-snapshotter/util/dockershell"
 )
+
+func TestRunWithDefaultConfig(t *testing.T) {
+	b, err := os.ReadFile("../config/config.toml") // example toml file
+	if err != nil {
+		t.Fatalf("error fetching example toml")
+	}
+	config := string(b)
+
+	sh, c := newSnapshotterBaseShell(t)
+	defer c()
+
+	rebootContainerd(t, sh, getContainerdConfigToml(t, false), getSnapshotterConfigToml(t, false, config))
+	// This will error internally if it fails to boot. If it boots successfully,
+	// the config was successfully parsed and snapshotter is running
+}
 
 // TestRunMultipleContainers runs multiple containers at the same time and performs a test in each
 func TestRunMultipleContainers(t *testing.T) {

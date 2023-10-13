@@ -174,6 +174,7 @@ func main() {
 	if err != nil {
 		log.G(ctx).WithError(err).Fatalf("failed to configure metadata store")
 	}
+
 	fsOpts = append(fsOpts, fs.WithMetadataStore(mt))
 	rs, err := service.NewSociSnapshotterService(ctx, *rootDir, &cfg.ServiceConfig,
 		service.WithCredsFuncs(credsFuncs...), service.WithFilesystemOptions(fsOpts...))
