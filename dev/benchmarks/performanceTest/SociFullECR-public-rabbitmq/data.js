@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1696612335438,
+  "lastUpdate": 1697469280121,
   "repoUrl": "https://github.com/awslabs/soci-snapshotter",
   "entries": {
     "Soci Benchmark": [
@@ -878,6 +878,48 @@ window.BENCHMARK_DATA = {
           {
             "name": "SociFullECR-public-rabbitmq-pullTaskDuration",
             "value": 5.739,
+            "unit": "Seconds",
+            "extra": "P90"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "walster@amazon.com",
+            "name": "Kern Walster",
+            "username": "Kern--"
+          },
+          "committer": {
+            "email": "66654647+turan18@users.noreply.github.com",
+            "name": "Yasin Turan",
+            "username": "turan18"
+          },
+          "distinct": true,
+          "id": "104c68c2c6e9c3e10770413862d17f237c9a2600",
+          "message": "Add go-fuse logger\n\nsoci-snapshotter-gprc overrides the default logger to be a logrus logger\nwith debug as the write level. If the snapshotter is invoked with\n`--log-level debug`, then logs from e.g. `log.PrinLn` are visibile.\n\ngo-fuse uses this logging method to output a complete transaction of\nfuse operations keeping track of each request/response with a unique id.\nThe ID is only unique within a single server, so trying to parse the\nlogs is ambiguous since you don't know which server a response\ncorresponds to.\n\ngo-fuse recently added support for per-server loggers. This change uses\nthat functionality to add the layer digest to the logs from each fuse\nserver so request/response pairs can be unambiguously matched.\n\nIt also changes the log level of go-fuse logs to trace since there\nreally is no debug reason for enabling them.\n\nSigned-off-by: Kern Walster <walster@amazon.com>",
+          "timestamp": "2023-10-16T10:52:17-04:00",
+          "tree_id": "e087b5bfa3e6a2ae50fe2ce44e6f5df2a4de7a04",
+          "url": "https://github.com/awslabs/soci-snapshotter/commit/104c68c2c6e9c3e10770413862d17f237c9a2600"
+        },
+        "date": 1697469279496,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "SociFullECR-public-rabbitmq-lazyTaskDuration",
+            "value": 8.1065,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-rabbitmq-localTaskDuration",
+            "value": 7.878,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-rabbitmq-pullTaskDuration",
+            "value": 7.9305,
             "unit": "Seconds",
             "extra": "P90"
           }
