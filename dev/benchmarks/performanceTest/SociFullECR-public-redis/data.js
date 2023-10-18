@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1697469288988,
+  "lastUpdate": 1697599040296,
   "repoUrl": "https://github.com/awslabs/soci-snapshotter",
   "entries": {
     "Soci Benchmark": [
@@ -1125,6 +1125,48 @@ window.BENCHMARK_DATA = {
           {
             "name": "SociFullECR-public-redis-pullTaskDuration",
             "value": 2.763,
+            "unit": "Seconds",
+            "extra": "P90"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "turyasin@amazon.com",
+            "name": "Yasin Turan",
+            "username": "turan18"
+          },
+          "committer": {
+            "email": "kern.walster@gmail.com",
+            "name": "Kern Walster",
+            "username": "Kern--"
+          },
+          "distinct": true,
+          "id": "31a8bcc683f7522d146d0505d034558909e53433",
+          "message": "Upgrade to go 1.21 to fix `go get` panic when upgrading dependencies.\n\nSigned-off-by: Yasin Turan <turyasin@amazon.com>",
+          "timestamp": "2023-10-17T19:58:21-07:00",
+          "tree_id": "c051abe9866d955621a3d549b524851ce6a47cf5",
+          "url": "https://github.com/awslabs/soci-snapshotter/commit/31a8bcc683f7522d146d0505d034558909e53433"
+        },
+        "date": 1697599039755,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "SociFullECR-public-redis-lazyTaskDuration",
+            "value": 0.020499999999999997,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-redis-localTaskDuration",
+            "value": 0.018000000000000002,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-redis-pullTaskDuration",
+            "value": 5.4254999999999995,
             "unit": "Seconds",
             "extra": "P90"
           }
