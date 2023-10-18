@@ -53,6 +53,7 @@ import (
 	"time"
 
 	"github.com/awslabs/soci-snapshotter/cache"
+	"github.com/awslabs/soci-snapshotter/fs/metrics"
 	"github.com/awslabs/soci-snapshotter/fs/reader"
 	"github.com/awslabs/soci-snapshotter/fs/remote"
 	"github.com/awslabs/soci-snapshotter/fs/source"
@@ -76,7 +77,8 @@ const (
 	lastSpanOffset1    = sampleSpanSize * (int64(len(sampleData1)) / sampleSpanSize)
 )
 
-var testStateLayerDigest = digest.FromString("dummy")
+var testStateImageDigest = digest.FromString("dummyimage")
+var testStateLayerDigest = digest.FromString("dummylayer")
 var spanSizeCond = [3]int64{64, 128, 256}
 
 func testNodeRead(t *testing.T, factory metadata.Store) {
@@ -362,7 +364,7 @@ func hasSize(name string, size int) check {
 }
 
 func getRootNode(t *testing.T, r reader.Reader, opaque OverlayOpaqueType) *node {
-	rootNode, err := newNode(testStateLayerDigest, &testReader{r}, &testBlobState{10, 5}, 100, opaque, false, nil)
+	rootNode, err := newNode(testStateLayerDigest, testStateImageDigest, &testReader{r}, &testBlobState{10, 5}, 100, opaque, metrics.NewFuseObservabilityManager(false, 30*time.Second))
 	if err != nil {
 		t.Fatalf("failed to get root node: %v", err)
 	}

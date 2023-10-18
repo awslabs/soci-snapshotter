@@ -54,6 +54,7 @@ import (
 	"github.com/awslabs/soci-snapshotter/config"
 	bf "github.com/awslabs/soci-snapshotter/fs/backgroundfetcher"
 	"github.com/awslabs/soci-snapshotter/fs/layer"
+	m "github.com/awslabs/soci-snapshotter/fs/metrics"
 	commonmetrics "github.com/awslabs/soci-snapshotter/fs/metrics/common"
 	layermetrics "github.com/awslabs/soci-snapshotter/fs/metrics/layer"
 	"github.com/awslabs/soci-snapshotter/fs/remote"
@@ -192,22 +193,22 @@ func NewFilesystem(ctx context.Context, root string, cfg config.FSConfig, opts .
 		// are tied to the lifecycle of the filesystem itself. In order to avoid leaking goroutines,
 		// we store the snapshotter's lifecycle in the struct itself so that we can tie new goroutines
 		// to it later.
-		ctx:                         ctx,
-		resolver:                    r,
-		getSources:                  getSources,
-		debug:                       cfg.Debug,
-		layer:                       make(map[string]layer.Layer),
-		allowNoVerification:         cfg.AllowNoVerification,
-		disableVerification:         cfg.DisableVerification,
-		metricsController:           c,
-		attrTimeout:                 attrTimeout,
-		entryTimeout:                entryTimeout,
-		negativeTimeout:             negativeTimeout,
-		httpConfig:                  cfg.RetryableHTTPClientConfig,
-		contentStore:                store,
-		bgFetcher:                   bgFetcher,
-		mountTimeout:                mountTimeout,
-		fuseMetricsEmitWaitDuration: fuseMetricsEmitWaitDuration,
+		ctx:                      ctx,
+		resolver:                 r,
+		getSources:               getSources,
+		debug:                    cfg.Debug,
+		layer:                    make(map[string]layer.Layer),
+		allowNoVerification:      cfg.AllowNoVerification,
+		disableVerification:      cfg.DisableVerification,
+		metricsController:        c,
+		attrTimeout:              attrTimeout,
+		entryTimeout:             entryTimeout,
+		negativeTimeout:          negativeTimeout,
+		httpConfig:               cfg.RetryableHTTPClientConfig,
+		contentStore:             store,
+		bgFetcher:                bgFetcher,
+		mountTimeout:             mountTimeout,
+		fuseObservabilityManager: m.NewFuseObservabilityManager(cfg.LogFuseOperations, fuseMetricsEmitWaitDuration),
 	}, nil
 }
 
@@ -218,10 +219,9 @@ type sociContext struct {
 	fetchOnce            sync.Once
 	sociIndex            *soci.Index
 	imageLayerToSociDesc map[string]ocispec.Descriptor
-	fuseOperationCounter *layer.FuseOperationCounter
 }
 
-func (c *sociContext) Init(fsCtx context.Context, ctx context.Context, imageRef, indexDigest, imageManifestDigest string, store store.Store, fuseOpEmitWaitDuration time.Duration, httpConfig config.RetryableHTTPClientConfig) error {
+func (c *sociContext) Init(fsCtx context.Context, ctx context.Context, imageRef, indexDigest, imageManifestDigest string, store store.Store, fob *m.FuseObservabilityManager, httpConfig config.RetryableHTTPClientConfig) error {
 	var retErr error
 	c.fetchOnce.Do(func() {
 		defer func() {
@@ -274,10 +274,8 @@ func (c *sociContext) Init(fsCtx context.Context, ctx context.Context, imageRef,
 		c.sociIndex = index
 		c.populateImageLayerToSociMapping(index)
 
-		// Create the FUSE operation counter.
-		// Metrics are emitted after a wait time of fuseOpEmitWaitDuration.
-		c.fuseOperationCounter = layer.NewFuseOperationCounter(digest.Digest(imageManifestDigest), fuseOpEmitWaitDuration)
-		go c.fuseOperationCounter.Run(fsCtx)
+		go fob.ImageMonitor.InitOpCounter(ctx, digest.Digest(imageManifestDigest))
+
 	})
 	c.cachedErrMu.RLock()
 	retErr = c.cachedErr
@@ -294,24 +292,24 @@ func (c *sociContext) populateImageLayerToSociMapping(sociIndex *soci.Index) {
 }
 
 type filesystem struct {
-	ctx                         context.Context
-	resolver                    *layer.Resolver
-	debug                       bool
-	layer                       map[string]layer.Layer
-	layerMu                     sync.Mutex
-	allowNoVerification         bool
-	disableVerification         bool
-	getSources                  source.GetSources
-	metricsController           *layermetrics.Controller
-	attrTimeout                 time.Duration
-	entryTimeout                time.Duration
-	negativeTimeout             time.Duration
-	httpConfig                  config.RetryableHTTPClientConfig
-	sociContexts                sync.Map
-	contentStore                store.Store
-	bgFetcher                   *bf.BackgroundFetcher
-	mountTimeout                time.Duration
-	fuseMetricsEmitWaitDuration time.Duration
+	ctx                      context.Context
+	resolver                 *layer.Resolver
+	debug                    bool
+	layer                    map[string]layer.Layer
+	layerMu                  sync.Mutex
+	allowNoVerification      bool
+	disableVerification      bool
+	getSources               source.GetSources
+	metricsController        *layermetrics.Controller
+	attrTimeout              time.Duration
+	entryTimeout             time.Duration
+	negativeTimeout          time.Duration
+	httpConfig               config.RetryableHTTPClientConfig
+	sociContexts             sync.Map
+	contentStore             store.Store
+	bgFetcher                *bf.BackgroundFetcher
+	mountTimeout             time.Duration
+	fuseObservabilityManager *m.FuseObservabilityManager
 }
 
 func (fs *filesystem) MountLocal(ctx context.Context, mountpoint string, labels map[string]string, mounts []mount.Mount) error {
@@ -357,7 +355,7 @@ func (fs *filesystem) getSociContext(ctx context.Context, imageRef, indexDigest,
 	if !ok {
 		return nil, fmt.Errorf("could not load index: fs soci context is invalid type for %s", indexDigest)
 	}
-	err := c.Init(fs.ctx, ctx, imageRef, indexDigest, imageManifestDigest, fs.contentStore, fs.fuseMetricsEmitWaitDuration, fs.httpConfig)
+	err := c.Init(fs.ctx, ctx, imageRef, indexDigest, imageManifestDigest, fs.contentStore, fs.fuseObservabilityManager, fs.httpConfig)
 	return c, err
 }
 
@@ -409,7 +407,7 @@ func (fs *filesystem) Mount(ctx context.Context, mountpoint string, labels map[s
 				break
 			}
 
-			l, err := fs.resolver.Resolve(ctx, s.Hosts, s.Name, s.Target, sociDesc, c.fuseOperationCounter, fs.disableVerification)
+			l, err := fs.resolver.Resolve(ctx, s.Hosts, s.Name, s.Target, sociDesc, fs.fuseObservabilityManager, digest.Digest(imgDigest), fs.disableVerification)
 			if err == nil {
 				resultChan <- l
 				return
@@ -432,7 +430,7 @@ func (fs *filesystem) Mount(ctx context.Context, mountpoint string, labels map[s
 				return
 			}
 
-			l, err := fs.resolver.Resolve(ctx, preResolve.Hosts, preResolve.Name, desc, sociDesc, c.fuseOperationCounter, fs.disableVerification)
+			l, err := fs.resolver.Resolve(ctx, preResolve.Hosts, preResolve.Name, desc, sociDesc, fs.fuseObservabilityManager, digest.Digest(imgDigest), fs.disableVerification)
 			if err != nil {
 				log.G(ctx).WithError(err).Debug("failed to pre-resolve")
 				return
@@ -480,7 +478,6 @@ func (fs *filesystem) Mount(ctx context.Context, mountpoint string, labels map[s
 	// Measuring duration of Mount operation for resolved layer.
 	digest := l.Info().Digest // get layer sha
 	defer commonmetrics.MeasureLatencyInMilliseconds(commonmetrics.Mount, digest, start)
-
 	// Register the mountpoint layer
 	fs.layerMu.Lock()
 	fs.layer[mountpoint] = l

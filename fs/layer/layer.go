@@ -52,6 +52,7 @@ import (
 	"github.com/awslabs/soci-snapshotter/config"
 
 	backgroundfetcher "github.com/awslabs/soci-snapshotter/fs/backgroundfetcher"
+	"github.com/awslabs/soci-snapshotter/fs/metrics"
 	commonmetrics "github.com/awslabs/soci-snapshotter/fs/metrics/common"
 	"github.com/awslabs/soci-snapshotter/fs/reader"
 	"github.com/awslabs/soci-snapshotter/fs/remote"
@@ -230,7 +231,7 @@ func newCache(root string, cacheType string, cfg config.FSConfig) (cache.BlobCac
 }
 
 // Resolve resolves a layer based on the passed layer blob information.
-func (r *Resolver) Resolve(ctx context.Context, hosts source.RegistryHosts, refspec reference.Spec, desc, sociDesc ocispec.Descriptor, opCounter *FuseOperationCounter, disableVerification bool, metadataOpts ...metadata.Option) (_ Layer, retErr error) {
+func (r *Resolver) Resolve(ctx context.Context, hosts source.RegistryHosts, refspec reference.Spec, desc, sociDesc ocispec.Descriptor, ob *metrics.FuseObservabilityManager, imgDigest digest.Digest, disableVerification bool, metadataOpts ...metadata.Option) (_ Layer, retErr error) {
 	name := refspec.String() + "/" + desc.Digest.String()
 
 	// Wait if resolving this layer is already running. The result
@@ -341,7 +342,7 @@ func (r *Resolver) Resolve(ctx context.Context, hosts source.RegistryHosts, refs
 	}
 
 	// Combine layer information together and cache it.
-	l := newLayer(r, desc, blobR, vr, bgLayerResolver, opCounter)
+	l := newLayer(r, desc, blobR, vr, bgLayerResolver, ob, imgDigest)
 	r.layerCacheMu.Lock()
 	cachedL, done2, added := r.layerCache.Add(name, l)
 	r.layerCacheMu.Unlock()
@@ -402,15 +403,17 @@ func newLayer(
 	blob *blobRef,
 	vr *reader.VerifiableReader,
 	bgResolver backgroundfetcher.Resolver,
-	opCounter *FuseOperationCounter,
+	ob *metrics.FuseObservabilityManager,
+	imgDigest digest.Digest,
 ) *layer {
 	return &layer{
-		resolver:             resolver,
-		desc:                 desc,
-		blob:                 blob,
-		verifiableReader:     vr,
-		bgResolver:           bgResolver,
-		fuseOperationCounter: opCounter,
+		resolver:         resolver,
+		desc:             desc,
+		blob:             blob,
+		verifiableReader: vr,
+		bgResolver:       bgResolver,
+		ob:               ob,
+		imgDigest:        imgDigest,
 	}
 }
 
@@ -424,10 +427,10 @@ type layer struct {
 
 	r reader.Reader
 
-	fuseOperationCounter *FuseOperationCounter
-
-	closed   bool
-	closedMu sync.Mutex
+	ob        *metrics.FuseObservabilityManager
+	imgDigest digest.Digest
+	closed    bool
+	closedMu  sync.Mutex
 }
 
 func (l *layer) Info() Info {
@@ -487,7 +490,7 @@ func (l *layer) RootNode(baseInode uint32) (fusefs.InodeEmbedder, error) {
 	if l.r == nil {
 		return nil, fmt.Errorf("layer hasn't been verified yet")
 	}
-	return newNode(l.desc.Digest, l.r, l.blob, baseInode, l.resolver.overlayOpaqueType, l.resolver.config.LogFuseOperations, l.fuseOperationCounter)
+	return newNode(l.desc.Digest, l.imgDigest, l.r, l.blob, baseInode, l.resolver.overlayOpaqueType, l.ob)
 }
 
 func (l *layer) ReadAt(p []byte, offset int64, opts ...remote.Option) (int, error) {

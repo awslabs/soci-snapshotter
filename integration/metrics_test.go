@@ -26,7 +26,7 @@ import (
 	"time"
 
 	"github.com/awslabs/soci-snapshotter/config"
-	"github.com/awslabs/soci-snapshotter/fs/layer"
+	op "github.com/awslabs/soci-snapshotter/fs/layer/fuse"
 	commonmetrics "github.com/awslabs/soci-snapshotter/fs/metrics/common"
 	"github.com/awslabs/soci-snapshotter/soci"
 	"github.com/awslabs/soci-snapshotter/soci/store"
@@ -242,7 +242,7 @@ fuse_metrics_emit_wait_duration_sec = 10
 
 			curlOutput := string(sh.O("curl", tcpMetricsAddress+metricsPath))
 
-			for _, m := range layer.FuseOpsList {
+			for _, m := range op.OpsList {
 				if checkMetricExists(curlOutput, m) {
 					t.Fatalf("got unexpected metric: %s", m)
 				}
@@ -250,7 +250,7 @@ fuse_metrics_emit_wait_duration_sec = 10
 
 			time.Sleep(10 * time.Second)
 			curlOutput = string(sh.O("curl", tcpMetricsAddress+metricsPath))
-			for _, m := range layer.FuseOpsList {
+			for _, m := range op.OpsList {
 				if !checkMetricExists(curlOutput, m) {
 					t.Fatalf("missing expected metric: %s", m)
 				}
