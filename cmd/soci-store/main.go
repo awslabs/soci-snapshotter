@@ -173,12 +173,12 @@ func main() {
 	fsOpts = append(fsOpts, socifs.WithGetSources(
 		source.FromDefaultLabels(hosts), // provides source info based on default labels
 	), socifs.WithOverlayOpaqueType(opq))
-	fs, err := socifs.NewFilesystem(ctx, defaultRootDir, cfg.Config, fsOpts...)
+	fs, bgFetcher, err := socifs.NewFilesystem(ctx, defaultRootDir, cfg.Config, fsOpts...)
 	if err != nil {
 		log.G(ctx).WithError(err).Fatalf("failed to prepare fs")
 	}
 
-	layerManager, err := store.NewLayerManager(ctx, *rootDir, hosts, mt, fs, cfg.Config)
+	layerManager, err := store.NewLayerManager(ctx, *rootDir, hosts, mt, fs, bgFetcher, cfg.Config)
 	if err != nil {
 		log.G(ctx).WithError(err).Fatalf("failed to prepare pool")
 	}

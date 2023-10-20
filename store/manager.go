@@ -39,6 +39,7 @@ import (
 	"sync"
 	"time"
 
+	bf "github.com/awslabs/soci-snapshotter/fs/backgroundfetcher"
 	"github.com/awslabs/soci-snapshotter/fs/config"
 	"github.com/awslabs/soci-snapshotter/fs/layer"
 	layermetrics "github.com/awslabs/soci-snapshotter/fs/metrics/layer"
@@ -62,7 +63,7 @@ const (
 	defaultMaxConcurrency = 2
 )
 
-func NewLayerManager(ctx context.Context, root string, hosts source.RegistryHosts, metadataStore metadata.Store, fs snapshot.FileSystem, cfg config.Config) (*LayerManager, error) {
+func NewLayerManager(ctx context.Context, root string, hosts source.RegistryHosts, metadataStore metadata.Store, fs snapshot.FileSystem, bgFetcher *bf.BackgroundFetcher, cfg config.Config) (*LayerManager, error) {
 	refPool, err := newRefPool(ctx, root, hosts)
 	if err != nil {
 		return nil, err
@@ -86,7 +87,7 @@ func NewLayerManager(ctx context.Context, root string, hosts source.RegistryHost
 		metadataStore,
 		store,
 		layer.OverlayOpaqueAll,
-		/* bgFetcher= */ nil)
+		bgFetcher)
 	if err != nil {
 		return nil, fmt.Errorf("failed to setup resolver: %w", err)
 	}
@@ -125,6 +126,8 @@ type LayerManager struct {
 
 	layer      map[string]map[string]layer.Layer
 	refcounter map[string]map[string]int
+
+	bgFetcher bf.BackgroundFetcher
 
 	mu sync.Mutex
 	fs snapshot.FileSystem

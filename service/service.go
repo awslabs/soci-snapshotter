@@ -99,7 +99,7 @@ func NewSociSnapshotterService(ctx context.Context, root string, config *Config,
 	fsOpts := append(sOpts.fsOpts, socifs.WithGetSources(
 		source.FromDefaultLabels(hosts), // provides source info based on default labels
 	), socifs.WithOverlayOpaqueType(opq))
-	fs, err := socifs.NewFilesystem(ctx, fsRoot(root), config.Config, fsOpts...)
+	fs, _, err := socifs.NewFilesystem(ctx, fsRoot(root), config.Config, fsOpts...)
 	if err != nil {
 		log.G(ctx).WithError(err).Fatalf("failed to configure filesystem")
 	}
