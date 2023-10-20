@@ -424,6 +424,51 @@ func TestRootFolderPermission(t *testing.T) {
 	}
 }
 
+func TestRestartAfterSigint(t *testing.T) {
+	const containerImage = alpineImage
+	const killTimeout = 5
+	const startTimeout = "5s"
+
+	regConfig := newRegistryConfig()
+	sh, done := newShellWithRegistry(t, regConfig)
+	defer done()
+
+	rebootContainerd(t, sh, getContainerdConfigToml(t, false), getSnapshotterConfigToml(t, false, tcpMetricsConfig))
+	copyImage(sh, dockerhub(containerImage), regConfig.mirror(containerImage))
+	indexDigest := buildIndex(sh, regConfig.mirror(containerImage), withMinLayerSize(0), withSpanSize(100*1024))
+	sh.X("soci", "image", "rpull", "--user", regConfig.creds(), "--soci-index-digest", indexDigest, regConfig.mirror(containerImage).ref)
+	sh.X("pkill", "-SIGINT", "soci-snapshotte") // pkill can only take up to 15 chars
+
+	var buffer []byte
+	timedOut := true
+	for i := 0; i < killTimeout*4; i++ {
+		buffer = sh.O("ps")
+		if !strings.Contains(string(buffer), "soci-snapshotte") {
+			timedOut = false
+			break
+		}
+		sh.X("sleep", "0.25")
+	}
+
+	if timedOut {
+		t.Fatalf("failed to kill snapshotter daemon")
+	}
+
+	timeoutCmd := []string{"timeout", "--preserve-status", startTimeout}
+	cmd := shell.C("/usr/local/bin/soci-snapshotter-grpc", "--log-level", sociLogLevel,
+		"--address", "/run/soci-snapshotter-grpc/soci-snapshotter-grpc.sock")
+	cmd = addConfig(t, sh, getSnapshotterConfigToml(t, false, tcpMetricsConfig), cmd...)
+	cmd = append(timeoutCmd, cmd...)
+
+	// exit status 0 — command timed out, so server is running — PASS
+	// exit status 1 — server crashed before time limit — FAIL
+	if _, err := sh.OLog(cmd...); err != nil {
+		if err.Error() != "exit status 0" {
+			t.Fatalf("error starting snapshotter daemon: %v", err)
+		}
+	}
+}
+
 func TestRunInContentStore(t *testing.T) {
 	imageName := helloImage
 	sh, done := newSnapshotterBaseShell(t)
