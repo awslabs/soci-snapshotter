@@ -62,10 +62,10 @@ import (
 	snapshotsapi "github.com/containerd/containerd/api/services/snapshots/v1"
 	"github.com/containerd/containerd/contrib/snapshotservice"
 	"github.com/containerd/containerd/defaults"
-	"github.com/containerd/containerd/log"
 	"github.com/containerd/containerd/pkg/dialer"
 	"github.com/containerd/containerd/snapshots"
 	runtime_alpha "github.com/containerd/containerd/third_party/k8s.io/cri-api/pkg/apis/runtime/v1alpha2"
+	"github.com/containerd/log"
 	sddaemon "github.com/coreos/go-systemd/v22/daemon"
 	metrics "github.com/docker/go-metrics"
 	"github.com/sirupsen/logrus"
@@ -112,7 +112,7 @@ func main() {
 	ctx, cancel := context.WithCancel(log.WithLogger(context.Background(), log.L))
 	defer cancel()
 	// Streams log of standard lib (go-fuse uses this) into debug log
-	// Snapshotter should use "github.com/containerd/containerd/log" otherwise
+	// Snapshotter should use "github.com/containerd/log" otherwise
 	// logs are always printed as "debug" mode.
 	golog.SetOutput(log.G(ctx).WriterLevel(logrus.DebugLevel))
 	log.G(ctx).WithFields(logrus.Fields{

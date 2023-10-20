@@ -22,7 +22,7 @@ import (
 	"time"
 
 	commonmetrics "github.com/awslabs/soci-snapshotter/fs/metrics/common"
-	"github.com/containerd/containerd/log"
+	"github.com/containerd/log"
 	"golang.org/x/time/rate"
 )
 

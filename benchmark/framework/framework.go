@@ -26,7 +26,7 @@ import (
 	"strconv"
 	"testing"
 
-	"github.com/containerd/containerd/log"
+	"github.com/containerd/log"
 	"github.com/montanaflynn/stats"
 )
 

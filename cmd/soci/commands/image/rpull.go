@@ -42,8 +42,8 @@ import (
 	"github.com/containerd/containerd/cmd/ctr/commands"
 	"github.com/containerd/containerd/cmd/ctr/commands/content"
 	"github.com/containerd/containerd/images"
-	"github.com/containerd/containerd/log"
 	ctdsnapshotters "github.com/containerd/containerd/pkg/snapshotters"
+	"github.com/containerd/log"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/urfave/cli"
 )
