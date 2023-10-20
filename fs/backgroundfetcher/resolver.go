@@ -26,7 +26,7 @@ import (
 	commonmetrics "github.com/awslabs/soci-snapshotter/fs/metrics/common"
 	sm "github.com/awslabs/soci-snapshotter/fs/span-manager"
 	"github.com/awslabs/soci-snapshotter/ztoc/compression"
-	"github.com/containerd/containerd/log"
+	"github.com/containerd/log"
 	"github.com/opencontainers/go-digest"
 	"github.com/sirupsen/logrus"
 )

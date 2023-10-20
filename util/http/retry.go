@@ -26,7 +26,7 @@ import (
 
 	"github.com/awslabs/soci-snapshotter/config"
 	"github.com/awslabs/soci-snapshotter/version"
-	"github.com/containerd/containerd/log"
+	"github.com/containerd/log"
 	rhttp "github.com/hashicorp/go-retryablehttp"
 	"github.com/sirupsen/logrus"
 )
