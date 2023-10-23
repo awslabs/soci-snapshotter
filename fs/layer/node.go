@@ -57,7 +57,7 @@ import (
 	"github.com/awslabs/soci-snapshotter/fs/reader"
 	"github.com/awslabs/soci-snapshotter/fs/remote"
 	"github.com/awslabs/soci-snapshotter/metadata"
-	"github.com/containerd/containerd/log"
+	"github.com/containerd/log"
 	fusefs "github.com/hanwen/go-fuse/v2/fs"
 	"github.com/hanwen/go-fuse/v2/fuse"
 	digest "github.com/opencontainers/go-digest"
