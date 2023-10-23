@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1698074709977,
+  "lastUpdate": 1698102733417,
   "repoUrl": "https://github.com/awslabs/soci-snapshotter",
   "entries": {
     "Soci Benchmark": [
@@ -1045,6 +1045,48 @@ window.BENCHMARK_DATA = {
           {
             "name": "SociFullECR-public-node-pullTaskDuration",
             "value": 10.64,
+            "unit": "Seconds",
+            "extra": "P90"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "davbson@amazon.com",
+            "name": "David Son",
+            "username": "sondavidb"
+          },
+          "committer": {
+            "email": "55555210+sondavidb@users.noreply.github.com",
+            "name": "David Son",
+            "username": "sondavidb"
+          },
+          "distinct": true,
+          "id": "114d5ddb8b8db27e5bd588afd30044fa65ed5e00",
+          "message": "Add example config TOML\n\nSigned-off-by: David Son <davbson@amazon.com>",
+          "timestamp": "2023-10-23T15:46:15-07:00",
+          "tree_id": "c550b30a782e928c0abdc7830d6ffeba1aa2fde7",
+          "url": "https://github.com/awslabs/soci-snapshotter/commit/114d5ddb8b8db27e5bd588afd30044fa65ed5e00"
+        },
+        "date": 1698102731439,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "SociFullECR-public-node-lazyTaskDuration",
+            "value": 0.6165,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-node-localTaskDuration",
+            "value": 0.633,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-node-pullTaskDuration",
+            "value": 50.9675,
             "unit": "Seconds",
             "extra": "P90"
           }
