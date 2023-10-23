@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1697599043124,
+  "lastUpdate": 1698074716650,
   "repoUrl": "https://github.com/awslabs/soci-snapshotter",
   "entries": {
     "Soci Benchmark": [
@@ -1003,6 +1003,48 @@ window.BENCHMARK_DATA = {
           {
             "name": "SociFullECR-public-tensorflow_gpu-pullTaskDuration",
             "value": 106.99000000000001,
+            "unit": "Seconds",
+            "extra": "P90"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "walster@amazon.com",
+            "name": "Kern Walster",
+            "username": "Kern--"
+          },
+          "committer": {
+            "email": "66654647+turan18@users.noreply.github.com",
+            "name": "Yasin Turan",
+            "username": "turan18"
+          },
+          "distinct": true,
+          "id": "68b8fee8acf27bb58b43a13ceefaf666613b980a",
+          "message": "Move to github.com/containerd/log\n\nContainerd moved their log package from in tree\ngithub.com/containerd/containerd/log to it's own module at\ngithub.com/containerd/log. The in-tree log is deprecated as of 1.7.7\nwhich is tripping up the linter when we do the containerd update.\n\nThis change moves to the new log package.\n\nSigned-off-by: Kern Walster <walster@amazon.com>",
+          "timestamp": "2023-10-23T11:02:24-04:00",
+          "tree_id": "c6be5553ef0715f5c024d418c9b892c06595b599",
+          "url": "https://github.com/awslabs/soci-snapshotter/commit/68b8fee8acf27bb58b43a13ceefaf666613b980a"
+        },
+        "date": 1698074715261,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "SociFullECR-public-tensorflow_gpu-lazyTaskDuration",
+            "value": 5.6345,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-tensorflow_gpu-localTaskDuration",
+            "value": 3.0525,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-tensorflow_gpu-pullTaskDuration",
+            "value": 94.2575,
             "unit": "Seconds",
             "extra": "P90"
           }
