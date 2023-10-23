@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1698074721307,
+  "lastUpdate": 1698102734625,
   "repoUrl": "https://github.com/awslabs/soci-snapshotter",
   "entries": {
     "Soci Benchmark": [
@@ -1168,6 +1168,48 @@ window.BENCHMARK_DATA = {
           {
             "name": "SociFullECR-public-ffmpeg-pullTaskDuration",
             "value": 46.348499999999994,
+            "unit": "Seconds",
+            "extra": "P90"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "davbson@amazon.com",
+            "name": "David Son",
+            "username": "sondavidb"
+          },
+          "committer": {
+            "email": "55555210+sondavidb@users.noreply.github.com",
+            "name": "David Son",
+            "username": "sondavidb"
+          },
+          "distinct": true,
+          "id": "114d5ddb8b8db27e5bd588afd30044fa65ed5e00",
+          "message": "Add example config TOML\n\nSigned-off-by: David Son <davbson@amazon.com>",
+          "timestamp": "2023-10-23T15:46:15-07:00",
+          "tree_id": "c550b30a782e928c0abdc7830d6ffeba1aa2fde7",
+          "url": "https://github.com/awslabs/soci-snapshotter/commit/114d5ddb8b8db27e5bd588afd30044fa65ed5e00"
+        },
+        "date": 1698102733329,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "SociFullECR-public-ffmpeg-lazyTaskDuration",
+            "value": 0.0135,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-ffmpeg-localTaskDuration",
+            "value": 0.0155,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-ffmpeg-pullTaskDuration",
+            "value": 44.168,
             "unit": "Seconds",
             "extra": "P90"
           }
