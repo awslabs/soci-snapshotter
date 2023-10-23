@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1697599042075,
+  "lastUpdate": 1698074721307,
   "repoUrl": "https://github.com/awslabs/soci-snapshotter",
   "entries": {
     "Soci Benchmark": [
@@ -1126,6 +1126,48 @@ window.BENCHMARK_DATA = {
           {
             "name": "SociFullECR-public-ffmpeg-pullTaskDuration",
             "value": 38.8395,
+            "unit": "Seconds",
+            "extra": "P90"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "walster@amazon.com",
+            "name": "Kern Walster",
+            "username": "Kern--"
+          },
+          "committer": {
+            "email": "66654647+turan18@users.noreply.github.com",
+            "name": "Yasin Turan",
+            "username": "turan18"
+          },
+          "distinct": true,
+          "id": "68b8fee8acf27bb58b43a13ceefaf666613b980a",
+          "message": "Move to github.com/containerd/log\n\nContainerd moved their log package from in tree\ngithub.com/containerd/containerd/log to it's own module at\ngithub.com/containerd/log. The in-tree log is deprecated as of 1.7.7\nwhich is tripping up the linter when we do the containerd update.\n\nThis change moves to the new log package.\n\nSigned-off-by: Kern Walster <walster@amazon.com>",
+          "timestamp": "2023-10-23T11:02:24-04:00",
+          "tree_id": "c6be5553ef0715f5c024d418c9b892c06595b599",
+          "url": "https://github.com/awslabs/soci-snapshotter/commit/68b8fee8acf27bb58b43a13ceefaf666613b980a"
+        },
+        "date": 1698074714062,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "SociFullECR-public-ffmpeg-lazyTaskDuration",
+            "value": 0.0175,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-ffmpeg-localTaskDuration",
+            "value": 0.018500000000000003,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-ffmpeg-pullTaskDuration",
+            "value": 46.348499999999994,
             "unit": "Seconds",
             "extra": "P90"
           }
