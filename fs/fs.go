@@ -184,6 +184,9 @@ func NewFilesystem(ctx context.Context, root string, cfg config.FSConfig, opts .
 	if ns != nil {
 		metrics.Register(ns) // Register layer metrics.
 	}
+
+	go commonmetrics.ListenForFuseFailure(ctx)
+
 	return &filesystem{
 		// it's generally considered bad practice to store a context in a struct,
 		// however `filesystem` has it's own lifecycle as well as a per-request lifecycle.

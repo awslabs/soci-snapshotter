@@ -33,6 +33,7 @@
 package commonmetrics
 
 import (
+	"context"
 	"sync"
 	"time"
 
@@ -61,6 +62,19 @@ const (
 	subsystem = "fs"
 )
 
+var (
+	// fuseFailureSignal is used as a signalling mechanism
+	// to notify a listener of a FUSE failure. The channel
+	// is unbuffered so that only a single failure can be
+	// emitted at any given time.
+	fuseFailureSignal = make(chan struct{})
+	// timeBlock defines a period of time in which we use
+	// to evaluate whether any single FUSE failure occurred.
+	// We chose the time block to be 5 minutes as it aligns
+	// with the alarm period set by most monitoring services.
+	timeBlock = 5 * time.Minute
+)
+
 // Lists all metric labels.
 const (
 	// prometheus metrics
@@ -74,6 +88,9 @@ const (
 	SynchronousReadCount              = "synchronous_read_count"
 	SynchronousReadRegistryFetchCount = "synchronous_read_remote_registry_fetch_count" // TODO revisit (wrong place)
 	SynchronousBytesServed            = "synchronous_bytes_served"
+
+	// Global fuse failure state
+	FuseFailureState = "fuse_failure_state"
 
 	// fuse operation failure metrics
 	FuseNodeGetattrFailureCount     = "fuse_node_getattr_failure_count"
@@ -225,4 +242,52 @@ func AddBytesCount(operation string, layer digest.Digest, bytes int64) {
 // AddImageOperationCount wraps the labels attachment as well as calling Add into a single method.
 func AddImageOperationCount(operation string, image digest.Digest, count int32) {
 	imageOperationCount.WithLabelValues(operation, image.String()).Add(float64(count))
+}
+
+// ListenForFuseFailure infinitely listens for any FUSE failure.
+// If one occurs, it increments the `FuseFailureState` metric and
+// sleeps for a time block. This should be run at an FS level
+// in a separate routine so that it does not block the main
+// thread.
+func ListenForFuseFailure(ctx context.Context) {
+
+	incrementWithBackoff := func(ctx context.Context) {
+		IncOperationCount(FuseFailureState, digest.Digest(""))
+
+		select {
+		case <-ctx.Done():
+			return
+		case <-time.After(timeBlock):
+			return
+		}
+	}
+
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-fuseFailureSignal:
+			incrementWithBackoff(ctx)
+		}
+	}
+}
+
+// notifyFuseFailureListener notifies the listener that a FUSE
+// failure occurred. Note: We wrap the send in a select block
+// with a default case to ensure the thread does not block if
+// no receiver is available.
+func notifyFuseFailureListener() {
+	select {
+	case fuseFailureSignal <- struct{}{}:
+	default:
+		return
+	}
+}
+
+// ReportFuseFailure increments the in memory Prometheus counter
+// failure metric for the FUSE op as well as notifying the global
+// FUSE failure listener that a failure occurred.
+func ReportFuseFailure(fuseOperation string, layerDigest digest.Digest) {
+	IncOperationCount(fuseOperation, layerDigest)
+	notifyFuseFailureListener()
 }

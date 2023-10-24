@@ -165,6 +165,7 @@ log_fuse_operations = true
 		image                      string
 		indexDigestFn              func(*testing.T, *shell.Shell, imageInfo) string
 		metricToCheck              string
+		expectedCount              int
 		expectFuseOperationFailure bool
 	}{
 		{
@@ -191,6 +192,20 @@ log_fuse_operations = true
 			metricToCheck:              commonmetrics.FuseFileReadFailureCount,
 			expectFuseOperationFailure: true,
 		},
+		{
+			name:  "image with valid-formatted but invalid-data ztocs causes a fuse failure",
+			image: pinnedRabbitmqImage,
+			indexDigestFn: func(t *testing.T, sh *shell.Shell, image imageInfo) string {
+				indexDigest, err := buildIndexByManipulatingZtocData(sh, buildIndex(sh, image, withMinLayerSize(0)), manipulateZtocMetadata)
+				if err != nil {
+					t.Fatal(err)
+				}
+				return indexDigest
+			},
+			metricToCheck:              commonmetrics.FuseFailureState,
+			expectedCount:              1,
+			expectFuseOperationFailure: true,
+		},
 	}
 
 	for _, tc := range testCases {
@@ -206,7 +221,7 @@ log_fuse_operations = true
 			sh.XLog("ctr", "run", "--rm", "--snapshotter=soci", imgInfo.ref, "test", "echo", "hi")
 
 			curlOutput := string(sh.O("curl", tcpMetricsAddress+metricsPath))
-			checkFuseOperationFailureMetrics(t, curlOutput, tc.metricToCheck, tc.expectFuseOperationFailure)
+			checkFuseOperationFailureMetrics(t, curlOutput, tc.metricToCheck, tc.expectFuseOperationFailure, tc.expectedCount)
 		})
 	}
 }
@@ -378,7 +393,7 @@ func buildIndexByManipulatingZtocData(sh *shell.Shell, indexDigest string, manip
 
 // checkFuseOperationFailureMetrics checks if output from metrics endpoint includes
 // a specific fuse operation failure metrics (or any fuse op failure if an empty string is given)
-func checkFuseOperationFailureMetrics(t *testing.T, output string, metricToCheck string, expectOpFailure bool) {
+func checkFuseOperationFailureMetrics(t *testing.T, output string, metricToCheck string, expectOpFailure bool, expectedCount int) {
 	metricCountSum := 0
 
 	lines := strings.Split(output, "\n")
@@ -400,6 +415,14 @@ func checkFuseOperationFailureMetrics(t *testing.T, output string, metricToCheck
 	if (metricCountSum != 0) != expectOpFailure {
 		t.Fatalf("incorrect fuse operation failure metrics. metric: %s, total operation failure count: %d, expect fuse operation failure: %t",
 			metricToCheck, metricCountSum, expectOpFailure)
+	}
+
+	if expectOpFailure {
+		if expectedCount > 0 {
+			if metricCountSum != expectedCount {
+				t.Fatalf("incorrect metric count: expected %v; got %v", expectedCount, metricCountSum)
+			}
+		}
 	}
 }
 
