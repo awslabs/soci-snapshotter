@@ -185,6 +185,10 @@ func NewFilesystem(ctx context.Context, root string, cfg config.FSConfig, opts .
 	if ns != nil {
 		metrics.Register(ns) // Register layer metrics.
 	}
+
+	fob := m.NewFuseObservabilityManager(cfg.LogFuseOperations, fuseMetricsEmitWaitDuration)
+	go fob.GlobalMonitor.RunFuseFailureListener(ctx)
+
 	return &filesystem{
 		// it's generally considered bad practice to store a context in a struct,
 		// however `filesystem` has it's own lifecycle as well as a per-request lifecycle.
@@ -208,7 +212,7 @@ func NewFilesystem(ctx context.Context, root string, cfg config.FSConfig, opts .
 		contentStore:             store,
 		bgFetcher:                bgFetcher,
 		mountTimeout:             mountTimeout,
-		fuseObservabilityManager: m.NewFuseObservabilityManager(cfg.LogFuseOperations, fuseMetricsEmitWaitDuration),
+		fuseObservabilityManager: fob,
 	}, nil
 }
 

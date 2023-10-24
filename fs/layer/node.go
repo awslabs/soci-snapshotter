@@ -166,6 +166,7 @@ func (fs *fs) basicTelemetry(ctx context.Context, operationName string, path str
 			fc.Inc(operationName)
 		}
 	}
+	fs.obMngr.GlobalMonitor.FuseFailureNotify()
 }
 
 // reportTelemetry wraps FUSE failure telemetry operations.

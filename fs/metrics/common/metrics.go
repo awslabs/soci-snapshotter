@@ -75,6 +75,9 @@ const (
 	SynchronousReadRegistryFetchCount = "synchronous_read_remote_registry_fetch_count" // TODO revisit (wrong place)
 	SynchronousBytesServed            = "synchronous_bytes_served"
 
+	// Global FUSE failure state
+	FuseFailureState = "fuse_failure_state"
+
 	// fuse operation failure metrics
 	FuseNodeGetattrFailureCount     = "fuse_node_getattr_failure_count"
 	FuseNodeListxattrFailureCount   = "fuse_node_listxattr_failure_count"

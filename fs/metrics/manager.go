@@ -25,6 +25,7 @@ import (
 type FuseObservabilityManager struct {
 	LayerMonitor      *monitor.LayerMonitor
 	ImageMonitor      *monitor.ImageMonitor
+	GlobalMonitor     *monitor.GlobalMonitor
 	LogFuseOperations bool
 }
 
@@ -37,6 +38,7 @@ func NewFuseObservabilityManager(logFuseOperations bool, waitP time.Duration) *F
 	return &FuseObservabilityManager{
 		LayerMonitor:      monitor.NewLayerMonitor(),
 		ImageMonitor:      monitor.NewImageMonitor(waitP),
+		GlobalMonitor:     monitor.NewGlobalMonitor(),
 		LogFuseOperations: logFuseOperations,
 	}
 }
