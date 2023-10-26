@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1698334840939,
+  "lastUpdate": 1698348436960,
   "repoUrl": "https://github.com/awslabs/soci-snapshotter",
   "entries": {
     "Soci Benchmark": [
@@ -1294,6 +1294,48 @@ window.BENCHMARK_DATA = {
           {
             "name": "SociFullECR-public-busybox-pullTaskDuration",
             "value": 0.664,
+            "unit": "Seconds",
+            "extra": "P90"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "turyasin@amazon.com",
+            "name": "Yasin Turan",
+            "username": "turan18"
+          },
+          "committer": {
+            "email": "66654647+turan18@users.noreply.github.com",
+            "name": "Yasin Turan",
+            "username": "turan18"
+          },
+          "distinct": true,
+          "id": "fe3fc9339a3fa5a3f602cfcbc21842bb8d3b9028",
+          "message": "Add global FUSE failure metric\n\nAdded a global FUSE failure metric that is only ever incremented\nevery time block (5 mins).\n\nSigned-off-by: Yasin Turan <turyasin@amazon.com>",
+          "timestamp": "2023-10-26T15:04:42-04:00",
+          "tree_id": "da786762df60afd87214a13ca0944c39e4ffb79f",
+          "url": "https://github.com/awslabs/soci-snapshotter/commit/fe3fc9339a3fa5a3f602cfcbc21842bb8d3b9028"
+        },
+        "date": 1698348435881,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "SociFullECR-public-busybox-lazyTaskDuration",
+            "value": 0.015,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-busybox-localTaskDuration",
+            "value": 0.0165,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-busybox-pullTaskDuration",
+            "value": 0.735,
             "unit": "Seconds",
             "extra": "P90"
           }
