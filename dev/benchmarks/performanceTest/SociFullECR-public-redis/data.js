@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1698194347779,
+  "lastUpdate": 1698334846113,
   "repoUrl": "https://github.com/awslabs/soci-snapshotter",
   "entries": {
     "Soci Benchmark": [
@@ -1293,6 +1293,48 @@ window.BENCHMARK_DATA = {
           {
             "name": "SociFullECR-public-redis-pullTaskDuration",
             "value": 3.5404999999999998,
+            "unit": "Seconds",
+            "extra": "P90"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "macedonv@amazon.com",
+            "name": "Austin Vazquez",
+            "username": "austinvazquez"
+          },
+          "committer": {
+            "email": "55906459+austinvazquez@users.noreply.github.com",
+            "name": "Austin Vazquez",
+            "username": "austinvazquez"
+          },
+          "distinct": true,
+          "id": "83aa1d02e0b22e5ff7e0f90ff071080d02ca6a03",
+          "message": "Update scripts with minor changes\n\nThis changeset adds consistent naming to shell scripts, adds copyrights\nto benchmark scripts, and changes shebangs to env bash to work in\nenvironments when bash is not under `/bin/`.\n\nSigned-off-by: Austin Vazquez <macedonv@amazon.com>",
+          "timestamp": "2023-10-26T08:21:36-07:00",
+          "tree_id": "ebc50b2a859f3b208acc286de68f54345b856878",
+          "url": "https://github.com/awslabs/soci-snapshotter/commit/83aa1d02e0b22e5ff7e0f90ff071080d02ca6a03"
+        },
+        "date": 1698334841415,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "SociFullECR-public-redis-lazyTaskDuration",
+            "value": 0.019999999999999997,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-redis-localTaskDuration",
+            "value": 0.018500000000000003,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-redis-pullTaskDuration",
+            "value": 2.311,
             "unit": "Seconds",
             "extra": "P90"
           }
