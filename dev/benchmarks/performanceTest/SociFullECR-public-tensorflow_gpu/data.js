@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1698334840000,
+  "lastUpdate": 1698348449644,
   "repoUrl": "https://github.com/awslabs/soci-snapshotter",
   "entries": {
     "Soci Benchmark": [
@@ -1171,6 +1171,48 @@ window.BENCHMARK_DATA = {
           {
             "name": "SociFullECR-public-tensorflow_gpu-pullTaskDuration",
             "value": 205.13400000000001,
+            "unit": "Seconds",
+            "extra": "P90"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "turyasin@amazon.com",
+            "name": "Yasin Turan",
+            "username": "turan18"
+          },
+          "committer": {
+            "email": "66654647+turan18@users.noreply.github.com",
+            "name": "Yasin Turan",
+            "username": "turan18"
+          },
+          "distinct": true,
+          "id": "fe3fc9339a3fa5a3f602cfcbc21842bb8d3b9028",
+          "message": "Add global FUSE failure metric\n\nAdded a global FUSE failure metric that is only ever incremented\nevery time block (5 mins).\n\nSigned-off-by: Yasin Turan <turyasin@amazon.com>",
+          "timestamp": "2023-10-26T15:04:42-04:00",
+          "tree_id": "da786762df60afd87214a13ca0944c39e4ffb79f",
+          "url": "https://github.com/awslabs/soci-snapshotter/commit/fe3fc9339a3fa5a3f602cfcbc21842bb8d3b9028"
+        },
+        "date": 1698348448597,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "SociFullECR-public-tensorflow_gpu-lazyTaskDuration",
+            "value": 3.359,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-tensorflow_gpu-localTaskDuration",
+            "value": 2.7265,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-tensorflow_gpu-pullTaskDuration",
+            "value": 92.743,
             "unit": "Seconds",
             "extra": "P90"
           }
