@@ -15,7 +15,7 @@ require (
 	github.com/urfave/cli v1.22.14
 	go.etcd.io/bbolt v1.3.7
 	golang.org/x/sys v0.13.0
-	google.golang.org/grpc v1.56.2
+	google.golang.org/grpc v1.56.3
 	k8s.io/cri-api v0.28.2
 	oras.land/oras-go/v2 v2.3.1
 )
@@ -95,7 +95,7 @@ require (
 	go.opentelemetry.io/otel/trace v1.16.0 // indirect
 	golang.org/x/mod v0.12.0 // indirect
 	golang.org/x/net v0.13.0 // indirect
-	golang.org/x/oauth2 v0.8.0 // indirect
+	golang.org/x/oauth2 v0.10.0 // indirect
 	golang.org/x/sync v0.4.0 // indirect
 	golang.org/x/term v0.13.0 // indirect
 	golang.org/x/text v0.13.0 // indirect
