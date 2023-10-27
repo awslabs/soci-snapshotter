@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1698348449644,
+  "lastUpdate": 1698428817576,
   "repoUrl": "https://github.com/awslabs/soci-snapshotter",
   "entries": {
     "Soci Benchmark": [
@@ -1213,6 +1213,48 @@ window.BENCHMARK_DATA = {
           {
             "name": "SociFullECR-public-tensorflow_gpu-pullTaskDuration",
             "value": 92.743,
+            "unit": "Seconds",
+            "extra": "P90"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "davbson@amazon.com",
+            "name": "David Son",
+            "username": "sondavidb"
+          },
+          "committer": {
+            "email": "55555210+sondavidb@users.noreply.github.com",
+            "name": "David Son",
+            "username": "sondavidb"
+          },
+          "distinct": true,
+          "id": "49dc6a77a41175bca0dc74d43389c61edc171803",
+          "message": "Add test against referrers API\n\nSigned-off-by: David Son <davbson@amazon.com>",
+          "timestamp": "2023-10-27T10:31:47-07:00",
+          "tree_id": "e9e58433bb8cd7b8480baf068fcd6a1d950a3d66",
+          "url": "https://github.com/awslabs/soci-snapshotter/commit/49dc6a77a41175bca0dc74d43389c61edc171803"
+        },
+        "date": 1698428814599,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "SociFullECR-public-tensorflow_gpu-lazyTaskDuration",
+            "value": 2.5175,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-tensorflow_gpu-localTaskDuration",
+            "value": 2.1814999999999998,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-tensorflow_gpu-pullTaskDuration",
+            "value": 80.25800000000001,
             "unit": "Seconds",
             "extra": "P90"
           }
