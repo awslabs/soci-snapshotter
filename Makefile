@@ -44,7 +44,7 @@ CMD=soci-snapshotter-grpc soci
 
 CMD_BINARIES=$(addprefix $(OUTDIR)/,$(CMD))
 
-.PHONY: all build check add-ltag install uninstall clean test integration
+.PHONY: all build check add-ltag install uninstall clean test integration benchmarks build-benchmarks benchmarks-perf-test benchmarks-comparison-test
 
 all: build
 
@@ -92,19 +92,23 @@ integration: build
 	@echo "SOCI_SNAPSHOTTER_PROJECT_ROOT=$(SOCI_SNAPSHOTTER_PROJECT_ROOT)"
 	@GO111MODULE=$(GO111MODULE_VALUE) SOCI_SNAPSHOTTER_PROJECT_ROOT=$(SOCI_SNAPSHOTTER_PROJECT_ROOT) ENABLE_INTEGRATION_TEST=true go test $(GO_TEST_FLAGS) -v -timeout=0 ./integration
 
-benchmarks:
-	@echo "$@"
-	@cd benchmark/performanceTest ; GO111MODULE=$(GO111MODULE_VALUE) go build -o ../bin/PerfTests . && sudo ../bin/PerfTests
-	@cd benchmark/comparisonTest ;  GO111MODULE=$(GO111MODULE_VALUE) go build -o ../bin/CompTests . && sudo ../bin/CompTests
+benchmarks: benchmarks-perf-test benchmarks-comparison-test
 
-build-benchmarks:
-	@echo "$@"
-	@cd benchmark/performanceTest ; GO111MODULE=$(GO111MODULE_VALUE) go build -o ../bin/PerfTests .
-	@cd benchmark/comparisonTest ;  GO111MODULE=$(GO111MODULE_VALUE) go build -o ../bin/CompTests .
+build-benchmarks: benchmark/bin/PerfTests benchmark/bin/CompTests
 
-benchmarks-perf-test:
+benchmark/bin/PerfTests: FORCE
+	GO111MODULE=$(GO111MODULE_VALUE) go build -o $@ ./benchmark/performanceTest
+
+benchmark/bin/CompTests: FORCE
+	GO111MODULE=$(GO111MODULE_VALUE) go build -o $@ ./benchmark/comparisonTest
+
+benchmarks-perf-test: benchmark/bin/PerfTests
 	@echo "$@"
-	@cd benchmark/performanceTest ; sudo rm -rf output ; GO111MODULE=$(GO111MODULE_VALUE) go build -o ../bin/PerfTests . && sudo ../bin/PerfTests -show-commit
+	@cd benchmark/performanceTest ; sudo ../bin/PerfTests -show-commit $(BENCHMARK_FLAGS)
+
+benchmarks-comparison-test: benchmark/bin/CompTests
+	@echo "$@"
+	@cd benchmark/comparisonTest ; sudo ../bin/CompTests $(BENCHMARK_FLAGS)
 
 benchmarks-stargz:
 	@echo "$@"
