@@ -94,15 +94,12 @@ func main() {
 	var drivers []framework.BenchmarkTestDriver
 	for _, image := range imageList {
 		shortName := image.ShortName
-		imageRef := image.ImageRef
-		sociIndexManifestRef := image.SociIndexManifestRef
-		readyLine := image.ReadyLine
 		testName := "SociFull" + shortName
 		driver := framework.BenchmarkTestDriver{
 			TestName:      testName,
 			NumberOfTests: numberOfTests,
 			TestFunction: func(b *testing.B) {
-				benchmark.SociFullRun(ctx, b, imageRef, sociIndexManifestRef, readyLine, testName)
+				benchmark.SociFullRun(ctx, b, testName, image)
 			},
 		}
 		if parseFileAccessPatterns {

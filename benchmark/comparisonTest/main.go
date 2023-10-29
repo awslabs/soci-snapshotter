@@ -78,22 +78,20 @@ func main() {
 
 	var drivers []framework.BenchmarkTestDriver
 	for _, image := range imageList {
+		image := image
 		shortName := image.ShortName
-		imageRef := image.ImageRef
-		sociIndexManifestRef := image.SociIndexManifestRef
-		readyLine := image.ReadyLine
 		drivers = append(drivers, framework.BenchmarkTestDriver{
 			TestName:      "OverlayFSFull" + shortName,
 			NumberOfTests: numberOfTests,
 			TestFunction: func(b *testing.B) {
-				benchmark.OverlayFSFullRun(ctx, b, imageRef, readyLine, "OverlayFSFull"+shortName)
+				benchmark.OverlayFSFullRun(ctx, b, "OverlayFSFull"+shortName, image)
 			},
 		})
 		drivers = append(drivers, framework.BenchmarkTestDriver{
 			TestName:      "SociFull" + shortName,
 			NumberOfTests: numberOfTests,
 			TestFunction: func(b *testing.B) {
-				benchmark.SociFullRun(ctx, b, imageRef, sociIndexManifestRef, readyLine, "SociFull"+shortName)
+				benchmark.SociFullRun(ctx, b, "SociFull"+shortName, image)
 			},
 		})
 	}
