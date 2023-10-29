@@ -32,16 +32,16 @@ var (
 
 func main() {
 	commit := os.Args[1]
-	configCsv := os.Args[2]
+	configFile := os.Args[2]
 	numberOfTests, err := strconv.Atoi(os.Args[3])
 	stargzBinary := os.Args[4]
 	if err != nil {
 		errMsg := fmt.Sprintf("Failed to parse number of test %s with error:%v\n", os.Args[3], err)
 		panic(errMsg)
 	}
-	imageList, err := benchmark.GetImageListFromCsv(configCsv)
+	imageList, err := benchmark.GetImageList(configFile)
 	if err != nil {
-		errMsg := fmt.Sprintf("Failed to read csv file %s with error:%v\n", configCsv, err)
+		errMsg := fmt.Sprintf("Failed to read file %s with error:%v\n", configFile, err)
 		panic(errMsg)
 	}
 

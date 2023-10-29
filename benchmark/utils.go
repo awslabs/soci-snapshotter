@@ -18,24 +18,49 @@ package benchmark
 
 import (
 	"encoding/csv"
+	"encoding/json"
 	"errors"
+	"io"
 	"os"
 	"os/exec"
 )
 
 type ImageDescriptor struct {
-	ShortName            string
-	ImageRef             string
-	SociIndexManifestRef string
-	ReadyLine            string
+	ShortName            string `json:"short_name"`
+	ImageRef             string `json:"image_ref"`
+	SociIndexManifestRef string `json:"soci_index_manifest_ref"`
+	ReadyLine            string `json:"ready_line"`
 }
 
-func GetImageListFromCsv(csvLoc string) ([]ImageDescriptor, error) {
-	csvFile, err := os.Open(csvLoc)
+func GetImageList(file string) ([]ImageDescriptor, error) {
+	f, err := os.Open(file)
 	if err != nil {
 		return nil, err
 	}
-	csv, err := csv.NewReader(csvFile).ReadAll()
+	defer f.Close()
+	images, jsonErr := GetImageListFromJSON(f)
+	if jsonErr == nil {
+		return images, nil
+	}
+	images, csvErr := GetImageListFromCsv(f)
+	if csvErr == nil {
+		return images, nil
+	}
+	return nil, errors.Join(jsonErr, csvErr)
+
+}
+
+func GetImageListFromJSON(r io.Reader) ([]ImageDescriptor, error) {
+	var images []ImageDescriptor
+	err := json.NewDecoder(r).Decode(&images)
+	if err != nil {
+		return nil, err
+	}
+	return images, nil
+}
+
+func GetImageListFromCsv(r io.Reader) ([]ImageDescriptor, error) {
+	csv, err := csv.NewReader(r).ReadAll()
 	if err != nil {
 		return nil, err
 	}
