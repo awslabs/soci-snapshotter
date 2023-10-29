@@ -103,10 +103,8 @@ func SociRPullPullImage(
 func SociFullRun(
 	ctx context.Context,
 	b *testing.B,
-	imageRef string,
-	indexDigest string,
-	readyLine string,
-	testName string) {
+	testName string,
+	imageDescriptor ImageDescriptor) {
 	testUUID := uuid.New().String()
 	ctx = log.WithLogger(ctx, log.G(ctx).WithField("test_name", testName))
 	ctx = log.WithLogger(ctx, log.G(ctx).WithField("uuid", testUUID))
@@ -125,7 +123,7 @@ func SociFullRun(
 	pullStart := time.Now()
 	log.G(ctx).WithField("benchmark", "Test").WithField("event", "Start").Infof("Start Test")
 	log.G(ctx).WithField("benchmark", "Pull").WithField("event", "Start").Infof("Start Pull Image")
-	image, err := sociContainerdProc.SociRPullImageFromRegistry(ctx, imageRef, indexDigest)
+	image, err := sociContainerdProc.SociRPullImageFromRegistry(ctx, imageDescriptor.ImageRef, imageDescriptor.ImageRef)
 	log.G(ctx).WithField("benchmark", "Pull").WithField("event", "Stop").Infof("Stop Pull Image")
 	pullDuration := time.Since(pullStart)
 	b.ReportMetric(float64(pullDuration.Milliseconds()), "pullDuration")
@@ -148,7 +146,7 @@ func SociFullRun(
 	defer cleanupTask()
 	log.G(ctx).WithField("benchmark", "RunTask").WithField("event", "Start").Infof("Start Run Task")
 	runLazyTaskStart := time.Now()
-	cleanupRun, err := sociContainerdProc.RunContainerTaskForReadyLine(ctx, taskDetails, readyLine)
+	cleanupRun, err := sociContainerdProc.RunContainerTaskForReadyLine(ctx, taskDetails, imageDescriptor.ReadyLine)
 	lazyTaskDuration := time.Since(runLazyTaskStart)
 	log.G(ctx).WithField("benchmark", "RunTask").WithField("event", "Stop").Infof("Stop Run Task")
 	b.ReportMetric(float64(lazyTaskDuration.Milliseconds()), "lazyTaskDuration")
@@ -168,7 +166,7 @@ func SociFullRun(
 	defer cleanupTaskSecondRun()
 	log.G(ctx).WithField("benchmark", "RunTaskTwice").WithField("event", "Start").Infof("Start Run Task Twice")
 	runLocalStart := time.Now()
-	cleanupRunSecond, err := sociContainerdProc.RunContainerTaskForReadyLine(ctx, taskDetailsSecondRun, readyLine)
+	cleanupRunSecond, err := sociContainerdProc.RunContainerTaskForReadyLine(ctx, taskDetailsSecondRun, imageDescriptor.ReadyLine)
 	localTaskStats := time.Since(runLocalStart)
 	log.G(ctx).WithField("benchmark", "RunTaskTwice").WithField("event", "Stop").Infof("Stop Run Task Twice")
 	b.ReportMetric(float64(localTaskStats.Milliseconds()), "localTaskStats")
@@ -183,9 +181,8 @@ func SociFullRun(
 func OverlayFSFullRun(
 	ctx context.Context,
 	b *testing.B,
-	imageRef string,
-	readyLine string,
-	testName string) {
+	testName string,
+	imageDescriptor ImageDescriptor) {
 	testUUID := uuid.New().String()
 	ctx = log.WithLogger(ctx, log.G(ctx).WithField("test_name", testName))
 	ctx = log.WithLogger(ctx, log.G(ctx).WithField("uuid", testUUID))
@@ -198,7 +195,7 @@ func OverlayFSFullRun(
 	log.G(ctx).WithField("benchmark", "Test").WithField("event", "Start").Infof("Start Test")
 	log.G(ctx).WithField("benchmark", "Pull").WithField("event", "Start").Infof("Start Pull Image")
 	pullStart := time.Now()
-	image, err := containerdProcess.PullImageFromRegistry(ctx, imageRef, platform)
+	image, err := containerdProcess.PullImageFromRegistry(ctx, imageDescriptor.ImageRef, platform)
 	pullDuration := time.Since(pullStart)
 	log.G(ctx).WithField("benchmark", "Pull").WithField("event", "Stop").Infof("Stop Pull Image")
 	b.ReportMetric(float64(pullDuration.Milliseconds()), "pullDuration")
@@ -227,7 +224,7 @@ func OverlayFSFullRun(
 	defer cleanupTask()
 	log.G(ctx).WithField("benchmark", "RunTask").WithField("event", "Start").Infof("Start Run Task")
 	runLazyTaskStart := time.Now()
-	cleanupRun, err := containerdProcess.RunContainerTaskForReadyLine(ctx, taskDetails, readyLine)
+	cleanupRun, err := containerdProcess.RunContainerTaskForReadyLine(ctx, taskDetails, imageDescriptor.ReadyLine)
 	lazyTaskDuration := time.Since(runLazyTaskStart)
 	log.G(ctx).WithField("benchmark", "RunTask").WithField("event", "Stop").Infof("Stop Run Task")
 	b.ReportMetric(float64(lazyTaskDuration.Milliseconds()), "lazyTaskDuration")
@@ -247,7 +244,7 @@ func OverlayFSFullRun(
 	defer cleanupTaskSecondRun()
 	log.G(ctx).WithField("benchmark", "RunTaskTwice").WithField("event", "Start").Infof("Start Run Task Twice")
 	runLocalStart := time.Now()
-	cleanupRunSecond, err := containerdProcess.RunContainerTaskForReadyLine(ctx, taskDetailsSecondRun, readyLine)
+	cleanupRunSecond, err := containerdProcess.RunContainerTaskForReadyLine(ctx, taskDetailsSecondRun, imageDescriptor.ReadyLine)
 	localTaskStats := time.Since(runLocalStart)
 	log.G(ctx).WithField("benchmark", "RunTaskTwice").WithField("event", "Stop").Infof("Stop Run Task Twice")
 	b.ReportMetric(float64(localTaskStats.Milliseconds()), "localTaskStats")
