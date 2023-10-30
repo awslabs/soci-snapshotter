@@ -1,5 +1,10 @@
 # SOCI Snapshotter
 
+[![PkgGoDev](https://pkg.go.dev/badge/github.com/awslabs/soci-snapshotter)](https://pkg.go.dev/github.com/awslabs/soci-snapshotter)
+[![Go Report Card](https://goreportcard.com/badge/github.com/awslabs/soci-snapshotter)](https://goreportcard.com/report/github.com/awslabs/soci-snapshotter)
+[![Build](https://github.com/awslabs/soci-snapshotter/actions/workflows/build.yml/badge.svg)](https://github.com/awslabs/soci-snapshotter/actions/workflows/build.yml)
+[![Static Badge](https://img.shields.io/badge/Website-Benchmarks-blue)](https://awslabs.github.io/soci-snapshotter/dev/benchmarks/)
+
 SOCI Snapshotter is a [containerd](https://github.com/containerd/containerd)
 snapshotter plugin. It enables standard OCI images to be lazily loaded without
 requiring a build-time conversion step. "SOCI" is short for "Seekable OCI", and is
