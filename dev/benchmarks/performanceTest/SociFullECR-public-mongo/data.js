@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1698428814433,
+  "lastUpdate": 1698695687347,
   "repoUrl": "https://github.com/awslabs/soci-snapshotter",
   "entries": {
     "Soci Benchmark": [
@@ -1337,6 +1337,48 @@ window.BENCHMARK_DATA = {
           {
             "name": "SociFullECR-public-mongo-pullTaskDuration",
             "value": 5.557,
+            "unit": "Seconds",
+            "extra": "P90"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "davbson@amazon.com",
+            "name": "David Son",
+            "username": "sondavidb"
+          },
+          "committer": {
+            "email": "55555210+sondavidb@users.noreply.github.com",
+            "name": "David Son",
+            "username": "sondavidb"
+          },
+          "distinct": true,
+          "id": "5af486cba306bf0b04da5e8b66072a13d259063a",
+          "message": "Keep directories when SIGINT sent to daemon\n\nSigned-off-by: David Son <davbson@amazon.com>",
+          "timestamp": "2023-10-30T12:37:17-07:00",
+          "tree_id": "f9e335adb72eb5b0c9481810a79bf8f486f4f491",
+          "url": "https://github.com/awslabs/soci-snapshotter/commit/5af486cba306bf0b04da5e8b66072a13d259063a"
+        },
+        "date": 1698695681278,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "SociFullECR-public-mongo-lazyTaskDuration",
+            "value": 0.888,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-mongo-localTaskDuration",
+            "value": 0.9085000000000001,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-mongo-pullTaskDuration",
+            "value": 12.1935,
             "unit": "Seconds",
             "extra": "P90"
           }
