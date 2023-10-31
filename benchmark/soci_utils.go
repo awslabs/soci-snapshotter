@@ -156,6 +156,7 @@ func (proc *SociContainerdProcess) SociRPullImageFromRegistry(
 
 func (proc *SociContainerdProcess) CreateSociContainer(
 	ctx context.Context,
-	image containerd.Image) (containerd.Container, func(), error) {
-	return proc.CreateContainer(ctx, image, containerd.WithSnapshotter("soci"))
+	image containerd.Image,
+	imageDescriptor ImageDescriptor) (containerd.Container, func(), error) {
+	return proc.CreateContainer(ctx, imageDescriptor.ContainerOpts(image, containerd.WithSnapshotter("soci"))...)
 }
