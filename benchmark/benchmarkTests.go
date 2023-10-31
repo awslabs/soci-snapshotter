@@ -123,7 +123,7 @@ func SociFullRun(
 	pullStart := time.Now()
 	log.G(ctx).WithField("benchmark", "Test").WithField("event", "Start").Infof("Start Test")
 	log.G(ctx).WithField("benchmark", "Pull").WithField("event", "Start").Infof("Start Pull Image")
-	image, err := sociContainerdProc.SociRPullImageFromRegistry(ctx, imageDescriptor.ImageRef, imageDescriptor.ImageRef)
+	image, err := sociContainerdProc.SociRPullImageFromRegistry(ctx, imageDescriptor.ImageRef, imageDescriptor.SociIndexDigest)
 	log.G(ctx).WithField("benchmark", "Pull").WithField("event", "Stop").Infof("Stop Pull Image")
 	pullDuration := time.Since(pullStart)
 	b.ReportMetric(float64(pullDuration.Milliseconds()), "pullDuration")
@@ -131,7 +131,7 @@ func SociFullRun(
 		fatalf(b, "%s", err)
 	}
 	log.G(ctx).WithField("benchmark", "CreateContainer").WithField("event", "Start").Infof("Start Create Container")
-	container, cleanupContainer, err := sociContainerdProc.CreateSociContainer(ctx, image)
+	container, cleanupContainer, err := sociContainerdProc.CreateSociContainer(ctx, image, imageDescriptor)
 	log.G(ctx).WithField("benchmark", "CreateContainer").WithField("event", "Stop").Infof("Stop Create Container")
 	if err != nil {
 		fatalf(b, "%s", err)
@@ -146,15 +146,19 @@ func SociFullRun(
 	defer cleanupTask()
 	log.G(ctx).WithField("benchmark", "RunTask").WithField("event", "Start").Infof("Start Run Task")
 	runLazyTaskStart := time.Now()
-	cleanupRun, err := sociContainerdProc.RunContainerTaskForReadyLine(ctx, taskDetails, imageDescriptor.ReadyLine)
+	cleanupRun, err := sociContainerdProc.RunContainerTaskForReadyLine(ctx, taskDetails, imageDescriptor.ReadyLine, imageDescriptor.Timeout())
 	lazyTaskDuration := time.Since(runLazyTaskStart)
 	log.G(ctx).WithField("benchmark", "RunTask").WithField("event", "Stop").Infof("Stop Run Task")
 	b.ReportMetric(float64(lazyTaskDuration.Milliseconds()), "lazyTaskDuration")
 	if err != nil {
 		fatalf(b, "%s", err)
 	}
-	defer cleanupRun()
-	containerSecondRun, cleanupContainerSecondRun, err := sociContainerdProc.CreateSociContainer(ctx, image)
+	// In order for host networking to work, we need to clean up the task so that any network resources are released before running the second container
+	// We don't want this cleanup time included in the benchmark, though.
+	b.StopTimer()
+	cleanupRun()
+	b.StartTimer()
+	containerSecondRun, cleanupContainerSecondRun, err := sociContainerdProc.CreateSociContainer(ctx, image, imageDescriptor)
 	if err != nil {
 		fatalf(b, "%s", err)
 	}
@@ -166,7 +170,7 @@ func SociFullRun(
 	defer cleanupTaskSecondRun()
 	log.G(ctx).WithField("benchmark", "RunTaskTwice").WithField("event", "Start").Infof("Start Run Task Twice")
 	runLocalStart := time.Now()
-	cleanupRunSecond, err := sociContainerdProc.RunContainerTaskForReadyLine(ctx, taskDetailsSecondRun, imageDescriptor.ReadyLine)
+	cleanupRunSecond, err := sociContainerdProc.RunContainerTaskForReadyLine(ctx, taskDetailsSecondRun, imageDescriptor.ReadyLine, imageDescriptor.Timeout())
 	localTaskStats := time.Since(runLocalStart)
 	log.G(ctx).WithField("benchmark", "RunTaskTwice").WithField("event", "Stop").Infof("Stop Run Task Twice")
 	b.ReportMetric(float64(localTaskStats.Milliseconds()), "localTaskStats")
@@ -209,7 +213,7 @@ func OverlayFSFullRun(
 		fatalf(b, "%s", err)
 	}
 	log.G(ctx).WithField("benchmark", "CreateContainer").WithField("event", "Start").Infof("Start Create Container")
-	container, cleanupContainer, err := containerdProcess.CreateContainer(ctx, image)
+	container, cleanupContainer, err := containerdProcess.CreateContainer(ctx, imageDescriptor.ContainerOpts(image)...)
 	log.G(ctx).WithField("benchmark", "CreateContainer").WithField("event", "Stop").Infof("Stop Create Container")
 	if err != nil {
 		fatalf(b, "%s", err)
@@ -224,15 +228,19 @@ func OverlayFSFullRun(
 	defer cleanupTask()
 	log.G(ctx).WithField("benchmark", "RunTask").WithField("event", "Start").Infof("Start Run Task")
 	runLazyTaskStart := time.Now()
-	cleanupRun, err := containerdProcess.RunContainerTaskForReadyLine(ctx, taskDetails, imageDescriptor.ReadyLine)
+	cleanupRun, err := containerdProcess.RunContainerTaskForReadyLine(ctx, taskDetails, imageDescriptor.ReadyLine, imageDescriptor.Timeout())
 	lazyTaskDuration := time.Since(runLazyTaskStart)
 	log.G(ctx).WithField("benchmark", "RunTask").WithField("event", "Stop").Infof("Stop Run Task")
 	b.ReportMetric(float64(lazyTaskDuration.Milliseconds()), "lazyTaskDuration")
 	if err != nil {
 		fatalf(b, "%s", err)
 	}
-	defer cleanupRun()
-	containerSecondRun, cleanupContainerSecondRun, err := containerdProcess.CreateContainer(ctx, image)
+	// In order for host networking to work, we need to clean up the task so that any network resources are released before running the second container
+	// We don't want this cleanup time included in the benchmark, though.
+	b.StopTimer()
+	cleanupRun()
+	b.StartTimer()
+	containerSecondRun, cleanupContainerSecondRun, err := containerdProcess.CreateContainer(ctx, imageDescriptor.ContainerOpts(image)...)
 	if err != nil {
 		fatalf(b, "%s", err)
 	}
@@ -244,7 +252,7 @@ func OverlayFSFullRun(
 	defer cleanupTaskSecondRun()
 	log.G(ctx).WithField("benchmark", "RunTaskTwice").WithField("event", "Start").Infof("Start Run Task Twice")
 	runLocalStart := time.Now()
-	cleanupRunSecond, err := containerdProcess.RunContainerTaskForReadyLine(ctx, taskDetailsSecondRun, imageDescriptor.ReadyLine)
+	cleanupRunSecond, err := containerdProcess.RunContainerTaskForReadyLine(ctx, taskDetailsSecondRun, imageDescriptor.ReadyLine, imageDescriptor.Timeout())
 	localTaskStats := time.Since(runLocalStart)
 	log.G(ctx).WithField("benchmark", "RunTaskTwice").WithField("event", "Stop").Infof("Stop Run Task Twice")
 	b.ReportMetric(float64(localTaskStats.Milliseconds()), "localTaskStats")
@@ -259,8 +267,7 @@ func OverlayFSFullRun(
 func StargzFullRun(
 	ctx context.Context,
 	b *testing.B,
-	imageRef string,
-	readyLine string,
+	imageDescriptor ImageDescriptor,
 	stargzBinary string) {
 	containerdProcess, err := getContainerdProcess(ctx, containerdStargzConfig)
 	if err != nil {
@@ -274,11 +281,11 @@ func StargzFullRun(
 	defer stargzProcess.StopProcess()
 	stargzContainerdProc := StargzContainerdProcess{containerdProcess}
 	b.ResetTimer()
-	image, err := stargzContainerdProc.StargzRpullImageFromRegistry(ctx, imageRef)
+	image, err := stargzContainerdProc.StargzRpullImageFromRegistry(ctx, imageDescriptor.ImageRef)
 	if err != nil {
 		fatalf(b, "%s", err)
 	}
-	container, cleanupContainer, err := stargzContainerdProc.CreateContainer(ctx, image, containerd.WithSnapshotter("stargz"))
+	container, cleanupContainer, err := stargzContainerdProc.CreateContainer(ctx, imageDescriptor.ContainerOpts(image, containerd.WithSnapshotter("stargz"))...)
 	if err != nil {
 		fatalf(b, "%s", err)
 	}
@@ -288,7 +295,7 @@ func StargzFullRun(
 		fatalf(b, "%s", err)
 	}
 	defer cleanupTask()
-	cleanupRun, err := containerdProcess.RunContainerTaskForReadyLine(ctx, taskDetails, readyLine)
+	cleanupRun, err := containerdProcess.RunContainerTaskForReadyLine(ctx, taskDetails, imageDescriptor.ReadyLine, imageDescriptor.Timeout())
 	if err != nil {
 		fatalf(b, "%s", err)
 	}

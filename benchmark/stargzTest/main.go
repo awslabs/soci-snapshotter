@@ -60,14 +60,13 @@ func main() {
 
 	var drivers []framework.BenchmarkTestDriver
 	for _, image := range imageList {
+		image := image
 		shortName := image.ShortName
-		imageRef := image.ImageRef
-		readyLine := image.ReadyLine
 		drivers = append(drivers, framework.BenchmarkTestDriver{
 			TestName:      "StargzFullRun" + shortName,
 			NumberOfTests: numberOfTests,
 			TestFunction: func(b *testing.B) {
-				benchmark.StargzFullRun(ctx, b, imageRef, readyLine, stargzBinary)
+				benchmark.StargzFullRun(ctx, b, image, stargzBinary)
 			},
 		})
 	}

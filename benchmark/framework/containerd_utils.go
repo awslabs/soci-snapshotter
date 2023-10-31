@@ -32,7 +32,6 @@ import (
 	"github.com/containerd/containerd/cio"
 	"github.com/containerd/containerd/images"
 	"github.com/containerd/containerd/namespaces"
-	"github.com/containerd/containerd/oci"
 	"github.com/containerd/log"
 	"github.com/sirupsen/logrus"
 )
@@ -138,11 +137,8 @@ func (proc *ContainerdProcess) DeleteImage(ctx context.Context, imageRef string)
 
 func (proc *ContainerdProcess) CreateContainer(
 	ctx context.Context,
-	image containerd.Image,
 	opts ...containerd.NewContainerOpts) (containerd.Container, func(), error) {
 	id := fmt.Sprintf("%s-%d", testContainerID, time.Now().UnixNano())
-	opts = append(opts, containerd.WithNewSnapshot(id, image))
-	opts = append(opts, containerd.WithNewSpec(oci.WithImageConfig(image)))
 	container, err := proc.Client.NewContainer(
 		ctx,
 		id,
@@ -205,7 +201,8 @@ func (proc *ContainerdProcess) CreateTask(
 func (proc *ContainerdProcess) RunContainerTaskForReadyLine(
 	ctx context.Context,
 	taskDetails *TaskDetails,
-	readyLine string) (func(), error) {
+	readyLine string,
+	timeout time.Duration) (func(), error) {
 	stdoutScanner := bufio.NewScanner(taskDetails.stdoutReader)
 	stderrScanner := bufio.NewScanner(taskDetails.stderrReader)
 
@@ -214,7 +211,7 @@ func (proc *ContainerdProcess) RunContainerTaskForReadyLine(
 		return nil, err
 	}
 	resultChannel := make(chan string, 1)
-	timeoutCtx, cancel := context.WithTimeout(context.Background(), 180*time.Second)
+	timeoutCtx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
 	go func() {
 		select {
