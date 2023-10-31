@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1698695685929,
+  "lastUpdate": 1698773900508,
   "repoUrl": "https://github.com/awslabs/soci-snapshotter",
   "entries": {
     "Soci Benchmark": [
@@ -1420,6 +1420,48 @@ window.BENCHMARK_DATA = {
           {
             "name": "SociFullECR-public-busybox-pullTaskDuration",
             "value": 1.224,
+            "unit": "Seconds",
+            "extra": "P90"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "walster@amazon.com",
+            "name": "Kern Walster",
+            "username": "Kern--"
+          },
+          "committer": {
+            "email": "kern.walster@gmail.com",
+            "name": "Kern Walster",
+            "username": "Kern--"
+          },
+          "distinct": true,
+          "id": "c41c572ff684055a1fa8b954921d12da30fbcdba",
+          "message": "Improve benchmark make rules\n\nThis change improves benchmark make rules to reduce duplication, add\ndependencies between targets, and properly mark phony targets.\n\nIt also adds a new `BENCHMARK_FLAGS` option so that we can control how\nthe benchmarks run from make, e.g.\n\n```\nBENCHMARK_FLAGS='-count 10' make benchmarks\n```\n\nSigned-off-by: Kern Walster <walster@amazon.com>",
+          "timestamp": "2023-10-31T10:21:35-07:00",
+          "tree_id": "53226c875bfe716243a080b9a96688fd4625eb5c",
+          "url": "https://github.com/awslabs/soci-snapshotter/commit/c41c572ff684055a1fa8b954921d12da30fbcdba"
+        },
+        "date": 1698773899884,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "SociFullECR-public-busybox-lazyTaskDuration",
+            "value": 0.011,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-busybox-localTaskDuration",
+            "value": 0.01,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-busybox-pullTaskDuration",
+            "value": 0.7065,
             "unit": "Seconds",
             "extra": "P90"
           }
