@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1698774941759,
+  "lastUpdate": 1698788113403,
   "repoUrl": "https://github.com/awslabs/soci-snapshotter",
   "entries": {
     "Soci Benchmark": [
@@ -1504,6 +1504,48 @@ window.BENCHMARK_DATA = {
           {
             "name": "SociFullECR-public-busybox-pullTaskDuration",
             "value": 1.318,
+            "unit": "Seconds",
+            "extra": "P90"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "davbson@amazon.com",
+            "name": "David Son",
+            "username": "sondavidb"
+          },
+          "committer": {
+            "email": "55555210+sondavidb@users.noreply.github.com",
+            "name": "David Son",
+            "username": "sondavidb"
+          },
+          "distinct": true,
+          "id": "7557b6c3bcf91092c52f38e6f02afdbb38e54a32",
+          "message": "Remove most references to ctr\n\nRemoved all references except from \"image rpull\" and \"run\".\n\"run\" is entirely delegated to ctr and thus probably not worth porting.\n\"image rpull\" uses more than just flags and might be a tad more\ndifficult to port over.\n\nSigned-off-by: David Son <davbson@amazon.com>",
+          "timestamp": "2023-10-31T14:19:54-07:00",
+          "tree_id": "0ee27429a49842b9155c2a9279cbcb0dcdd63dce",
+          "url": "https://github.com/awslabs/soci-snapshotter/commit/7557b6c3bcf91092c52f38e6f02afdbb38e54a32"
+        },
+        "date": 1698788112303,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "SociFullECR-public-busybox-lazyTaskDuration",
+            "value": 0.008,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-busybox-localTaskDuration",
+            "value": 0.0085,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-busybox-pullTaskDuration",
+            "value": 1.392,
             "unit": "Seconds",
             "extra": "P90"
           }
