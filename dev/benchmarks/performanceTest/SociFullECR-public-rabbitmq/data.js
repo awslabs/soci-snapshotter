@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1698865983339,
+  "lastUpdate": 1698871919799,
   "repoUrl": "https://github.com/awslabs/soci-snapshotter",
   "entries": {
     "Soci Benchmark": [
@@ -1466,6 +1466,48 @@ window.BENCHMARK_DATA = {
           {
             "name": "SociFullECR-public-rabbitmq-pullTaskDuration",
             "value": 2.6265,
+            "unit": "Seconds",
+            "extra": "P90"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49699333+dependabot[bot]@users.noreply.github.com",
+            "name": "dependabot[bot]",
+            "username": "dependabot[bot]"
+          },
+          "committer": {
+            "email": "55555210+sondavidb@users.noreply.github.com",
+            "name": "David Son",
+            "username": "sondavidb"
+          },
+          "distinct": true,
+          "id": "3d74f165ab4a75840876f4f70d18d404f303e148",
+          "message": "Bump github.com/docker/docker\n\nBumps [github.com/docker/docker](https://github.com/docker/docker) from 23.0.5+incompatible to 24.0.7+incompatible.\n- [Release notes](https://github.com/docker/docker/releases)\n- [Commits](https://github.com/docker/docker/compare/v23.0.5...v24.0.7)\n\n---\nupdated-dependencies:\n- dependency-name: github.com/docker/docker\n  dependency-type: indirect\n...\n\nSigned-off-by: dependabot[bot] <support@github.com>",
+          "timestamp": "2023-11-01T13:33:02-07:00",
+          "tree_id": "3a3405cb57d34adc9f40b71ca59070ec9a5003e5",
+          "url": "https://github.com/awslabs/soci-snapshotter/commit/3d74f165ab4a75840876f4f70d18d404f303e148"
+        },
+        "date": 1698871919118,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "SociFullECR-public-rabbitmq-lazyTaskDuration",
+            "value": 5.4915,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-rabbitmq-localTaskDuration",
+            "value": 5.5045,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-rabbitmq-pullTaskDuration",
+            "value": 6.1514999999999995,
             "unit": "Seconds",
             "extra": "P90"
           }
