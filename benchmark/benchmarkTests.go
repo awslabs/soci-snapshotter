@@ -18,6 +18,8 @@ package benchmark
 
 import (
 	"context"
+	"fmt"
+	"os"
 	"testing"
 	"time"
 
@@ -44,21 +46,33 @@ var (
 	stargzRoot             = "/tmp/lib/containerd-stargz-grpc"
 )
 
+// fatalf prints a formatted fatal error mesage to both stdout and a testing.B.
+// When running benchmarks with `go test -bench=.`, the `testing.B`'s output `io.Writer`
+// is set to `os.Stdout`. When calling `testing.Benchmark` directly, the `testing.B`'s
+// output `io.Writer` is set to discard, so all messages are lost. This manually writes
+// to stdout to work around the issue.
+//
+// see: https://github.com/golang/go/issues/32066
+func fatalf(b *testing.B, message string, args ...interface{}) {
+	fmt.Fprintf(os.Stdout, message, args...)
+	b.Fatalf(message, args...)
+}
+
 func PullImageFromRegistry(ctx context.Context, b *testing.B, imageRef string) {
 	containerdProcess, err := getContainerdProcess(ctx, containerdSociConfig)
 	if err != nil {
-		b.Fatalf("Error Starting Containerd: %v\n", err)
+		fatalf(b, "Error Starting Containerd: %v\n", err)
 	}
 	defer containerdProcess.StopProcess()
 	b.ResetTimer()
 	_, err = containerdProcess.PullImageFromRegistry(ctx, imageRef, platform)
 	if err != nil {
-		b.Fatalf("Error Pulling Image: %v\n", err)
+		fatalf(b, "Error Pulling Image: %v\n", err)
 	}
 	b.StopTimer()
 	err = containerdProcess.DeleteImage(ctx, imageRef)
 	if err != nil {
-		b.Fatalf("Error Deleting Image: %v\n", err)
+		fatalf(b, "Error Deleting Image: %v\n", err)
 	}
 }
 
@@ -69,19 +83,19 @@ func SociRPullPullImage(
 	indexDigest string) {
 	containerdProcess, err := getContainerdProcess(ctx, containerdSociConfig)
 	if err != nil {
-		b.Fatalf("Failed to create containerd proc: %v\n", err)
+		fatalf(b, "Failed to create containerd proc: %v\n", err)
 	}
 	defer containerdProcess.StopProcess()
 	sociProcess, err := getSociProcess()
 	if err != nil {
-		b.Fatalf("Failed to create soci proc: %v\n", err)
+		fatalf(b, "Failed to create soci proc: %v\n", err)
 	}
 	defer sociProcess.StopProcess()
 	sociContainerdProc := SociContainerdProcess{containerdProcess}
 	b.ResetTimer()
 	_, err = sociContainerdProc.SociRPullImageFromRegistry(ctx, imageRef, indexDigest)
 	if err != nil {
-		b.Fatalf("%s", err)
+		fatalf(b, "%s", err)
 	}
 	b.StopTimer()
 }
@@ -98,12 +112,12 @@ func SociFullRun(
 	ctx = log.WithLogger(ctx, log.G(ctx).WithField("uuid", testUUID))
 	containerdProcess, err := getContainerdProcess(ctx, containerdSociConfig)
 	if err != nil {
-		b.Fatalf("Failed to create containerd proc: %v\n", err)
+		fatalf(b, "Failed to create containerd proc: %v\n", err)
 	}
 	defer containerdProcess.StopProcess()
 	sociProcess, err := getSociProcess()
 	if err != nil {
-		b.Fatalf("Failed to create soci proc: %v\n", err)
+		fatalf(b, "Failed to create soci proc: %v\n", err)
 	}
 	defer sociProcess.StopProcess()
 	sociContainerdProc := SociContainerdProcess{containerdProcess}
@@ -116,20 +130,20 @@ func SociFullRun(
 	pullDuration := time.Since(pullStart)
 	b.ReportMetric(float64(pullDuration.Milliseconds()), "pullDuration")
 	if err != nil {
-		b.Fatalf("%s", err)
+		fatalf(b, "%s", err)
 	}
 	log.G(ctx).WithField("benchmark", "CreateContainer").WithField("event", "Start").Infof("Start Create Container")
 	container, cleanupContainer, err := sociContainerdProc.CreateSociContainer(ctx, image)
 	log.G(ctx).WithField("benchmark", "CreateContainer").WithField("event", "Stop").Infof("Stop Create Container")
 	if err != nil {
-		b.Fatalf("%s", err)
+		fatalf(b, "%s", err)
 	}
 	defer cleanupContainer()
 	log.G(ctx).WithField("benchmark", "CreateTask").WithField("event", "Start").Infof("Start Create Task")
 	taskDetails, cleanupTask, err := sociContainerdProc.CreateTask(ctx, container)
 	log.G(ctx).WithField("benchmark", "CreateTask").WithField("event", "Stop").Infof("Stop Create Task")
 	if err != nil {
-		b.Fatalf("%s", err)
+		fatalf(b, "%s", err)
 	}
 	defer cleanupTask()
 	log.G(ctx).WithField("benchmark", "RunTask").WithField("event", "Start").Infof("Start Run Task")
@@ -139,17 +153,17 @@ func SociFullRun(
 	log.G(ctx).WithField("benchmark", "RunTask").WithField("event", "Stop").Infof("Stop Run Task")
 	b.ReportMetric(float64(lazyTaskDuration.Milliseconds()), "lazyTaskDuration")
 	if err != nil {
-		b.Fatalf("%s", err)
+		fatalf(b, "%s", err)
 	}
 	defer cleanupRun()
 	containerSecondRun, cleanupContainerSecondRun, err := sociContainerdProc.CreateSociContainer(ctx, image)
 	if err != nil {
-		b.Fatalf("%s", err)
+		fatalf(b, "%s", err)
 	}
 	defer cleanupContainerSecondRun()
 	taskDetailsSecondRun, cleanupTaskSecondRun, err := sociContainerdProc.CreateTask(ctx, containerSecondRun)
 	if err != nil {
-		b.Fatalf("%s", err)
+		fatalf(b, "%s", err)
 	}
 	defer cleanupTaskSecondRun()
 	log.G(ctx).WithField("benchmark", "RunTaskTwice").WithField("event", "Start").Infof("Start Run Task Twice")
@@ -159,7 +173,7 @@ func SociFullRun(
 	log.G(ctx).WithField("benchmark", "RunTaskTwice").WithField("event", "Stop").Infof("Stop Run Task Twice")
 	b.ReportMetric(float64(localTaskStats.Milliseconds()), "localTaskStats")
 	if err != nil {
-		b.Fatalf("%s", err)
+		fatalf(b, "%s", err)
 	}
 	defer cleanupRunSecond()
 	log.G(ctx).WithField("benchmark", "Test").WithField("event", "Stop").Infof("Stop Test")
@@ -177,7 +191,7 @@ func OverlayFSFullRun(
 	ctx = log.WithLogger(ctx, log.G(ctx).WithField("uuid", testUUID))
 	containerdProcess, err := getContainerdProcess(ctx, containerdSociConfig)
 	if err != nil {
-		b.Fatalf("Failed to create containerd proc: %v\n", err)
+		fatalf(b, "Failed to create containerd proc: %v\n", err)
 	}
 	defer containerdProcess.StopProcess()
 	b.ResetTimer()
@@ -189,26 +203,26 @@ func OverlayFSFullRun(
 	log.G(ctx).WithField("benchmark", "Pull").WithField("event", "Stop").Infof("Stop Pull Image")
 	b.ReportMetric(float64(pullDuration.Milliseconds()), "pullDuration")
 	if err != nil {
-		b.Fatalf("%s", err)
+		fatalf(b, "%s", err)
 	}
 	log.G(ctx).WithField("benchmark", "Unpack").WithField("event", "Start").Infof("Start Unpack Image")
 	err = image.Unpack(ctx, "overlayfs")
 	log.G(ctx).WithField("benchmark", "Unpack").WithField("event", "Stop").Infof("Stop Unpack Image")
 	if err != nil {
-		b.Fatalf("%s", err)
+		fatalf(b, "%s", err)
 	}
 	log.G(ctx).WithField("benchmark", "CreateContainer").WithField("event", "Start").Infof("Start Create Container")
 	container, cleanupContainer, err := containerdProcess.CreateContainer(ctx, image)
 	log.G(ctx).WithField("benchmark", "CreateContainer").WithField("event", "Stop").Infof("Stop Create Container")
 	if err != nil {
-		b.Fatalf("%s", err)
+		fatalf(b, "%s", err)
 	}
 	defer cleanupContainer()
 	log.G(ctx).WithField("benchmark", "CreateTask").WithField("event", "Start").Infof("Start Create Task")
 	taskDetails, cleanupTask, err := containerdProcess.CreateTask(ctx, container)
 	log.G(ctx).WithField("benchmark", "CreateTask").WithField("event", "Stop").Infof("Stop Create Task")
 	if err != nil {
-		b.Fatalf("%s", err)
+		fatalf(b, "%s", err)
 	}
 	defer cleanupTask()
 	log.G(ctx).WithField("benchmark", "RunTask").WithField("event", "Start").Infof("Start Run Task")
@@ -218,17 +232,17 @@ func OverlayFSFullRun(
 	log.G(ctx).WithField("benchmark", "RunTask").WithField("event", "Stop").Infof("Stop Run Task")
 	b.ReportMetric(float64(lazyTaskDuration.Milliseconds()), "lazyTaskDuration")
 	if err != nil {
-		b.Fatalf("%s", err)
+		fatalf(b, "%s", err)
 	}
 	defer cleanupRun()
 	containerSecondRun, cleanupContainerSecondRun, err := containerdProcess.CreateContainer(ctx, image)
 	if err != nil {
-		b.Fatalf("%s", err)
+		fatalf(b, "%s", err)
 	}
 	defer cleanupContainerSecondRun()
 	taskDetailsSecondRun, cleanupTaskSecondRun, err := containerdProcess.CreateTask(ctx, containerSecondRun)
 	if err != nil {
-		b.Fatalf("%s", err)
+		fatalf(b, "%s", err)
 	}
 	defer cleanupTaskSecondRun()
 	log.G(ctx).WithField("benchmark", "RunTaskTwice").WithField("event", "Start").Infof("Start Run Task Twice")
@@ -238,7 +252,7 @@ func OverlayFSFullRun(
 	log.G(ctx).WithField("benchmark", "RunTaskTwice").WithField("event", "Stop").Infof("Stop Run Task Twice")
 	b.ReportMetric(float64(localTaskStats.Milliseconds()), "localTaskStats")
 	if err != nil {
-		b.Fatalf("%s", err)
+		fatalf(b, "%s", err)
 	}
 	defer cleanupRunSecond()
 	log.G(ctx).WithField("benchmark", "Test").WithField("event", "Stop").Infof("Stop Test")
@@ -253,33 +267,33 @@ func StargzFullRun(
 	stargzBinary string) {
 	containerdProcess, err := getContainerdProcess(ctx, containerdStargzConfig)
 	if err != nil {
-		b.Fatalf("Failed to create containerd proc: %v\n", err)
+		fatalf(b, "Failed to create containerd proc: %v\n", err)
 	}
 	defer containerdProcess.StopProcess()
 	stargzProcess, err := getStargzProcess(stargzBinary)
 	if err != nil {
-		b.Fatalf("Failed to create stargz proc: %v\n", err)
+		fatalf(b, "Failed to create stargz proc: %v\n", err)
 	}
 	defer stargzProcess.StopProcess()
 	stargzContainerdProc := StargzContainerdProcess{containerdProcess}
 	b.ResetTimer()
 	image, err := stargzContainerdProc.StargzRpullImageFromRegistry(ctx, imageRef)
 	if err != nil {
-		b.Fatalf("%s", err)
+		fatalf(b, "%s", err)
 	}
 	container, cleanupContainer, err := stargzContainerdProc.CreateContainer(ctx, image, containerd.WithSnapshotter("stargz"))
 	if err != nil {
-		b.Fatalf("%s", err)
+		fatalf(b, "%s", err)
 	}
 	defer cleanupContainer()
 	taskDetails, cleanupTask, err := containerdProcess.CreateTask(ctx, container)
 	if err != nil {
-		b.Fatalf("%s", err)
+		fatalf(b, "%s", err)
 	}
 	defer cleanupTask()
 	cleanupRun, err := containerdProcess.RunContainerTaskForReadyLine(ctx, taskDetails, readyLine)
 	if err != nil {
-		b.Fatalf("%s", err)
+		fatalf(b, "%s", err)
 	}
 	defer cleanupRun()
 	b.StopTimer()
