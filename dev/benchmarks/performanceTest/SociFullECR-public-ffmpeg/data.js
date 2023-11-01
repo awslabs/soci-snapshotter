@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1698865880627,
+  "lastUpdate": 1698865980541,
   "repoUrl": "https://github.com/awslabs/soci-snapshotter",
   "entries": {
     "Soci Benchmark": [
@@ -1588,6 +1588,48 @@ window.BENCHMARK_DATA = {
           {
             "name": "SociFullECR-public-ffmpeg-pullTaskDuration",
             "value": 10.443999999999999,
+            "unit": "Seconds",
+            "extra": "P90"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49699333+dependabot[bot]@users.noreply.github.com",
+            "name": "dependabot[bot]",
+            "username": "dependabot[bot]"
+          },
+          "committer": {
+            "email": "kern.walster@gmail.com",
+            "name": "Kern Walster",
+            "username": "Kern--"
+          },
+          "distinct": true,
+          "id": "c270e9aac507a4c71d558bc22fabf91c1c681e17",
+          "message": "Bump github.com/docker/docker in /cmd\n\nBumps [github.com/docker/docker](https://github.com/docker/docker) from 23.0.5+incompatible to 24.0.7+incompatible.\n- [Release notes](https://github.com/docker/docker/releases)\n- [Commits](https://github.com/docker/docker/compare/v23.0.5...v24.0.7)\n\n---\nupdated-dependencies:\n- dependency-name: github.com/docker/docker\n  dependency-type: indirect\n...\n\nSigned-off-by: dependabot[bot] <support@github.com>",
+          "timestamp": "2023-11-01T12:00:05-07:00",
+          "tree_id": "e51ab831f992c16885e27b4da5e825db9c06c4d6",
+          "url": "https://github.com/awslabs/soci-snapshotter/commit/c270e9aac507a4c71d558bc22fabf91c1c681e17"
+        },
+        "date": 1698865977650,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "SociFullECR-public-ffmpeg-lazyTaskDuration",
+            "value": 0.006,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-ffmpeg-localTaskDuration",
+            "value": 0.006,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-ffmpeg-pullTaskDuration",
+            "value": 35.9655,
             "unit": "Seconds",
             "extra": "P90"
           }
