@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1698788113403,
+  "lastUpdate": 1698865882163,
   "repoUrl": "https://github.com/awslabs/soci-snapshotter",
   "entries": {
     "Soci Benchmark": [
@@ -1546,6 +1546,48 @@ window.BENCHMARK_DATA = {
           {
             "name": "SociFullECR-public-busybox-pullTaskDuration",
             "value": 1.392,
+            "unit": "Seconds",
+            "extra": "P90"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "davbson@amazon.com",
+            "name": "David Son",
+            "username": "sondavidb"
+          },
+          "committer": {
+            "email": "55555210+sondavidb@users.noreply.github.com",
+            "name": "David Son",
+            "username": "sondavidb"
+          },
+          "distinct": true,
+          "id": "a8db74e2bc2637ffb89d510efba4025840fd5340",
+          "message": "Add release automation on tag push\n\nSigned-off-by: David Son <davbson@amazon.com>",
+          "timestamp": "2023-11-01T12:01:01-07:00",
+          "tree_id": "8655ecc47d36a7ef6cda31d31423147d485e7ea8",
+          "url": "https://github.com/awslabs/soci-snapshotter/commit/a8db74e2bc2637ffb89d510efba4025840fd5340"
+        },
+        "date": 1698865877776,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "SociFullECR-public-busybox-lazyTaskDuration",
+            "value": 0.0055,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-busybox-localTaskDuration",
+            "value": 0.006500000000000001,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-busybox-pullTaskDuration",
+            "value": 0.7709999999999999,
             "unit": "Seconds",
             "extra": "P90"
           }
