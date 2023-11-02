@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1698871922205,
+  "lastUpdate": 1698947107653,
   "repoUrl": "https://github.com/awslabs/soci-snapshotter",
   "entries": {
     "Soci Benchmark": [
@@ -1672,6 +1672,48 @@ window.BENCHMARK_DATA = {
           {
             "name": "SociFullECR-public-ffmpeg-pullTaskDuration",
             "value": 33.94,
+            "unit": "Seconds",
+            "extra": "P90"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "davbson@amazon.com",
+            "name": "David Son",
+            "username": "sondavidb"
+          },
+          "committer": {
+            "email": "55555210+sondavidb@users.noreply.github.com",
+            "name": "David Son",
+            "username": "sondavidb"
+          },
+          "distinct": true,
+          "id": "ca55a07e2811d7fc0319b349a81990b2343d2bc6",
+          "message": "Bump github.com/containerd/containerd\n\nThe previous dependabot commit somehow downgraded containerd.\nThis commit should bring it back to v1.7.8.\n\nSigned-off-by: David Son <davbson@amazon.com>",
+          "timestamp": "2023-11-02T10:27:22-07:00",
+          "tree_id": "dd6550fe1c88b677d6112409f2def6affc495f03",
+          "url": "https://github.com/awslabs/soci-snapshotter/commit/ca55a07e2811d7fc0319b349a81990b2343d2bc6"
+        },
+        "date": 1698947104070,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "SociFullECR-public-ffmpeg-lazyTaskDuration",
+            "value": 0.010499999999999999,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-ffmpeg-localTaskDuration",
+            "value": 0.010499999999999999,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-ffmpeg-pullTaskDuration",
+            "value": 36.699,
             "unit": "Seconds",
             "extra": "P90"
           }
