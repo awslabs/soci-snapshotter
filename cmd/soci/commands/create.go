@@ -85,10 +85,11 @@ var CreateCommand = cli.Command{
 			return err
 		}
 
-		ctx, blobStore, err := store.NewContentStore(ctx, store.WithType(store.ContentStoreType(cliContext.GlobalString("content-store"))), store.WithNamespace(cliContext.GlobalString("namespace")))
+		ctx, blobStore, done, err := store.NewContentStore(ctx, store.WithType(store.ContentStoreType(cliContext.GlobalString("content-store"))), store.WithNamespace(cliContext.GlobalString("namespace")))
 		if err != nil {
 			return err
 		}
+		defer done(ctx)
 
 		ps, err := internal.GetPlatforms(ctx, cliContext, srcImg, cs)
 		if err != nil {

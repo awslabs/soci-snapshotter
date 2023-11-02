@@ -47,10 +47,11 @@ var rmCommand = cli.Command{
 		}
 
 		ctx := context.Background()
-		ctx, contentStore, err := store.NewContentStore(ctx, store.WithType(store.ContentStoreType(cliContext.GlobalString("content-store"))), store.WithNamespace(cliContext.GlobalString("namespace")))
+		ctx, contentStore, done, err := store.NewContentStore(ctx, store.WithType(store.ContentStoreType(cliContext.GlobalString("content-store"))), store.WithNamespace(cliContext.GlobalString("namespace")))
 		if err != nil {
 			return fmt.Errorf("cannot create local content store: %w", err)
 		}
+		defer done(ctx)
 
 		db, err := soci.NewDB(soci.ArtifactsDbPath())
 		if err != nil {

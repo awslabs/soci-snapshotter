@@ -39,10 +39,11 @@ var RebuildDBCommand = cli.Command{
 		if err != nil {
 			return err
 		}
-		ctx, blobStore, err := store.NewContentStore(ctx, store.WithType(store.ContentStoreType(cliContext.GlobalString("content-store"))), store.WithNamespace(cliContext.GlobalString("namespace")))
+		ctx, blobStore, done, err := store.NewContentStore(ctx, store.WithType(store.ContentStoreType(cliContext.GlobalString("content-store"))), store.WithNamespace(cliContext.GlobalString("namespace")))
 		if err != nil {
 			return err
 		}
+		defer done(ctx)
 
 		contentStorePath, err := store.GetContentStorePath(store.ContentStoreType(cliContext.GlobalString("content-store")))
 		if err != nil {

@@ -87,10 +87,11 @@ var getFileCommand = cli.Command{
 }
 
 func getZtoc(ctx context.Context, cliContext *cli.Context, d digest.Digest) (*ztoc.Ztoc, error) {
-	ctx, blobStore, err := store.NewContentStore(ctx, store.WithType(store.ContentStoreType(cliContext.GlobalString("content-store"))), store.WithNamespace(cliContext.GlobalString("namespace")))
+	ctx, blobStore, done, err := store.NewContentStore(ctx, store.WithType(store.ContentStoreType(cliContext.GlobalString("content-store"))), store.WithNamespace(cliContext.GlobalString("namespace")))
 	if err != nil {
 		return nil, err
 	}
+	defer done(ctx)
 
 	reader, err := blobStore.Fetch(ctx, v1.Descriptor{Digest: d})
 	if err != nil {
