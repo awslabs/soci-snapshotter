@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1698947115646,
+  "lastUpdate": 1698969832928,
   "repoUrl": "https://github.com/awslabs/soci-snapshotter",
   "entries": {
     "Soci Benchmark": [
@@ -1550,6 +1550,48 @@ window.BENCHMARK_DATA = {
           {
             "name": "SociFullECR-public-rabbitmq-pullTaskDuration",
             "value": 3.7,
+            "unit": "Seconds",
+            "extra": "P90"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "walster@amazon.com",
+            "name": "Kern Walster",
+            "username": "Kern--"
+          },
+          "committer": {
+            "email": "kern.walster@gmail.com",
+            "name": "Kern Walster",
+            "username": "Kern--"
+          },
+          "distinct": true,
+          "id": "e616fa75dd1a01b9dc55232a7300efce055aa7f5",
+          "message": "Add algorithm to default benchmarker index digests\n\nBefore this change, running the benchmarker with default images didn't\nwork as expected because the SOCI index digests were missing the\nalgorithm. This adds the algorithms so the default benchmarks work as\nexpected.\n\nSigned-off-by: Kern Walster <walster@amazon.com>",
+          "timestamp": "2023-11-02T16:49:39-07:00",
+          "tree_id": "f2f168985065a78b7f96dc2a1add31770a201d34",
+          "url": "https://github.com/awslabs/soci-snapshotter/commit/e616fa75dd1a01b9dc55232a7300efce055aa7f5"
+        },
+        "date": 1698969832184,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "SociFullECR-public-rabbitmq-lazyTaskDuration",
+            "value": 24.971,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-rabbitmq-localTaskDuration",
+            "value": 15.734,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-rabbitmq-pullTaskDuration",
+            "value": 1.2069999999999999,
             "unit": "Seconds",
             "extra": "P90"
           }
