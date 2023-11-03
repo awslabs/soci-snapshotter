@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1698969832928,
+  "lastUpdate": 1699035518827,
   "repoUrl": "https://github.com/awslabs/soci-snapshotter",
   "entries": {
     "Soci Benchmark": [
@@ -1592,6 +1592,48 @@ window.BENCHMARK_DATA = {
           {
             "name": "SociFullECR-public-rabbitmq-pullTaskDuration",
             "value": 1.2069999999999999,
+            "unit": "Seconds",
+            "extra": "P90"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "walster@amazon.com",
+            "name": "Kern Walster",
+            "username": "Kern--"
+          },
+          "committer": {
+            "email": "kern.walster@gmail.com",
+            "name": "Kern Walster",
+            "username": "Kern--"
+          },
+          "distinct": true,
+          "id": "bed91dd46a947040b9bee09fefc6d0dec677940d",
+          "message": "Log benchmark errors to stdout\n\nWhen manually running benchmarks with `testing.Benchmark`, the\nnon-configurable output writer is set to discard. This means that if the\nbenchmarker fails, the fatal logs are lost. This change wraps the\nbenchmarker fatal with a direct write to stdout.\n\nSigned-off-by: Kern Walster <walster@amazon.com>",
+          "timestamp": "2023-11-03T11:09:52-07:00",
+          "tree_id": "10a6120080bd4cd762cc579791d808cbcdc3c23a",
+          "url": "https://github.com/awslabs/soci-snapshotter/commit/bed91dd46a947040b9bee09fefc6d0dec677940d"
+        },
+        "date": 1699035514300,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "SociFullECR-public-rabbitmq-lazyTaskDuration",
+            "value": 10.264,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-rabbitmq-localTaskDuration",
+            "value": 7.664,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-rabbitmq-pullTaskDuration",
+            "value": 0.944,
             "unit": "Seconds",
             "extra": "P90"
           }
