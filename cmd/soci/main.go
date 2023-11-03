@@ -42,7 +42,6 @@ import (
 	"github.com/awslabs/soci-snapshotter/cmd/soci/commands/ztoc"
 	"github.com/awslabs/soci-snapshotter/config"
 	"github.com/awslabs/soci-snapshotter/version"
-	"github.com/containerd/containerd/cmd/ctr/commands/run"
 	"github.com/containerd/containerd/defaults"
 	"github.com/containerd/containerd/namespaces"
 
@@ -95,7 +94,6 @@ func main() {
 		ztoc.Command,
 		commands.CreateCommand,
 		commands.PushCommand,
-		run.Command,
 		commands.RebuildDBCommand,
 	}
 
