@@ -174,12 +174,12 @@ func TestLazyPullWithSparseIndex(t *testing.T) {
 		return func(t *testing.T, tarExportArgs ...string) {
 			rebootContainerd(t, sh, "", "")
 			sh.X("nerdctl", "pull", "-q", image)
-			sh.Pipe(nil, shell.C("ctr", "run", "--rm", image, "test", "tar", "-zc", "/usr"), tarExportArgs)
+			sh.Pipe(nil, shell.C("nerdctl", "run", "--name", "test", "--pull", "never", "--net", "none", "--rm", image, "tar", "-zc", "/usr"), tarExportArgs)
 		}
 	}
 	export := func(sh *shell.Shell, image string, tarExportArgs []string) {
 		sh.X("soci", "image", "rpull", "--user", regConfig.creds(), "--soci-index-digest", indexDigest, image)
-		sh.Pipe(nil, shell.C("soci", "run", "--rm", "--snapshotter=soci", image, "test", "tar", "-zc", "/usr"), tarExportArgs)
+		sh.Pipe(nil, shell.C(append(runSociCmd, "--name", "test", "--rm", image, "tar", "-zc", "/usr")...), tarExportArgs)
 	}
 
 	imageManifestDigest, err := getManifestDigest(sh, dockerhub(imageName).ref, dockerhub(imageName).platform)
@@ -281,12 +281,12 @@ func TestLazyPull(t *testing.T) {
 		return func(t *testing.T, tarExportArgs ...string) {
 			rebootContainerd(t, sh, "", "")
 			sh.X("nerdctl", "pull", "-q", image)
-			sh.Pipe(nil, shell.C("ctr", "run", "--rm", image, "test", "tar", "-zc", "/usr"), tarExportArgs)
+			sh.Pipe(nil, shell.C("nerdctl", "run", "--name", "test", "--pull", "never", "--net", "none", "--rm", image, "tar", "-zc", "/usr"), tarExportArgs)
 		}
 	}
 	export := func(sh *shell.Shell, image string, tarExportArgs []string) {
 		sh.X("soci", "image", "rpull", "--user", regConfig.creds(), "--soci-index-digest", indexDigest1, image)
-		sh.Pipe(nil, shell.C("soci", "run", "--rm", "--snapshotter=soci", image, "test", "tar", "-zc", "/usr"), tarExportArgs)
+		sh.Pipe(nil, shell.C(append(runSociCmd, "--name", "test", "--rm", image, "tar", "-zc", "/usr")...), tarExportArgs)
 	}
 
 	// NOTE: these tests must be executed sequentially.
@@ -364,12 +364,12 @@ func TestLazyPullNoIndexDigest(t *testing.T) {
 		return func(t *testing.T, tarExportArgs ...string) {
 			rebootContainerd(t, sh, "", "")
 			sh.X("nerdctl", "pull", "-q", image)
-			sh.Pipe(nil, shell.C("ctr", "run", "--rm", image, "test", "tar", "-zc", "/usr"), tarExportArgs)
+			sh.Pipe(nil, shell.C("nerdctl", "run", "--name", "test", "--pull", "never", "--net", "none", "--rm", image, "tar", "-zc", "/usr"), tarExportArgs)
 		}
 	}
 	export := func(sh *shell.Shell, image string, tarExportArgs []string) {
 		sh.X("soci", "image", "rpull", "--user", regConfig.creds(), image)
-		sh.Pipe(nil, shell.C("soci", "run", "--rm", "--snapshotter=soci", image, "test", "tar", "-zc", "/usr"), tarExportArgs)
+		sh.Pipe(nil, shell.C(append(runSociCmd, "--name", "test", "--rm", image, "tar", "-zc", "/usr")...), tarExportArgs)
 	}
 
 	// NOTE: these tests must be executed sequentially.
@@ -433,13 +433,13 @@ func TestPullWithAribtraryBlobInvalidZtocFormat(t *testing.T) {
 		return func(t *testing.T, tarExportArgs ...string) {
 			rebootContainerd(t, sh, getContainerdConfigToml(t, false), getSnapshotterConfigToml(t, false))
 			sh.X("nerdctl", "pull", "-q", image)
-			sh.Pipe(nil, shell.C("ctr", "run", "--rm", image, "test", "tar", "-zc", "/usr"), tarExportArgs)
+			sh.Pipe(nil, shell.C("nerdctl", "run", "--name", "test", "--pull", "never", "--net", "none", "--rm", image, "tar", "-zc", "/usr"), tarExportArgs)
 		}
 	}
 
 	export := func(sh *shell.Shell, image, sociIndexDigest string, tarExportArgs []string) {
 		sh.X("soci", "image", "rpull", "--user", regConfig.creds(), "--soci-index-digest", sociIndexDigest, image)
-		sh.Pipe(nil, shell.C("soci", "run", "--rm", "--snapshotter=soci", image, "test", "tar", "-zc", "/usr"), tarExportArgs)
+		sh.Pipe(nil, shell.C(append(runSociCmd, "--name", "test", "--rm", image, "tar", "-zc", "/usr")...), tarExportArgs)
 	}
 
 	buildMaliciousIndex := func(sh *shell.Shell, imgDigest string) ([]byte, []ocispec.Descriptor, error) {
@@ -546,12 +546,12 @@ disable = true
 		return func(t *testing.T, tarExportArgs ...string) {
 			rebootContainerd(t, sh, "", "")
 			sh.X("nerdctl", "pull", "-q", image)
-			sh.Pipe(nil, shell.C("ctr", "run", "--rm", image, "test", "tar", "-zc", "/usr"), tarExportArgs)
+			sh.Pipe(nil, shell.C("nerdctl", "run", "--name", "test", "--pull", "never", "--net", "none", "--rm", image, "tar", "-zc", "/usr"), tarExportArgs)
 		}
 	}
 	export := func(sh *shell.Shell, image string, tarExportArgs []string) {
 		sh.X("soci", "image", "rpull", "--user", regConfig.creds(), "--soci-index-digest", indexDigest1, image)
-		sh.Pipe(nil, shell.C("soci", "run", "--rm", "--snapshotter=soci", image, "test", "tar", "-zc", "/usr"), tarExportArgs)
+		sh.Pipe(nil, shell.C(append(runSociCmd, "--name", "test", "--rm", image, "tar", "-zc", "/usr")...), tarExportArgs)
 	}
 
 	// NOTE: these tests must be executed sequentially.
@@ -721,10 +721,10 @@ insecure = true
 	sh.X("soci", "image", "rpull", "--user", regConfig.creds(), "--soci-index-digest", indexDigest, regConfig.mirror(imageName).ref)
 	registryHostIP, registryAltHostIP := getIP(t, sh, regConfig.host), getIP(t, sh, regAltConfig.host)
 	export := func(image string) []string {
-		return shell.C("soci", "run", "--rm", "--snapshotter=soci", image, "test", "tar", "-zc", "/usr")
+		return shell.C(append(runSociCmd, "--name", "test", "--rm", image, "tar", "-zc", "/usr")...)
 	}
 	sample := func(t *testing.T, tarExportArgs ...string) {
-		sh.Pipe(nil, shell.C("ctr", "run", "--rm", regConfig.mirror(imageName).ref, "test", "tar", "-zc", "/usr"), tarExportArgs)
+		sh.Pipe(nil, shell.C("nerdctl", "run", "--name", "test", "--pull", "never", "--net", "none", "--rm", regConfig.mirror(imageName).ref, "tar", "-zc", "/usr"), tarExportArgs)
 	}
 
 	// test if mirroring is working (switching to registryAltHost)

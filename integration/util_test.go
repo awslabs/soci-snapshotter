@@ -78,6 +78,11 @@ const (
 	oci11RegistryImage = "ghcr.io/project-zot/zot-linux-" + runtime.GOARCH + ":v2.0.0-rc6"
 )
 
+// Commonly used CLI commands
+var (
+	runSociCmd = []string{"nerdctl", "run", "--pull", "never", "--net", "none", "--snapshotter", "soci"}
+)
+
 // These are images that we use in our integration tests
 const (
 	helloImage    = "hello-world:latest"

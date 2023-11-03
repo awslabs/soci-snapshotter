@@ -135,7 +135,7 @@ func TestRunMultipleContainers(t *testing.T) {
 			// Run the containers
 			for index, container := range tt.containers {
 				image := regConfig.mirror(container.containerImage).ref
-				sh.X("soci", "run", "-d", "--snapshotter=soci", image, getTestContainerName(index, container))
+				sh.X(append(runSociCmd, "--name", getTestContainerName(index, container), "-d", image)...)
 			}
 
 			// Verify that no mounts fallback to overlayfs
@@ -204,7 +204,7 @@ type containerImageAndTestFunc struct {
 }
 
 func testWebServiceContainer(shell *shell.Shell, containerName string) {
-	shell.X("ctr", "task", "exec", "--exec-id", "test-curl", containerName,
+	shell.X("nerdctl", "exec", containerName,
 		"curl", "--retry", "5", "--retry-connrefused", "--retry-max-time", "30", "http://127.0.0.1",
 	)
 }
@@ -297,9 +297,9 @@ disable = true
 
 			// Run the container
 			image := regConfig.mirror(containerImage).ref
-			sh.X("soci", "run", "-d", "--snapshotter=soci", image, "test-container")
+			sh.X(append(runSociCmd, "--name", "test-container", "-d", image, "sleep", "infinity")...)
 
-			sh.X("apt-get", "--no-install-recommends", "install", "-y", "iptables")
+			sh.X("apt-get", "--no-install-recommends", "install", "-qy", "iptables")
 
 			// TODO: Wait for the container to be up and running
 
@@ -309,7 +309,7 @@ disable = true
 			}
 
 			// Do something in the container that should work without network access
-			commandSucceedStdout, _, err := sh.R("ctr", "task", "exec", "--exec-id", "test-task-1", "test-container", "sh", "-c", "times")
+			commandSucceedStdout, _, err := sh.R("nerdctl", "exec", "test-container", "sh", "-c", "times")
 			if err != nil {
 				t.Fatalf("attempt to run task without network access failed: %s", err)
 			}
@@ -339,7 +339,7 @@ disable = true
 			defer m.Remove("retry")
 
 			// Do something in the container to access un-fetched spans, requiring network access
-			commandNetworkStdout, _, err := sh.R("ctr", "task", "exec", "--exec-id", "test-task-2", "test-container", "cat", "/etc/hosts")
+			commandNetworkStdout, _, err := sh.R("nerdctl", "exec", "test-container", "cat", "/etc/hosts")
 			if err != nil {
 				t.Fatalf("attempt to run task requiring network access failed: %s", err)
 			}
@@ -384,7 +384,9 @@ disable = true
 				case err := <-commandNetworkErrChannel:
 					t.Fatal(err)
 				case data := <-commandNetworkStdoutChannel:
-					t.Fatalf("network bound task produced unexpected output: %s", string(data))
+					if len(data) > 0 {
+						t.Fatalf("network bound task produced unexpected output: %s", string(data))
+					}
 				case <-time.After(100 * time.Millisecond):
 				}
 
@@ -407,7 +409,9 @@ disable = true
 				}
 			case data := <-commandNetworkStdoutChannel:
 				if !tt.config.expectedSuccess {
-					t.Fatalf("network bound task produced unexpected output: %s", string(data))
+					if len(data) > 0 {
+						t.Fatalf("network bound task produced unexpected output: %s", string(data))
+					}
 				}
 			case <-time.After(100 * time.Millisecond):
 				if tt.config.expectedSuccess {
@@ -434,7 +438,7 @@ func TestRootFolderPermission(t *testing.T) {
 	// This should have all been pulled ahead of time.
 	checkFuseMounts(t, sh, 0)
 	// Verify that the mount permissions allow non-root to open "/"
-	subfolders := sh.O("soci", "run", "-d", "--snapshotter=soci", "--user", "1000", dockerhub(image).ref, containerName, "ls", "/")
+	subfolders := sh.O(append(runSociCmd, "--name", containerName, "-d", "--user", "1000", dockerhub(image).ref, "ls", "/")...)
 	if string(subfolders) == "" {
 		t.Fatal("non-root user should be able to `ls /`")
 	}
@@ -501,7 +505,7 @@ func TestRunInContentStore(t *testing.T) {
 				}
 				sh.X("soci", "image", "rpull", "--soci-index-digest", indexDigest, imageInfo.ref)
 				// Run the container
-				_, err := sh.OLog("soci", "run", "--rm", "--snapshotter=soci", imageInfo.ref, "test")
+				_, err := sh.OLog(append(runSociCmd, "--name", "test", "--rm", imageInfo.ref)...)
 				if err != nil {
 					t.Fatalf("encountered error running container: %v", err)
 				}
@@ -539,7 +543,7 @@ func TestRunInNamespace(t *testing.T) {
 						"--content-store", string(contentStoreType),
 						"image", "rpull", "--soci-index-digest", indexDigest, imageInfo.ref)
 					// Run the container
-					_, err := sh.OLog("soci", "--namespace", runNamespace, "run", "--snapshotter=soci", imageInfo.ref, "test")
+					_, err := sh.OLog(append(runSociCmd, "--namespace", runNamespace, "--rm", "--name", "test", imageInfo.ref)...)
 					if createNamespace == runNamespace {
 						// same namespace should succeed without overlayfs fallback
 						if err != nil {

@@ -218,7 +218,7 @@ log_fuse_operations = true
 
 			sh.X("soci", "image", "rpull", "--soci-index-digest", indexDigest, imgInfo.ref)
 			// this command may fail due to fuse operation failure, use XLog to avoid crashing shell
-			sh.XLog("ctr", "run", "--rm", "--snapshotter=soci", imgInfo.ref, "test", "echo", "hi")
+			sh.XLog(append(runSociCmd, "--name", "test", "--rm", imgInfo.ref, "echo", "hi")...)
 
 			curlOutput := string(sh.O("curl", tcpMetricsAddress+metricsPath))
 			checkFuseOperationFailureMetrics(t, curlOutput, tc.metricToCheck, tc.expectFuseOperationFailure, tc.expectedCount)
@@ -253,7 +253,7 @@ fuse_metrics_emit_wait_duration_sec = 10
 			indexDigest := buildIndex(sh, imgInfo)
 
 			sh.X("soci", "image", "rpull", "--soci-index-digest", indexDigest, imgInfo.ref)
-			sh.XLog("ctr", "run", "-d", "--snapshotter=soci", imgInfo.ref, "test", "echo", "hi")
+			sh.XLog(append(runSociCmd, "--name", "test", "-d", imgInfo.ref, "echo", "hi")...)
 
 			curlOutput := string(sh.O("curl", tcpMetricsAddress+metricsPath))
 
@@ -310,7 +310,7 @@ emit_metric_period_sec = 2
 			indexDigest := buildIndex(sh, imgInfo)
 
 			sh.X("soci", "image", "rpull", "--soci-index-digest", indexDigest, imgInfo.ref)
-			sh.XLog("ctr", "run", "-d", "--snapshotter=soci", imgInfo.ref, "test", "echo", "hi")
+			sh.XLog(append(runSociCmd, "--name", "test", "-d", imgInfo.ref, "echo", "hi")...)
 
 			time.Sleep(5 * time.Second)
 			curlOutput := string(sh.O("curl", tcpMetricsAddress+metricsPath))
