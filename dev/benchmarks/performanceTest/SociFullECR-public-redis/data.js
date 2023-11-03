@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1698969835455,
+  "lastUpdate": 1699035510683,
   "repoUrl": "https://github.com/awslabs/soci-snapshotter",
   "entries": {
     "Soci Benchmark": [
@@ -1797,6 +1797,48 @@ window.BENCHMARK_DATA = {
           {
             "name": "SociFullECR-public-redis-pullTaskDuration",
             "value": 1.0745,
+            "unit": "Seconds",
+            "extra": "P90"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "walster@amazon.com",
+            "name": "Kern Walster",
+            "username": "Kern--"
+          },
+          "committer": {
+            "email": "kern.walster@gmail.com",
+            "name": "Kern Walster",
+            "username": "Kern--"
+          },
+          "distinct": true,
+          "id": "bed91dd46a947040b9bee09fefc6d0dec677940d",
+          "message": "Log benchmark errors to stdout\n\nWhen manually running benchmarks with `testing.Benchmark`, the\nnon-configurable output writer is set to discard. This means that if the\nbenchmarker fails, the fatal logs are lost. This change wraps the\nbenchmarker fatal with a direct write to stdout.\n\nSigned-off-by: Kern Walster <walster@amazon.com>",
+          "timestamp": "2023-11-03T11:09:52-07:00",
+          "tree_id": "10a6120080bd4cd762cc579791d808cbcdc3c23a",
+          "url": "https://github.com/awslabs/soci-snapshotter/commit/bed91dd46a947040b9bee09fefc6d0dec677940d"
+        },
+        "date": 1699035510099,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "SociFullECR-public-redis-lazyTaskDuration",
+            "value": 1.176,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-redis-localTaskDuration",
+            "value": 0.019,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-redis-pullTaskDuration",
+            "value": 0.8815,
             "unit": "Seconds",
             "extra": "P90"
           }
