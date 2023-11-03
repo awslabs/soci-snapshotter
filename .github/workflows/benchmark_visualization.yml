@@ -17,18 +17,18 @@ jobs:
     runs-on: ubuntu-20.04
     steps:
       - name: Checkout main branch
-        uses: actions/checkout@v4
+        uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4.1.1
         with:
           fetch-depth: 0
           submodules: true
-      - uses: actions/setup-go@v4
+      - uses: actions/setup-go@93397bea11091df50f3d7e59dc26a7711a8bcfbe # v4.1.0
         with:
           go-version: '1.20.6'
       - run: make
       - name: Run benchmark
         run: make benchmarks-perf-test 
       - name: Upload latest benchmark result
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@a8a3f3ad30e3422c9c7b888a15615d19a852ae32 # v3.1.3
         with:
           name: benchmark-result-artifact
           path: ${{github.workspace}}/benchmark/performanceTest/output/results.json
@@ -38,9 +38,9 @@ jobs:
     needs: benchmark
     steps:
       - name: Checkout main branch
-        uses: actions/checkout@v4
+        uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4.1.1
       - name: Download latest benchmark result
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@9bc31d5ccc31df68ecc42ccf4149144866c47d8a # v3.0.2
         with:
           name: benchmark-result-artifact
           path: ${{github.workspace}}
@@ -55,7 +55,7 @@ jobs:
          # Create a JSON array with the file paths and store it in the 'files' output
         run: echo "files=$(find ${{github.workspace}}/current -type f -name '*.json' -printf '%p\n' | jq -R . | jq -cs .)" >> $GITHUB_OUTPUT
       - name: Upload visualization files as github artifacts
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@a8a3f3ad30e3422c9c7b888a15615d19a852ae32 # v3.1.3
         with:
           name: benchmark-gh-pages-artifact
           path: ${{github.workspace}}/current
@@ -71,13 +71,13 @@ jobs:
         file: ${{ fromJson(needs.download-and-convert-benchmark-result-to-visualization-data.outputs.matrix) }}
     steps:
       - name: Checkout main branch
-        uses: actions/checkout@v4
+        uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4.1.1
 
       - name: Create current folder
         run: mkdir ${{github.workspace}}/current
 
       - name: Download latest benchmark visualization files
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@9bc31d5ccc31df68ecc42ccf4149144866c47d8a # v3.0.2
         with:
           name: benchmark-gh-pages-artifact
           path: ${{github.workspace}}/current
@@ -92,7 +92,7 @@ jobs:
           echo "filename=$filename_without_extension" >> $GITHUB_OUTPUT    
 
       - name: Run benchmark action
-        uses: benchmark-action/github-action-benchmark@v1
+        uses: benchmark-action/github-action-benchmark@70405016b032d44f409e4b1b451c40215cbe2393 # v1.18.0
         with:
           name: Soci Benchmark
           tool: 'customSmallerIsBetter'
