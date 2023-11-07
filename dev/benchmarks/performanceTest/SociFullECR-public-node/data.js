@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1699052334844,
+  "lastUpdate": 1699391109935,
   "repoUrl": "https://github.com/awslabs/soci-snapshotter",
   "entries": {
     "Soci Benchmark": [
@@ -1717,6 +1717,48 @@ window.BENCHMARK_DATA = {
           {
             "name": "SociFullECR-public-node-pullTaskDuration",
             "value": 1.762,
+            "unit": "Seconds",
+            "extra": "P90"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "turyasin@amazon.com",
+            "name": "Yasin Turan",
+            "username": "turan18"
+          },
+          "committer": {
+            "email": "66654647+turan18@users.noreply.github.com",
+            "name": "Yasin Turan",
+            "username": "turan18"
+          },
+          "distinct": true,
+          "id": "192b50eb6b16809f604599585a3a2c7004ac3aa9",
+          "message": "Bump go-fuse to v2.4.1\n\nUpgrading go-fuse to a tagged revision which contains\nthe bug fix for the sparse file `cp/mv/install` bug on\nimages with coreutils version >= v9.0.\n\nSigned-off-by: Yasin Turan <turyasin@amazon.com>",
+          "timestamp": "2023-11-07T15:50:32-05:00",
+          "tree_id": "b050ecf4574d99b17b50b607ee525c572b24c535",
+          "url": "https://github.com/awslabs/soci-snapshotter/commit/192b50eb6b16809f604599585a3a2c7004ac3aa9"
+        },
+        "date": 1699391106539,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "SociFullECR-public-node-lazyTaskDuration",
+            "value": 6.2005,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-node-localTaskDuration",
+            "value": 0.567,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-node-pullTaskDuration",
+            "value": 2.9645,
             "unit": "Seconds",
             "extra": "P90"
           }
