@@ -2,9 +2,6 @@ module github.com/awslabs/soci-snapshotter
 
 go 1.20
 
-// We are using a specific commit of go-fuse as it contains a bug fix.
-// We should switch to using a tagged version once the fix is available
-// in a release.
 require (
 	github.com/containerd/containerd v1.7.8
 	github.com/containerd/continuity v0.4.3
@@ -15,7 +12,7 @@ require (
 	github.com/google/flatbuffers v23.5.26+incompatible
 	github.com/google/go-cmp v0.6.0
 	github.com/google/uuid v1.4.0
-	github.com/hanwen/go-fuse/v2 v2.4.1-0.20231001162222-fc2c4d3da0a0
+	github.com/hanwen/go-fuse/v2 v2.4.1
 	github.com/hashicorp/go-retryablehttp v0.7.4
 	github.com/klauspost/compress v1.17.2
 	github.com/moby/sys/mountinfo v0.6.2
