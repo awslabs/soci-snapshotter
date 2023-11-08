@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1699391107024,
+  "lastUpdate": 1699473747455,
   "repoUrl": "https://github.com/awslabs/soci-snapshotter",
   "entries": {
     "Soci Benchmark": [
@@ -1759,6 +1759,48 @@ window.BENCHMARK_DATA = {
           {
             "name": "SociFullECR-public-tensorflow_gpu-pullTaskDuration",
             "value": 3.9355,
+            "unit": "Seconds",
+            "extra": "P90"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "walster@amazon.com",
+            "name": "Kern Walster",
+            "username": "Kern--"
+          },
+          "committer": {
+            "email": "kern.walster@gmail.com",
+            "name": "Kern Walster",
+            "username": "Kern--"
+          },
+          "distinct": true,
+          "id": "f25e4591adb3524981f2dafb19b196453d7f201a",
+          "message": "Allow benchmarks config as json\n\nBenchmarks can currently be passed as a csv file. This additionally adds\njson as an option to make it not order dependent and to allow us to add\nmore complex options in the future (e.g. mounts).\n\nSigned-off-by: Kern Walster <walster@amazon.com>",
+          "timestamp": "2023-11-08T11:52:53-08:00",
+          "tree_id": "6900591438deee7739ff3aa04b4f6977d1ca789e",
+          "url": "https://github.com/awslabs/soci-snapshotter/commit/f25e4591adb3524981f2dafb19b196453d7f201a"
+        },
+        "date": 1699473743768,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "SociFullECR-public-tensorflow_gpu-lazyTaskDuration",
+            "value": 22.365000000000002,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-tensorflow_gpu-localTaskDuration",
+            "value": 2.4850000000000003,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-tensorflow_gpu-pullTaskDuration",
+            "value": 2.544,
             "unit": "Seconds",
             "extra": "P90"
           }
