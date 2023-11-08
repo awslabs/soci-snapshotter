@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1699473738863,
+  "lastUpdate": 1699474145353,
   "repoUrl": "https://github.com/awslabs/soci-snapshotter",
   "entries": {
     "Soci Benchmark": [
@@ -1801,6 +1801,48 @@ window.BENCHMARK_DATA = {
           {
             "name": "SociFullECR-public-node-pullTaskDuration",
             "value": 1.5045,
+            "unit": "Seconds",
+            "extra": "P90"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "davbson@amazon.com",
+            "name": "David Son",
+            "username": "sondavidb"
+          },
+          "committer": {
+            "email": "55555210+sondavidb@users.noreply.github.com",
+            "name": "David Son",
+            "username": "sondavidb"
+          },
+          "distinct": true,
+          "id": "bc17f0851c97218562bf7786a940f37904a44758",
+          "message": "Remove \"soci run\" from CLI\n\nWith the effort to remove ctr code from CLI, we removed `soci run`,\nas it ran `ctr run` under the hood with no additional functionality.\nIn the testing suite, `soci run` has been replaced in favor of\n`nerdctl run` for similar reasons to above.\n\nSigned-off-by: David Son <davbson@amazon.com>",
+          "timestamp": "2023-11-08T12:00:37-08:00",
+          "tree_id": "eb0f665e3fc6779665c3c9061751ae4ed663d772",
+          "url": "https://github.com/awslabs/soci-snapshotter/commit/bc17f0851c97218562bf7786a940f37904a44758"
+        },
+        "date": 1699474144277,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "SociFullECR-public-node-lazyTaskDuration",
+            "value": 2.5300000000000002,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-node-localTaskDuration",
+            "value": 0.431,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-node-pullTaskDuration",
+            "value": 1.1604999999999999,
             "unit": "Seconds",
             "extra": "P90"
           }
