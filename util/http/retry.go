@@ -19,12 +19,14 @@ package http
 import (
 	"context"
 	"fmt"
+	"io"
 	"math/rand"
 	"net"
 	"net/http"
 	"time"
 
 	"github.com/awslabs/soci-snapshotter/config"
+	logutil "github.com/awslabs/soci-snapshotter/util/http/log"
 	"github.com/awslabs/soci-snapshotter/version"
 	"github.com/containerd/log"
 	rhttp "github.com/hashicorp/go-retryablehttp"
@@ -49,6 +51,7 @@ func NewRetryableClient(config config.RetryableHTTPClientConfig) *http.Client {
 	rhttpClient.Backoff = BackoffStrategy
 	rhttpClient.CheckRetry = RetryStrategy
 	rhttpClient.HTTPClient.Timeout = time.Duration(config.RequestTimeoutMsec) * time.Millisecond
+	rhttpClient.ErrorHandler = HandleHTTPError
 
 	// set timeouts
 	innerTransport := rhttpClient.HTTPClient.Transport
@@ -83,9 +86,50 @@ func RetryStrategy(ctx context.Context, resp *http.Response, err error) (bool, e
 	retry, err2 := rhttp.DefaultRetryPolicy(ctx, resp, err)
 	if retry {
 		log.G(ctx).WithFields(logrus.Fields{
-			"error":    err,
+			"error":    logutil.RedactHTTPQueryValuesFromError(err),
 			"response": resp,
 		}).Debugf("retrying request")
 	}
-	return retry, err2
+	return retry, logutil.RedactHTTPQueryValuesFromError(err2)
+}
+
+// HandleHTTPError implements retryablehttp client's ErrorHandler to ensure returned errors
+// have HTTP query values redacted to prevent leaking sensitive information like encoded credentials or tokens.
+func HandleHTTPError(resp *http.Response, err error, attempts int) (*http.Response, error) {
+	var (
+		method = "unknown"
+		url    = "unknown"
+	)
+
+	if resp != nil {
+		drain(resp.Body)
+
+		if resp.Request != nil {
+
+			method = resp.Request.Method
+
+			if resp.Request.URL != nil {
+				logutil.RedactHTTPQueryValuesFromURL(resp.Request.URL)
+				url = resp.Request.URL.Redacted()
+			}
+		}
+	}
+
+	if err == nil {
+		return nil, fmt.Errorf("%s \"%s\": giving up request after %d attempt(s)", method, url, attempts)
+	}
+
+	err = logutil.RedactHTTPQueryValuesFromError(err)
+	return nil, fmt.Errorf("%s \"%s\": giving up request after %d attempt(s): %w", method, url, attempts, err)
+}
+
+// Try to read and discard the response body so the connection can be reused.
+// See https://pkg.go.dev/net/http#Response for more information.
+func drain(body io.ReadCloser) {
+	defer body.Close()
+
+	// We want to consume response bodies to maintain HTTP connections,
+	// but also want to limit the size read. 4KiB is arbitirary but reasonable.
+	const responseReadLimit = int64(4096)
+	_, _ = io.Copy(io.Discard, io.LimitReader(body, responseReadLimit))
 }

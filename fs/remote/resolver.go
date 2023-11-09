@@ -194,6 +194,7 @@ func newHTTPFetcher(ctx context.Context, fc *fetcherConfig) (*httpFetcher, error
 			rt.Client.RetryWaitMax = fc.maxWait
 			rt.Client.Backoff = socihttp.BackoffStrategy
 			rt.Client.CheckRetry = socihttp.RetryStrategy
+			rt.Client.ErrorHandler = socihttp.HandleHTTPError
 			timeout = rt.Client.HTTPClient.Timeout
 		}
 
