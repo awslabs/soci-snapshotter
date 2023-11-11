@@ -34,6 +34,7 @@ package internal
 
 import (
 	gocontext "context"
+	"strings"
 
 	"github.com/containerd/containerd"
 	"github.com/containerd/containerd/namespaces"
@@ -75,7 +76,8 @@ func AppContext(context *cli.Context) (gocontext.Context, gocontext.CancelFunc) 
 func NewClient(context *cli.Context, opts ...containerd.ClientOpt) (*containerd.Client, gocontext.Context, gocontext.CancelFunc, error) {
 	timeoutOpt := containerd.WithTimeout(context.GlobalDuration("connect-timeout"))
 	opts = append(opts, timeoutOpt)
-	client, err := containerd.New(context.GlobalString("address"), opts...)
+	address := strings.TrimPrefix(context.GlobalString("address"), "unix://")
+	client, err := containerd.New(address, opts...)
 	if err != nil {
 		return nil, nil, nil, err
 	}
