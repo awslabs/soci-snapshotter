@@ -121,6 +121,8 @@ the entire SOCI index to a particular image manifest (i.e. a particular image fo
 
 > We skip building ztocs for smaller layers (controlled by `--soci-min-layer-size` in
 > `nerdctl push`) because small layers don't benefit much from lazy loading.)
+>
+> When all layers are smaller than `min-layer-size`, soci CLI would fail.
 
 From the above output, we can see that SOCI creates ztocs for 3 layers and skips
 7 layers, which means only the 3 layers with ztocs will be lazily pulled.
