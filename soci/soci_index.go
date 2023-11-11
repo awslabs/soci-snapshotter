@@ -64,6 +64,7 @@ const (
 var (
 	errNotLayerType           = errors.New("not a layer mediaType")
 	errUnsupportedLayerFormat = errors.New("unsupported layer format")
+	ErrEmptyIndex             = errors.New("no ztocs created, all layers either skipped or produced errors")
 	// defaultConfigContent is the content of the config object used when serializing
 	// a SOCI index as an OCI 1.0 Manifest for fallback compatibility. OCI 1.0 Manifests
 	// require a non-empty config object, so we use the empty JSON object. The content of
@@ -348,7 +349,7 @@ func (b *IndexBuilder) Build(ctx context.Context, img images.Image) (*IndexWithM
 	}
 
 	if len(ztocsDesc) == 0 {
-		return nil, errors.New("no ztocs created, all layers either skipped or produced errors")
+		return nil, ErrEmptyIndex
 	}
 
 	annotations := map[string]string{
