@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1699474351988,
+  "lastUpdate": 1699991113183,
   "repoUrl": "https://github.com/awslabs/soci-snapshotter",
   "entries": {
     "Soci Benchmark": [
@@ -2049,6 +2049,48 @@ window.BENCHMARK_DATA = {
           {
             "name": "SociFullECR-public-redis-pullTaskDuration",
             "value": 2.1805,
+            "unit": "Seconds",
+            "extra": "P90"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "walster@amazon.com",
+            "name": "Kern Walster",
+            "username": "Kern--"
+          },
+          "committer": {
+            "email": "kern.walster@gmail.com",
+            "name": "Kern Walster",
+            "username": "Kern--"
+          },
+          "distinct": true,
+          "id": "8dfb7071444c53c3bbdc8c10cbc45eb940186589",
+          "message": "Switch release workflow to on.push\n\nBefore this change, the release workflow was running when creating a\nbranch.\n\nSigned-off-by: Kern Walster <walster@amazon.com>",
+          "timestamp": "2023-11-14T11:35:24-08:00",
+          "tree_id": "26af82720df0e8873c20a4fa461902ad82469d07",
+          "url": "https://github.com/awslabs/soci-snapshotter/commit/8dfb7071444c53c3bbdc8c10cbc45eb940186589"
+        },
+        "date": 1699991112547,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "SociFullECR-public-redis-lazyTaskDuration",
+            "value": 1.181,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-redis-localTaskDuration",
+            "value": 0.0195,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-redis-pullTaskDuration",
+            "value": 0.8605,
             "unit": "Seconds",
             "extra": "P90"
           }
