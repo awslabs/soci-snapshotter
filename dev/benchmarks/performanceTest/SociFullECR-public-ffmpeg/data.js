@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1699474353008,
+  "lastUpdate": 1699991117372,
   "repoUrl": "https://github.com/awslabs/soci-snapshotter",
   "entries": {
     "Soci Benchmark": [
@@ -2008,6 +2008,48 @@ window.BENCHMARK_DATA = {
           {
             "name": "SociFullECR-public-ffmpeg-pullTaskDuration",
             "value": 2.88,
+            "unit": "Seconds",
+            "extra": "P90"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "walster@amazon.com",
+            "name": "Kern Walster",
+            "username": "Kern--"
+          },
+          "committer": {
+            "email": "kern.walster@gmail.com",
+            "name": "Kern Walster",
+            "username": "Kern--"
+          },
+          "distinct": true,
+          "id": "8dfb7071444c53c3bbdc8c10cbc45eb940186589",
+          "message": "Switch release workflow to on.push\n\nBefore this change, the release workflow was running when creating a\nbranch.\n\nSigned-off-by: Kern Walster <walster@amazon.com>",
+          "timestamp": "2023-11-14T11:35:24-08:00",
+          "tree_id": "26af82720df0e8873c20a4fa461902ad82469d07",
+          "url": "https://github.com/awslabs/soci-snapshotter/commit/8dfb7071444c53c3bbdc8c10cbc45eb940186589"
+        },
+        "date": 1699991116138,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "SociFullECR-public-ffmpeg-lazyTaskDuration",
+            "value": 0.6565,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-ffmpeg-localTaskDuration",
+            "value": 0.011,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-ffmpeg-pullTaskDuration",
+            "value": 1.238,
             "unit": "Seconds",
             "extra": "P90"
           }
