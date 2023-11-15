@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1699991117372,
+  "lastUpdate": 1700024497511,
   "repoUrl": "https://github.com/awslabs/soci-snapshotter",
   "entries": {
     "Soci Benchmark": [
@@ -2050,6 +2050,48 @@ window.BENCHMARK_DATA = {
           {
             "name": "SociFullECR-public-ffmpeg-pullTaskDuration",
             "value": 1.238,
+            "unit": "Seconds",
+            "extra": "P90"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "me@tuananh.org",
+            "name": "Tuan Anh Tran",
+            "username": "tuananh"
+          },
+          "committer": {
+            "email": "55906459+austinvazquez@users.noreply.github.com",
+            "name": "Austin Vazquez",
+            "username": "austinvazquez"
+          },
+          "distinct": true,
+          "id": "3aaee249831a3c45152acfdd05b3cdd1e83187a2",
+          "message": "fix: trim unix:// prefix for address flag\n\nSigned-off-by: Tuan Anh Tran <me@tuananh.org>",
+          "timestamp": "2023-11-14T20:53:31-08:00",
+          "tree_id": "9cf995711952c3013521e9b0d94a55a18b9608bc",
+          "url": "https://github.com/awslabs/soci-snapshotter/commit/3aaee249831a3c45152acfdd05b3cdd1e83187a2"
+        },
+        "date": 1700024497021,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "SociFullECR-public-ffmpeg-lazyTaskDuration",
+            "value": 0.279,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-ffmpeg-localTaskDuration",
+            "value": 0.011,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-ffmpeg-pullTaskDuration",
+            "value": 1.3264999999999998,
             "unit": "Seconds",
             "extra": "P90"
           }
