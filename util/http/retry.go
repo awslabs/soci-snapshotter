@@ -17,7 +17,9 @@
 package http
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
 	"io"
 	"math/rand"
@@ -28,6 +30,7 @@ import (
 	"github.com/awslabs/soci-snapshotter/config"
 	logutil "github.com/awslabs/soci-snapshotter/util/http/log"
 	"github.com/awslabs/soci-snapshotter/version"
+	"github.com/containerd/containerd/remotes/docker"
 	"github.com/containerd/log"
 	rhttp "github.com/hashicorp/go-retryablehttp"
 	"github.com/sirupsen/logrus"
@@ -102,7 +105,7 @@ func HandleHTTPError(resp *http.Response, err error, attempts int) (*http.Respon
 	)
 
 	if resp != nil {
-		drain(resp.Body)
+		Drain(resp.Body)
 
 		if resp.Request != nil {
 
@@ -123,13 +126,64 @@ func HandleHTTPError(resp *http.Response, err error, attempts int) (*http.Respon
 	return nil, fmt.Errorf("%s \"%s\": giving up request after %d attempt(s): %w", method, url, attempts, err)
 }
 
-// Try to read and discard the response body so the connection can be reused.
-// See https://pkg.go.dev/net/http#Response for more information.
-func drain(body io.ReadCloser) {
+// Drain tries to read and close the response body so the connection can be reused.
+// See https://pkg.go.dev/net/http#Response for more information. Since it consumes
+// the response body, this should only be used when the response body is no longer
+// needed.
+func Drain(body io.ReadCloser) {
 	defer body.Close()
 
 	// We want to consume response bodies to maintain HTTP connections,
-	// but also want to limit the size read. 4KiB is arbitirary but reasonable.
+	// but also want to limit the size read. 4KiB is arbitrary but reasonable.
 	const responseReadLimit = int64(4096)
 	_, _ = io.Copy(io.Discard, io.LimitReader(body, responseReadLimit))
+}
+
+// ShouldAuthenticate takes a HTTP response and determines whether or not
+// it warrants authentication.
+func ShouldAuthenticate(resp *http.Response) bool {
+	switch resp.StatusCode {
+	case http.StatusUnauthorized:
+		return true
+	case http.StatusForbidden:
+
+		/*
+			Although in most cases 403 responses represent authorization issues that generally
+			cannot be resolved by re-authentication, some registries like ECR, will return a 403 on
+			credential expiration. (ref https://docs.aws.amazon.com/AmazonECR/latest/userguide/common-errors-docker.html#error-403)
+			In the case of ECR, the response body is structured according to the error format defined in the
+			Docker v2 API spec. (ref https://distribution.github.io/distribution/spec/api/#errors).
+			We will attempt to decode the response body as a `docker.Errors`. If it can be decoded,
+			we will ensure that the `Message` represents token expiration.
+		*/
+
+		// Since we drain the response body, we will copy it to a
+		// buffer and re-assign it so that callers can still read
+		// from it.
+		body, err := io.ReadAll(resp.Body)
+		defer func() {
+			resp.Body.Close()
+			resp.Body = io.NopCloser(bytes.NewReader(body))
+		}()
+
+		if err != nil {
+			return false
+		}
+
+		var errs docker.Errors
+		if err = json.Unmarshal(body, &errs); err != nil {
+			return false
+		}
+		for _, e := range errs {
+			if err, ok := e.(docker.Error); ok {
+				if err.Message == ECRTokenExpiredResponse {
+					return true
+				}
+			}
+		}
+
+	default:
+	}
+
+	return false
 }

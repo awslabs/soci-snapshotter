@@ -17,12 +17,15 @@
 package http
 
 import (
+	"bytes"
 	"errors"
 	"io"
 	"net/http"
 	"net/url"
 	"strings"
 	"testing"
+
+	"github.com/containerd/containerd/remotes/docker"
 )
 
 const (
@@ -157,4 +160,57 @@ func (b *mockBody) Read(_ []byte) (int, error) {
 func (b *mockBody) Close() error {
 	b.Closed = true
 	return nil
+}
+
+func TestAuthentication(t *testing.T) {
+
+	ecrForbiddenResponse, _ := docker.Errors([]error{docker.ErrorCodeDenied.WithMessage(ECRTokenExpiredResponse)}).MarshalJSON()
+	normalForbiddenResponse, _ := docker.Errors([]error{docker.ErrorCodeDenied}).MarshalJSON()
+	unauthorizedResponse, _ := docker.Errors([]error{docker.ErrorCodeUnauthorized}).MarshalJSON()
+
+	testCases := []struct {
+		name        string
+		performAuth bool
+		response    *http.Response
+	}{
+		{
+			name:        "Authenticate on 403 with token expiry.",
+			performAuth: true,
+			response: &http.Response{
+				StatusCode: http.StatusForbidden,
+				Body:       io.NopCloser(bytes.NewReader(ecrForbiddenResponse)),
+			},
+		},
+		{
+			name:        "Do not authenticate on 403 without token expiry.",
+			performAuth: false,
+			response: &http.Response{
+				StatusCode: http.StatusForbidden,
+				Body:       io.NopCloser(bytes.NewReader(normalForbiddenResponse)),
+			},
+		},
+		{
+			name:        "Authenticate on 401.",
+			performAuth: true,
+			response: &http.Response{
+				StatusCode: http.StatusUnauthorized,
+				Body:       io.NopCloser(bytes.NewReader(unauthorizedResponse)),
+			},
+		},
+		{
+			name:        "Do not authenticate on 200.",
+			performAuth: false,
+			response: &http.Response{
+				StatusCode: http.StatusOK,
+				Body:       io.NopCloser(bytes.NewReader([]byte("data"))),
+			},
+		},
+	}
+	for _, tc := range testCases {
+		shouldPerformAuthentication := ShouldAuthenticate(tc.response)
+		if tc.performAuth != shouldPerformAuthentication {
+			t.Fatalf("failed test case: %s: expected auth: %v; got auth: %v",
+				tc.name, tc.performAuth, shouldPerformAuthentication)
+		}
+	}
 }
