@@ -255,8 +255,7 @@ func (tr *transport) RoundTrip(req *http.Request) (*http.Response, error) {
 		return nil, err
 	}
 
-	// TODO: support more status codes and retries
-	if resp.StatusCode == http.StatusUnauthorized {
+	if socihttp.ShouldAuthenticate(resp) {
 		log.G(ctx).Infof("Received status code: %v. Refreshing creds...", resp.Status)
 
 		// Prepare authorization for the target host using docker.Authorizer.
@@ -283,6 +282,7 @@ func (tr *transport) RoundTrip(req *http.Request) (*http.Response, error) {
 			return nil, err
 		}
 
+		socihttp.Drain(resp.Body)
 		// re-authorize and send the request
 		return roundTrip(req.Clone(ctx))
 	}
