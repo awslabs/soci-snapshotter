@@ -17,7 +17,9 @@
 package index
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
 	"io"
 	"os"
@@ -63,7 +65,21 @@ var infoCommand = cli.Command{
 		}
 		defer reader.Close()
 
-		_, err = io.Copy(os.Stdout, reader)
+		b, err := io.ReadAll(reader)
+		if err != nil {
+			return err
+		}
+
+		err = prettyPrintJSON(b)
 		return err
 	},
+}
+
+func prettyPrintJSON(b []byte) error {
+	var prettyJSON bytes.Buffer
+	if err := json.Indent(&prettyJSON, []byte(b), "", "  "); err != nil {
+		return err
+	}
+	_, err := os.Stdout.Write(prettyJSON.Bytes())
+	return err
 }
