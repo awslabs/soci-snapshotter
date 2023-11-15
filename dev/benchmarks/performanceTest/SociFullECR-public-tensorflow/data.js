@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1699991114187,
+  "lastUpdate": 1700024502560,
   "repoUrl": "https://github.com/awslabs/soci-snapshotter",
   "entries": {
     "Soci Benchmark": [
@@ -2091,6 +2091,48 @@ window.BENCHMARK_DATA = {
           {
             "name": "SociFullECR-public-tensorflow-pullTaskDuration",
             "value": 1.4500000000000002,
+            "unit": "Seconds",
+            "extra": "P90"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "me@tuananh.org",
+            "name": "Tuan Anh Tran",
+            "username": "tuananh"
+          },
+          "committer": {
+            "email": "55906459+austinvazquez@users.noreply.github.com",
+            "name": "Austin Vazquez",
+            "username": "austinvazquez"
+          },
+          "distinct": true,
+          "id": "3aaee249831a3c45152acfdd05b3cdd1e83187a2",
+          "message": "fix: trim unix:// prefix for address flag\n\nSigned-off-by: Tuan Anh Tran <me@tuananh.org>",
+          "timestamp": "2023-11-14T20:53:31-08:00",
+          "tree_id": "9cf995711952c3013521e9b0d94a55a18b9608bc",
+          "url": "https://github.com/awslabs/soci-snapshotter/commit/3aaee249831a3c45152acfdd05b3cdd1e83187a2"
+        },
+        "date": 1700024498386,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "SociFullECR-public-tensorflow-lazyTaskDuration",
+            "value": 14.766,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-tensorflow-localTaskDuration",
+            "value": 2.2885,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-tensorflow-pullTaskDuration",
+            "value": 1.2974999999999999,
             "unit": "Seconds",
             "extra": "P90"
           }
