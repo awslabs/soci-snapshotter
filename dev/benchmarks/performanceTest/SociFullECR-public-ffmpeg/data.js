@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1700024497511,
+  "lastUpdate": 1700077219415,
   "repoUrl": "https://github.com/awslabs/soci-snapshotter",
   "entries": {
     "Soci Benchmark": [
@@ -2092,6 +2092,48 @@ window.BENCHMARK_DATA = {
           {
             "name": "SociFullECR-public-ffmpeg-pullTaskDuration",
             "value": 1.3264999999999998,
+            "unit": "Seconds",
+            "extra": "P90"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "me@tuananh.org",
+            "name": "Tuan Anh Tran",
+            "username": "tuananh"
+          },
+          "committer": {
+            "email": "66654647+turan18@users.noreply.github.com",
+            "name": "Yasin Turan",
+            "username": "turan18"
+          },
+          "distinct": true,
+          "id": "bfd6bb6112413e647db6e5625628de2a842a8a10",
+          "message": "feat: export emptyindex error when ztoc empty\n\nSigned-off-by: Tuan Anh Tran <me@tuananh.org>",
+          "timestamp": "2023-11-15T14:31:51-05:00",
+          "tree_id": "76509bc88bb8da16a7313a0d98683f7ba74713b2",
+          "url": "https://github.com/awslabs/soci-snapshotter/commit/bfd6bb6112413e647db6e5625628de2a842a8a10"
+        },
+        "date": 1700077218117,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "SociFullECR-public-ffmpeg-lazyTaskDuration",
+            "value": 0.27649999999999997,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-ffmpeg-localTaskDuration",
+            "value": 0.008,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-ffmpeg-pullTaskDuration",
+            "value": 1.2325,
             "unit": "Seconds",
             "extra": "P90"
           }
