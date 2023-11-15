@@ -131,7 +131,7 @@ func TestOverlayFallbackMetric(t *testing.T) {
 				sh.X("nerdctl", "pull", "-q", imgInfo.ref)
 				indexDigest := tc.indexDigestFn(sh, contentStoreType, imgInfo)
 
-				sh.X("soci", "--content-store", string(contentStoreType), "image", "rpull", "--soci-index-digest", indexDigest, imgInfo.ref)
+				sh.X(append(imagePullSociCmd, "--content-store", string(contentStoreType), "--soci-index-digest", indexDigest, imgInfo.ref)...)
 				curlOutput := string(sh.O("curl", tcpMetricsAddress+metricsPath))
 
 				if err := checkOverlayFallbackCount(curlOutput, tc.expectedFallbackCount); err != nil {
@@ -216,7 +216,7 @@ log_fuse_operations = true
 			sh.X("nerdctl", "pull", "-q", imgInfo.ref)
 			indexDigest := tc.indexDigestFn(t, sh, imgInfo)
 
-			sh.X("soci", "image", "rpull", "--soci-index-digest", indexDigest, imgInfo.ref)
+			sh.X(append(imagePullSociCmd, "--soci-index-digest", indexDigest, imgInfo.ref)...)
 			// this command may fail due to fuse operation failure, use XLog to avoid crashing shell
 			sh.XLog(append(runSociCmd, "--name", "test", "--rm", imgInfo.ref, "echo", "hi")...)
 
@@ -252,7 +252,7 @@ fuse_metrics_emit_wait_duration_sec = 10
 			sh.X("nerdctl", "pull", "-q", imgInfo.ref)
 			indexDigest := buildIndex(sh, imgInfo)
 
-			sh.X("soci", "image", "rpull", "--soci-index-digest", indexDigest, imgInfo.ref)
+			sh.X(append(imagePullSociCmd, "--soci-index-digest", indexDigest, imgInfo.ref)...)
 			sh.XLog(append(runSociCmd, "--name", "test", "-d", imgInfo.ref, "echo", "hi")...)
 
 			curlOutput := string(sh.O("curl", tcpMetricsAddress+metricsPath))
@@ -309,7 +309,7 @@ emit_metric_period_sec = 2
 			sh.X("nerdctl", "pull", "-q", imgInfo.ref)
 			indexDigest := buildIndex(sh, imgInfo)
 
-			sh.X("soci", "image", "rpull", "--soci-index-digest", indexDigest, imgInfo.ref)
+			sh.X(append(imagePullSociCmd, "--soci-index-digest", indexDigest, imgInfo.ref)...)
 			sh.XLog(append(runSociCmd, "--name", "test", "-d", imgInfo.ref, "echo", "hi")...)
 
 			time.Sleep(5 * time.Second)

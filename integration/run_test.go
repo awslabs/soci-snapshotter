@@ -126,7 +126,7 @@ func TestRunMultipleContainers(t *testing.T) {
 				// Pull image, create SOCI index
 				indexDigest := buildIndex(sh, regConfig.mirror(container.containerImage), withMinLayerSize(0))
 
-				sh.X("soci", "image", "rpull", "--user", regConfig.creds(), "--soci-index-digest", indexDigest, regConfig.mirror(container.containerImage).ref)
+				sh.X(append(imagePullSociCmd, "--user", regConfig.creds(), "--soci-index-digest", indexDigest, regConfig.mirror(container.containerImage).ref)...)
 			}
 
 			var getTestContainerName = func(index int, container containerImageAndTestFunc) string {
@@ -293,7 +293,7 @@ disable = true
 			copyImage(sh, dockerhub(containerImage), regConfig.mirror(containerImage))
 			// Pull image, create SOCI index with all layers and small (100kiB) spans
 			indexDigest := buildIndex(sh, regConfig.mirror(containerImage), withMinLayerSize(0), withSpanSize(100*1024))
-			sh.X("soci", "image", "rpull", "--user", regConfig.creds(), "--soci-index-digest", indexDigest, regConfig.mirror(containerImage).ref)
+			sh.X(append(imagePullSociCmd, "--user", regConfig.creds(), "--soci-index-digest", indexDigest, regConfig.mirror(containerImage).ref)...)
 
 			// Run the container
 			image := regConfig.mirror(containerImage).ref
@@ -434,7 +434,7 @@ func TestRootFolderPermission(t *testing.T) {
 	defer done()
 
 	rebootContainerd(t, sh, getContainerdConfigToml(t, false), getSnapshotterConfigToml(t, false, tcpMetricsConfig))
-	sh.X("soci", "image", "rpull", dockerhub(image).ref)
+	sh.X(append(imagePullSociCmd, dockerhub(image).ref)...)
 	// This should have all been pulled ahead of time.
 	checkFuseMounts(t, sh, 0)
 	// Verify that the mount permissions allow non-root to open "/"
@@ -456,7 +456,7 @@ func TestRestartAfterSigint(t *testing.T) {
 	rebootContainerd(t, sh, getContainerdConfigToml(t, false), getSnapshotterConfigToml(t, false, tcpMetricsConfig))
 	copyImage(sh, dockerhub(containerImage), regConfig.mirror(containerImage))
 	indexDigest := buildIndex(sh, regConfig.mirror(containerImage), withMinLayerSize(0), withSpanSize(100*1024))
-	sh.X("soci", "image", "rpull", "--user", regConfig.creds(), "--soci-index-digest", indexDigest, regConfig.mirror(containerImage).ref)
+	sh.X(append(imagePullSociCmd, "--user", regConfig.creds(), "--soci-index-digest", indexDigest, regConfig.mirror(containerImage).ref)...)
 	sh.X("pkill", "-SIGINT", "soci-snapshotte") // pkill can only take up to 15 chars
 
 	var buffer []byte
@@ -503,7 +503,7 @@ func TestRunInContentStore(t *testing.T) {
 				if indexDigest == "" {
 					t.Fatal("failed to build index")
 				}
-				sh.X("soci", "image", "rpull", "--soci-index-digest", indexDigest, imageInfo.ref)
+				sh.X(append(imagePullSociCmd, "--soci-index-digest", indexDigest, imageInfo.ref)...)
 				// Run the container
 				_, err := sh.OLog(append(runSociCmd, "--name", "test", "--rm", imageInfo.ref)...)
 				if err != nil {
@@ -538,10 +538,9 @@ func TestRunInNamespace(t *testing.T) {
 					if indexDigest == "" {
 						t.Fatal("failed to build index")
 					}
-					sh.X("soci",
+					sh.X(append(imagePullSociCmd,
 						"--namespace", createNamespace,
-						"--content-store", string(contentStoreType),
-						"image", "rpull", "--soci-index-digest", indexDigest, imageInfo.ref)
+						"--content-store", string(contentStoreType), "--soci-index-digest", indexDigest, imageInfo.ref)...)
 					// Run the container
 					_, err := sh.OLog(append(runSociCmd, "--namespace", runNamespace, "--rm", "--name", "test", imageInfo.ref)...)
 					if createNamespace == runNamespace {

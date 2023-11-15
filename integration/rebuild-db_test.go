@@ -76,8 +76,8 @@ func TestRebuildArtifactsDB(t *testing.T) {
 			name: "Rpull and rebuild %s content store",
 			setup: func(sh *dockershell.Shell, contentStoreType store.ContentStoreType) {
 				sh.X(
-					"soci", "image", "rpull", "--user", regConfig.creds(),
-					regConfig.mirror(img).ref)
+					append(imagePullSociCmd, "--user", regConfig.creds(),
+						regConfig.mirror(img).ref)...)
 			},
 			afterContent:       true,
 			expectedIndexCount: 1,
