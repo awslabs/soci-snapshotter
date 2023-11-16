@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1700077215500,
+  "lastUpdate": 1700093166975,
   "repoUrl": "https://github.com/awslabs/soci-snapshotter",
   "entries": {
     "Soci Benchmark": [
@@ -2011,6 +2011,48 @@ window.BENCHMARK_DATA = {
           {
             "name": "SociFullECR-public-node-pullTaskDuration",
             "value": 1.209,
+            "unit": "Seconds",
+            "extra": "P90"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "walster@amazon.com",
+            "name": "Kern Walster",
+            "username": "Kern--"
+          },
+          "committer": {
+            "email": "kern.walster@gmail.com",
+            "name": "Kern Walster",
+            "username": "Kern--"
+          },
+          "distinct": true,
+          "id": "f6759462a16208204a8e2da5195efdbf172068d2",
+          "message": "Add image-specific options to benchmarker\n\nAll of our existing benchmark images are run with the same set of containerd\noptions which are only configurable at the test level to control things\nlike which snapshotter is used.\n\nThis is a problem for benchmarking GPU workloads, for example, where we need to\npass additional options to mount the GPU in the container which don't\napply to all images in the test.\n\nAdditionally, our benchmarker assumes that the benchmarked images\nrequire no configuration, however this can make experimentation hard in\ncases where a single base-image can be used for multiple use cases\ndepending on environment variables, confiration mounts, etc.\n\nThis change adds the ability to configure image-specific options when\nloading benchmarks from json. The options are not required and if not\npassed, the benchmarker will behave as it did before this change.\n\nThe set of options available in this change are those that were\nnecessary for benchmarking the LLM workloads that I was trying to test.\nThey are not comprehensive, but can be built upon as use cases arise.\n\nSigned-off-by: Kern Walster <walster@amazon.com>",
+          "timestamp": "2023-11-15T15:58:08-08:00",
+          "tree_id": "c0284443fb1a4262865509a911539609ccf90ce8",
+          "url": "https://github.com/awslabs/soci-snapshotter/commit/f6759462a16208204a8e2da5195efdbf172068d2"
+        },
+        "date": 1700093165559,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "SociFullECR-public-node-lazyTaskDuration",
+            "value": 2.423,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-node-localTaskDuration",
+            "value": 0.4395,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-node-pullTaskDuration",
+            "value": 1.16,
             "unit": "Seconds",
             "extra": "P90"
           }
