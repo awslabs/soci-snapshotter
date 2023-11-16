@@ -77,7 +77,7 @@ var infoCommand = cli.Command{
 
 func prettyPrintJSON(b []byte) error {
 	var prettyJSON bytes.Buffer
-	if err := json.Indent(&prettyJSON, []byte(b), "", "  "); err != nil {
+	if err := json.Indent(&prettyJSON, b, "", "  "); err != nil {
 		return err
 	}
 	_, err := os.Stdout.Write(prettyJSON.Bytes())
