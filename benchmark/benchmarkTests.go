@@ -127,6 +127,7 @@ func SociFullRun(
 	log.G(ctx).WithField("benchmark", "Pull").WithField("event", "Stop").Infof("Stop Pull Image")
 	pullDuration := time.Since(pullStart)
 	b.ReportMetric(float64(pullDuration.Milliseconds()), "pullDuration")
+	b.ReportMetric(0, "unpackDuration")
 	if err != nil {
 		fatalf(b, "%s", err)
 	}
@@ -207,8 +208,11 @@ func OverlayFSFullRun(
 		fatalf(b, "%s", err)
 	}
 	log.G(ctx).WithField("benchmark", "Unpack").WithField("event", "Start").Infof("Start Unpack Image")
+	unpackStart := time.Now()
 	err = image.Unpack(ctx, "overlayfs")
+	unpackDuration := time.Since(unpackStart)
 	log.G(ctx).WithField("benchmark", "Unpack").WithField("event", "Stop").Infof("Stop Unpack Image")
+	b.ReportMetric(float64(unpackDuration.Milliseconds()), "unpackDuration")
 	if err != nil {
 		fatalf(b, "%s", err)
 	}

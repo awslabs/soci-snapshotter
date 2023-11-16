@@ -62,6 +62,7 @@ type BenchmarkTestDriver struct {
 	TestsRun       int                `json:"-"`
 	FullRunStats   BenchmarkTestStats `json:"fullRunStats"`
 	PullStats      BenchmarkTestStats `json:"pullStats"`
+	UnpackStats    BenchmarkTestStats `json:"unpackStats"`
 	LazyTaskStats  BenchmarkTestStats `json:"lazyTaskStats"`
 	LocalTaskStats BenchmarkTestStats `json:"localTaskStats"`
 }
@@ -82,6 +83,7 @@ func (frame *BenchmarkFramework) Run(ctx context.Context) {
 			res := testing.Benchmark(testDriver.TestFunction)
 			testDriver.FullRunStats.BenchmarkTimes = append(testDriver.FullRunStats.BenchmarkTimes, res.T.Seconds())
 			testDriver.PullStats.BenchmarkTimes = append(testDriver.PullStats.BenchmarkTimes, res.Extra["pullDuration"]/1000)
+			testDriver.UnpackStats.BenchmarkTimes = append(testDriver.UnpackStats.BenchmarkTimes, res.Extra["unpackDuration"]/1000)
 			testDriver.LazyTaskStats.BenchmarkTimes = append(testDriver.LazyTaskStats.BenchmarkTimes, res.Extra["lazyTaskDuration"]/1000)
 			testDriver.LocalTaskStats.BenchmarkTimes = append(testDriver.LocalTaskStats.BenchmarkTimes, res.Extra["localTaskStats"]/1000)
 		}
@@ -112,6 +114,7 @@ func (frame *BenchmarkFramework) Run(ctx context.Context) {
 func (driver *BenchmarkTestDriver) calculateStats() {
 	driver.FullRunStats.calculateTestStat()
 	driver.PullStats.calculateTestStat()
+	driver.UnpackStats.calculateTestStat()
 	driver.LazyTaskStats.calculateTestStat()
 	driver.LocalTaskStats.calculateTestStat()
 }
