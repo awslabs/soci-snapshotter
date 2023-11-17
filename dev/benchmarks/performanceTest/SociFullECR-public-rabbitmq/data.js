@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1700154389798,
+  "lastUpdate": 1700237698787,
   "repoUrl": "https://github.com/awslabs/soci-snapshotter",
   "entries": {
     "Soci Benchmark": [
@@ -2054,6 +2054,48 @@ window.BENCHMARK_DATA = {
           {
             "name": "SociFullECR-public-rabbitmq-pullTaskDuration",
             "value": 1.264,
+            "unit": "Seconds",
+            "extra": "P90"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "macedonv@amazon.com",
+            "name": "Austin Vazquez",
+            "username": "austinvazquez"
+          },
+          "committer": {
+            "email": "66654647+turan18@users.noreply.github.com",
+            "name": "Yasin Turan",
+            "username": "turan18"
+          },
+          "distinct": true,
+          "id": "e1c66c057b5de0afb278058519ea20844309504a",
+          "message": "Redact HTTP query values from logs\n\nHTTP client logs are mostly disabled with the exception of a request\nretry log. The issue observed is that error messages may contain the\nfull HTTP request including the query component which can contain\nsensitive information like credentials or session tokens. To prevent\nleaking sensitive information, this change will redact HTTP query values\nfrom log messages.\n\nSigned-off-by: Austin Vazquez <macedonv@amazon.com>",
+          "timestamp": "2023-11-17T11:00:27-05:00",
+          "tree_id": "4f20d050b4267fdd5f9eee60638de4d5c7b4d540",
+          "url": "https://github.com/awslabs/soci-snapshotter/commit/e1c66c057b5de0afb278058519ea20844309504a"
+        },
+        "date": 1700237691894,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "SociFullECR-public-rabbitmq-lazyTaskDuration",
+            "value": 22.104,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-rabbitmq-localTaskDuration",
+            "value": 7.7315000000000005,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-rabbitmq-pullTaskDuration",
+            "value": 2.1065,
             "unit": "Seconds",
             "extra": "P90"
           }
