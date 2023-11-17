@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1700154387929,
+  "lastUpdate": 1700237689206,
   "repoUrl": "https://github.com/awslabs/soci-snapshotter",
   "entries": {
     "Soci Benchmark": [
@@ -2259,6 +2259,48 @@ window.BENCHMARK_DATA = {
           {
             "name": "SociFullECR-public-redis-pullTaskDuration",
             "value": 0.9555,
+            "unit": "Seconds",
+            "extra": "P90"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "macedonv@amazon.com",
+            "name": "Austin Vazquez",
+            "username": "austinvazquez"
+          },
+          "committer": {
+            "email": "66654647+turan18@users.noreply.github.com",
+            "name": "Yasin Turan",
+            "username": "turan18"
+          },
+          "distinct": true,
+          "id": "e1c66c057b5de0afb278058519ea20844309504a",
+          "message": "Redact HTTP query values from logs\n\nHTTP client logs are mostly disabled with the exception of a request\nretry log. The issue observed is that error messages may contain the\nfull HTTP request including the query component which can contain\nsensitive information like credentials or session tokens. To prevent\nleaking sensitive information, this change will redact HTTP query values\nfrom log messages.\n\nSigned-off-by: Austin Vazquez <macedonv@amazon.com>",
+          "timestamp": "2023-11-17T11:00:27-05:00",
+          "tree_id": "4f20d050b4267fdd5f9eee60638de4d5c7b4d540",
+          "url": "https://github.com/awslabs/soci-snapshotter/commit/e1c66c057b5de0afb278058519ea20844309504a"
+        },
+        "date": 1700237688715,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "SociFullECR-public-redis-lazyTaskDuration",
+            "value": 5.744000000000001,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-redis-localTaskDuration",
+            "value": 0.0215,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-redis-pullTaskDuration",
+            "value": 1.9809999999999999,
             "unit": "Seconds",
             "extra": "P90"
           }
