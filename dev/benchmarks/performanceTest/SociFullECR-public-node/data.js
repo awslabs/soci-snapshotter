@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1700237692677,
+  "lastUpdate": 1700269962129,
   "repoUrl": "https://github.com/awslabs/soci-snapshotter",
   "entries": {
     "Soci Benchmark": [
@@ -2137,6 +2137,48 @@ window.BENCHMARK_DATA = {
           {
             "name": "SociFullECR-public-node-pullTaskDuration",
             "value": 2.816,
+            "unit": "Seconds",
+            "extra": "P90"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "me@tuananh.org",
+            "name": "Tuan Anh Tran",
+            "username": "tuananh"
+          },
+          "committer": {
+            "email": "55906459+austinvazquez@users.noreply.github.com",
+            "name": "Austin Vazquez",
+            "username": "austinvazquez"
+          },
+          "distinct": true,
+          "id": "e6dfa2426f39ca083166c8c9bca72610f34bd8ed",
+          "message": "fix: remove unnecessary conversion\n\nSigned-off-by: Tuan Anh Tran <me@tuananh.org>",
+          "timestamp": "2023-11-17T17:03:12-08:00",
+          "tree_id": "ee90030e5a52b5b5c5cc4dc726ed6710040dbd21",
+          "url": "https://github.com/awslabs/soci-snapshotter/commit/e6dfa2426f39ca083166c8c9bca72610f34bd8ed"
+        },
+        "date": 1700269959892,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "SociFullECR-public-node-lazyTaskDuration",
+            "value": 4.4,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-node-localTaskDuration",
+            "value": 0.4555,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-node-pullTaskDuration",
+            "value": 1.4729999999999999,
             "unit": "Seconds",
             "extra": "P90"
           }
