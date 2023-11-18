@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1700237695044,
+  "lastUpdate": 1700269956362,
   "repoUrl": "https://github.com/awslabs/soci-snapshotter",
   "entries": {
     "Soci Benchmark": [
@@ -2260,6 +2260,48 @@ window.BENCHMARK_DATA = {
           {
             "name": "SociFullECR-public-ffmpeg-pullTaskDuration",
             "value": 2.3485,
+            "unit": "Seconds",
+            "extra": "P90"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "me@tuananh.org",
+            "name": "Tuan Anh Tran",
+            "username": "tuananh"
+          },
+          "committer": {
+            "email": "55906459+austinvazquez@users.noreply.github.com",
+            "name": "Austin Vazquez",
+            "username": "austinvazquez"
+          },
+          "distinct": true,
+          "id": "e6dfa2426f39ca083166c8c9bca72610f34bd8ed",
+          "message": "fix: remove unnecessary conversion\n\nSigned-off-by: Tuan Anh Tran <me@tuananh.org>",
+          "timestamp": "2023-11-17T17:03:12-08:00",
+          "tree_id": "ee90030e5a52b5b5c5cc4dc726ed6710040dbd21",
+          "url": "https://github.com/awslabs/soci-snapshotter/commit/e6dfa2426f39ca083166c8c9bca72610f34bd8ed"
+        },
+        "date": 1700269955833,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "SociFullECR-public-ffmpeg-lazyTaskDuration",
+            "value": 0.348,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-ffmpeg-localTaskDuration",
+            "value": 0.010499999999999999,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-ffmpeg-pullTaskDuration",
+            "value": 2.316,
             "unit": "Seconds",
             "extra": "P90"
           }
