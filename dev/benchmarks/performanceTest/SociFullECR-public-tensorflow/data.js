@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1700269959419,
+  "lastUpdate": 1700497546767,
   "repoUrl": "https://github.com/awslabs/soci-snapshotter",
   "entries": {
     "Soci Benchmark": [
@@ -2343,6 +2343,48 @@ window.BENCHMARK_DATA = {
           {
             "name": "SociFullECR-public-tensorflow-pullTaskDuration",
             "value": 1.467,
+            "unit": "Seconds",
+            "extra": "P90"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "turyasin@amazon.com",
+            "name": "Yasin Turan",
+            "username": "turan18"
+          },
+          "committer": {
+            "email": "66654647+turan18@users.noreply.github.com",
+            "name": "Yasin Turan",
+            "username": "turan18"
+          },
+          "distinct": true,
+          "id": "6dcfca7bc0c70b00a5f23813d468379d6fbc8de5",
+          "message": "Support re-authentication on 403\n\nAlthough in most cases 403 responses represent authorization\nissues that generally cannot be resolved by re-authentication,\nsome registries like ECR, will return a 403 on credential\nexpiration. We will attempt to re-authenticate only if the\nresponse body indicates credential expiration.\n\nRef: https://docs.aws.amazon.com/AmazonECR/latest/userguide/common-errors-docker.html#error-403\n\nSigned-off-by: Yasin Turan <turyasin@amazon.com>",
+          "timestamp": "2023-11-20T11:16:12-05:00",
+          "tree_id": "ea5f244f00095de13836e211f3bf733f3d7157ab",
+          "url": "https://github.com/awslabs/soci-snapshotter/commit/6dcfca7bc0c70b00a5f23813d468379d6fbc8de5"
+        },
+        "date": 1700497545206,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "SociFullECR-public-tensorflow-lazyTaskDuration",
+            "value": 19.5355,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-tensorflow-localTaskDuration",
+            "value": 2.3055000000000003,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-tensorflow-pullTaskDuration",
+            "value": 2.0305,
             "unit": "Seconds",
             "extra": "P90"
           }
