@@ -188,7 +188,7 @@ func (r *reader) initNodes(toc ztoc.TOC) error {
 		for _, ent := range toc.FileMetadata {
 			var id uint32
 			var b *bolt.Bucket
-			ent.Name = cleanEntryName(ent.Name)
+			// ent.Name = cleanEntryName(ent.Name)
 			isLink := ent.Type == "hardlink"
 			if isLink {
 				id, err = getIDByName(md, ent.Linkname, r.rootID)
