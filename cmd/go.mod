@@ -2,13 +2,10 @@ module github.com/awslabs/soci-snapshotter/cmd
 
 go 1.20
 
-replace github.com/awslabs/soci-snapshotter => ../
-
 require (
 	github.com/awslabs/soci-snapshotter v0.4.0
 	github.com/containerd/containerd v1.7.8
 	github.com/containerd/log v0.1.0
-	github.com/containerd/nerdctl v1.7.0
 	github.com/coreos/go-systemd/v22 v22.5.0
 	github.com/docker/cli v24.0.7+incompatible
 	github.com/docker/go-metrics v0.0.1
@@ -35,6 +32,7 @@ require (
 	github.com/containerd/continuity v0.4.3 // indirect
 	github.com/containerd/fifo v1.1.0 // indirect
 	github.com/containerd/go-cni v1.1.9 // indirect
+	github.com/containerd/nerdctl v1.7.0 // indirect
 	github.com/containerd/ttrpc v1.2.2 // indirect
 	github.com/containerd/typeurl/v2 v2.1.1 // indirect
 	github.com/containernetworking/cni v1.1.2 // indirect
