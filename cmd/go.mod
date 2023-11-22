@@ -3,7 +3,7 @@ module github.com/awslabs/soci-snapshotter/cmd
 go 1.20
 
 require (
-	github.com/awslabs/soci-snapshotter v0.4.0
+	github.com/awslabs/soci-snapshotter v0.0.0-local
 	github.com/containerd/containerd v1.7.8
 	github.com/containerd/log v0.1.0
 	github.com/coreos/go-systemd/v22 v22.5.0
