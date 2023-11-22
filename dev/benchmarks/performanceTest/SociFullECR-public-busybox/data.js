@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1700497551061,
+  "lastUpdate": 1700684033540,
   "repoUrl": "https://github.com/awslabs/soci-snapshotter",
   "entries": {
     "Soci Benchmark": [
@@ -2344,6 +2344,48 @@ window.BENCHMARK_DATA = {
           {
             "name": "SociFullECR-public-busybox-pullTaskDuration",
             "value": 1.4085,
+            "unit": "Seconds",
+            "extra": "P90"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "walster@amazon.com",
+            "name": "Kern Walster",
+            "username": "Kern--"
+          },
+          "committer": {
+            "email": "kern.walster@gmail.com",
+            "name": "Kern Walster",
+            "username": "Kern--"
+          },
+          "distinct": true,
+          "id": "39aec385976cb8a2e9b7eef754754143fa76c47c",
+          "message": "Add unpack stats to benchmarker\n\nSigned-off-by: Kern Walster <walster@amazon.com>",
+          "timestamp": "2023-11-22T12:03:11-08:00",
+          "tree_id": "8f1cec2ecbe03e4ccf9380e6de5a4cd7da142e82",
+          "url": "https://github.com/awslabs/soci-snapshotter/commit/39aec385976cb8a2e9b7eef754754143fa76c47c"
+        },
+        "date": 1700684032363,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "SociFullECR-public-busybox-lazyTaskDuration",
+            "value": 0.047,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-busybox-localTaskDuration",
+            "value": 0.007,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-busybox-pullTaskDuration",
+            "value": 0.603,
             "unit": "Seconds",
             "extra": "P90"
           }
