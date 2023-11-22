@@ -41,9 +41,11 @@ import (
 	"github.com/awslabs/soci-snapshotter/cmd/soci/commands/index"
 	"github.com/awslabs/soci-snapshotter/cmd/soci/commands/ztoc"
 	"github.com/awslabs/soci-snapshotter/config"
+	"github.com/awslabs/soci-snapshotter/util/rootless"
 	"github.com/awslabs/soci-snapshotter/version"
 	"github.com/containerd/containerd/defaults"
 	"github.com/containerd/containerd/namespaces"
+	"github.com/containerd/nerdctl/pkg/rootlessutil"
 
 	//nolint:staticcheck
 	"github.com/containerd/containerd/pkg/seed"
@@ -95,6 +97,14 @@ func main() {
 		commands.CreateCommand,
 		commands.PushCommand,
 		commands.RebuildDBCommand,
+	}
+
+	app.Before = func(ctx *cli.Context) error {
+		if rootlessutil.IsRootlessParent() {
+			return rootless.ParentMain()
+		}
+
+		return nil
 	}
 
 	if err := app.Run(os.Args); err != nil {
