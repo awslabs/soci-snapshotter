@@ -6,13 +6,14 @@
 # NOTE: Many variables set to zero are just an indicator
 # to use the built-in default. These values may change over time,
 # which is why the config uses zeroes.
+# Please see docs/config.md for more info on what these variables do.
 
 # TODO: Can we put these inside dedicated TOML vars to refer to them?
 
 # config/fs.go FSConfig
 http_cache_type=""
 filesystem_cache_type=""
-resolve_result_entry=0 # Actually zero
+resolve_result_entry=0
 debug=false
 allow_no_verification=true
 # disable_verification=false
