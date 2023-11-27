@@ -67,7 +67,7 @@ import (
 //         - childID   : <node id>          : id of the first child
 //         - childrenExtra                  : 2nd and following child nodes of directory.
 //           - *basename* : <node id>       : map of basename string to the child node id
-//         - name                           : the name of the file
+//         - name                           : the name of the file as recorded in the TAR header
 //         - uncompressedOffset : <varint>  : the offset in the uncompressed data, where the node is stored.
 //         - tarHeaderOffset : <varint>     : the offset of the tar header
 //         - tarHeaderSize : <varint>       : the size of the tar header
@@ -107,9 +107,9 @@ type childEntry struct {
 
 type metadataEntry struct {
 	children           map[string]childEntry
-	Name               string
 	UncompressedOffset compression.Offset
 	UncompressedSize   compression.Offset
+	TarName            string
 	TarHeaderOffset    compression.Offset
 	TarHeaderSize      compression.Offset
 }
@@ -365,8 +365,8 @@ func writeMetadataEntry(md *bolt.Bucket, m *metadataEntry) error {
 	if err := putFileSize(md, bucketKeyTarHeaderSize, m.TarHeaderSize); err != nil {
 		return fmt.Errorf("failed to set TarHeaderSize value %d: %w", m.TarHeaderSize, err)
 	}
-	if err := md.Put(bucketKeyName, []byte(m.Name)); err != nil {
-		return fmt.Errorf("failed to put name value %s: %w", m.Name, err)
+	if err := md.Put(bucketKeyName, []byte(m.TarName)); err != nil {
+		return fmt.Errorf("failed to set TarName value %s: %w", m.TarName, err)
 	}
 
 	return nil
@@ -376,11 +376,11 @@ func getMetadataEntry(md *bolt.Bucket) metadataEntry {
 	ucompOffset, _ := binary.Varint(md.Get(bucketKeyUncompressedOffset))
 	tarHeaderOffset, _ := binary.Varint(md.Get(bucketKeyTarHeaderOffset))
 	tarHeaderSize, _ := binary.Varint(md.Get(bucketKeyTarHeaderSize))
-	name := md.Get(bucketKeyName)
+	tarName := md.Get(bucketKeyName)
 	return metadataEntry{nil,
-		string(name),
 		compression.Offset(ucompOffset),
 		0,
+		string(tarName),
 		compression.Offset(tarHeaderOffset),
 		compression.Offset(tarHeaderSize)}
 }

@@ -87,53 +87,59 @@ func testFileReadAt(t *testing.T, factory metadata.Store) {
 		"in_2_spans_file":  sampleSpanSize * 2,
 		"in_max_size_file": int64(len(sampleData1)),
 	}
+
+	filePrefixes := []string{"", "./"}
+
 	for sn, size := range sizeCond {
 		for in, innero := range innerOffsetCond {
 			for bo, baseo := range baseOffsetCond {
 				for fn, filesize := range fileSizeCond {
 					for _, spanSize := range spanSizeCond {
-						t.Run(fmt.Sprintf("reading_%s_%s_%s_%s_spansize_%d", sn, in, bo, fn, spanSize), func(t *testing.T) {
-							if filesize > int64(len(sampleData1)) {
-								t.Fatal("sample file size is larger than sample data")
-							}
-
-							wantN := size
-							offset := baseo + innero
-							if offset >= filesize {
-								return
-							}
-							if remain := filesize - offset; remain < wantN {
-								if wantN = remain; wantN < 0 {
-									wantN = 0
+						for _, prefix := range filePrefixes {
+							t.Run(fmt.Sprintf("reading_%s_%s_%s_%s_spansize_%d", sn, in, bo, fn, spanSize), func(t *testing.T) {
+								if filesize > int64(len(sampleData1)) {
+									t.Fatal("sample file size is larger than sample data")
 								}
-							}
 
-							// use constant string value as a data source.
-							want := strings.NewReader(sampleData1)
+								wantN := size
+								offset := baseo + innero
+								if offset >= filesize {
+									return
+								}
+								if remain := filesize - offset; remain < wantN {
+									if wantN = remain; wantN < 0 {
+										wantN = 0
+									}
+								}
 
-							// data we want to get.
-							wantData := make([]byte, wantN)
-							_, err := want.ReadAt(wantData, offset)
-							if err != nil && err != io.EOF {
-								t.Fatalf("want.ReadAt (offset=%d,size=%d): %v", offset, wantN, err)
-							}
+								// use constant string value as a data source.
+								want := strings.NewReader(sampleData1)
 
-							// data we get through a file.
-							f, closeFn := makeFile(t, []byte(sampleData1)[:filesize], factory, spanSize)
-							defer closeFn()
+								// data we want to get.
+								wantData := make([]byte, wantN)
+								_, err := want.ReadAt(wantData, offset)
+								if err != nil && err != io.EOF {
+									t.Fatalf("want.ReadAt (offset=%d,size=%d): %v", offset, wantN, err)
+								}
 
-							// read the file
-							respData := make([]byte, size)
-							n, err := f.ReadAt(respData, offset)
-							if err != nil && err != io.EOF {
-								t.Fatalf("failed to read off=%d, size=%d, filesize=%d: %v", offset, size, filesize, err)
-							}
-							respData = respData[:n]
-							if !bytes.Equal(wantData, respData) {
-								t.Errorf("off=%d, filesize=%d; read data{size=%d,data=%q}; want (size=%d,data=%q)",
-									offset, filesize, len(respData), string(respData), wantN, string(wantData))
-							}
-						})
+								// data we get through a file.
+								f, closeFn := makeFile(t, []byte(sampleData1)[:filesize], prefix, factory, spanSize)
+								defer closeFn()
+
+								// read the file
+								respData := make([]byte, size)
+								n, err := f.ReadAt(respData, offset)
+								if err != nil && err != io.EOF {
+									t.Fatalf("failed to read off=%d, size=%d, filesize=%d: %v", offset, size, filesize, err)
+								}
+								respData = respData[:n]
+								if !bytes.Equal(wantData, respData) {
+									t.Errorf("off=%d, filesize=%d; read data{size=%d,data=%q}; want (size=%d,data=%q)",
+										offset, filesize, len(respData), string(respData), wantN, string(wantData))
+								}
+							})
+						}
+
 					}
 				}
 			}
@@ -141,12 +147,12 @@ func testFileReadAt(t *testing.T, factory metadata.Store) {
 	}
 }
 
-func makeFile(t *testing.T, contents []byte, factory metadata.Store, spanSize int64) (*file, func() error) {
+func makeFile(t *testing.T, contents []byte, prefix string, factory metadata.Store, spanSize int64) (*file, func() error) {
 	testName := "test"
 	tarEntry := []testutil.TarEntry{
 		testutil.File(testName, string(contents)),
 	}
-	ztoc, sr, err := ztoc.BuildZtocReader(t, tarEntry, gzip.DefaultCompression, spanSize)
+	ztoc, sr, err := ztoc.BuildZtocReader(t, tarEntry, gzip.DefaultCompression, spanSize, testutil.WithPrefix(prefix))
 	if err != nil {
 		t.Fatalf("failed to build sample ztoc: %v", err)
 	}

@@ -91,9 +91,9 @@ type Reader interface {
 }
 
 type File interface {
-	Name() string
 	GetUncompressedFileSize() compression.Offset
 	GetUncompressedOffset() compression.Offset
+	TarName() string
 	TarHeaderOffset() compression.Offset
 	TarHeaderSize() compression.Offset
 }
