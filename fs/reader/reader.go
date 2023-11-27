@@ -295,7 +295,7 @@ func (sf *file) Verify() (retErr error) {
 	if !attrMatchesTarHeader(attr, tarHeader) {
 		return errors.New("file attributes do not match tar header")
 	}
-	if sf.fr.Name() != tarHeader.Name {
+	if sf.fr.TarName() != tarHeader.Name {
 		return errors.New("file name does not match tar header")
 	}
 
