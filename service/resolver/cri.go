@@ -52,9 +52,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/awslabs/soci-snapshotter/fs/source"
 	"github.com/containerd/containerd/errdefs"
-	"github.com/containerd/containerd/reference"
 	"github.com/containerd/containerd/remotes/docker"
 	dconfig "github.com/containerd/containerd/remotes/docker/config"
 	runtime_alpha "github.com/containerd/containerd/third_party/k8s.io/cri-api/pkg/apis/runtime/v1alpha2"
@@ -123,12 +121,12 @@ type TLSConfig struct {
 // RegistryHostsFromCRIConfig creates RegistryHosts (a set of registry configuration) from CRI-plugin-compatible config.
 // NOTE: ported from https://github.com/containerd/containerd/blob/v1.5.2/pkg/cri/server/image_pull.go#L332-L405
 // TODO: import this from CRI package once we drop support to continerd v1.4.x
-func RegistryHostsFromCRIConfig(ctx context.Context, config Registry, credsFuncs ...Credential) source.RegistryHosts {
+func RegistryHostsFromCRIConfig(ctx context.Context, config Registry, credsFuncs ...Credential) docker.RegistryHosts {
 	paths := filepath.SplitList(config.ConfigPath)
 	if len(paths) > 0 {
-		return func(ref reference.Spec) ([]docker.RegistryHost, error) {
+		return func(host string) ([]docker.RegistryHost, error) {
 			hostOptions := dconfig.HostOptions{}
-			hostOptions.Credentials = multiCredsFuncs(ref, append(credsFuncs, func(host string, ref reference.Spec) (string, string, error) {
+			hostOptions.Credentials = multiCredsFuncs(append(credsFuncs, func(host string) (string, string, error) {
 				config := config.Configs[host]
 				if config.Auth != nil {
 					return ParseAuth(toRuntimeAuthConfig(*config.Auth), host)
@@ -136,11 +134,10 @@ func RegistryHostsFromCRIConfig(ctx context.Context, config Registry, credsFuncs
 				return "", "", nil
 			})...)
 			hostOptions.HostDir = hostDirFromRoots(paths)
-			return dconfig.ConfigureHosts(ctx, hostOptions)(ref.Hostname())
+			return dconfig.ConfigureHosts(ctx, hostOptions)(host)
 		}
 	}
-	return func(ref reference.Spec) ([]docker.RegistryHost, error) {
-		host := ref.Hostname()
+	return func(host string) ([]docker.RegistryHost, error) {
 		var registries []docker.RegistryHost
 
 		endpoints, err := registryEndpoints(config, host)
@@ -174,7 +171,7 @@ func RegistryHostsFromCRIConfig(ctx context.Context, config Registry, credsFuncs
 			client := rclient.StandardClient()
 			authorizer := docker.NewDockerAuthorizer(
 				docker.WithAuthClient(client),
-				docker.WithAuthCreds(multiCredsFuncs(ref, credsFuncs...)))
+				docker.WithAuthCreds(multiCredsFuncs(credsFuncs...)))
 
 			if u.Path == "" {
 				u.Path = "/v2"

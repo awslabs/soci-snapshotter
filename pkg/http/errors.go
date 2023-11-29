@@ -16,4 +16,10 @@
 
 package http
 
-const ECRTokenExpiredResponse = "Your authorization token has expired. Reauthenticate and try again."
+import "errors"
+
+var (
+	ErrMissingAuthHandler       = errors.New("missing auth handler")
+	ErrFailedToAuthorizeRequest = errors.New("failed to authorize request")
+	ErrFailedToHandleChallenge  = errors.New("failed to handle challenge")
+)

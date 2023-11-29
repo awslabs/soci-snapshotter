@@ -41,7 +41,6 @@ import (
 	"time"
 
 	"github.com/awslabs/soci-snapshotter/service/resolver"
-	"github.com/containerd/containerd/reference"
 	"github.com/containerd/log"
 	dcfile "github.com/docker/cli/cli/config/configfile"
 	corev1 "k8s.io/api/core/v1"
@@ -151,7 +150,7 @@ type keychain struct {
 	informer cache.SharedIndexInformer
 }
 
-func (kc *keychain) credentials(host string, refspec reference.Spec) (string, string, error) {
+func (kc *keychain) credentials(host string) (string, string, error) {
 	if host == "docker.io" || host == "registry-1.docker.io" {
 		// Creds of "docker.io" is stored keyed by "https://index.docker.io/v1/".
 		host = "https://index.docker.io/v1/"

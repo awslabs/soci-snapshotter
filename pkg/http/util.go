@@ -14,10 +14,11 @@
    limitations under the License.
 */
 
-package log
+package http
 
 import (
 	"errors"
+	"io"
 	"net/url"
 )
 
@@ -48,4 +49,28 @@ func RedactHTTPQueryValuesFromURL(url *url.URL) {
 			url.RawQuery = query.Encode()
 		}
 	}
+}
+
+// RedactHTTPQueryValuesFromURL redacts HTTP query values from a string.
+func RedactHTTPQueryValuesFromString(surl string) string {
+	url, err := url.Parse(surl)
+	if err == nil {
+		RedactHTTPQueryValuesFromURL(url)
+		return url.String()
+	}
+	return surl
+
+}
+
+// Drain tries to read and close the response body so the connection can be reused.
+// See https://pkg.go.dev/net/http#Response for more information. Since it consumes
+// the response body, this should only be used when the response body is no longer
+// needed.
+func Drain(body io.ReadCloser) {
+	defer body.Close()
+
+	// We want to consume response bodies to maintain HTTP connections,
+	// but also want to limit the size read. 4KiB is arbitrary but reasonable.
+	const responseReadLimit = int64(4096)
+	_, _ = io.Copy(io.Discard, io.LimitReader(body, responseReadLimit))
 }

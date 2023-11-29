@@ -59,8 +59,8 @@ func TestCheck(t *testing.T) {
 		layer: map[string]layer.Layer{
 			"test": bl,
 		},
-		getSources: source.FromDefaultLabels(func(refspec reference.Spec) (hosts []docker.RegistryHost, _ error) {
-			return docker.ConfigureDefaultRegistries(docker.WithPlainHTTP(docker.MatchLocalhost))(refspec.Hostname())
+		getSources: source.FromDefaultLabels(func(host string) (hosts []docker.RegistryHost, _ error) {
+			return docker.ConfigureDefaultRegistries(docker.WithPlainHTTP(docker.MatchLocalhost))(host)
 		}),
 	}
 	bl.success = true
@@ -90,7 +90,7 @@ func (l *breakableLayer) Check() error {
 	}
 	return nil
 }
-func (l *breakableLayer) Refresh(ctx context.Context, hosts source.RegistryHosts, refspec reference.Spec, desc ocispec.Descriptor) error {
+func (l *breakableLayer) Refresh(ctx context.Context, hosts []docker.RegistryHost, refspec reference.Spec, desc ocispec.Descriptor) error {
 	if !l.success {
 		return fmt.Errorf("failed")
 	}

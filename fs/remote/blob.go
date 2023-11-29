@@ -47,8 +47,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/awslabs/soci-snapshotter/fs/source"
 	"github.com/containerd/containerd/reference"
+	"github.com/containerd/containerd/remotes/docker"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 )
 
@@ -59,7 +59,7 @@ type Blob interface {
 	Size() int64
 	FetchedSize() int64
 	ReadAt(p []byte, offset int64, opts ...Option) (int, error)
-	Refresh(ctx context.Context, host source.RegistryHosts, refspec reference.Spec, desc ocispec.Descriptor) error
+	Refresh(ctx context.Context, hosts []docker.RegistryHost, refspec reference.Spec, desc ocispec.Descriptor) error
 	Close() error
 }
 
@@ -71,7 +71,6 @@ type blob struct {
 	lastCheck     time.Time
 	lastCheckMu   sync.Mutex
 	checkInterval time.Duration
-	fetchTimeout  time.Duration
 
 	fetchedRegionSet   regionSet
 	fetchedRegionSetMu sync.Mutex
@@ -83,14 +82,13 @@ type blob struct {
 }
 
 func makeBlob(fetcher fetcher, size int64, lastCheck time.Time, checkInterval time.Duration,
-	r *Resolver, fetchTimeout time.Duration) *blob {
+	r *Resolver) *blob {
 	return &blob{
 		fetcher:       fetcher,
 		size:          size,
 		lastCheck:     lastCheck,
 		checkInterval: checkInterval,
 		resolver:      r,
-		fetchTimeout:  fetchTimeout,
 	}
 }
 
@@ -110,13 +108,16 @@ func (b *blob) isClosed() bool {
 	return closed
 }
 
-func (b *blob) Refresh(ctx context.Context, hosts source.RegistryHosts, refspec reference.Spec, desc ocispec.Descriptor) error {
+func (b *blob) Refresh(ctx context.Context, hosts []docker.RegistryHost, refspec reference.Spec, desc ocispec.Descriptor) error {
 	if b.isClosed() {
 		return fmt.Errorf("blob is already closed")
 	}
-
 	// refresh the fetcher
-	f, newSize, err := b.resolver.resolveFetcher(ctx, hosts, refspec, desc)
+	f, newSize, err := b.resolver.resolveFetcher(ctx, &fetcherConfig{
+		hosts:   hosts,
+		refspec: refspec,
+		desc:    desc,
+	})
 	if err != nil {
 		return err
 	}
@@ -211,8 +212,8 @@ func (b *blob) ReadAt(p []byte, offset int64, opts ...Option) (int, error) {
 	return len(p), nil
 }
 
-// fetchRegion fetches content from remote blob.
-// It must be called from within fetchRange and need to ensure that it is inside the singleflight `Do` operation.
+// fetchRegion fetches content from remote blob. It must be called from within fetchRange
+// and need to ensure that it is inside the singleflight `Do` operation.
 func (b *blob) fetchRegion(reg region, w io.Writer, fetched bool, opts *options) error {
 	// Fetcher can be suddenly updated so we take and use the snapshot of it for
 	// consistency.
@@ -220,11 +221,7 @@ func (b *blob) fetchRegion(reg region, w io.Writer, fetched bool, opts *options)
 	fr := b.fetcher
 	b.fetcherMu.Unlock()
 
-	fetchCtx, cancel := context.WithTimeout(context.Background(), b.fetchTimeout)
-	defer cancel()
-	if opts.ctx != nil {
-		fetchCtx = opts.ctx
-	}
+	fetchCtx := context.Background()
 
 	var req []region
 	req = append(req, reg)

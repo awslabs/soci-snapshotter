@@ -50,7 +50,8 @@ import (
 	"strings"
 	"testing"
 
-	socihttp "github.com/awslabs/soci-snapshotter/util/http"
+	socihttp "github.com/awslabs/soci-snapshotter/pkg/http"
+	"github.com/awslabs/soci-snapshotter/version"
 	"github.com/containerd/containerd/reference"
 	"github.com/containerd/containerd/remotes/docker"
 	rhttp "github.com/hashicorp/go-retryablehttp"
@@ -154,21 +155,26 @@ func TestMirror(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			hosts := func(refspec reference.Spec) (reghosts []docker.RegistryHost, _ error) {
-				host := refspec.Hostname()
-				for _, m := range append(tt.mirrors, host) {
-					reghosts = append(reghosts, docker.RegistryHost{
-						Client:       &http.Client{Transport: tt.tr},
-						Host:         m,
-						Scheme:       "https",
-						Path:         "/v2",
-						Capabilities: docker.HostCapabilityPull,
-					})
-				}
-				return
+			var regHosts []docker.RegistryHost
+			for _, m := range tt.mirrors {
+				regHosts = append(regHosts, docker.RegistryHost{
+					Client:       &http.Client{Transport: tt.tr},
+					Host:         m,
+					Scheme:       "https",
+					Path:         "/v2",
+					Capabilities: docker.HostCapabilityPull,
+				})
 			}
+			regHosts = append(regHosts, docker.RegistryHost{
+				Client:       &http.Client{Transport: tt.tr},
+				Host:         refHost,
+				Scheme:       "https",
+				Path:         "/v2",
+				Capabilities: docker.HostCapabilityPull,
+			})
+
 			fetcher, err := newHTTPFetcher(context.Background(), &fetcherConfig{
-				hosts:   hosts,
+				hosts:   regHosts,
 				refspec: refspec,
 				desc:    ocispec.Descriptor{Digest: blobDigest},
 			})
@@ -178,9 +184,9 @@ func TestMirror(t *testing.T) {
 				}
 				t.Fatalf("failed to resolve reference: %v", err)
 			}
-			nurl, err := url.Parse(fetcher.url)
+			nurl, err := url.Parse(fetcher.realBlobURL)
 			if err != nil {
-				t.Fatalf("failed to parse url %q: %v", fetcher.url, err)
+				t.Fatalf("failed to parse url %q: %v", fetcher.realBlobURL, err)
 			}
 			if nurl.Hostname() != tt.wantHost {
 				t.Errorf("invalid hostname %q(%q); want %q",
@@ -209,13 +215,12 @@ func (tr *sampleRoundTripper) RoundTrip(req *http.Request) (*http.Response, erro
 	}
 	for host, rurl := range tr.redirectURL {
 		if ok, _ := regexp.Match(host, []byte(req.URL.String())); ok {
-			header := make(http.Header)
-			header.Add("Location", rurl)
+			rURL, _ := url.Parse(rurl)
+			req.URL = rURL
 			return &http.Response{
-				StatusCode: http.StatusMovedPermanently,
-				Header:     header,
-				Body:       io.NopCloser(bytes.NewReader([]byte{})),
 				Request:    req,
+				StatusCode: http.StatusOK,
+				Body:       io.NopCloser(bytes.NewReader([]byte{})),
 			}, nil
 		}
 	}
@@ -242,8 +247,8 @@ func (tr *sampleRoundTripper) RoundTrip(req *http.Request) (*http.Response, erro
 func TestCheck(t *testing.T) {
 	tr := &breakRoundTripper{}
 	f := &httpFetcher{
-		url: "test",
-		tr:  tr,
+		realBlobURL:  "test",
+		roundTripper: tr,
 	}
 	tr.success = true
 	if err := f.check(); err != nil {
@@ -281,10 +286,10 @@ func TestRetry(t *testing.T) {
 	tr := &retryRoundTripper{}
 	rclient := rhttp.NewClient()
 	rclient.HTTPClient.Transport = tr
-	rclient.Backoff = socihttp.BackoffStrategy
+	rclient.Backoff = rhttp.DefaultBackoff
 	f := &httpFetcher{
-		url: "test",
-		tr:  &rhttp.RoundTripper{Client: rclient},
+		realBlobURL:  "test",
+		roundTripper: &rhttp.RoundTripper{Client: rclient},
 	}
 
 	regions := []region{{b: 0, e: 1}}
@@ -336,11 +341,30 @@ func (r *retryRoundTripper) RoundTrip(req *http.Request) (res *http.Response, er
 	return
 }
 
+type emptyAuthHandler struct{}
+
+func (m *emptyAuthHandler) HandleChallenge(ctx context.Context, resp *http.Response) error {
+	return nil
+}
+func (m *emptyAuthHandler) AuthorizeRequest(ctx context.Context, req *http.Request) (*http.Request, error) {
+	return req, nil
+}
+
 func TestCustomUserAgent(t *testing.T) {
-	rt := &userAgentRoundTripper{expectedUserAgent: socihttp.UserAgent}
+	userAgent := fmt.Sprintf("soci-snapshotter/%s", version.Version)
+	rt := &userAgentRoundTripper{expectedUserAgent: userAgent}
+	header := http.Header{}
+	header.Set("User-Agent", userAgent)
+
+	// We need an AuthClient since it its responsible for attaching
+	// global headers to requests.
+	retryClient := rhttp.NewClient()
+	retryClient.HTTPClient.Transport = rt
+	ac, _ := socihttp.NewAuthClient(&emptyAuthHandler{}, socihttp.WithRetryableClient(retryClient), socihttp.WithHeader(header))
+
 	f := &httpFetcher{
-		url: "dummyregistry",
-		tr:  rt,
+		realBlobURL:  "dummyregistry",
+		roundTripper: ac,
 	}
 	regions := []region{{b: 0, e: 1}}
 	_, err := f.fetch(context.Background(), regions, true)
@@ -359,7 +383,6 @@ type userAgentRoundTripper struct {
 
 func (u *userAgentRoundTripper) RoundTrip(req *http.Request) (*http.Response, error) {
 	u.roundTripUserAgent = req.UserAgent()
-
 	header := make(http.Header)
 	header.Add("Content-Length", "4")
 	return &http.Response{

@@ -36,7 +36,6 @@ import (
 	"context"
 
 	"github.com/awslabs/soci-snapshotter/service/resolver"
-	"github.com/containerd/containerd/reference"
 	"github.com/docker/cli/cli/config"
 )
 
@@ -61,7 +60,7 @@ func DockerCreds(host string) (string, string, error) {
 }
 
 func NewDockerConfigKeychain(ctx context.Context) resolver.Credential {
-	return func(host string, refspec reference.Spec) (string, string, error) {
+	return func(host string) (string, string, error) {
 		return DockerCreds(host)
 	}
 }
