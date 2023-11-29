@@ -40,7 +40,8 @@ import (
 	"github.com/docker/cli/cli/config"
 )
 
-func DockerCreds(host string) (string, string, error) {
+func DockerCreds(imgRefSpec reference.Spec) (string, string, error) {
+	host := imgRefSpec.Hostname()
 	cf, err := config.Load("")
 	if err != nil {
 		return "", "", nil
@@ -61,7 +62,7 @@ func DockerCreds(host string) (string, string, error) {
 }
 
 func NewDockerConfigKeychain(ctx context.Context) resolver.Credential {
-	return func(host string, refspec reference.Spec) (string, string, error) {
-		return DockerCreds(host)
+	return func(imgRefSpec reference.Spec) (string, string, error) {
+		return DockerCreds(imgRefSpec)
 	}
 }

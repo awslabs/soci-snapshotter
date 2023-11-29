@@ -262,8 +262,8 @@ func TestParallelDownloadingBehavior(t *testing.T) {
 			}
 			b = &blob{
 				fetcher: &httpFetcher{
-					url: "test",
-					tr:  tr,
+					realURL:      "test",
+					roundTripper: tr,
 				},
 				size: int64(len(tst.content)),
 			}
@@ -311,14 +311,13 @@ func makeTestBlob(t *testing.T, size int64, fn RoundTripFunc) *blob {
 
 	return makeBlob(
 		&httpFetcher{
-			url: testURL,
-			tr:  fn,
+			realURL:      testURL,
+			roundTripper: fn,
 		},
 		size,
 		lastCheck,
 		checkInterval,
-		&Resolver{},
-		time.Duration(defaultFetchTimeoutSec)*time.Second)
+		&Resolver{})
 }
 
 func TestCheckInterval(t *testing.T) {
@@ -327,8 +326,8 @@ func TestCheckInterval(t *testing.T) {
 		firstTime = time.Now()
 		b         = &blob{
 			fetcher: &httpFetcher{
-				url: "test",
-				tr:  tr,
+				realURL:      "test",
+				roundTripper: tr,
 			},
 			lastCheck: firstTime,
 		}

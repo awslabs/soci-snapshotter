@@ -55,12 +55,12 @@ import (
 	"github.com/awslabs/soci-snapshotter/cache"
 	"github.com/awslabs/soci-snapshotter/fs/reader"
 	"github.com/awslabs/soci-snapshotter/fs/remote"
-	"github.com/awslabs/soci-snapshotter/fs/source"
 	spanmanager "github.com/awslabs/soci-snapshotter/fs/span-manager"
 	"github.com/awslabs/soci-snapshotter/metadata"
 	"github.com/awslabs/soci-snapshotter/util/testutil"
 	"github.com/awslabs/soci-snapshotter/ztoc"
 	"github.com/containerd/containerd/reference"
+	"github.com/containerd/containerd/remotes/docker"
 	"github.com/google/go-cmp/cmp"
 	fusefs "github.com/hanwen/go-fuse/v2/fs"
 	"github.com/hanwen/go-fuse/v2/fuse"
@@ -392,7 +392,7 @@ func (tb *testBlobState) ReadAt(p []byte, offset int64, opts ...remote.Option) (
 	return 0, nil
 }
 func (tb *testBlobState) Cache(offset int64, size int64, opts ...remote.Option) error { return nil }
-func (tb *testBlobState) Refresh(ctx context.Context, host source.RegistryHosts, refspec reference.Spec, desc ocispec.Descriptor) error {
+func (tb *testBlobState) Refresh(ctx context.Context, hosts []docker.RegistryHost, refspec reference.Spec, desc ocispec.Descriptor) error {
 	return nil
 }
 func (tb *testBlobState) Close() error { return nil }

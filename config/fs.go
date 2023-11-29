@@ -69,12 +69,12 @@ type FSConfig struct {
 // BlobConfig is config for layer blob management.
 type BlobConfig struct {
 	ValidInterval        int64 `toml:"valid_interval"`
-	CheckAlways          bool  `toml:"check_always"`
 	FetchTimeoutSec      int64 `toml:"fetching_timeout_sec"`
-	ForceSingleRangeMode bool  `toml:"force_single_range_mode"`
 	MaxRetries           int   `toml:"max_retries"`
 	MinWaitMsec          int64 `toml:"min_wait_msec"`
 	MaxWaitMsec          int64 `toml:"max_wait_msec"`
+	CheckAlways          bool  `toml:"check_always"`
+	ForceSingleRangeMode bool  `toml:"force_single_range_mode"`
 
 	// MaxSpanVerificationRetries defines the number of additional times fetch
 	// will be invoked in case of span verification failure.

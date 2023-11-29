@@ -46,6 +46,7 @@ import (
 	"context"
 	"fmt"
 	golog "log"
+	"net/http"
 	"os/exec"
 	"sync"
 	"syscall"
@@ -138,8 +139,8 @@ func NewFilesystem(ctx context.Context, root string, cfg config.FSConfig, opts .
 
 	getSources := fsOpts.getSources
 	if getSources == nil {
-		getSources = source.FromDefaultLabels(func(refspec reference.Spec) (hosts []docker.RegistryHost, _ error) {
-			return docker.ConfigureDefaultRegistries(docker.WithPlainHTTP(docker.MatchLocalhost))(refspec.Hostname())
+		getSources = source.FromDefaultLabels(func(imgRefSpec reference.Spec) (hosts []docker.RegistryHost, _ error) {
+			return docker.ConfigureDefaultRegistries(docker.WithPlainHTTP(docker.MatchLocalhost))(imgRefSpec.Hostname())
 		})
 	}
 	ctx, store, err := store.NewContentStore(ctx, store.WithType(store.ContentStoreType(cfg.ContentStoreConfig.Type)), store.WithNamespace(cfg.ContentStoreConfig.Namespace))
@@ -206,7 +207,6 @@ func NewFilesystem(ctx context.Context, root string, cfg config.FSConfig, opts .
 		attrTimeout:                 attrTimeout,
 		entryTimeout:                entryTimeout,
 		negativeTimeout:             negativeTimeout,
-		httpConfig:                  cfg.RetryableHTTPClientConfig,
 		contentStore:                store,
 		bgFetcher:                   bgFetcher,
 		mountTimeout:                mountTimeout,
@@ -224,7 +224,7 @@ type sociContext struct {
 	fuseOperationCounter *layer.FuseOperationCounter
 }
 
-func (c *sociContext) Init(fsCtx context.Context, ctx context.Context, imageRef, indexDigest, imageManifestDigest string, store store.Store, fuseOpEmitWaitDuration time.Duration, httpConfig config.RetryableHTTPClientConfig) error {
+func (c *sociContext) Init(fsCtx context.Context, ctx context.Context, imageRef, indexDigest, imageManifestDigest string, store store.Store, fuseOpEmitWaitDuration time.Duration, client *http.Client) error {
 	var retErr error
 	c.fetchOnce.Do(func() {
 		defer func() {
@@ -241,7 +241,7 @@ func (c *sociContext) Init(fsCtx context.Context, ctx context.Context, imageRef,
 			return
 		}
 
-		remoteStore, err := newRemoteStore(refspec, httpConfig)
+		remoteStore, err := newRemoteStore(refspec, client)
 		if err != nil {
 			retErr = err
 			return
@@ -309,7 +309,6 @@ type filesystem struct {
 	attrTimeout                 time.Duration
 	entryTimeout                time.Duration
 	negativeTimeout             time.Duration
-	httpConfig                  config.RetryableHTTPClientConfig
 	sociContexts                sync.Map
 	contentStore                store.Store
 	bgFetcher                   *bf.BackgroundFetcher
@@ -331,12 +330,13 @@ func (fs *filesystem) MountLocal(ctx context.Context, mountpoint string, labels 
 	}
 	// download the target layer
 	s := src[0]
+	client := s.Hosts[0].Client
 	archive := NewLayerArchive()
 	refspec, err := reference.Parse(imageRef)
 	if err != nil {
 		return fmt.Errorf("cannot parse image ref (%s): %w", imageRef, err)
 	}
-	remoteStore, err := newRemoteStore(refspec, fs.httpConfig)
+	remoteStore, err := newRemoteStore(refspec, client)
 	if err != nil {
 		return fmt.Errorf("cannot create remote store: %w", err)
 	}
@@ -354,13 +354,13 @@ func (fs *filesystem) MountLocal(ctx context.Context, mountpoint string, labels 
 	return nil
 }
 
-func (fs *filesystem) getSociContext(ctx context.Context, imageRef, indexDigest, imageManifestDigest string) (*sociContext, error) {
+func (fs *filesystem) getSociContext(ctx context.Context, imageRef, indexDigest, imageManifestDigest string, client *http.Client) (*sociContext, error) {
 	cAny, _ := fs.sociContexts.LoadOrStore(imageManifestDigest, &sociContext{})
 	c, ok := cAny.(*sociContext)
 	if !ok {
 		return nil, fmt.Errorf("could not load index: fs soci context is invalid type for %s", indexDigest)
 	}
-	err := c.Init(fs.ctx, ctx, imageRef, indexDigest, imageManifestDigest, fs.contentStore, fs.fuseMetricsEmitWaitDuration, fs.httpConfig)
+	err := c.Init(fs.ctx, ctx, imageRef, indexDigest, imageManifestDigest, fs.contentStore, fs.fuseMetricsEmitWaitDuration, client)
 	return c, err
 }
 
@@ -381,17 +381,17 @@ func (fs *filesystem) Mount(ctx context.Context, mountpoint string, labels map[s
 		return fmt.Errorf("unable to get image digest from labels")
 	}
 
-	c, err := fs.getSociContext(ctx, imageRef, sociIndexDigest, imgDigest)
-	if err != nil {
-		return fmt.Errorf("unable to fetch SOCI artifacts: %w", err)
-	}
-
 	// Get source information of this layer.
 	src, err := fs.getSources(labels)
 	if err != nil {
 		return err
 	} else if len(src) == 0 {
 		return fmt.Errorf("source must be passed")
+	}
+	client := src[0].Hosts[0].Client
+	c, err := fs.getSociContext(ctx, imageRef, sociIndexDigest, imgDigest, client)
+	if err != nil {
+		return fmt.Errorf("unable to fetch SOCI artifacts: %w", err)
 	}
 
 	// Resolve the target layer
