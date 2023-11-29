@@ -51,7 +51,7 @@ type Option func(*options)
 
 type options struct {
 	credsFuncs    []resolver.Credential
-	registryHosts source.RegistryHosts
+	registryHosts resolver.RegistryHosts
 	fsOpts        []socifs.Option
 }
 
@@ -63,13 +63,13 @@ func WithCredsFuncs(creds ...resolver.Credential) Option {
 }
 
 // WithCustomRegistryHosts is registry hosts to use instead.
-func WithCustomRegistryHosts(hosts source.RegistryHosts) Option {
+func WithCustomRegistryHosts(hosts resolver.RegistryHosts) Option {
 	return func(o *options) {
 		o.registryHosts = hosts
 	}
 }
 
-// WithFilesystemOptions allowes to pass filesystem-related configuration.
+// WithFilesystemOptions allows to pass filesystem-related configuration.
 func WithFilesystemOptions(opts ...socifs.Option) Option {
 	return func(o *options) {
 		o.fsOpts = opts
@@ -83,10 +83,12 @@ func NewSociSnapshotterService(ctx context.Context, root string, serviceCfg *con
 		o(&sOpts)
 	}
 
+	httpConfig := serviceCfg.FSConfig.RetryableHTTPClientConfig
+	registryConfig := serviceCfg.ResolverConfig
+
 	hosts := sOpts.registryHosts
 	if hosts == nil {
-		// Use RegistryHosts based on ResolverConfig and keychain
-		hosts = resolver.RegistryHostsFromConfig(serviceCfg.ResolverConfig, serviceCfg.FSConfig.RetryableHTTPClientConfig, sOpts.credsFuncs...)
+		hosts = resolver.NewRegistryManager(httpConfig, registryConfig, sOpts.credsFuncs).AsRegistryHosts()
 	}
 	userxattr, err := overlayutils.NeedsUserXAttr(snapshotterRoot(root))
 	if err != nil {

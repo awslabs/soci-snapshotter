@@ -81,14 +81,15 @@ type instrumentedService struct {
 	configMu sync.Mutex
 }
 
-func (in *instrumentedService) credentials(host string, refspec reference.Spec) (string, string, error) {
+func (in *instrumentedService) credentials(imgRefSpec reference.Spec) (string, string, error) {
+	host := imgRefSpec.Hostname()
 	if host == "docker.io" || host == "registry-1.docker.io" {
 		// Creds of "docker.io" is stored keyed by "https://index.docker.io/v1/".
 		host = "index.docker.io"
 	}
 	in.configMu.Lock()
 	defer in.configMu.Unlock()
-	if cfg, ok := in.config[refspec.String()]; ok {
+	if cfg, ok := in.config[imgRefSpec.String()]; ok {
 		return resolver.ParseAuth(cfg, host)
 	}
 	return "", "", nil
@@ -122,12 +123,12 @@ func (in *instrumentedService) PullImage(ctx context.Context, r *runtime.PullIma
 	if cri == nil {
 		return nil, errors.New("server is not initialized yet")
 	}
-	refspec, err := parseReference(r.GetImage().GetImage())
+	imgRefSpec, err := parseReference(r.GetImage().GetImage())
 	if err != nil {
 		return nil, err
 	}
 	in.configMu.Lock()
-	in.config[refspec.String()] = r.GetAuth()
+	in.config[imgRefSpec.String()] = r.GetAuth()
 	in.configMu.Unlock()
 	return cri.PullImage(ctx, r)
 }
@@ -137,12 +138,12 @@ func (in *instrumentedService) RemoveImage(ctx context.Context, r *runtime.Remov
 	if cri == nil {
 		return nil, errors.New("server is not initialized yet")
 	}
-	refspec, err := parseReference(r.GetImage().GetImage())
+	imgRefSpec, err := parseReference(r.GetImage().GetImage())
 	if err != nil {
 		return nil, err
 	}
 	in.configMu.Lock()
-	delete(in.config, refspec.String())
+	delete(in.config, imgRefSpec.String())
 	in.configMu.Unlock()
 	return cri.RemoveImage(ctx, r)
 }

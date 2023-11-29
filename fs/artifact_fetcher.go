@@ -22,13 +22,11 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"net/http"
 	"strconv"
 
-	"github.com/awslabs/soci-snapshotter/config"
-	"github.com/awslabs/soci-snapshotter/service/keychain/dockerconfig"
 	"github.com/awslabs/soci-snapshotter/soci"
 	"github.com/awslabs/soci-snapshotter/soci/store"
-	socihttp "github.com/awslabs/soci-snapshotter/util/http"
 	"github.com/awslabs/soci-snapshotter/util/ioutils"
 	"github.com/containerd/containerd/reference"
 	"github.com/containerd/log"
@@ -37,7 +35,6 @@ import (
 	"oras.land/oras-go/v2/content"
 	"oras.land/oras-go/v2/errdef"
 	"oras.land/oras-go/v2/registry/remote"
-	"oras.land/oras-go/v2/registry/remote/auth"
 )
 
 type Fetcher interface {
@@ -70,32 +67,12 @@ func newArtifactFetcher(refspec reference.Spec, localStore store.BasicStore, rem
 	}, nil
 }
 
-func newRemoteStore(refspec reference.Spec, httpConfig config.RetryableHTTPClientConfig) (*remote.Repository, error) {
+func newRemoteStore(refspec reference.Spec, client *http.Client) (*remote.Repository, error) {
 	repo, err := remote.NewRepository(refspec.Locator)
 	if err != nil {
 		return nil, fmt.Errorf("cannot create repository %s: %w", refspec.Locator, err)
 	}
-
-	authClient := auth.Client{
-		Client: socihttp.NewRetryableClient(httpConfig),
-		Cache:  auth.DefaultCache,
-		Credential: func(_ context.Context, host string) (auth.Credential, error) {
-			username, secret, err := dockerconfig.DockerCreds(host)
-			if err != nil {
-				return auth.EmptyCredential, err
-			}
-			if username == "" && secret != "" {
-				return auth.Credential{
-					RefreshToken: secret,
-				}, nil
-			}
-			return auth.Credential{
-				Username: username,
-				Password: secret,
-			}, nil
-		},
-	}
-	repo.Client = &authClient
+	repo.Client = client
 	return repo, nil
 }
 

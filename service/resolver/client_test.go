@@ -14,7 +14,7 @@
    limitations under the License.
 */
 
-package http
+package resolver
 
 import (
 	"bytes"
@@ -123,7 +123,7 @@ func TestHandleHTTPErrorRedactsHTTPQueries(t *testing.T) {
 
 	for _, testcase := range testcases {
 		t.Run(testcase.Name, func(t *testing.T) {
-			response, err := HandleHTTPError(testcase.Response, testcase.Err, testcase.Attempts)
+			response, err := handleHTTPError(testcase.Response, testcase.Err, testcase.Attempts)
 			testcase.Assert(t, response, err)
 		})
 	}
@@ -136,7 +136,7 @@ func TestHandleHTTPErrorReadsAndClosesResponseBody(t *testing.T) {
 	}
 	err := errors.New("connect: connection refused")
 
-	_, _ = HandleHTTPError(response, err, 0)
+	_, _ = handleHTTPError(response, err, 0)
 
 	if !body.WasRead {
 		t.Fatalf("The response body was not read by handler")
@@ -163,11 +163,9 @@ func (b *mockBody) Close() error {
 }
 
 func TestAuthentication(t *testing.T) {
-
-	ecrForbiddenResponse, _ := docker.Errors([]error{docker.ErrorCodeDenied.WithMessage(ECRTokenExpiredResponse)}).MarshalJSON()
+	ecrForbiddenResponse, _ := docker.Errors([]error{docker.ErrorCodeDenied.WithMessage(ecrTokenExpiredResponseMessage)}).MarshalJSON()
 	normalForbiddenResponse, _ := docker.Errors([]error{docker.ErrorCodeDenied}).MarshalJSON()
 	unauthorizedResponse, _ := docker.Errors([]error{docker.ErrorCodeUnauthorized}).MarshalJSON()
-
 	testCases := []struct {
 		name        string
 		performAuth bool
@@ -207,7 +205,7 @@ func TestAuthentication(t *testing.T) {
 		},
 	}
 	for _, tc := range testCases {
-		shouldPerformAuthentication := ShouldAuthenticate(tc.response)
+		shouldPerformAuthentication := shouldAuthenticate(tc.response)
 		if tc.performAuth != shouldPerformAuthentication {
 			t.Fatalf("failed test case: %s: expected auth: %v; got auth: %v",
 				tc.name, tc.performAuth, shouldPerformAuthentication)

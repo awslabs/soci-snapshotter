@@ -45,14 +45,12 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
-	"net"
 	"net/http"
 	"net/url"
 	"os"
 	"path/filepath"
 	"strings"
 
-	"github.com/awslabs/soci-snapshotter/fs/source"
 	"github.com/containerd/containerd/errdefs"
 	"github.com/containerd/containerd/reference"
 	"github.com/containerd/containerd/remotes/docker"
@@ -123,12 +121,14 @@ type TLSConfig struct {
 // RegistryHostsFromCRIConfig creates RegistryHosts (a set of registry configuration) from CRI-plugin-compatible config.
 // NOTE: ported from https://github.com/containerd/containerd/blob/v1.5.2/pkg/cri/server/image_pull.go#L332-L405
 // TODO: import this from CRI package once we drop support to continerd v1.4.x
-func RegistryHostsFromCRIConfig(ctx context.Context, config Registry, credsFuncs ...Credential) source.RegistryHosts {
+func RegistryHostsFromCRIConfig(ctx context.Context, config Registry, credsFuncs ...Credential) RegistryHosts {
 	paths := filepath.SplitList(config.ConfigPath)
 	if len(paths) > 0 {
-		return func(ref reference.Spec) ([]docker.RegistryHost, error) {
+		return func(imgRefSpec reference.Spec) ([]docker.RegistryHost, error) {
+			host := imgRefSpec.Hostname()
 			hostOptions := dconfig.HostOptions{}
-			hostOptions.Credentials = multiCredsFuncs(ref, append(credsFuncs, func(host string, ref reference.Spec) (string, string, error) {
+			hostOptions.Credentials = multiCredsFuncs(imgRefSpec, append(credsFuncs, func(imgRefSpec reference.Spec) (string, string, error) {
+				host := imgRefSpec.Hostname()
 				config := config.Configs[host]
 				if config.Auth != nil {
 					return ParseAuth(toRuntimeAuthConfig(*config.Auth), host)
@@ -136,13 +136,12 @@ func RegistryHostsFromCRIConfig(ctx context.Context, config Registry, credsFuncs
 				return "", "", nil
 			})...)
 			hostOptions.HostDir = hostDirFromRoots(paths)
-			return dconfig.ConfigureHosts(ctx, hostOptions)(ref.Hostname())
+			return dconfig.ConfigureHosts(ctx, hostOptions)(host)
 		}
 	}
-	return func(ref reference.Spec) ([]docker.RegistryHost, error) {
-		host := ref.Hostname()
+	return func(imgRefSpec reference.Spec) ([]docker.RegistryHost, error) {
+		host := imgRefSpec.Hostname()
 		var registries []docker.RegistryHost
-
 		endpoints, err := registryEndpoints(config, host)
 		if err != nil {
 			return nil, fmt.Errorf("get registry endpoints: %w", err)
@@ -174,7 +173,7 @@ func RegistryHostsFromCRIConfig(ctx context.Context, config Registry, credsFuncs
 			client := rclient.StandardClient()
 			authorizer := docker.NewDockerAuthorizer(
 				docker.WithAuthClient(client),
-				docker.WithAuthCreds(multiCredsFuncs(ref, credsFuncs...)))
+				docker.WithAuthCreds(multiCredsFuncs(imgRefSpec, credsFuncs...)))
 
 			if u.Path == "" {
 				u.Path = "/v2"
@@ -264,19 +263,6 @@ func getTLSConfig(registryTLSConfig TLSConfig) (*tls.Config, error) {
 
 	tlsConfig.InsecureSkipVerify = registryTLSConfig.InsecureSkipVerify
 	return tlsConfig, nil
-}
-
-// defaultScheme returns the default scheme for a registry host.
-// Ported from https://github.com/containerd/containerd/blob/v1.5.2/pkg/cri/server/image_pull.go#L316-L330
-// TODO: import this from CRI package once we drop support to continerd v1.4.x
-func defaultScheme(host string) string {
-	if h, _, err := net.SplitHostPort(host); err == nil {
-		host = h
-	}
-	if host == "localhost" || host == "127.0.0.1" || host == "::1" {
-		return "http"
-	}
-	return "https"
 }
 
 // addDefaultScheme returns the endpoint with default scheme

@@ -151,7 +151,8 @@ type keychain struct {
 	informer cache.SharedIndexInformer
 }
 
-func (kc *keychain) credentials(host string, refspec reference.Spec) (string, string, error) {
+func (kc *keychain) credentials(imgRefSpec reference.Spec) (string, string, error) {
+	host := imgRefSpec.Hostname()
 	if host == "docker.io" || host == "registry-1.docker.io" {
 		// Creds of "docker.io" is stored keyed by "https://index.docker.io/v1/".
 		host = "https://index.docker.io/v1/"
