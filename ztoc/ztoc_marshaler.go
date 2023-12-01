@@ -97,7 +97,10 @@ func flatbufToZtoc(flatbuffer []byte) (z *Ztoc, err error) {
 		dgst, _ := digest.Parse(string(compressionInfo.SpanDigests(i)))
 		ztoc.SpanDigests[i] = dgst
 	}
-	ztoc.Checkpoints = compressionInfo.CheckpointsBytes()
+	// Since compressionInfo.CheckpointsBytes() returns a slice,
+	// we need to give it its own array so the GC can free compressionInfo.
+	ztoc.Checkpoints = make([]byte, len(compressionInfo.CheckpointsBytes()))
+	copy(ztoc.Checkpoints, compressionInfo.CheckpointsBytes())
 	ztoc.CompressionAlgorithm = strings.ToLower(compressionInfo.CompressionAlgorithm().String())
 	return ztoc, nil
 }
