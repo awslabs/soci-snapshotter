@@ -3,7 +3,7 @@ module github.com/awslabs/soci-snapshotter
 go 1.20
 
 require (
-	github.com/containerd/containerd v1.7.9
+	github.com/containerd/containerd v1.7.10
 	github.com/containerd/continuity v0.4.3
 	github.com/containerd/log v0.1.0
 	github.com/docker/cli v24.0.7+incompatible
@@ -14,12 +14,12 @@ require (
 	github.com/google/uuid v1.4.0
 	github.com/hanwen/go-fuse/v2 v2.4.2
 	github.com/hashicorp/go-retryablehttp v0.7.5
-	github.com/klauspost/compress v1.17.3
+	github.com/klauspost/compress v1.17.4
 	github.com/moby/sys/mountinfo v0.7.1
 	github.com/montanaflynn/stats v0.7.1
 	github.com/opencontainers/go-digest v1.0.0
 	github.com/opencontainers/image-spec v1.1.0-rc5
-	github.com/opencontainers/runtime-spec v1.1.0-rc.3
+	github.com/opencontainers/runtime-spec v1.1.0
 	github.com/pelletier/go-toml v1.9.5
 	github.com/prometheus/client_golang v1.17.0
 	github.com/rs/xid v1.5.0
