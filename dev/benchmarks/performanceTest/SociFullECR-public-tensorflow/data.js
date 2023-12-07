@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1701290572920,
+  "lastUpdate": 1701967868103,
   "repoUrl": "https://github.com/awslabs/soci-snapshotter",
   "entries": {
     "Soci Benchmark": [
@@ -2511,6 +2511,48 @@ window.BENCHMARK_DATA = {
           {
             "name": "SociFullECR-public-tensorflow-pullTaskDuration",
             "value": 1.8155000000000001,
+            "unit": "Seconds",
+            "extra": "P90"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "turyasin@amazon.com",
+            "name": "Yasin Turan",
+            "username": "turan18"
+          },
+          "committer": {
+            "email": "66654647+turan18@users.noreply.github.com",
+            "name": "Yasin Turan",
+            "username": "turan18"
+          },
+          "distinct": true,
+          "id": "cf25e82c4f729232981c5146890055da518007b3",
+          "message": "Store file name as is in metadata DB\n\nRight now, when converting the TOC to metadata entries, we call `path.Clean`\non every file name before writing it to metadata DB. Calling `path.Clean`\non a directory path removes the trailing separator. This isn't directly a problem\nsince we only ever perform TAR header file name validation on file reads, not\ndirectories, since the kernel VFS disallows reads on directories (`EISDIR`).\nCleaning the path, however, also removes the current working directory token\n(`./`) from a path. This means that if a path in a TAR file were prefixed with\n`./`, we would clean the path, removing the `./`, in turn causing our TAR header\nfile name validation check to fail when we attempt to read from the file.\nTo avoid TAR edge cases like this one, we should store TAR names as is in\nour metadata DB.\n\nSigned-off-by: Yasin Turan <turyasin@amazon.com>",
+          "timestamp": "2023-12-07T11:41:06-05:00",
+          "tree_id": "568172f3946feb88fd9610a67f0f34b4806247a5",
+          "url": "https://github.com/awslabs/soci-snapshotter/commit/cf25e82c4f729232981c5146890055da518007b3"
+        },
+        "date": 1701967867515,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "SociFullECR-public-tensorflow-lazyTaskDuration",
+            "value": 40.3795,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-tensorflow-localTaskDuration",
+            "value": 2.2889999999999997,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-tensorflow-pullTaskDuration",
+            "value": 1.9460000000000002,
             "unit": "Seconds",
             "extra": "P90"
           }
