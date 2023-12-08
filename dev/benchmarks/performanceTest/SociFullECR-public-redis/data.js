@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1702062682330,
+  "lastUpdate": 1702077459441,
   "repoUrl": "https://github.com/awslabs/soci-snapshotter",
   "entries": {
     "Soci Benchmark": [
@@ -2595,6 +2595,48 @@ window.BENCHMARK_DATA = {
           {
             "name": "SociFullECR-public-redis-pullTaskDuration",
             "value": 1.7734999999999999,
+            "unit": "Seconds",
+            "extra": "P90"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "davbson@amazon.com",
+            "name": "David Son",
+            "username": "sondavidb"
+          },
+          "committer": {
+            "email": "55555210+sondavidb@users.noreply.github.com",
+            "name": "David Son",
+            "username": "sondavidb"
+          },
+          "distinct": true,
+          "id": "57b3b667cd2d96bdc34281b0db58bbdefac18a39",
+          "message": "Free zTOC from memory\n\nBefore this change, the uncompressed zTOC would stay in memory. This\nwas because when converting the full uncompressed bytes into a struct,\nwe erreneously retained a reference to the original byte array in\nztoc.Checkpoints, because compressionInfo.CheckpointsBytes() returns\na slice of the uncompressed bytes. This change copies the bytes into\na dedicated buffer to free up the full uncompressed byte array.\n\nSigned-off-by: David Son <davbson@amazon.com>",
+          "timestamp": "2023-12-08T15:07:17-08:00",
+          "tree_id": "24c7d75997cc2ae4f63cb9c5b552f88b6ff9db98",
+          "url": "https://github.com/awslabs/soci-snapshotter/commit/57b3b667cd2d96bdc34281b0db58bbdefac18a39"
+        },
+        "date": 1702077454707,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "SociFullECR-public-redis-lazyTaskDuration",
+            "value": 1.444,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-redis-localTaskDuration",
+            "value": 0.020999999999999998,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-redis-pullTaskDuration",
+            "value": 0.892,
             "unit": "Seconds",
             "extra": "P90"
           }
