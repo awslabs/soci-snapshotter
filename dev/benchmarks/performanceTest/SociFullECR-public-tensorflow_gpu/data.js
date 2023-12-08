@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1701967873807,
+  "lastUpdate": 1702062686151,
   "repoUrl": "https://github.com/awslabs/soci-snapshotter",
   "entries": {
     "Soci Benchmark": [
@@ -2389,6 +2389,48 @@ window.BENCHMARK_DATA = {
           {
             "name": "SociFullECR-public-tensorflow_gpu-pullTaskDuration",
             "value": 2.0585,
+            "unit": "Seconds",
+            "extra": "P90"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "no-reply@github.com",
+            "name": "GitHub",
+            "username": "invalid-email-address"
+          },
+          "committer": {
+            "email": "66654647+turan18@users.noreply.github.com",
+            "name": "Yasin Turan",
+            "username": "turan18"
+          },
+          "distinct": true,
+          "id": "d43b09491beced4c09273659e8b0676a43994b27",
+          "message": "Bump dependencies using scripts/bump-deps.sh\n\nSigned-off-by: GitHub <noreply@github.com>",
+          "timestamp": "2023-12-08T13:57:32-05:00",
+          "tree_id": "3e6ee8095f6506875e974a78b7a912114b7415e8",
+          "url": "https://github.com/awslabs/soci-snapshotter/commit/d43b09491beced4c09273659e8b0676a43994b27"
+        },
+        "date": 1702062682790,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "SociFullECR-public-tensorflow_gpu-lazyTaskDuration",
+            "value": 63.051500000000004,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-tensorflow_gpu-localTaskDuration",
+            "value": 2.511,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-tensorflow_gpu-pullTaskDuration",
+            "value": 3.3345000000000002,
             "unit": "Seconds",
             "extra": "P90"
           }
