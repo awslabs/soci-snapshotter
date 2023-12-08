@@ -22,7 +22,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"os"
 
 	"github.com/awslabs/soci-snapshotter/soci"
 	"github.com/awslabs/soci-snapshotter/soci/store"
@@ -80,6 +79,6 @@ func prettyPrintJSON(b []byte) error {
 	if err := json.Indent(&prettyJSON, b, "", "  "); err != nil {
 		return err
 	}
-	_, err := os.Stdout.Write(prettyJSON.Bytes())
+	_, err := fmt.Println(prettyJSON.String())
 	return err
 }
