@@ -143,7 +143,11 @@ func NewFilesystem(ctx context.Context, root string, cfg config.FSConfig, opts .
 			return docker.ConfigureDefaultRegistries(docker.WithPlainHTTP(docker.MatchLocalhost))(imgRefSpec.Hostname())
 		})
 	}
-	ctx, store, err := store.NewContentStore(ctx, store.WithType(store.ContentStoreType(cfg.ContentStoreConfig.Type)), store.WithNamespace(cfg.ContentStoreConfig.Namespace))
+	ctx, store, err := store.NewContentStore(ctx,
+		store.WithType(cfg.ContentStoreConfig.Type),
+		store.WithContainerdAddress(cfg.ContentStoreConfig.ContainerdAddress),
+		store.WithNamespace(cfg.ContentStoreConfig.Namespace),
+	)
 	if err != nil {
 		return nil, fmt.Errorf("cannot create content store: %w", err)
 	}

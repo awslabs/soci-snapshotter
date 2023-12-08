@@ -39,6 +39,9 @@
 package config
 
 import (
+	"strings"
+
+	"github.com/containerd/containerd/defaults"
 	"github.com/containerd/containerd/namespaces"
 )
 
@@ -158,9 +161,21 @@ type RetryableHTTPClientConfig struct {
 	RetryConfig
 }
 
+type ContentStoreType string
+
+const (
+	ContainerdContentStoreType ContentStoreType = "containerd"
+	SociContentStoreType       ContentStoreType = "soci"
+)
+
 // ContentStoreConfig chooses and configures the content store
 type ContentStoreConfig struct {
-	Type      string `toml:"type"`
+	Type ContentStoreType `toml:"type"`
+
+	// ContainerdAddress is the containerd socket address.
+	// Applicable if and only if using containerd content store.
+	ContainerdAddress string `toml:"containerd_address"`
+
 	Namespace string `toml:"namespace"`
 }
 
@@ -260,6 +275,10 @@ func parseBlobConfig(cfg *Config) {
 func parseContentStoreConfig(cfg *Config) {
 	if cfg.ContentStoreConfig.Type == "" {
 		cfg.ContentStoreConfig.Type = DefaultContentStoreType
+	} else if cfg.ContentStoreConfig.Type == ContainerdContentStoreType && cfg.ContentStoreConfig.ContainerdAddress == "" {
+		cfg.ContentStoreConfig.ContainerdAddress = defaults.DefaultAddress
+	} else if cfg.ContentStoreConfig.Type == ContainerdContentStoreType {
+		cfg.ContentStoreConfig.ContainerdAddress = strings.TrimPrefix(cfg.ContentStoreConfig.ContainerdAddress, "unix://")
 	}
 	if cfg.ContentStoreConfig.Namespace == "" {
 		cfg.ContentStoreConfig.Namespace = namespaces.Default

@@ -54,11 +54,11 @@ type Store interface {
 	BatchOpen(ctx context.Context) (context.Context, CleanupFunc, error)
 }
 
-type ContentStoreType string
+type ContentStoreType = config.ContentStoreType
 
 const (
-	ContainerdContentStoreType ContentStoreType = "containerd"
-	SociContentStoreType       ContentStoreType = "soci"
+	ContainerdContentStoreType = config.ContainerdContentStoreType
+	SociContentStoreType       = config.SociContentStoreType
 )
 
 // ContentStoreTypes returns a slice of all supported content store types.
@@ -76,8 +76,9 @@ const (
 
 func NewStoreConfig(opts ...Option) config.ContentStoreConfig {
 	storeConfig := config.ContentStoreConfig{
-		Type:      config.DefaultContentStoreType,
-		Namespace: namespaces.Default,
+		Type:              config.DefaultContentStoreType,
+		Namespace:         namespaces.Default,
+		ContainerdAddress: defaults.DefaultAddress,
 	}
 	for _, o := range opts {
 		o(&storeConfig)
@@ -95,7 +96,13 @@ func WithNamespace(namespace string) Option {
 
 func WithType(contentStoreType ContentStoreType) Option {
 	return func(sc *config.ContentStoreConfig) {
-		sc.Type = string(contentStoreType)
+		sc.Type = contentStoreType
+	}
+}
+
+func WithContainerdAddress(address string) Option {
+	return func(sc *config.ContentStoreConfig) {
+		sc.ContainerdAddress = address
 	}
 }
 
@@ -139,7 +146,7 @@ func nopCleanup(context.Context) error { return nil }
 func NewContentStore(ctx context.Context, opts ...Option) (context.Context, Store, error) {
 	storeConfig := NewStoreConfig(opts...)
 
-	contentStoreType, err := CanonicalizeContentStoreType(ContentStoreType(storeConfig.Type))
+	contentStoreType, err := CanonicalizeContentStoreType(storeConfig.Type)
 	if err != nil {
 		return ctx, nil, err
 	}
@@ -190,7 +197,7 @@ type ContainerdStore struct {
 var _ Store = (*ContainerdStore)(nil)
 
 func NewContainerdStore(ctx context.Context, storeConfig config.ContentStoreConfig) (context.Context, *ContainerdStore, error) {
-	client, err := containerd.New(config.DefaultImageServiceAddress)
+	client, err := containerd.New(storeConfig.ContainerdAddress)
 	if err != nil {
 		return ctx, nil, fmt.Errorf("could not connect to containerd socket for content store access: %w", err)
 	}

@@ -130,7 +130,7 @@ if they are available in the snapshotter's local content store.
 			}, nil
 		}
 
-		ctx, src, err := store.NewContentStore(ctx, store.WithType(store.ContentStoreType(cliContext.GlobalString("content-store"))), store.WithNamespace(cliContext.GlobalString("namespace")))
+		ctx, src, err := store.NewContentStore(ctx, internal.ContentStoreOptions(cliContext)...)
 		if err != nil {
 			return fmt.Errorf("cannot create local content store: %w", err)
 		}
