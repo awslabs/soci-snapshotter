@@ -55,7 +55,7 @@ var infoCommand = cli.Command{
 		if artifactType == soci.ArtifactEntryTypeLayer {
 			return fmt.Errorf("the provided digest is of ztoc not SOCI index. Use \"soci ztoc info\" command to get detailed info of ztoc")
 		}
-		ctx, store, err := store.NewContentStore(ctx, store.WithType(store.ContentStoreType(cliContext.GlobalString("content-store"))), store.WithNamespace(cliContext.GlobalString("namespace")))
+		ctx, store, err := store.NewContentStore(ctx, internal.ContentStoreOptions(cliContext)...)
 		if err != nil {
 			return err
 		}

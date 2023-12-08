@@ -21,6 +21,7 @@ import (
 	"encoding/json"
 	"fmt"
 
+	"github.com/awslabs/soci-snapshotter/cmd/soci/commands/internal"
 	"github.com/awslabs/soci-snapshotter/soci"
 	"github.com/awslabs/soci-snapshotter/soci/store"
 	"github.com/awslabs/soci-snapshotter/ztoc"
@@ -72,7 +73,7 @@ var infoCommand = cli.Command{
 		}
 		ctx, cancel := context.WithTimeout(context.Background(), cliContext.GlobalDuration("timeout"))
 		defer cancel()
-		ctx, store, err := store.NewContentStore(ctx, store.WithType(store.ContentStoreType(cliContext.GlobalString("content-store"))), store.WithNamespace(cliContext.GlobalString("namespace")))
+		ctx, store, err := store.NewContentStore(ctx, internal.ContentStoreOptions(cliContext)...)
 		if err != nil {
 			return err
 		}

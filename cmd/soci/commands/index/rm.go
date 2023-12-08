@@ -47,7 +47,7 @@ var rmCommand = cli.Command{
 		}
 
 		ctx := context.Background()
-		ctx, contentStore, err := store.NewContentStore(ctx, store.WithType(store.ContentStoreType(cliContext.GlobalString("content-store"))), store.WithNamespace(cliContext.GlobalString("namespace")))
+		ctx, contentStore, err := store.NewContentStore(ctx, internal.ContentStoreOptions(cliContext)...)
 		if err != nil {
 			return fmt.Errorf("cannot create local content store: %w", err)
 		}
