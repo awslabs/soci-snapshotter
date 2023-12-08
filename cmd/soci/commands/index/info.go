@@ -18,12 +18,12 @@ package index
 
 import (
 	"bytes"
-	"context"
 	"encoding/json"
 	"fmt"
 	"io"
 	"os"
 
+	"github.com/awslabs/soci-snapshotter/cmd/soci/commands/internal"
 	"github.com/awslabs/soci-snapshotter/soci"
 	"github.com/awslabs/soci-snapshotter/soci/store"
 
@@ -38,6 +38,9 @@ var infoCommand = cli.Command{
 	Description: "get detailed info about an index",
 	ArgsUsage:   "<digest>",
 	Action: func(cliContext *cli.Context) error {
+		ctx, cancel := internal.AppContext(cliContext)
+		defer cancel()
+
 		digest, err := digest.Parse(cliContext.Args().First())
 		if err != nil {
 			return err
@@ -53,8 +56,6 @@ var infoCommand = cli.Command{
 		if artifactType == soci.ArtifactEntryTypeLayer {
 			return fmt.Errorf("the provided digest is of ztoc not SOCI index. Use \"soci ztoc info\" command to get detailed info of ztoc")
 		}
-		ctx, cancel := context.WithTimeout(context.Background(), cliContext.GlobalDuration("timeout"))
-		defer cancel()
 		ctx, store, err := store.NewContentStore(ctx, store.WithType(store.ContentStoreType(cliContext.GlobalString("content-store"))), store.WithNamespace(cliContext.GlobalString("namespace")))
 		if err != nil {
 			return err
