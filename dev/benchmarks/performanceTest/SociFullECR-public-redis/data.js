@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1702310606312,
+  "lastUpdate": 1702330167027,
   "repoUrl": "https://github.com/awslabs/soci-snapshotter",
   "entries": {
     "Soci Benchmark": [
@@ -2679,6 +2679,48 @@ window.BENCHMARK_DATA = {
           {
             "name": "SociFullECR-public-redis-pullTaskDuration",
             "value": 0.76,
+            "unit": "Seconds",
+            "extra": "P90"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "macedonv@amazon.com",
+            "name": "Austin Vazquez",
+            "username": "austinvazquez"
+          },
+          "committer": {
+            "email": "55906459+austinvazquez@users.noreply.github.com",
+            "name": "Austin Vazquez",
+            "username": "austinvazquez"
+          },
+          "distinct": true,
+          "id": "f8a6d298e741c4871bee930df32a1577c2062562",
+          "message": "Adds a newline to pretty print JSON\n\nSigned-off-by: Austin Vazquez <macedonv@amazon.com>",
+          "timestamp": "2023-12-11T13:20:10-08:00",
+          "tree_id": "c03896464f8e23b94950362b9910a1ad008694bc",
+          "url": "https://github.com/awslabs/soci-snapshotter/commit/f8a6d298e741c4871bee930df32a1577c2062562"
+        },
+        "date": 1702330166493,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "SociFullECR-public-redis-lazyTaskDuration",
+            "value": 1.3685,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-redis-localTaskDuration",
+            "value": 0.0195,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-redis-pullTaskDuration",
+            "value": 1.1215,
             "unit": "Seconds",
             "extra": "P90"
           }
