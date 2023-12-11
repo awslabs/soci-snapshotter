@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1702330167027,
+  "lastUpdate": 1702330267473,
   "repoUrl": "https://github.com/awslabs/soci-snapshotter",
   "entries": {
     "Soci Benchmark": [
@@ -2721,6 +2721,48 @@ window.BENCHMARK_DATA = {
           {
             "name": "SociFullECR-public-redis-pullTaskDuration",
             "value": 1.1215,
+            "unit": "Seconds",
+            "extra": "P90"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "macedonv@amazon.com",
+            "name": "Austin Vazquez",
+            "username": "austinvazquez"
+          },
+          "committer": {
+            "email": "55906459+austinvazquez@users.noreply.github.com",
+            "name": "Austin Vazquez",
+            "username": "austinvazquez"
+          },
+          "distinct": true,
+          "id": "7044591a8acbe9148cf5e740540d894840210a7f",
+          "message": "Fix index info command with containerd content store\n\nPreviously SOCI CLI index info command would fail with context deadline\nexceeded error when the content store was set to containerd. The root\ncause was the default global duration for the app context is zero if not\nset. The result was Go context with an immediate deadline thus resulting\nin the error. The fix is to not set a deadline if the duration is zero.\n\nSigned-off-by: Austin Vazquez <macedonv@amazon.com>",
+          "timestamp": "2023-12-11T13:20:32-08:00",
+          "tree_id": "12c0ae241bca30706abc3dd2a667691d0d77079a",
+          "url": "https://github.com/awslabs/soci-snapshotter/commit/7044591a8acbe9148cf5e740540d894840210a7f"
+        },
+        "date": 1702330263968,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "SociFullECR-public-redis-lazyTaskDuration",
+            "value": 3.7520000000000002,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-redis-localTaskDuration",
+            "value": 0.0195,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-redis-pullTaskDuration",
+            "value": 1.0505,
             "unit": "Seconds",
             "extra": "P90"
           }
