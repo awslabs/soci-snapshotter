@@ -47,10 +47,7 @@ import (
 
 // Supported checks if this pkg can run on the current system.
 func Supported() error {
-	if err := exec.Command("docker", "version").Run(); err != nil {
-		return err
-	}
-	return exec.Command("docker-compose", "--version").Run()
+	return exec.Command("docker", "--version").Run()
 }
 
 // Compose represents a set of container execution environment (i.e. a set of *dexec.Exec) that
@@ -109,7 +106,7 @@ func Build(dockerComposeYaml string, opts ...Option) ([]func() error, error) {
 	var cleanups []func() error
 	for i := 0; i < 3; i++ {
 		rm := func() error {
-			return exec.Command("docker-compose", "-f", confFile, "down", "--rmi", "all").Run()
+			return exec.Command("docker", "compose", "-f", confFile, "down", "--rmi", "all").Run()
 		}
 		cleanups = append(cleanups, rm)
 	}
@@ -120,7 +117,7 @@ func Build(dockerComposeYaml string, opts ...Option) ([]func() error, error) {
 	for _, arg := range cOpts.buildArgs {
 		buildArgs = append(buildArgs, "--build-arg", arg)
 	}
-	cmd := exec.Command("docker-compose", append([]string{"-f", confFile, "build", "-q"}, buildArgs...)...)
+	cmd := exec.Command("docker", append([]string{"compose", "-f", confFile, "build", "-q"}, buildArgs...)...)
 	if cOpts.addStdio != nil {
 		cOpts.addStdio(cmd)
 	}
@@ -147,11 +144,11 @@ func Up(dockerComposeYaml string, opts ...Option) (*Compose, error) {
 
 	var cleanups []func() error
 	cleanups = append(cleanups, func() error {
-		return exec.Command("docker-compose", "-f", confFile, "down", "-v").Run()
+		return exec.Command("docker", "compose", "-f", confFile, "down", "-v").Run()
 	})
 	cleanups = append(cleanups, func() error { return os.RemoveAll(tmpContext) })
 
-	cmd := exec.Command("docker-compose", "-f", confFile, "up", "-d")
+	cmd := exec.Command("docker", "compose", "-f", confFile, "up", "-d")
 	if cOpts.addStdio != nil {
 		cOpts.addStdio(cmd)
 	}
@@ -159,7 +156,7 @@ func Up(dockerComposeYaml string, opts ...Option) (*Compose, error) {
 		return nil, err
 	}
 
-	cmd = exec.Command("docker-compose", "-f", confFile, "ps", "--services")
+	cmd = exec.Command("docker", "compose", "-f", confFile, "ps", "--services")
 	if cOpts.addStderr != nil {
 		cOpts.addStderr(cmd)
 	}
@@ -181,7 +178,7 @@ func Up(dockerComposeYaml string, opts ...Option) (*Compose, error) {
 
 	execs := map[string]*dexec.Exec{}
 	for _, s := range services {
-		cmd = exec.Command("docker-compose", "-f", confFile, "ps", "-q", s)
+		cmd = exec.Command("docker", "compose", "-f", confFile, "ps", "-q", s)
 		if cOpts.addStderr != nil {
 			cOpts.addStderr(cmd)
 		}
@@ -216,7 +213,7 @@ func New(dockerComposeYaml string, opts ...Option) (*Compose, error) {
 
 	var cleanups []func() error
 	cleanups = append(cleanups, func() error {
-		return exec.Command("docker-compose", "-f", confFile, "down", "-v").Run()
+		return exec.Command("docker", "compose", "-f", confFile, "down", "-v").Run()
 	})
 	cleanups = append(cleanups, func() error { return os.RemoveAll(tmpContext) })
 
@@ -224,14 +221,14 @@ func New(dockerComposeYaml string, opts ...Option) (*Compose, error) {
 	for _, arg := range cOpts.buildArgs {
 		buildArgs = append(buildArgs, "--build-arg", arg)
 	}
-	cmd := exec.Command("docker-compose", append([]string{"-f", confFile, "build", "-q"}, buildArgs...)...)
+	cmd := exec.Command("docker", append([]string{"compose", "-f", confFile, "build", "-q"}, buildArgs...)...)
 	if cOpts.addStdio != nil {
 		cOpts.addStdio(cmd)
 	}
 	if err := cmd.Run(); err != nil {
 		return nil, err
 	}
-	cmd = exec.Command("docker-compose", "-f", confFile, "up", "-d")
+	cmd = exec.Command("docker", "compose", "-f", confFile, "up", "-d")
 	if cOpts.addStdio != nil {
 		cOpts.addStdio(cmd)
 	}
@@ -239,7 +236,7 @@ func New(dockerComposeYaml string, opts ...Option) (*Compose, error) {
 		return nil, err
 	}
 
-	cmd = exec.Command("docker-compose", "-f", confFile, "ps", "--services")
+	cmd = exec.Command("docker", "compose", "-f", confFile, "ps", "--services")
 	if cOpts.addStderr != nil {
 		cOpts.addStderr(cmd)
 	}
@@ -261,7 +258,7 @@ func New(dockerComposeYaml string, opts ...Option) (*Compose, error) {
 
 	execs := map[string]*dexec.Exec{}
 	for _, s := range services {
-		cmd = exec.Command("docker-compose", "-f", confFile, "ps", "-q", s)
+		cmd = exec.Command("docker", "compose", "-f", confFile, "ps", "-q", s)
 		if cOpts.addStderr != nil {
 			cOpts.addStderr(cmd)
 		}
