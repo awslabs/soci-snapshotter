@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1702330264950,
+  "lastUpdate": 1702406758956,
   "repoUrl": "https://github.com/awslabs/soci-snapshotter",
   "entries": {
     "Soci Benchmark": [
@@ -2558,6 +2558,48 @@ window.BENCHMARK_DATA = {
           {
             "name": "SociFullECR-public-rabbitmq-pullTaskDuration",
             "value": 1.303,
+            "unit": "Seconds",
+            "extra": "P90"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "macedonv@amazon.com",
+            "name": "Austin Vazquez",
+            "username": "austinvazquez"
+          },
+          "committer": {
+            "email": "55906459+austinvazquez@users.noreply.github.com",
+            "name": "Austin Vazquez",
+            "username": "austinvazquez"
+          },
+          "distinct": true,
+          "id": "5d1022b0def534e457fd0f649b99e3874dc38eaa",
+          "message": "Update Go version in CI to v1.20.12\n\nSigned-off-by: Austin Vazquez <macedonv@amazon.com>",
+          "timestamp": "2023-12-12T10:34:32-08:00",
+          "tree_id": "4253100a6509502208864c5e41005b382f37c038",
+          "url": "https://github.com/awslabs/soci-snapshotter/commit/5d1022b0def534e457fd0f649b99e3874dc38eaa"
+        },
+        "date": 1702406757509,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "SociFullECR-public-rabbitmq-lazyTaskDuration",
+            "value": 10.013,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-rabbitmq-localTaskDuration",
+            "value": 7.3325,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-rabbitmq-pullTaskDuration",
+            "value": 0.8779999999999999,
             "unit": "Seconds",
             "extra": "P90"
           }
