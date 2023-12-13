@@ -12,8 +12,7 @@ indexed layers will be lazily loaded.
 A layer will be mounted as a FUSE mountpoint if it's being lazily loaded, or as
 a normal overlay layer if it's not.
 
-Overall, lazily pulling a container image with the SOCI snapshotter
-(via the `soci image rpull` command) involves the following steps:
+Overall, lazily pulling a container image with the SOCI snapshotter involves the following steps:
 
 <!-- START doctoc generated TOC please keep comment here to allow auto update -->
 <!-- DON'T EDIT THIS SECTION, INSTEAD RE-RUN doctoc TO UPDATE -->
@@ -27,7 +26,8 @@ Overall, lazily pulling a container image with the SOCI snapshotter
 ## Step 1: specify SOCI index digest
 
 To enable lazy pulling and loading an image with the SOCI snapshotter, first you need
-to `rpull` the image via the [`soci` CLI](./getting-started.md#install-soci-snapshotter).
+to pull the image via a CLI that supports pulling with a remote snapshotter
+(e.g. [nerdctl](https://github.com/containerd/nerdctl)).
 The CLI accepts an optional flag `--soci-index-digest`, which is the sha256 of the
 SOCI index manifest and will be passed to the snapshotter.
 
@@ -41,11 +41,11 @@ but the selection process is undefined and it may not choose the same index ever
 > **Note**
 > Check out [this doc](./getting-started.md#lazily-pull-image) for how to
 > validate if this step is successful or not, and [the debug doc](./debug.md#common-scenarios)
-> for the common scenarios where `rpull` might fail and how to debug/fix them.
+> for the common scenarios where pulling might fail and how to debug/fix them.
 
 ## Step 2: fetch SOCI artifacts
 
-During `rpull`, on the first layer mount there will be an attempt to download
+While pulling, on the first layer mount there will be an attempt to download
 and parse the SOCI manifest. If this doesn’t go well, there will be the following
 error in the log: `unable to fetch SOCI artifacts:`, indicating that the
 container image will not be lazily loaded. In this case, the snapshotter will

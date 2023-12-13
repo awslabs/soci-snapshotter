@@ -67,7 +67,7 @@ func TestSociArtifactsPushAndPull(t *testing.T) {
 
 			sh.X("soci", "push", "--user", regConfig.creds(), "--platform", tt.Platform, regConfig.mirror(imageName).ref)
 			sh.X("rm", "-rf", filepath.Join(store.DefaultSociContentStorePath, "blobs", "sha256"))
-			sh.X("soci", "image", "rpull", "--user", regConfig.creds(), "--soci-index-digest", indexDigest, "--platform", tt.Platform, regConfig.mirror(imageName).ref)
+			sh.X(append(imagePullCmd, "--soci-index-digest", indexDigest, "--platform", tt.Platform, regConfig.mirror(imageName).ref)...)
 
 			artifactsStoreContentDigestAfterRPull, err := getSociLocalStoreContentDigest(sh, config.DefaultContentStoreType)
 			if err != nil {
@@ -180,7 +180,7 @@ func TestLegacyOCI(t *testing.T) {
 			}
 			sh.X("rm", "-rf", filepath.Join(store.DefaultSociContentStorePath, "blobs", "sha256"))
 
-			sh.X("soci", "image", "rpull", "--user", regConfig.creds(), "--soci-index-digest", indexDigest, regConfig.mirror(imageName).ref)
+			sh.X(append(imagePullCmd, "--soci-index-digest", indexDigest, regConfig.mirror(imageName).ref)...)
 			if err := sh.Err(); err != nil {
 				t.Fatalf("failed to rpull: %v", err)
 			}
