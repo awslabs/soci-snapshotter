@@ -11,9 +11,9 @@ This document outlines where to find/access logs and metrics for the snapshotter
     - [Accessing Metrics](#accessing-metrics)
     - [Metrics Emitted](#metrics-emitted)
 - [Common Scenarios](#common-scenarios)
-  - [`rpull`](#rpull)
+  - [Pulling an Image](#pulling-an-image)
     - [No lazy-loading](#no-lazy-loading)
-    - [`rpull` Taking An Abnormal Amount Of Time](#rpull-taking-an-abnormal-amount-of-time)
+    - [Pull Taking An Abnormal Amount Of Time](#pull-taking-an-abnormal-amount-of-time)
     - [Background Fetching](#background-fetching)
   - [Running Container](#running-container)
     - [FUSE Read Failures](#fuse-read-failures)
@@ -65,8 +65,8 @@ soci_fs_operation_duration_milliseconds_bucket{layer="sha256:328b9d3248edeb3ae6e
 Below are a list of metrics emitted by the snapshotter:
 
 * Mount
-    * **operation_duration_mount (ms)** - defines how long does it take to mount a layer during `rpull`. `rpull` should only take a couple of seconds. If this value is higher than 3-5 seconds this can indicate an issue while mounting.
-    * **operation_duration_init_metadata_store (ms)** - measures the time it takes to parse a zTOC and prepare the respective metadata records in metadata bbolt db (it records layer digest as well). This is one of the components of `rpull`, therefore there should be a correlation between the time to parse a zTOC with updating of metadata db and the duration of layer mount operation. 
+    * **operation_duration_mount (ms)** - defines how long does it take to mount a layer during pull. Pulling should only take a couple of seconds. If this value is higher than 3-5 seconds this can indicate an issue while mounting.
+    * **operation_duration_init_metadata_store (ms)** - measures the time it takes to parse a zTOC and prepare the respective metadata records in metadata bbolt db (it records layer digest as well). This is one of the components of pulling, therefore there should be a correlation between the time to parse a zTOC with updating of metadata db and the duration of layer mount operation. 
 * Fetch from remote registry
     * **operation_duration_remote_registry_get (ms)** - measures the time it takes to complete a `GET` operation from remote registry for a specific layer. This metric should help in identifying network issues, when lazily fetching layer data and seeing increased container start time.
 * FUSE
@@ -92,14 +92,14 @@ Below are a list of metrics emitted by the snapshotter:
 
 # Common Scenarios
 
-Below are some common scenarios that may occur during `rpull` and the lifetime of running a container. For scenarios not covered, please feel free to [open an issue](https://github.com/awslabs/soci-snapshotter/issues/new/choose).
+Below are some common scenarios that may occur during pulling and the lifetime of running a container. For scenarios not covered, please feel free to [open an issue](https://github.com/awslabs/soci-snapshotter/issues/new/choose).
 
 > **Note**
 > To allow for more verbose logging you can set the `--log-level` flag to `debug` when starting the snapshotter.
 
-## `rpull` 
+## Pulling an Image
 
-During `rpull`, the image manifest, config, and layers without zTOCs' are fetched from the remote registry directly. Layers that have a zTOC are mounted as a `FUSE` file system and will be pulled lazily when launching a container.
+While pulling, the image manifest, config, and layers without zTOCs' are fetched from the remote registry directly. Layers that have a zTOC are mounted as a `FUSE` file system and will be pulled lazily when launching a container.
 
 Below are a list of common error paths that may occur in this phase:
 
@@ -128,21 +128,21 @@ Some possible error keys include:
   > **Note**
   > SOCI artifacts are only fetched when preparing the first layer. If they cannot be fetched the snapshotter will fallback to default snapshotter configured (eg: overlayfs) entirely.
   
-### `rpull` Taking An Abnormal Amount Of Time
+### Pull Taking An Abnormal Amount Of Time
 
-If you notice that `rpull` takes a considerable amount of time you can:
+If you notice that pulling takes a considerable amount of time you can:
 
 * Look for `failed to resolve layer (timeout)` within the logs. Remote mounts may take too long if something’s wrong with layer resolving. By default remote mounts time out after 30 seconds if a layer can’t be resolved.
 
-* Check the `operation_duration_mount` metric to see if it takes unusual long time to mount a layer. `rpull` should be taking a couple of seconds, so one can be checking if any of these operations are taking more than 3-5 seconds.
+* Check the `operation_duration_mount` metric to see if it takes unusual long time to mount a layer. Pull should be taking a couple of seconds, so one can be checking if any of these operations are taking more than 3-5 seconds.
 
-* Parsing zTOC and initializing the metadata db is part of `rpull`. You can check the  `operation_duration_init_metadata_store` metric to see if initializing the metadata bbolt db is too slow.  
+* Parsing zTOC and initializing the metadata db is part of the pull command. You can check the  `operation_duration_init_metadata_store` metric to see if initializing the metadata bbolt db is too slow.  
 
 * Look for HTTP failure codes in the log. Such logs are in this format: `Received status code`:
 
 ### Background Fetching
 
-The background fetcher is initialized as soon as the snapshotter starts. If you have not explicitly disabled it via the the snapshotters config, it will be performing network requests to fetch data during/after `rpull`. To analyze the background fetcher you can:
+The background fetcher is initialized as soon as the snapshotter starts. If you have not explicitly disabled it via the the snapshotters config, it will be performing network requests to fetch data during/after pulling. To analyze the background fetcher you can:
 
 * Look at the `background_span_fetch_failure_count` to determine how many times a background fetch failed.
 * Look at `background_span_fetch_count` metric to determine how many spans were fetched by the background fetcher. If this number is 0 this may indicate network failures. 

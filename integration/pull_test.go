@@ -178,7 +178,7 @@ func TestLazyPullWithSparseIndex(t *testing.T) {
 		}
 	}
 	export := func(sh *shell.Shell, image string, tarExportArgs []string) {
-		sh.X("soci", "image", "rpull", "--user", regConfig.creds(), "--soci-index-digest", indexDigest, image)
+		sh.X(append(imagePullCmd, "--soci-index-digest", indexDigest, image)...)
 		sh.Pipe(nil, shell.C(append(runSociCmd, "--name", "test", "--rm", image, "tar", "-zc", "/usr")...), tarExportArgs)
 	}
 
@@ -285,7 +285,7 @@ func TestLazyPull(t *testing.T) {
 		}
 	}
 	export := func(sh *shell.Shell, image string, tarExportArgs []string) {
-		sh.X("soci", "image", "rpull", "--user", regConfig.creds(), "--soci-index-digest", indexDigest1, image)
+		sh.X(append(imagePullCmd, "--soci-index-digest", indexDigest1, image)...)
 		sh.Pipe(nil, shell.C(append(runSociCmd, "--name", "test", "--rm", image, "tar", "-zc", "/usr")...), tarExportArgs)
 	}
 
@@ -327,7 +327,7 @@ func TestLazyPull(t *testing.T) {
 				rsm, done := testutil.NewRemoteSnapshotMonitor(m)
 				defer done()
 				buildIndex(sh, regConfig.mirror(optimizedImageName2), withMinLayerSize(0))
-				sh.X("soci", "image", "rpull", "--user", regConfig.creds(), "--soci-index-digest", indexDigest2, regConfig.mirror(optimizedImageName2).ref)
+				sh.X(append(imagePullCmd, "--soci-index-digest", indexDigest2, regConfig.mirror(optimizedImageName2).ref)...)
 				buildIndex(sh, regConfig.mirror(optimizedImageName1), withMinLayerSize(0))
 				sh.X("ctr", "i", "rm", optimizedImageName1)
 				export(sh, image, tarExportArgs)
@@ -368,7 +368,7 @@ func TestLazyPullNoIndexDigest(t *testing.T) {
 		}
 	}
 	export := func(sh *shell.Shell, image string, tarExportArgs []string) {
-		sh.X("soci", "image", "rpull", "--user", regConfig.creds(), image)
+		sh.X(append(imagePullCmd, image)...)
 		sh.Pipe(nil, shell.C(append(runSociCmd, "--name", "test", "--rm", image, "tar", "-zc", "/usr")...), tarExportArgs)
 	}
 
@@ -438,7 +438,7 @@ func TestPullWithAribtraryBlobInvalidZtocFormat(t *testing.T) {
 	}
 
 	export := func(sh *shell.Shell, image, sociIndexDigest string, tarExportArgs []string) {
-		sh.X("soci", "image", "rpull", "--user", regConfig.creds(), "--soci-index-digest", sociIndexDigest, image)
+		sh.X(append(imagePullCmd, "--soci-index-digest", sociIndexDigest, image)...)
 		sh.Pipe(nil, shell.C(append(runSociCmd, "--name", "test", "--rm", image, "tar", "-zc", "/usr")...), tarExportArgs)
 	}
 
@@ -550,7 +550,7 @@ disable = true
 		}
 	}
 	export := func(sh *shell.Shell, image string, tarExportArgs []string) {
-		sh.X("soci", "image", "rpull", "--user", regConfig.creds(), "--soci-index-digest", indexDigest1, image)
+		sh.X(append(imagePullCmd, "--soci-index-digest", indexDigest1, image)...)
 		sh.Pipe(nil, shell.C(append(runSociCmd, "--name", "test", "--rm", image, "tar", "-zc", "/usr")...), tarExportArgs)
 	}
 
@@ -592,7 +592,7 @@ disable = true
 				rsm, done := testutil.NewRemoteSnapshotMonitor(m)
 				defer done()
 				buildIndex(sh, regConfig.mirror(optimizedImageName2), withMinLayerSize(0))
-				sh.X("soci", "image", "rpull", "--user", regConfig.creds(), "--soci-index-digest", indexDigest2, regConfig.mirror(optimizedImageName2).ref)
+				sh.X(append(imagePullCmd, "--soci-index-digest", indexDigest2, regConfig.mirror(optimizedImageName2).ref)...)
 				buildIndex(sh, regConfig.mirror(optimizedImageName1), withMinLayerSize(0))
 				sh.X("ctr", "i", "rm", optimizedImageName1)
 				export(sh, image, tarExportArgs)
@@ -718,7 +718,7 @@ insecure = true
 	rebootContainerd(t, sh, "", "")
 	sh.X("nerdctl", "pull", "-q", regConfig.mirror(imageName).ref)
 	sh.X("soci", "create", regConfig.mirror(imageName).ref)
-	sh.X("soci", "image", "rpull", "--user", regConfig.creds(), "--soci-index-digest", indexDigest, regConfig.mirror(imageName).ref)
+	sh.X(append(imagePullCmd, "--soci-index-digest", indexDigest, regConfig.mirror(imageName).ref)...)
 	registryHostIP, registryAltHostIP := getIP(t, sh, regConfig.host), getIP(t, sh, regAltConfig.host)
 	export := func(image string) []string {
 		return shell.C(append(runSociCmd, "--name", "test", "--rm", image, "tar", "-zc", "/usr")...)
@@ -797,7 +797,7 @@ func TestRpullImageThenRemove(t *testing.T) {
 		t.Fatalf("soci index %s contains 0 blobs, invalidating this test", indexDigest)
 	}
 
-	sh.X("soci", "image", "rpull", "--user", regConfig.creds(), "--soci-index-digest", indexDigest, regConfig.mirror(containerImage).ref)
+	sh.X(append(imagePullCmd, "--soci-index-digest", indexDigest, regConfig.mirror(containerImage).ref)...)
 
 	checkFuseMounts(t, sh, len(sociIndex.Blobs))
 
@@ -830,7 +830,7 @@ min_layer_size=` + strconv.FormatInt(middleSize, 10) + `
 	copyImage(sh, dockerhub(containerImage), regConfig.mirror(containerImage))
 	indexDigest := buildIndex(sh, regConfig.mirror(containerImage), withMinLayerSize(0))
 
-	sh.X("soci", "image", "rpull", "--user", regConfig.creds(), "--soci-index-digest", indexDigest, regConfig.mirror(containerImage).ref)
+	sh.X(append(imagePullCmd, "--soci-index-digest", indexDigest, regConfig.mirror(containerImage).ref)...)
 
 	checkFuseMounts(t, sh, layerCount-middleIndex)
 }

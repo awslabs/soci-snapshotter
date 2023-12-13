@@ -37,7 +37,6 @@ import (
 	"os"
 
 	"github.com/awslabs/soci-snapshotter/cmd/soci/commands"
-	"github.com/awslabs/soci-snapshotter/cmd/soci/commands/image"
 	"github.com/awslabs/soci-snapshotter/cmd/soci/commands/index"
 	"github.com/awslabs/soci-snapshotter/cmd/soci/commands/ztoc"
 	"github.com/awslabs/soci-snapshotter/config"
@@ -89,7 +88,6 @@ func main() {
 	app.Version = fmt.Sprintf("%s %s", version.Version, version.Revision)
 
 	app.Commands = []cli.Command{
-		image.Command,
 		index.Command,
 		ztoc.Command,
 		commands.CreateCommand,
