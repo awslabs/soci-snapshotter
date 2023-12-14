@@ -31,7 +31,7 @@ jobs:
       - name: Run benchmark
         run: make benchmarks-perf-test 
       - name: Upload latest benchmark result
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: benchmark-result-artifact
           path: ${{github.workspace}}/benchmark/performanceTest/output/results.json
@@ -58,7 +58,7 @@ jobs:
          # Create a JSON array with the file paths and store it in the 'files' output
         run: echo "files=$(find ${{github.workspace}}/current -type f -name '*.json' -printf '%p\n' | jq -R . | jq -cs .)" >> $GITHUB_OUTPUT
       - name: Upload visualization files as github artifacts
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: benchmark-gh-pages-artifact
           path: ${{github.workspace}}/current
