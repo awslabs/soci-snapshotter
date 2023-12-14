@@ -268,6 +268,8 @@ func serve(ctx context.Context, rpc *grpc.Server, addr string, rs snapshots.Snap
 		}
 	}()
 
+	log.G(ctx).WithField("address", addr).Info("soci-snapshotter-grpc successfully started")
+
 	var s os.Signal
 	sigCh := make(chan os.Signal, 1)
 	signal.Notify(sigCh, unix.SIGINT, unix.SIGTERM)
