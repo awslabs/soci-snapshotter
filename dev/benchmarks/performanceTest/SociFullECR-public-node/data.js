@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1702406765727,
+  "lastUpdate": 1702662481099,
   "repoUrl": "https://github.com/awslabs/soci-snapshotter",
   "entries": {
     "Soci Benchmark": [
@@ -2641,6 +2641,48 @@ window.BENCHMARK_DATA = {
           {
             "name": "SociFullECR-public-node-pullTaskDuration",
             "value": 1.4365,
+            "unit": "Seconds",
+            "extra": "P90"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "carlhilt@amazon.com",
+            "name": "Carl Hiltbrunner",
+            "username": "Subzidion"
+          },
+          "committer": {
+            "email": "55906459+austinvazquez@users.noreply.github.com",
+            "name": "Austin Vazquez",
+            "username": "austinvazquez"
+          },
+          "distinct": true,
+          "id": "462303a7635a3df834e84a9cbcc15d3efa1b62bc",
+          "message": "Log successful startup of soci-snapshotter-grpc\n\nSigned-off-by: Carl Hiltbrunner <carlhilt@amazon.com>",
+          "timestamp": "2023-12-15T09:36:03-08:00",
+          "tree_id": "69b9c908e95cca8c2d02c1375ec74784a915484a",
+          "url": "https://github.com/awslabs/soci-snapshotter/commit/462303a7635a3df834e84a9cbcc15d3efa1b62bc"
+        },
+        "date": 1702662477719,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "SociFullECR-public-node-lazyTaskDuration",
+            "value": 7.418,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-node-localTaskDuration",
+            "value": 0.437,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-node-pullTaskDuration",
+            "value": 2.2255,
             "unit": "Seconds",
             "extra": "P90"
           }
