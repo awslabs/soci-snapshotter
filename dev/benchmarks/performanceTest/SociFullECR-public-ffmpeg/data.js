@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1702406760240,
+  "lastUpdate": 1702662475488,
   "repoUrl": "https://github.com/awslabs/soci-snapshotter",
   "entries": {
     "Soci Benchmark": [
@@ -2764,6 +2764,48 @@ window.BENCHMARK_DATA = {
           {
             "name": "SociFullECR-public-ffmpeg-pullTaskDuration",
             "value": 1.649,
+            "unit": "Seconds",
+            "extra": "P90"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "carlhilt@amazon.com",
+            "name": "Carl Hiltbrunner",
+            "username": "Subzidion"
+          },
+          "committer": {
+            "email": "55906459+austinvazquez@users.noreply.github.com",
+            "name": "Austin Vazquez",
+            "username": "austinvazquez"
+          },
+          "distinct": true,
+          "id": "462303a7635a3df834e84a9cbcc15d3efa1b62bc",
+          "message": "Log successful startup of soci-snapshotter-grpc\n\nSigned-off-by: Carl Hiltbrunner <carlhilt@amazon.com>",
+          "timestamp": "2023-12-15T09:36:03-08:00",
+          "tree_id": "69b9c908e95cca8c2d02c1375ec74784a915484a",
+          "url": "https://github.com/awslabs/soci-snapshotter/commit/462303a7635a3df834e84a9cbcc15d3efa1b62bc"
+        },
+        "date": 1702662472556,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "SociFullECR-public-ffmpeg-lazyTaskDuration",
+            "value": 0.9440000000000001,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-ffmpeg-localTaskDuration",
+            "value": 0.0075,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-ffmpeg-pullTaskDuration",
+            "value": 1.9955,
             "unit": "Seconds",
             "extra": "P90"
           }
