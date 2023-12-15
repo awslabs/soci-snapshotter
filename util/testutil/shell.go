@@ -216,7 +216,8 @@ func monitorStartup(errs chan error) func(string) {
 				errs <- errors.New("fatal snapshotter log entry encountered, snapshotter failed to start")
 				return
 			}
-			if strings.Contains(logline.Msg, "background") {
+			// Looking for "soci-snapshotter-grpc successfully started"
+			if strings.Contains(logline.Msg, "successfully") {
 				errs <- nil
 				return
 			}
