@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1703095462484,
+  "lastUpdate": 1703108946192,
   "repoUrl": "https://github.com/awslabs/soci-snapshotter",
   "entries": {
     "Soci Benchmark": [
@@ -2851,6 +2851,48 @@ window.BENCHMARK_DATA = {
           {
             "name": "SociFullECR-public-tensorflow_gpu-pullTaskDuration",
             "value": 3.131,
+            "unit": "Seconds",
+            "extra": "P90"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "davbson@amazon.com",
+            "name": "David Son",
+            "username": "sondavidb"
+          },
+          "committer": {
+            "email": "55555210+sondavidb@users.noreply.github.com",
+            "name": "David Son",
+            "username": "sondavidb"
+          },
+          "distinct": true,
+          "id": "680cbba65e8e81ceac04284698cc32ab583f480e",
+          "message": "Add documentation for most TOML variables\n\nSigned-off-by: David Son <davbson@amazon.com>",
+          "timestamp": "2023-12-20T13:39:08-08:00",
+          "tree_id": "0ebcae466efd28c0a6d3bdada5942101c6fad9ae",
+          "url": "https://github.com/awslabs/soci-snapshotter/commit/680cbba65e8e81ceac04284698cc32ab583f480e"
+        },
+        "date": 1703108943892,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "SociFullECR-public-tensorflow_gpu-lazyTaskDuration",
+            "value": 31.993499999999997,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-tensorflow_gpu-localTaskDuration",
+            "value": 2.246,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-tensorflow_gpu-pullTaskDuration",
+            "value": 2.166,
             "unit": "Seconds",
             "extra": "P90"
           }
