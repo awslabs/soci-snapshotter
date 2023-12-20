@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1702913532168,
+  "lastUpdate": 1703095461052,
   "repoUrl": "https://github.com/awslabs/soci-snapshotter",
   "entries": {
     "Soci Benchmark": [
@@ -2891,6 +2891,48 @@ window.BENCHMARK_DATA = {
           {
             "name": "SociFullECR-public-mongo-pullTaskDuration",
             "value": 0.866,
+            "unit": "Seconds",
+            "extra": "P90"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "davbson@amazon.com",
+            "name": "David Son",
+            "username": "sondavidb"
+          },
+          "committer": {
+            "email": "55555210+sondavidb@users.noreply.github.com",
+            "name": "David Son",
+            "username": "sondavidb"
+          },
+          "distinct": true,
+          "id": "74be0dae7e05d68428fef0a3b37173c7af51bd7d",
+          "message": "Remove \"image rpull\" from CLI\n\nAs an effort to streamline our CLI usage, \"image rpull\" has been removed.\nWhile it technically retains some functionality special to SOCI, it is\nultimately up to the CLI to pass the requisite parameters to the remote\nsnapshotter.\n\nThis also removes the last of our references to ctr.\n\nSigned-off-by: David Son <davbson@amazon.com>",
+          "timestamp": "2023-12-20T09:51:05-08:00",
+          "tree_id": "43d866002e1b18ba9b4782468a09a9a9e3b3ce54",
+          "url": "https://github.com/awslabs/soci-snapshotter/commit/74be0dae7e05d68428fef0a3b37173c7af51bd7d"
+        },
+        "date": 1703095456951,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "SociFullECR-public-mongo-lazyTaskDuration",
+            "value": 14.613999999999999,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-mongo-localTaskDuration",
+            "value": 0.3145,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-mongo-pullTaskDuration",
+            "value": 1.787,
             "unit": "Seconds",
             "extra": "P90"
           }
