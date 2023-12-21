@@ -44,6 +44,8 @@ CMD=soci-snapshotter-grpc soci
 
 CMD_BINARIES=$(addprefix $(OUTDIR)/,$(CMD))
 
+GO_BENCHMARK_TESTS?=.
+
 .PHONY: all build check add-ltag install uninstall clean test integration release benchmarks build-benchmarks benchmarks-perf-test benchmarks-comparison-test
 
 all: build
@@ -87,6 +89,7 @@ test:
 	@echo "$@"
 	@GO111MODULE=$(GO111MODULE_VALUE) go test $(GO_TEST_FLAGS) $(GO_LD_FLAGS) -race ./...
 
+
 integration: build
 	@echo "$@"
 	@echo "SOCI_SNAPSHOTTER_PROJECT_ROOT=$(SOCI_SNAPSHOTTER_PROJECT_ROOT)"
@@ -95,6 +98,10 @@ integration: build
 release:
 	@echo "$@"
 	@$(SOCI_SNAPSHOTTER_PROJECT_ROOT)/scripts/create-releases.sh $(RELEASE_TAG)
+
+go-benchmarks:
+    # -run matches TestXXX type functions. Setting it to ^$ ensures non-benchmark tests are not run
+	go test -run=^$$ -bench=$(GO_BENCHMARK_TESTS) -benchmem $(GO_BENCHMARK_FLAGS) ./...
 
 benchmarks: benchmarks-perf-test benchmarks-comparison-test
 

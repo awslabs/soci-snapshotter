@@ -33,7 +33,7 @@ import (
 // buildTarGZ creates a temp tar gz file with the given `tarEntries`.
 // It returns the created tar gz filename, entry->content map, and the name of
 // each entry in the tar gz file.
-func buildTarGZ(t *testing.T, tarName string, tarEntries []testutil.TarEntry) (string, map[string][]byte, []string) {
+func buildTarGZ(t testing.TB, tarName string, tarEntries []testutil.TarEntry) (string, map[string][]byte, []string) {
 	tarReader := testutil.BuildTarGz(tarEntries, gzip.DefaultCompression)
 	tarGzFilePath, _, err := testutil.WriteTarToTempFile(tarName+".tar.gz", tarReader)
 	if err != nil {
@@ -47,7 +47,7 @@ func buildTarGZ(t *testing.T, tarName string, tarEntries []testutil.TarEntry) (s
 	return tarGzFilePath, m, fileNames
 }
 
-func buildTar(t *testing.T, tarName string, tarEntries []testutil.TarEntry) (string, map[string][]byte, []string) {
+func buildTar(t testing.TB, tarName string, tarEntries []testutil.TarEntry) (string, map[string][]byte, []string) {
 	tarReader := testutil.BuildTar(tarEntries)
 	tarFilePath, _, err := testutil.WriteTarToTempFile(tarName+".tar", tarReader)
 	if err != nil {
@@ -65,7 +65,7 @@ func buildTar(t *testing.T, tarName string, tarEntries []testutil.TarEntry) (str
 // tar entries, creates a temp tar file (e.g., .tar, .tar.gz) and
 // returns the created tar filename, a map that maps each filename within
 // the tar to its content, and a list of filenames within the tarfile.
-type tarGenerator func(*testing.T, string, []testutil.TarEntry) (string, map[string][]byte, []string)
+type tarGenerator func(testing.TB, string, []testutil.TarEntry) (string, map[string][]byte, []string)
 
 var testZtocs = []struct {
 	name            string
@@ -441,6 +441,79 @@ func testZtocGeneration(t *testing.T, compressionAlgo string, generator tarGener
 			}
 
 		})
+	}
+}
+
+func BenchmarkZtocGeneration(b *testing.B) {
+	for _, tc := range testZtocs {
+		b.Run(tc.name, func(b *testing.B) {
+			benchmarkZtocGeneration(b, tc.compressionAlgo, tc.tarGenerator)
+		})
+	}
+}
+
+func ztocGenBenchmarkFiles(baseSize int, variance float64, count int) []testutil.TarEntry {
+	r := testutil.NewThreadsafeRandom()
+	entries := make([]testutil.TarEntry, count)
+	for i := 0; i < count; i++ {
+		v := baseSize * int(variance)
+		if v > 0 {
+			v = r.Intn(v) - (v / 2)
+		}
+
+		size := baseSize + v
+		data := make([]byte, size)
+		r.Read(data)
+		entries[i] = testutil.File(fmt.Sprintf("file%d", i), string(data))
+	}
+	return entries
+}
+
+func benchmarkZtocGeneration(b *testing.B, algo string, generator tarGenerator) {
+	testcases := []struct {
+		name             string
+		spansize         int
+		fileSize         int
+		fileSizeVariance float64
+		fileCount        int
+	}{
+		{
+			name:      "one small file",
+			spansize:  1 << 20,
+			fileSize:  4000,
+			fileCount: 1,
+		},
+		{
+			name:      "one large file",
+			spansize:  1 << 20,
+			fileSize:  20_000_000,
+			fileCount: 1,
+		},
+		{
+			name:             "many small files",
+			spansize:         1 << 20,
+			fileSize:         4000,
+			fileSizeVariance: float64(0.1),
+			fileCount:        5000,
+		},
+		{
+			name:             "several large files",
+			spansize:         1 << 20,
+			fileSize:         20_000_000,
+			fileSizeVariance: float64(0.1),
+			fileCount:        7,
+		},
+	}
+	for _, tc := range testcases {
+		tc := tc
+		tarfile, _, _ := generator(b, algo, ztocGenBenchmarkFiles(tc.fileSize, tc.fileSizeVariance, tc.fileCount))
+		builder := NewBuilder("benchmark")
+		b.Run(tc.name, func(b *testing.B) {
+			for i := 0; i < b.N; i++ {
+				builder.BuildZtoc(tarfile, int64(tc.spansize), WithCompression(algo))
+			}
+		})
+
 	}
 }
 
