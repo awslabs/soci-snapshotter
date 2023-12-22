@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1703116258304,
+  "lastUpdate": 1703204323631,
   "repoUrl": "https://github.com/awslabs/soci-snapshotter",
   "entries": {
     "Soci Benchmark": [
@@ -2936,6 +2936,48 @@ window.BENCHMARK_DATA = {
           {
             "name": "SociFullECR-public-rabbitmq-pullTaskDuration",
             "value": 1.4135,
+            "unit": "Seconds",
+            "extra": "P90"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "turyasin@amazon.com",
+            "name": "Yasin Turan",
+            "username": "turan18"
+          },
+          "committer": {
+            "email": "66654647+turan18@users.noreply.github.com",
+            "name": "Yasin Turan",
+            "username": "turan18"
+          },
+          "distinct": true,
+          "id": "666ef0467e8111d1e57a43d9273ac8bcc770edca",
+          "message": "Unified HTTP client\n\nRight now, the snapshotter maintains a single HTTP client for fetching\nSOCI artifacts and `n` clients for every layer in an image (used to fetch\nspans/layers). Every client maintains its own credential cache, meaning\nwe have to re-authenticate an extra `n` times every time we need to fetch/\nrefresh credentials. This change unifies client creation at a global level\n(a single global retryable client) and authentication at an image level,\nwhere we we create a new `AuthClient` for every image. The AuthClient is\nresponsible for authenticating with registries and sending the request\nout via it's inner retryable HTTP client. This effectively reduces the\namount of round trips we make to registries/authorization servers,\nreducing the risk of network failures.\n\nThis change also fixes a bug in our blob/http fetcher where we always\ncache the base blob URL as the redirected/\"real\" URL, even if the\nblob existed in a nested storage backend.\n\nSigned-off-by: Yasin Turan <turyasin@amazon.com>",
+          "timestamp": "2023-12-21T19:09:05-05:00",
+          "tree_id": "d9440d0145a0b7530fc3c228316c60f6c79d151e",
+          "url": "https://github.com/awslabs/soci-snapshotter/commit/666ef0467e8111d1e57a43d9273ac8bcc770edca"
+        },
+        "date": 1703204323107,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "SociFullECR-public-rabbitmq-lazyTaskDuration",
+            "value": 15.847999999999999,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-rabbitmq-localTaskDuration",
+            "value": 7.2989999999999995,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-rabbitmq-pullTaskDuration",
+            "value": 2.9905,
             "unit": "Seconds",
             "extra": "P90"
           }
