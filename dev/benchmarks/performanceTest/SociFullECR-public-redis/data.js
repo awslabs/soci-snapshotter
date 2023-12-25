@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1703204325611,
+  "lastUpdate": 1703490544194,
   "repoUrl": "https://github.com/awslabs/soci-snapshotter",
   "entries": {
     "Soci Benchmark": [
@@ -3183,6 +3183,47 @@ window.BENCHMARK_DATA = {
           {
             "name": "SociFullECR-public-redis-pullTaskDuration",
             "value": 1.5259999999999998,
+            "unit": "Seconds",
+            "extra": "P90"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "anhtt109@vpbank.com.vn",
+            "name": "Tuan Anh Tran"
+          },
+          "committer": {
+            "email": "55555210+sondavidb@users.noreply.github.com",
+            "name": "David Son",
+            "username": "sondavidb"
+          },
+          "distinct": true,
+          "id": "91ce7a8fcb74deb01a950b891b7c8ad5d0dcb2e1",
+          "message": "fix: fix: strip path in release tar\n\nSigned-off-by: Tuan Anh Tran <anhtt109@vpbank.com.vn>",
+          "timestamp": "2023-12-24T23:39:32-08:00",
+          "tree_id": "b588108a93af66d065e4a1fc252b7b9c93e4f093",
+          "url": "https://github.com/awslabs/soci-snapshotter/commit/91ce7a8fcb74deb01a950b891b7c8ad5d0dcb2e1"
+        },
+        "date": 1703490542942,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "SociFullECR-public-redis-lazyTaskDuration",
+            "value": 3.4435000000000002,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-redis-localTaskDuration",
+            "value": 0.018,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-redis-pullTaskDuration",
+            "value": 1.371,
             "unit": "Seconds",
             "extra": "P90"
           }
