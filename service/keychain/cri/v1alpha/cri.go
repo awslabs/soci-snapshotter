@@ -81,8 +81,7 @@ type instrumentedAlphaService struct {
 	configMu sync.Mutex
 }
 
-func (in *instrumentedAlphaService) credentials(imgRefSpec reference.Spec) (string, string, error) {
-	host := imgRefSpec.Hostname()
+func (in *instrumentedAlphaService) credentials(imgRefSpec reference.Spec, host string) (string, string, error) {
 	if host == "docker.io" || host == "registry-1.docker.io" {
 		// Creds of "docker.io" is stored keyed by "https://index.docker.io/v1/".
 		host = "index.docker.io"

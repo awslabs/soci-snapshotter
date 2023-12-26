@@ -47,7 +47,7 @@ import (
 )
 
 // Credential returns a set of credentials for a given image.
-type Credential func(imgRefSpec reference.Spec) (string, string, error)
+type Credential func(imgRefSpec reference.Spec, host string) (string, string, error)
 
 // RegistryHosts returns configurations for registry hosts that provide a given image.
 type RegistryHosts func(imgRefSpec reference.Spec) ([]docker.RegistryHost, error)
@@ -58,7 +58,7 @@ type RegistryHosts func(imgRefSpec reference.Spec) ([]docker.RegistryHost, error
 type RegistryManager struct {
 	// retryClient is the global retryable client
 	retryClient *rhttp.Client
-	// header is the global HTTP header to be attached to every request.
+	// header is the global HTTP header to be attached to every request
 	header http.Header
 	// registryConfig is the per-host registry config
 	registryConfig config.ResolverConfig
@@ -95,22 +95,29 @@ func (rm *RegistryManager) AsRegistryHosts() RegistryHosts {
 	return func(imgRefSpec reference.Spec) ([]docker.RegistryHost, error) {
 		// Check whether registry host configurations exist for this image ref
 		// in the cache.
-		if hostsConfigurations, ok := rm.registryHostMap.Load(imgRefSpec.String()); ok {
-			return hostsConfigurations.([]docker.RegistryHost), nil
+		if hostConfigurations, ok := rm.registryHostMap.Load(imgRefSpec.String()); ok {
+			return hostConfigurations.([]docker.RegistryHost), nil
 		}
 
 		var registryHosts []docker.RegistryHost
+
+		// Create an AuthClient for this image reference.
+		authClient, err := newAuthClient(rm.retryClient, rm.header, multiCredsFuncs(imgRefSpec, rm.creds...))
+		if err != nil {
+			return nil, err
+		}
+
 		host := imgRefSpec.Hostname()
 		// If mirrors exist for the host that provides this image, create new
 		// `RegistryHost` configurations for them.
 		if hostConfig, ok := rm.registryConfig.Host[host]; ok {
 			for _, mirror := range hostConfig.Mirrors {
 				// Ensure the mirror host is a valid host url.
-				mirrorHostURL, err := url.Parse(mirror.Host)
+				url, err := url.Parse(mirror.Host)
 				if err != nil {
 					return nil, fmt.Errorf("failed to parse mirror host: %q: %w", mirror.Host, err)
 				}
-				host, err := docker.DefaultHost(mirrorHostURL.Host)
+				host, err := docker.DefaultHost(url.Host)
 				if err != nil {
 					return nil, err
 				}
@@ -118,9 +125,12 @@ func (rm *RegistryManager) AsRegistryHosts() RegistryHosts {
 				if mirror.Insecure {
 					scheme = "http"
 				}
+				// Create a copy of the auth and retry client's so we don't overwrite the existing ones.
+				authClient := authClient
 				retryClient := rm.retryClient
-				// If a RequestTimeoutSec is set (non-zero) and if its value differs from the
-				// timeout set in the global retryable client, we will need to create a new one.
+
+				// If a RequestTimeoutSec is set (non-zero) and it differs from the timeout set in
+				// the global retryable client, we will need to create a new one.
 				if mirror.RequestTimeoutSec != 0 && mirror.RequestTimeoutSec != int64(retryClient.HTTPClient.Timeout) {
 					retryClient = CloneRetryableClient(retryClient)
 					if mirror.RequestTimeoutSec < 0 {
@@ -131,32 +141,23 @@ func (rm *RegistryManager) AsRegistryHosts() RegistryHosts {
 					// Re-use the same transport so we can use a single
 					// global connection pool.
 					retryClient.HTTPClient.Transport = rm.retryClient.HTTPClient.Transport
+					// Create a clone of the AuthClient with the new retryable client.
+					authClient = authClient.CloneWithNewClient(retryClient)
 				}
-				mirrorImgRefSpec, err := newRefSpecWithHost(imgRefSpec, host)
-				if err != nil {
-					return nil, err
-				}
-				authClient, err := newAuthClient(retryClient, rm.header, multiCredsFuncs(mirrorImgRefSpec, rm.creds...))
-				if err != nil {
-					return nil, err
-				}
-				if mirrorHostURL.Path == "" {
-					mirrorHostURL.Path = "/v2"
+				if url.Path == "" {
+					url.Path = "/v2"
 				}
 				registryHosts = append(registryHosts, docker.RegistryHost{
 					Client:       authClient.StandardClient(),
 					Host:         host,
 					Scheme:       scheme,
-					Path:         mirrorHostURL.Path,
+					Path:         url.Path,
 					Capabilities: docker.HostCapabilityPull | docker.HostCapabilityResolve,
 				})
 			}
 		}
+
 		// Create a `RegistryHost` configuration for this host.
-		authClient, err := newAuthClient(rm.retryClient, rm.header, multiCredsFuncs(imgRefSpec, rm.creds...))
-		if err != nil {
-			return nil, err
-		}
 		host, err = docker.DefaultHost(host)
 		if err != nil {
 			return nil, err
@@ -182,9 +183,9 @@ func (rm *RegistryManager) AsRegistryHosts() RegistryHosts {
 // Note: We close over an image reference so that our invdidual credential providers
 // can store+index credentials at an image level.
 func multiCredsFuncs(imgRefSpec reference.Spec, credsFuncs ...Credential) func(string) (string, string, error) {
-	return func(_ string) (string, string, error) {
+	return func(host string) (string, string, error) {
 		for _, f := range credsFuncs {
-			if username, secret, err := f(imgRefSpec); err != nil {
+			if username, secret, err := f(imgRefSpec, host); err != nil {
 				return "", "", err
 			} else if !(username == "" && secret == "") {
 				return username, secret, nil

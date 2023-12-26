@@ -127,8 +127,7 @@ func RegistryHostsFromCRIConfig(ctx context.Context, config Registry, credsFuncs
 		return func(imgRefSpec reference.Spec) ([]docker.RegistryHost, error) {
 			host := imgRefSpec.Hostname()
 			hostOptions := dconfig.HostOptions{}
-			hostOptions.Credentials = multiCredsFuncs(imgRefSpec, append(credsFuncs, func(imgRefSpec reference.Spec) (string, string, error) {
-				host := imgRefSpec.Hostname()
+			hostOptions.Credentials = multiCredsFuncs(imgRefSpec, append(credsFuncs, func(imgRefSpec reference.Spec, host string) (string, string, error) {
 				config := config.Configs[host]
 				if config.Auth != nil {
 					return ParseAuth(toRuntimeAuthConfig(*config.Auth), host)

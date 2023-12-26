@@ -40,8 +40,7 @@ import (
 	"github.com/docker/cli/cli/config"
 )
 
-func DockerCreds(imgRefSpec reference.Spec) (string, string, error) {
-	host := imgRefSpec.Hostname()
+func DockerCreds(host string) (string, string, error) {
 	cf, err := config.Load("")
 	if err != nil {
 		return "", "", nil
@@ -62,7 +61,10 @@ func DockerCreds(imgRefSpec reference.Spec) (string, string, error) {
 }
 
 func NewDockerConfigKeychain(ctx context.Context) resolver.Credential {
-	return func(imgRefSpec reference.Spec) (string, string, error) {
-		return DockerCreds(imgRefSpec)
+	// We do not index by image reference because the docker config only
+	// supports indexing credentials by root URL/hostname.
+	// eg: host.io and not host.io/namespace
+	return func(_ reference.Spec, host string) (string, string, error) {
+		return DockerCreds(host)
 	}
 }
