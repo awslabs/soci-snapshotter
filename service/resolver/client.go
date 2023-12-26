@@ -32,7 +32,6 @@ import (
 	"github.com/awslabs/soci-snapshotter/config"
 	socihttp "github.com/awslabs/soci-snapshotter/internal/http"
 	"github.com/awslabs/soci-snapshotter/version"
-	"github.com/containerd/containerd/reference"
 	"github.com/containerd/containerd/remotes/docker"
 	"github.com/containerd/log"
 	rhttp "github.com/hashicorp/go-retryablehttp"
@@ -219,7 +218,6 @@ func shouldAuthenticate(resp *http.Response) bool {
 	case http.StatusUnauthorized:
 		return true
 	case http.StatusForbidden:
-
 		/*
 			Although in most cases 403 responses represent authorization issues that generally
 			cannot be resolved by re-authentication, some registries like ECR, will return a 403 on
@@ -257,7 +255,6 @@ func shouldAuthenticate(resp *http.Response) bool {
 			}
 		}
 	case http.StatusBadRequest:
-
 		/*
 			S3 returns a 400 on token expiry with an XML encoded response body.
 			See: https://docs.aws.amazon.com/AmazonS3/latest/API/ErrorResponses.html#ErrorCodeList
@@ -304,23 +301,4 @@ func shouldAuthenticate(resp *http.Response) bool {
 func newContextWithScope(origReqCtx context.Context) context.Context {
 	scope := docker.GetTokenScopes(origReqCtx, []string{})
 	return docker.WithScope(context.Background(), strings.Join(scope, ""))
-}
-
-// newRefSpecWithHost take a reference spec and returns a new one with the host portion
-// replaced with a given host.
-//
-// Partially copied over from https://github.com/containerd/containerd/blob/e5e7f613cf8bf481430dcf4e79c00c80e9d2683c/reference/reference.go
-// Original Copyright the containerd Authors. Licensed under the Apache License, Version 2.0 (the "License").
-func newRefSpecWithHost(imgRefSpec reference.Spec, host string) (reference.Spec, error) {
-	i := strings.Index(imgRefSpec.Locator, "/")
-	path := imgRefSpec.Locator[i+1:]
-	tag := imgRefSpec.Object
-	if tag[:1] != "@" {
-		tag = fmt.Sprintf(":%s", tag)
-	}
-	newRefSpec, err := reference.Parse(fmt.Sprintf("%s/%s%s", host, path, tag))
-	if err != nil {
-		return reference.Spec{}, err
-	}
-	return newRefSpec, nil
 }
