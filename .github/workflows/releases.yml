@@ -12,7 +12,6 @@ permissions:
   deployments: write
 
 jobs:
-  # Any way we can just call build.yml?
   test:
     runs-on: ubuntu-20.04
     steps:
@@ -39,7 +38,13 @@ jobs:
       - run: make integration
 
   generate-artifacts:
+    needs: [test, integration]
     runs-on: ubuntu-20.04
+    env:
+      # Set during setup.
+      RELEASE_TAG: ''
+      DYNAMIC_BINARY_NAME: ''
+      STATIC_BINARY_NAME: ''
     steps:
     - uses: actions/checkout@v4
     - name: Setup and export variables
@@ -47,13 +52,13 @@ jobs:
         export release_tag=${GITHUB_REF#refs/*/} # Strip down to raw tag name
         export release_version=${release_tag/v/} # Remove v from tag name
 
-        echo "release_tag=${release_tag}">> $GITHUB_ENV
-        echo "dynamic_binary_name=soci-snapshotter-${release_version}-linux-amd64.tar.gz" >> $GITHUB_ENV
-        echo "static_binary_name=soci-snapshotter-${release_version}-linux-amd64-static.tar.gz" >> $GITHUB_ENV
+        echo "RELEASE_TAG=${release_tag}" >> $GITHUB_ENV
+        echo "DYNAMIC_BINARY_NAME=soci-snapshotter-${release_version}-linux-amd64.tar.gz" >> $GITHUB_ENV
+        echo "STATIC_BINARY_NAME=soci-snapshotter-${release_version}-linux-amd64-static.tar.gz" >> $GITHUB_ENV
         
         mkdir release
     - name: Create release binaries
-      run: make RELEASE_TAG=${{ env.release_tag }} release
+      run: make RELEASE_TAG=${{ env.RELEASE_TAG }} release
     - uses: actions/upload-artifact@v4
       with:
         name: artifacts
@@ -61,11 +66,22 @@ jobs:
         if-no-files-found: error
 
     outputs:
-      dynamic_binary_name: ${{ env.dynamic_binary_name }}
-      static_binary_name: ${{ env.static_binary_name }}
+      release_tag: ${{ env.RELEASE_TAG }}
+      dynamic_binary_name: ${{ env.DYNAMIC_BINARY_NAME }}
+      static_binary_name: ${{ env.STATIC_BINARY_NAME }}
+  
+  validate-artifacts:
+    needs: generate-artifacts
+    runs-on: ubuntu-20.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: artifacts
+      - run: bash scripts/verify-release-artifacts.sh ${{ needs.generate-artifacts.outputs.release_tag }}
 
   create-release:
-    needs: generate-artifacts
+    needs: [generate-artifacts, validate-artifacts]
     runs-on: ubuntu-20.04
     steps:
       - uses: actions/checkout@v4
