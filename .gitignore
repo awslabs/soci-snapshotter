@@ -1,4 +1,5 @@
 /out
+/release
 *.db
 .vscode/
 go.work
