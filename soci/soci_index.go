@@ -25,6 +25,7 @@ import (
 	"io"
 	"os"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 
@@ -53,16 +54,20 @@ const (
 	IndexAnnotationImageLayerDigest = "com.amazon.soci.image-layer-digest"
 	// IndexAnnotationBuildToolIdentifier is the index annotation for build tool identifier
 	IndexAnnotationBuildToolIdentifier = "com.amazon.soci.build-tool-identifier"
-	// IndexAnnotationXattrPresent is the index annotation if the layer has
+	// IndexAnnotationDisableXAttrs is the index annotation if the layer has
 	// extended attributes
-	IndexAnnotationXattrPresent = "com.amazon.soci.xattr-present"
+	IndexAnnotationDisableXAttrs = "com.amazon.soci.disable-xattrs"
 
 	defaultSpanSize            = int64(1 << 22) // 4MiB
 	defaultMinLayerSize        = 10 << 20       // 10MiB
-	defaultXAttr               = false
 	defaultBuildToolIdentifier = "AWS SOCI CLI v0.1"
 	// emptyJSONObjectDigest is the digest of the content "{}".
 	emptyJSONObjectDigest = "sha256:44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a"
+	// whiteoutOpaqueDir is a special file that indicates that a directory is opaque and all files and subdirectories
+	// should be hidden. See https://github.com/opencontainers/image-spec/blob/v1.1.0-rc5/layer.md#whiteouts
+	// [soci-snapshotter] NOTE: this is a duplicate of fs/layer/layer.go so that the SOCI package and the snapshotter can
+	// be independent (and SOCI could be split out into it's own module in the future).
+	whiteoutOpaqueDir = ".wh..wh..opq"
 )
 
 var (
@@ -210,7 +215,39 @@ type buildConfig struct {
 	buildToolIdentifier string
 	artifactsDb         *ArtifactsDb
 	platform            ocispec.Platform
-	xattr               bool
+	optimizations       []Optimization
+}
+
+func (b *buildConfig) hasOptimization(o Optimization) bool {
+	for _, optimization := range b.optimizations {
+		if o == optimization {
+			return true
+		}
+	}
+	return false
+}
+
+// Optimization represents an optional optimization to be applied when building the SOCI index
+type Optimization string
+
+const (
+	// XAttrOptimization optimizes xattrs by disabling them for layers where there are no xattrs or opaque directories
+	XAttrOptimization Optimization = "xattr"
+	// Be sure to add any new optimizations to `Optimizations` below
+)
+
+// Optimizations contains the list of all known optimizations
+var Optimizations = []Optimization{XAttrOptimization}
+
+// ParseOptimization parses a string into a known optimization.
+// If the string does not match a known optimization, an error is returned.
+func ParseOptimization(s string) (Optimization, error) {
+	for _, optimization := range Optimizations {
+		if s == string(optimization) {
+			return optimization, nil
+		}
+	}
+	return "", fmt.Errorf("optimization %s is not a valid optimization %v", s, Optimizations)
 }
 
 // BuildOption specifies a config change to build soci indices.
@@ -232,10 +269,10 @@ func WithMinLayerSize(minLayerSize int64) BuildOption {
 	}
 }
 
-// WithXAttr
-func WithXAttrOptimization(xattr bool) BuildOption {
+// WithOptimizations enables optional optimizations when building the SOCI Index (experimental)
+func WithOptimizations(optimizations []Optimization) BuildOption {
 	return func(c *buildConfig) error {
-		c.xattr = xattr
+		c.optimizations = optimizations
 		return nil
 	}
 }
@@ -281,7 +318,6 @@ func NewIndexBuilder(contentStore content.Store, blobStore orascontent.Storage, 
 		minLayerSize:        defaultMinLayerSize,
 		buildToolIdentifier: defaultBuildToolIdentifier,
 		platform:            defaultPlatform,
-		xattr:               defaultXAttr,
 	}
 
 	for _, opt := range opts {
@@ -474,9 +510,7 @@ func (b *IndexBuilder) buildSociLayer(ctx context.Context, desc ocispec.Descript
 		IndexAnnotationImageLayerMediaType: desc.MediaType,
 		IndexAnnotationImageLayerDigest:    desc.Digest.String(),
 	}
-	if b.config.xattr {
-		ztocDesc.Annotations[IndexAnnotationXattrPresent] = doesZtocHaveXattr(toc)
-	}
+	b.maybeAddDisableXattrAnnotation(&ztocDesc, toc)
 	return &ztocDesc, err
 }
 
@@ -613,12 +647,21 @@ func WriteSociIndex(ctx context.Context, indexWithMetadata *IndexWithMetadata, c
 	return artifactsDb.WriteArtifactEntry(entry)
 }
 
-func doesZtocHaveXattr(ztoc *ztoc.Ztoc) string {
+func (b *IndexBuilder) maybeAddDisableXattrAnnotation(ztocDesc *ocispec.Descriptor, ztoc *ztoc.Ztoc) {
+	if b.config.hasOptimization(XAttrOptimization) && shouldDisableXattrs(ztoc) {
+		if ztocDesc.Annotations == nil {
+			ztocDesc.Annotations = make(map[string]string, 1)
+		}
+		ztocDesc.Annotations[IndexAnnotationDisableXAttrs] = "true"
+	}
+}
+
+func shouldDisableXattrs(ztoc *ztoc.Ztoc) bool {
 	for _, md := range ztoc.TOC.FileMetadata {
-		if len(md.Xattrs()) > 0 {
-			return "true"
+		if len(md.Xattrs()) > 0 || strings.HasSuffix(md.Name, whiteoutOpaqueDir) {
+			return false
 		}
 	}
 
-	return "false"
+	return true
 }

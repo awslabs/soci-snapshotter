@@ -23,6 +23,7 @@ import (
 	"errors"
 	"testing"
 
+	"github.com/awslabs/soci-snapshotter/ztoc"
 	"github.com/containerd/containerd/images"
 	"github.com/google/go-cmp/cmp"
 	"github.com/opencontainers/go-digest"
@@ -224,6 +225,79 @@ func TestBuildSociIndexWithLimits(t *testing.T) {
 				if ztoc != nil {
 					t.Fatalf("%v: ztoc should've skipped", tc.name)
 				}
+			}
+		})
+	}
+}
+
+func TestDisableXattrs(t *testing.T) {
+	testcases := []struct {
+		name                string
+		metadata            []ztoc.FileMetadata
+		shouldDisableXattrs bool
+	}{
+		{
+			name: "ztoc with xattrs should not have xattrs disabled",
+			metadata: []ztoc.FileMetadata{
+				{
+					Name: "Xattrs",
+					PAXHeaders: map[string]string{
+						"SCHILY.xattr.user.any": "true",
+					},
+				},
+			},
+			shouldDisableXattrs: false,
+		},
+		{
+			name: "ztoc with opaque dirs should not have xattrs disabled",
+			metadata: []ztoc.FileMetadata{
+				{
+					Name: "dir/",
+				},
+				{
+					Name: "dir/" + whiteoutOpaqueDir,
+				},
+			},
+			shouldDisableXattrs: false,
+		},
+		{
+			name: "ztoc with no xattrs or opaque dirs should have xattrs disabled",
+			metadata: []ztoc.FileMetadata{
+				{
+					Name: "dir/",
+				},
+				{
+					Name: "dir/file",
+				},
+			},
+			shouldDisableXattrs: true,
+		},
+	}
+	for _, tc := range testcases {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			desc := ocispec.Descriptor{
+				MediaType:   "application/vnd.oci.image.layer.",
+				Size:        1,
+				Annotations: make(map[string]string, 1),
+			}
+			ztoc := ztoc.Ztoc{
+				TOC: ztoc.TOC{
+					FileMetadata: tc.metadata,
+				},
+			}
+
+			cs := newFakeContentStore()
+			blobStore := memory.New()
+			artifactsDb, err := newTestableDb()
+			if err != nil {
+				t.Fatalf("can't create a test db")
+			}
+			builder, _ := NewIndexBuilder(cs, blobStore, artifactsDb, WithOptimizations([]Optimization{XAttrOptimization}))
+			builder.maybeAddDisableXattrAnnotation(&desc, &ztoc)
+			disableXattrs := desc.Annotations[IndexAnnotationDisableXAttrs] == "true"
+			if disableXattrs != tc.shouldDisableXattrs {
+				t.Fatalf("expected xattrs to be disabled = %v, actual = %v", tc.shouldDisableXattrs, disableXattrs)
 			}
 		})
 	}
