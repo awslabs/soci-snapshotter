@@ -18,6 +18,7 @@ package commands
 
 import (
 	"errors"
+	"fmt"
 	"os"
 
 	"github.com/awslabs/soci-snapshotter/cmd/soci/commands/internal"
@@ -31,7 +32,7 @@ const (
 	buildToolIdentifier = "AWS SOCI CLI v0.1"
 	spanSizeFlag        = "span-size"
 	minLayerSizeFlag    = "min-layer-size"
-	xattrFlag           = "xattr-optimization"
+	optimizationFlag    = "optimizations"
 )
 
 // CreateCommand creates SOCI index for an image
@@ -54,15 +55,24 @@ var CreateCommand = cli.Command{
 			Usage: "Minimum layer size to build zTOC for. Smaller layers won't have zTOC and not lazy pulled. Default is 10 MiB.",
 			Value: 10 << 20,
 		},
-		cli.BoolFlag{
-			Name:  xattrFlag,
-			Usage: "If set to true layers without xattr will have xattr disabled, yielding a performance benefit. Does not effect layers where is xattrs are present. Default is False.",
+		cli.StringSliceFlag{
+			Name:  optimizationFlag,
+			Usage: fmt.Sprintf("(Experimental) Enable optional optimizations. Valid values are %v", soci.Optimizations),
 		},
 	),
 	Action: func(cliContext *cli.Context) error {
 		srcRef := cliContext.Args().Get(0)
 		if srcRef == "" {
 			return errors.New("source image needs to be specified")
+		}
+
+		var optimizations []soci.Optimization
+		for _, o := range cliContext.StringSlice(optimizationFlag) {
+			optimization, err := soci.ParseOptimization(o)
+			if err != nil {
+				return err
+			}
+			optimizations = append(optimizations, optimization)
 		}
 
 		client, ctx, cancel, err := internal.NewClient(cliContext)
@@ -79,7 +89,6 @@ var CreateCommand = cli.Command{
 		}
 		spanSize := cliContext.Int64(spanSizeFlag)
 		minLayerSize := cliContext.Int64(minLayerSizeFlag)
-		xattr := cliContext.Bool(xattrFlag)
 		// Creating the snapshotter's root path first if it does not exist, since this ensures, that
 		// it has the limited permission set as drwx--x--x.
 		// The subsequent oci.New creates a root path dir with too broad permission set.
@@ -110,7 +119,7 @@ var CreateCommand = cli.Command{
 			soci.WithMinLayerSize(minLayerSize),
 			soci.WithSpanSize(spanSize),
 			soci.WithBuildToolIdentifier(buildToolIdentifier),
-			soci.WithXAttrOptimization(xattr),
+			soci.WithOptimizations(optimizations),
 		}
 
 		for _, plat := range ps {

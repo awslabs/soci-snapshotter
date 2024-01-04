@@ -508,7 +508,7 @@ func (fs *filesystem) Mount(ctx context.Context, mountpoint string, labels map[s
 		FsName:        "soci", // name this filesystem as "soci"
 		Debug:         fs.debug,
 		Logger:        golog.New(logger, "", 0),
-		DisableXAttrs: l.NoXAttr(),
+		DisableXAttrs: l.DisableXAttrs(),
 	}
 	if _, err := exec.LookPath(fusermountBin); err == nil {
 		mountOpts.Options = []string{"suid"} // option for fusermount; allow setuid inside container

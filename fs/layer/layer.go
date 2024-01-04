@@ -106,8 +106,8 @@ type Layer interface {
 	// ReadAt reads this layer.
 	ReadAt([]byte, int64, ...remote.Option) (int, error)
 
-	//True if none of the files in the layer has an xattr
-	NoXAttr() bool
+	// DisableXAttrs determines whether this layer should have xattrs disabled
+	DisableXAttrs() bool
 
 	// Done releases the reference to this layer. The resources related to this layer will be
 	// discarded sooner or later. Queries after calling this function won't be serviced.
@@ -344,9 +344,9 @@ func (r *Resolver) Resolve(ctx context.Context, hosts []docker.RegistryHost, ref
 	if err != nil {
 		return nil, fmt.Errorf("failed to read layer: %w", err)
 	}
-	xattr := getXAttrAnnotation(sociDesc)
+	disableXattrs := getDisableXAttrAnnotation(sociDesc)
 	// Combine layer information together and cache it.
-	l := newLayer(r, desc, blobR, vr, bgLayerResolver, opCounter, xattr)
+	l := newLayer(r, desc, blobR, vr, bgLayerResolver, opCounter, disableXattrs)
 	r.layerCacheMu.Lock()
 	cachedL, done2, added := r.layerCache.Add(name, l)
 	r.layerCacheMu.Unlock()
@@ -408,7 +408,7 @@ func newLayer(
 	vr *reader.VerifiableReader,
 	bgResolver backgroundfetcher.Resolver,
 	opCounter *FuseOperationCounter,
-	hasXAttr bool,
+	disableXAttrs bool,
 ) *layer {
 	return &layer{
 		resolver:             resolver,
@@ -417,7 +417,7 @@ func newLayer(
 		verifiableReader:     vr,
 		bgResolver:           bgResolver,
 		fuseOperationCounter: opCounter,
-		hasXAttr:             hasXAttr,
+		disableXAttrs:        disableXAttrs,
 	}
 }
 
@@ -432,7 +432,7 @@ type layer struct {
 	r reader.Reader
 
 	fuseOperationCounter *FuseOperationCounter
-	hasXAttr             bool
+	disableXAttrs        bool
 
 	closed   bool
 	closedMu sync.Mutex
@@ -502,8 +502,8 @@ func (l *layer) ReadAt(p []byte, offset int64, opts ...remote.Option) (int, erro
 	return l.blob.ReadAt(p, offset, opts...)
 }
 
-func (l *layer) NoXAttr() bool {
-	return !l.hasXAttr
+func (l *layer) DisableXAttrs() bool {
+	return l.disableXAttrs
 }
 
 func (l *layer) close() error {
@@ -531,8 +531,8 @@ func (l *layer) isClosed() bool {
 	return closed
 }
 
-func getXAttrAnnotation(desc ocispec.Descriptor) bool {
-	stringVal, present := desc.Annotations[soci.IndexAnnotationXattrPresent]
+func getDisableXAttrAnnotation(desc ocispec.Descriptor) bool {
+	stringVal, present := desc.Annotations[soci.IndexAnnotationDisableXAttrs]
 	if !present {
 		return false
 	}
