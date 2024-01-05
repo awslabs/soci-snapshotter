@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1704305976077,
+  "lastUpdate": 1704495128071,
   "repoUrl": "https://github.com/awslabs/soci-snapshotter",
   "entries": {
     "Soci Benchmark": [
@@ -3308,6 +3308,48 @@ window.BENCHMARK_DATA = {
           {
             "name": "SociFullECR-public-redis-pullTaskDuration",
             "value": 1.484,
+            "unit": "Seconds",
+            "extra": "P90"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "walster@amazon.com",
+            "name": "Kern Walster",
+            "username": "Kern--"
+          },
+          "committer": {
+            "email": "kern.walster@gmail.com",
+            "name": "Kern Walster",
+            "username": "Kern--"
+          },
+          "distinct": true,
+          "id": "f925c9d9c1e8ca02fc6059467331d8d0dd2bede4",
+          "message": "Add ztoc generation benchmark\n\nWe have benchmarks for pulling and running images with OverlayFS vs\nSOCI, but we don't have any benchmarking for how long it takes to build\nztocs. This adds a benchmark for building ztocs to give us directional\ninformation about how the changes we make affect build times.\n\nSigned-off-by: Kern Walster <walster@amazon.com>",
+          "timestamp": "2024-01-05T14:45:29-08:00",
+          "tree_id": "a93c448548cb6f6cc723e903be03c9548cd332ae",
+          "url": "https://github.com/awslabs/soci-snapshotter/commit/f925c9d9c1e8ca02fc6059467331d8d0dd2bede4"
+        },
+        "date": 1704495125238,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "SociFullECR-public-redis-lazyTaskDuration",
+            "value": 0.601,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-redis-localTaskDuration",
+            "value": 0.019,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-redis-pullTaskDuration",
+            "value": 0.8035,
             "unit": "Seconds",
             "extra": "P90"
           }
