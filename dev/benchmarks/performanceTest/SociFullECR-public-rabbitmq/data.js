@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1704495125743,
+  "lastUpdate": 1704499241695,
   "repoUrl": "https://github.com/awslabs/soci-snapshotter",
   "entries": {
     "Soci Benchmark": [
@@ -3145,6 +3145,48 @@ window.BENCHMARK_DATA = {
           {
             "name": "SociFullECR-public-rabbitmq-pullTaskDuration",
             "value": 0.851,
+            "unit": "Seconds",
+            "extra": "P90"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "macedonv@amazon.com",
+            "name": "Austin Vazquez",
+            "username": "austinvazquez"
+          },
+          "committer": {
+            "email": "55906459+austinvazquez@users.noreply.github.com",
+            "name": "Austin Vazquez",
+            "username": "austinvazquez"
+          },
+          "distinct": true,
+          "id": "88bcf75788de454dd03137b65ed29c7e662e0333",
+          "message": "Add verification step to release automation\n\nThis change includes enhancements to the release automation workflow.\nThe primary focus is adding a release artifact verification script to\nthe automation to validate release artifact contents and checksums.\n\nOther minor changes include reordering of release automation workflow\njobs and declaration of job environment variables to resolve warnings.\n\nSigned-off-by: Austin Vazquez <macedonv@amazon.com>",
+          "timestamp": "2024-01-05T17:53:13-06:00",
+          "tree_id": "a5c0a4662d4f3a3e6f689665fc4889f0b8866402",
+          "url": "https://github.com/awslabs/soci-snapshotter/commit/88bcf75788de454dd03137b65ed29c7e662e0333"
+        },
+        "date": 1704499237878,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "SociFullECR-public-rabbitmq-lazyTaskDuration",
+            "value": 8.840499999999999,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-rabbitmq-localTaskDuration",
+            "value": 7.333,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-rabbitmq-pullTaskDuration",
+            "value": 0.8694999999999999,
             "unit": "Seconds",
             "extra": "P90"
           }
