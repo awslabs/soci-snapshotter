@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1704495129758,
+  "lastUpdate": 1704499242941,
   "repoUrl": "https://github.com/awslabs/soci-snapshotter",
   "entries": {
     "Soci Benchmark": [
@@ -3309,6 +3309,48 @@ window.BENCHMARK_DATA = {
           {
             "name": "SociFullECR-public-ffmpeg-pullTaskDuration",
             "value": 1.3235000000000001,
+            "unit": "Seconds",
+            "extra": "P90"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "macedonv@amazon.com",
+            "name": "Austin Vazquez",
+            "username": "austinvazquez"
+          },
+          "committer": {
+            "email": "55906459+austinvazquez@users.noreply.github.com",
+            "name": "Austin Vazquez",
+            "username": "austinvazquez"
+          },
+          "distinct": true,
+          "id": "88bcf75788de454dd03137b65ed29c7e662e0333",
+          "message": "Add verification step to release automation\n\nThis change includes enhancements to the release automation workflow.\nThe primary focus is adding a release artifact verification script to\nthe automation to validate release artifact contents and checksums.\n\nOther minor changes include reordering of release automation workflow\njobs and declaration of job environment variables to resolve warnings.\n\nSigned-off-by: Austin Vazquez <macedonv@amazon.com>",
+          "timestamp": "2024-01-05T17:53:13-06:00",
+          "tree_id": "a5c0a4662d4f3a3e6f689665fc4889f0b8866402",
+          "url": "https://github.com/awslabs/soci-snapshotter/commit/88bcf75788de454dd03137b65ed29c7e662e0333"
+        },
+        "date": 1704499238981,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "SociFullECR-public-ffmpeg-lazyTaskDuration",
+            "value": 0.7995,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-ffmpeg-localTaskDuration",
+            "value": 0.0085,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-ffmpeg-pullTaskDuration",
+            "value": 1.5699999999999998,
             "unit": "Seconds",
             "extra": "P90"
           }
