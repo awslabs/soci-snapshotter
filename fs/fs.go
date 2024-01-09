@@ -346,6 +346,20 @@ func (fs *filesystem) MountLocal(ctx context.Context, mountpoint string, labels 
 	}
 	unpacker := NewLayerUnpacker(fetcher, archive)
 	desc := s.Target
+
+	// If no descriptor size is given, resolve the layer
+	// to populate it
+	if desc.Size == 0 {
+		// In remoteStore.Reference, Registry and Target should be correct.
+		// However, we need Reference to point to the current layer.
+		blobRef := remoteStore.Reference
+		blobRef.Reference = s.Target.Digest.String()
+		desc, err = remoteStore.Blobs().Resolve(ctx, blobRef.String())
+		if err != nil {
+			return fmt.Errorf("cannot resolve size of layer (%s): %w", blobRef.String(), err)
+		}
+	}
+
 	err = unpacker.Unpack(ctx, desc, mountpoint, mounts)
 	if err != nil {
 		return fmt.Errorf("cannot unpack the layer: %w", err)
