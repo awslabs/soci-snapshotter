@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1704499246067,
+  "lastUpdate": 1704813570794,
   "repoUrl": "https://github.com/awslabs/soci-snapshotter",
   "entries": {
     "Soci Benchmark": [
@@ -3351,6 +3351,48 @@ window.BENCHMARK_DATA = {
           {
             "name": "SociFullECR-public-busybox-pullTaskDuration",
             "value": 0.6955,
+            "unit": "Seconds",
+            "extra": "P90"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "macedonv@amazon.com",
+            "name": "Austin Vazquez",
+            "username": "austinvazquez"
+          },
+          "committer": {
+            "email": "55906459+austinvazquez@users.noreply.github.com",
+            "name": "Austin Vazquez",
+            "username": "austinvazquez"
+          },
+          "distinct": true,
+          "id": "44ab5b734c6141b1edc72a3b9cc0df9dd840919d",
+          "message": "Fix containerd socket address when using containerd as content store\n\nPreviously the CLI and snapshotter service would use\n'/run/containerd/containerd.sock' as the containerd socket when using\ncontainerd as content store. This resulted in errors for users not using\nthe default install path for containerd. This change allows for pass\nthrough of `--address` flag to content store and configuration of\ncontaienrd socket in SOCI config.toml.\n\nSigned-off-by: Austin Vazquez <macedonv@amazon.com>",
+          "timestamp": "2024-01-09T09:12:19-06:00",
+          "tree_id": "83043e1d13d0c3d40a0d4c04f18fb2c65e7668eb",
+          "url": "https://github.com/awslabs/soci-snapshotter/commit/44ab5b734c6141b1edc72a3b9cc0df9dd840919d"
+        },
+        "date": 1704813570034,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "SociFullECR-public-busybox-lazyTaskDuration",
+            "value": 0.0085,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-busybox-localTaskDuration",
+            "value": 0.0055,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-busybox-pullTaskDuration",
+            "value": 1.067,
             "unit": "Seconds",
             "extra": "P90"
           }
