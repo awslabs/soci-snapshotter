@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1704813572775,
+  "lastUpdate": 1704813605987,
   "repoUrl": "https://github.com/awslabs/soci-snapshotter",
   "entries": {
     "Soci Benchmark": [
@@ -3270,6 +3270,48 @@ window.BENCHMARK_DATA = {
           {
             "name": "SociFullECR-public-node-pullTaskDuration",
             "value": 1.984,
+            "unit": "Seconds",
+            "extra": "P90"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "turyasin@amazon.com",
+            "name": "Yasin Turan",
+            "username": "turan18"
+          },
+          "committer": {
+            "email": "66654647+turan18@users.noreply.github.com",
+            "name": "Yasin Turan",
+            "username": "turan18"
+          },
+          "distinct": true,
+          "id": "a8d99b93c13c9f96e771ce36cdf395bf80f7a88d",
+          "message": "Revert Credential function signature\n\nCommit 666ef04 introduced the notion of an `AuthClient`. We create new\n`AuthClient`'s for every unique image reference since credentials can be\nscoped to specific images/repositories. This also included mirrors,\nmeaning mirror credentials are completely independent of the host\ncredentials. For the most part this is correct, but the CRI\nimplementation in `containerd` does not do this, instead they try to use\nthe same CRI/kubelet credentials for every endpoint (host and mirrors),\nunless there are host credentials directly provided in the config. We should\nadopt this same policy as-well. This means we'll have to re-introduce the\n`host` argument in our `Credential` type, so that when we attempt to get\ncredentials through our CRI implementation for a mirror, we try to use\nthe credentials for the base host first. If that fails, we can try other\ncredential providers using the `host` argument as our index.\n\nThis also prevents us from blindly sending the credentials we have\ncached in our CRI implementation for a specific image reference when the\nauthorizer asks for a set of credentials for a host.\n\neg: If we make a request for image ref `host.io/namespace/repo:latest`\nand we somehow get a 401 response from some other host `differenthost.io`,\nwe shouldn't send the credentials for `host.io/namespace/repo:latest`.\n\nSigned-off-by: Yasin Turan <turyasin@amazon.com>",
+          "timestamp": "2024-01-09T10:13:03-05:00",
+          "tree_id": "5f22db046f18ff2a283a58d4d26e652fe5dd2515",
+          "url": "https://github.com/awslabs/soci-snapshotter/commit/a8d99b93c13c9f96e771ce36cdf395bf80f7a88d"
+        },
+        "date": 1704813605130,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "SociFullECR-public-node-lazyTaskDuration",
+            "value": 1.424,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-node-localTaskDuration",
+            "value": 0.4535,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-node-pullTaskDuration",
+            "value": 1.7345000000000002,
             "unit": "Seconds",
             "extra": "P90"
           }
