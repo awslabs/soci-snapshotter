@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1704914091520,
+  "lastUpdate": 1704919129192,
   "repoUrl": "https://github.com/awslabs/soci-snapshotter",
   "entries": {
     "Soci Benchmark": [
@@ -3313,6 +3313,48 @@ window.BENCHMARK_DATA = {
           {
             "name": "SociFullECR-public-rabbitmq-pullTaskDuration",
             "value": 0.8385,
+            "unit": "Seconds",
+            "extra": "P90"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "davbson@amazon.com",
+            "name": "David Son",
+            "username": "sondavidb"
+          },
+          "committer": {
+            "email": "55555210+sondavidb@users.noreply.github.com",
+            "name": "David Son",
+            "username": "sondavidb"
+          },
+          "distinct": true,
+          "id": "2b56440396ffcb8403e82b1f57d528704a5b2084",
+          "message": "Eagerly resolve local blobs\n\nFor local snapshots, we previously encountered a bug where the\nsize of a layer was resported as zero in its descriptor. This caused the\nFetch function to attempt to resolve it as a manifest, which would then\ncause the local snapshot to defer to container runtime, causing\ncontainerd to fetch all remaining layers ahead of time.\nThis change resolves the local blob earlier to populate\nthe size field, avoiding this issue.\n\nSigned-off-by: David Son <davbson@amazon.com>",
+          "timestamp": "2024-01-10T12:31:36-08:00",
+          "tree_id": "b595ef98cc1cd0b41af9e7e8c5c817ea505a36c5",
+          "url": "https://github.com/awslabs/soci-snapshotter/commit/2b56440396ffcb8403e82b1f57d528704a5b2084"
+        },
+        "date": 1704919124191,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "SociFullECR-public-rabbitmq-lazyTaskDuration",
+            "value": 8.9985,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-rabbitmq-localTaskDuration",
+            "value": 7.185499999999999,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-rabbitmq-pullTaskDuration",
+            "value": 1.3755000000000002,
             "unit": "Seconds",
             "extra": "P90"
           }
