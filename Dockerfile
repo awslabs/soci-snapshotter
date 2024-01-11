@@ -15,13 +15,15 @@
 ARG CONTAINERD_VERSION=1.6.26
 ARG RUNC_VERSION=1.1.5
 ARG NERDCTL_VERSION=1.7.1
+ARG GO_VERSION=1.20.13
 
-FROM golang:1.20.12-bookworm AS golang-base
+FROM golang:${GO_VERSION}-bookworm AS golang-base
 
 FROM golang-base AS containerd-snapshotter-base
 ARG CONTAINERD_VERSION
 ARG RUNC_VERSION
 ARG NERDCTL_VERSION
+ARG GO_VERSION
 ARG TARGETARCH
 COPY ./integ_entrypoint.sh /integ_entrypoint.sh
 COPY . $GOPATH/src/github.com/awslabs/soci-snapshotter
