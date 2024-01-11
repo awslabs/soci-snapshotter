@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1705010053937,
+  "lastUpdate": 1705016721357,
   "repoUrl": "https://github.com/awslabs/soci-snapshotter",
   "entries": {
     "Soci Benchmark": [
@@ -3644,6 +3644,48 @@ window.BENCHMARK_DATA = {
           {
             "name": "SociFullECR-public-redis-pullTaskDuration",
             "value": 1.4945,
+            "unit": "Seconds",
+            "extra": "P90"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "davbson@amazon.com",
+            "name": "David Son",
+            "username": "sondavidb"
+          },
+          "committer": {
+            "email": "55555210+sondavidb@users.noreply.github.com",
+            "name": "David Son",
+            "username": "sondavidb"
+          },
+          "distinct": true,
+          "id": "9edd90fdd030672ec7383a20ecc91f3da304fa24",
+          "message": "Update Go version in workflows\n\nv1.20.12 -> v1.20.13\n\nSigned-off-by: David Son <davbson@amazon.com>",
+          "timestamp": "2024-01-11T15:35:34-08:00",
+          "tree_id": "04631c82256e8abfe3d6f1addb9b702fd8f802dd",
+          "url": "https://github.com/awslabs/soci-snapshotter/commit/9edd90fdd030672ec7383a20ecc91f3da304fa24"
+        },
+        "date": 1705016720470,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "SociFullECR-public-redis-lazyTaskDuration",
+            "value": 5.025,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-redis-localTaskDuration",
+            "value": 0.0215,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-redis-pullTaskDuration",
+            "value": 1.5139999999999998,
             "unit": "Seconds",
             "extra": "P90"
           }
