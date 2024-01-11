@@ -10,6 +10,7 @@ on:
   pull_request:
     branches: ['main', 'release/**']
     paths:
+      - '.github/workflows/build.yml'
       - '**.go'
       - 'go.*'
       - 'cmd/go.*'
