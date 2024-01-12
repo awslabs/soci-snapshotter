@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1705016723024,
+  "lastUpdate": 1705102383742,
   "repoUrl": "https://github.com/awslabs/soci-snapshotter",
   "entries": {
     "Soci Benchmark": [
@@ -3481,6 +3481,48 @@ window.BENCHMARK_DATA = {
           {
             "name": "SociFullECR-public-rabbitmq-pullTaskDuration",
             "value": 1.5310000000000001,
+            "unit": "Seconds",
+            "extra": "P90"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "davbson@amazon.com",
+            "name": "David Son",
+            "username": "sondavidb"
+          },
+          "committer": {
+            "email": "55555210+sondavidb@users.noreply.github.com",
+            "name": "David Son",
+            "username": "sondavidb"
+          },
+          "distinct": true,
+          "id": "adaef47049c7a81ec4461cbe72a31508edd09728",
+          "message": "Add +x to scripts/verify-release-artifacts.sh\n\nSigned-off-by: David Son <davbson@amazon.com>",
+          "timestamp": "2024-01-12T15:25:53-08:00",
+          "tree_id": "7d53fe978bcc9641639fd2f9acacee421c3a1433",
+          "url": "https://github.com/awslabs/soci-snapshotter/commit/adaef47049c7a81ec4461cbe72a31508edd09728"
+        },
+        "date": 1705102382603,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "SociFullECR-public-rabbitmq-lazyTaskDuration",
+            "value": 10.762,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-rabbitmq-localTaskDuration",
+            "value": 7.3165,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-rabbitmq-pullTaskDuration",
+            "value": 1.351,
             "unit": "Seconds",
             "extra": "P90"
           }
