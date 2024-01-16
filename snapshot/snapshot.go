@@ -570,7 +570,18 @@ func (o *snapshotter) unmountSnapshotDirectory(ctx context.Context, dir string) 
 	// We use Filesystem's Unmount API so that it can do necessary finalization
 	// before/after the unmount.
 	mp := filepath.Join(dir, "fs")
-	return o.fs.Unmount(ctx, mp)
+	mounted, err := mountinfo.Mounted(mp)
+	if err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			// nothing to unmount as directory does not exist
+			return nil
+		}
+		return err
+	}
+	if mounted {
+		return o.fs.Unmount(ctx, mp)
+	}
+	return nil
 }
 
 func (o *snapshotter) createSnapshot(ctx context.Context, kind snapshots.Kind, key, parent string, opts []snapshots.Opt) (_ storage.Snapshot, err error) {
