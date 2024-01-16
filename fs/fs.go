@@ -409,7 +409,7 @@ func (fs *filesystem) Mount(ctx context.Context, mountpoint string, labels map[s
 	client := src[0].Hosts[0].Client
 	c, err := fs.getSociContext(ctx, imageRef, sociIndexDigest, imgDigest, client)
 	if err != nil {
-		return fmt.Errorf("unable to fetch SOCI artifacts: %w", err)
+		return fmt.Errorf("%w: unable to fetch SOCI artifacts for image %q: %w", snapshot.ErrUnableToLazyLoadImage, imageRef, err)
 	}
 
 	// Resolve the target layer

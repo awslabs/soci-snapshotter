@@ -77,7 +77,10 @@ const (
 )
 
 var (
-	// Error returned by `fs.Mount` when there is no ztoc for a particular layer.
+	// ErrUnableToLazyLoadImage is returned by `fs.Mount` when the image cannot/should not be
+	// lazy loaded. (eg: If a SOCI index does not exist for an image)
+	ErrUnableToLazyLoadImage = errors.New("unable to lazy load image")
+	// ErrNoZtoc is returned by `fs.Mount` when there is no zTOC for a particular layer.
 	ErrNoZtoc = errors.New("no ztoc for layer")
 )
 
@@ -302,6 +305,8 @@ func (o *snapshotter) Prepare(ctx context.Context, key, parent string, opts ...s
 	//       log is used by tests in this project.
 	lCtx := log.WithLogger(ctx, log.G(ctx).WithField("key", key).WithField("parent", parent))
 
+	var skipLazyLoadingImage bool
+
 	// remote snapshot prepare
 	if !o.skipRemoteSnapshotPrepare(lCtx, base.Labels) {
 		err := o.prepareRemoteSnapshot(lCtx, key, base.Labels)
@@ -321,6 +326,9 @@ func (o *snapshotter) Prepare(ctx context.Context, key, parent string, opts ...s
 		log.G(lCtx).WithField(remoteSnapshotLogKey, prepareFailed).WithError(err).Warn("failed to prepare remote snapshot")
 		if !errors.Is(err, ErrNoZtoc) {
 			commonmetrics.IncOperationCount(commonmetrics.FuseMountFailureCount, digest.Digest(""))
+			if errors.Is(err, ErrUnableToLazyLoadImage) {
+				skipLazyLoadingImage = true
+			}
 		}
 	}
 
@@ -330,24 +338,27 @@ func (o *snapshotter) Prepare(ctx context.Context, key, parent string, opts ...s
 		// don't fallback here, since there was an error getting mounts
 		return nil, err
 	}
-
-	log.G(ctx).WithField("layerDigest", base.Labels[ctdsnapshotters.TargetLayerDigestLabel]).Info("preparing snapshot as local snapshot")
-	err = o.prepareLocalSnapshot(lCtx, key, base.Labels, mounts)
-	if err == nil {
-		err := o.commit(ctx, false, target, key, append(opts, snapshots.WithLabels(base.Labels))...)
-		if err == nil || errdefs.IsAlreadyExists(err) {
-			// count also AlreadyExists as "success"
-			// there's no need to provide any details on []mount.Mount because mounting is already taken care of
-			// by snapshotter
-			log.G(lCtx).Info("local snapshot successfully prepared")
-			return nil, fmt.Errorf("target snapshot %q: %w", target, errdefs.ErrAlreadyExists)
+	// If the underlying FileSystem deems that the image is unable to be lazy loaded, then we
+	// should completely fallback to the underlying runtime (containerd) to handle pulling and
+	// unpacking all the layers in the image.
+	if !skipLazyLoadingImage {
+		log.G(ctx).WithField("layerDigest", base.Labels[ctdsnapshotters.TargetLayerDigestLabel]).Info("preparing snapshot as local snapshot")
+		err = o.prepareLocalSnapshot(lCtx, key, base.Labels, mounts)
+		if err == nil {
+			err := o.commit(ctx, false, target, key, append(opts, snapshots.WithLabels(base.Labels))...)
+			if err == nil || errdefs.IsAlreadyExists(err) {
+				// count also AlreadyExists as "success"
+				// there's no need to provide any details on []mount.Mount because mounting is already taken care of
+				// by snapshotter
+				log.G(lCtx).Info("local snapshot successfully prepared")
+				return nil, fmt.Errorf("target snapshot %q: %w", target, errdefs.ErrAlreadyExists)
+			}
+			log.G(lCtx).WithError(err).Warn("failed to internally commit local snapshot")
+			// Don't fallback here (= prohibit to use this key again) because the FileSystem
+			// possible has done some work on this "upper" directory.
+			return nil, err
 		}
-		log.G(lCtx).WithError(err).Warn("failed to internally commit local snapshot")
-		// Don't fallback here (= prohibit to use this key again) because the FileSystem
-		// possible has done some work on this "upper" directory.
-		return nil, err
 	}
-
 	log.G(lCtx).WithError(err).Warn("failed to prepare snapshot; deferring to container runtime")
 	return mounts, nil
 }
