@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1705431020122,
+  "lastUpdate": 1705435975869,
   "repoUrl": "https://github.com/awslabs/soci-snapshotter",
   "entries": {
     "Soci Benchmark": [
@@ -3729,6 +3729,48 @@ window.BENCHMARK_DATA = {
           {
             "name": "SociFullECR-public-ffmpeg-pullTaskDuration",
             "value": 1.091,
+            "unit": "Seconds",
+            "extra": "P90"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "davanum@gmail.com",
+            "name": "Davanum Srinivas",
+            "username": "dims"
+          },
+          "committer": {
+            "email": "55906459+austinvazquez@users.noreply.github.com",
+            "name": "Austin Vazquez",
+            "username": "austinvazquez"
+          },
+          "distinct": true,
+          "id": "ece7c95acd735292d78b52f7daa6219396cc5d1b",
+          "message": "Call fs.Unmount only if needed\n\nSigned-off-by: Davanum Srinivas <davanum@gmail.com>",
+          "timestamp": "2024-01-16T14:03:44-06:00",
+          "tree_id": "56769120b2b7ccae7718208b767d4081bc65a910",
+          "url": "https://github.com/awslabs/soci-snapshotter/commit/ece7c95acd735292d78b52f7daa6219396cc5d1b"
+        },
+        "date": 1705435973487,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "SociFullECR-public-ffmpeg-lazyTaskDuration",
+            "value": 0.132,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-ffmpeg-localTaskDuration",
+            "value": 0.01,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-ffmpeg-pullTaskDuration",
+            "value": 1.588,
             "unit": "Seconds",
             "extra": "P90"
           }
