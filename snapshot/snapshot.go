@@ -209,6 +209,7 @@ func NewSnapshotter(ctx context.Context, root string, targetFs FileSystem, opts 
 // Should be used for parent resolution, existence checks and to discern
 // the kind of snapshot.
 func (o *snapshotter) Stat(ctx context.Context, key string) (snapshots.Info, error) {
+	log.G(ctx).WithField("key", key).Debug("stat")
 	ctx, t, err := o.ms.TransactionContext(ctx, false)
 	if err != nil {
 		return snapshots.Info{}, err
@@ -223,6 +224,7 @@ func (o *snapshotter) Stat(ctx context.Context, key string) (snapshots.Info, err
 }
 
 func (o *snapshotter) Update(ctx context.Context, info snapshots.Info, fieldpaths ...string) (snapshots.Info, error) {
+	log.G(ctx).WithField("info", info).Debug("update")
 	ctx, t, err := o.ms.TransactionContext(ctx, true)
 	if err != nil {
 		return snapshots.Info{}, err
@@ -250,6 +252,7 @@ func (o *snapshotter) Update(ctx context.Context, info snapshots.Info, fieldpath
 //
 // For committed snapshots, the value is returned from the metadata database.
 func (o *snapshotter) Usage(ctx context.Context, key string) (snapshots.Usage, error) {
+	log.G(ctx).WithField("key", key).Debug("usage")
 	ctx, t, err := o.ms.TransactionContext(ctx, false)
 	if err != nil {
 		return snapshots.Usage{}, err
@@ -277,6 +280,7 @@ func (o *snapshotter) Usage(ctx context.Context, key string) (snapshots.Usage, e
 }
 
 func (o *snapshotter) Prepare(ctx context.Context, key, parent string, opts ...snapshots.Opt) ([]mount.Mount, error) {
+	log.G(ctx).WithField("key", key).WithField("parent", parent).Debug("prepare")
 	s, err := o.createSnapshot(ctx, snapshots.KindActive, key, parent, opts)
 	if err != nil {
 		return nil, err
@@ -301,6 +305,7 @@ func (o *snapshotter) Prepare(ctx context.Context, key, parent string, opts ...s
 	//       or not, using the key `remoteSnapshotLogKey` defined in the above. This
 	//       log is used by tests in this project.
 	lCtx := log.WithLogger(ctx, log.G(ctx).WithField("key", key).WithField("parent", parent))
+	log.G(lCtx).Debug("preparing snapshot")
 
 	// remote snapshot prepare
 	if !o.skipRemoteSnapshotPrepare(lCtx, base.Labels) {
@@ -369,6 +374,7 @@ func (o *snapshotter) skipRemoteSnapshotPrepare(ctx context.Context, labels map[
 }
 
 func (o *snapshotter) View(ctx context.Context, key, parent string, opts ...snapshots.Opt) ([]mount.Mount, error) {
+	log.G(ctx).WithField("key", key).Debug("view")
 	s, err := o.createSnapshot(ctx, snapshots.KindView, key, parent, opts)
 	if err != nil {
 		return nil, err
@@ -381,6 +387,7 @@ func (o *snapshotter) View(ctx context.Context, key, parent string, opts ...snap
 //
 // This can be used to recover mounts after calling View or Prepare.
 func (o *snapshotter) Mounts(ctx context.Context, key string) ([]mount.Mount, error) {
+	log.G(ctx).WithField("key", key).Debug("mounts")
 	ctx, t, err := o.ms.TransactionContext(ctx, false)
 	if err != nil {
 		return nil, err
@@ -394,6 +401,7 @@ func (o *snapshotter) Mounts(ctx context.Context, key string) ([]mount.Mount, er
 }
 
 func (o *snapshotter) Commit(ctx context.Context, name, key string, opts ...snapshots.Opt) error {
+	log.G(ctx).WithField("key", key).Debug("commit")
 	return o.commit(ctx, false, name, key, opts...)
 }
 
@@ -436,6 +444,7 @@ func (o *snapshotter) commit(ctx context.Context, isRemote bool, name, key strin
 // immediately become unavailable and unrecoverable. Disk space will
 // be freed up on the next call to `Cleanup`.
 func (o *snapshotter) Remove(ctx context.Context, key string) (err error) {
+	log.G(ctx).WithField("key", key).Debug("remove")
 	ctx, t, err := o.ms.TransactionContext(ctx, true)
 	if err != nil {
 		return err
@@ -481,6 +490,7 @@ func (o *snapshotter) Remove(ctx context.Context, key string) (err error) {
 
 // Walk the snapshots.
 func (o *snapshotter) Walk(ctx context.Context, fn snapshots.WalkFunc, fs ...string) error {
+	log.G(ctx).Debug("walk")
 	ctx, t, err := o.ms.TransactionContext(ctx, false)
 	if err != nil {
 		return err
@@ -491,6 +501,7 @@ func (o *snapshotter) Walk(ctx context.Context, fn snapshots.WalkFunc, fs ...str
 
 // Cleanup cleans up disk resources from removed or abandoned snapshots
 func (o *snapshotter) Cleanup(ctx context.Context) error {
+	log.G(ctx).Debug("cleanup")
 	const cleanupCommitted = false
 	return o.cleanup(ctx, cleanupCommitted)
 }
@@ -754,6 +765,7 @@ func (o *snapshotter) workPath(id string) string {
 
 // Close closes the snapshotter
 func (o *snapshotter) Close() error {
+	log.L.Debug("close")
 	// unmount all mounts including Committed
 	const cleanupCommitted = true
 	ctx := context.Background()
