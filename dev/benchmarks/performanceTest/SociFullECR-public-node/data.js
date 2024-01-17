@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1705435976797,
+  "lastUpdate": 1705526068254,
   "repoUrl": "https://github.com/awslabs/soci-snapshotter",
   "entries": {
     "Soci Benchmark": [
@@ -3648,6 +3648,48 @@ window.BENCHMARK_DATA = {
           {
             "name": "SociFullECR-public-node-pullTaskDuration",
             "value": 1.8455,
+            "unit": "Seconds",
+            "extra": "P90"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "davanum@gmail.com",
+            "name": "Davanum Srinivas",
+            "username": "dims"
+          },
+          "committer": {
+            "email": "66654647+turan18@users.noreply.github.com",
+            "name": "Yasin Turan",
+            "username": "turan18"
+          },
+          "distinct": true,
+          "id": "335515f746f50c964ed48159257e1aeba04805b6",
+          "message": "Leave Debug breadcrumbs for snapshotter functions called\n\nSigned-off-by: Davanum Srinivas <davanum@gmail.com>",
+          "timestamp": "2024-01-17T16:05:55-05:00",
+          "tree_id": "d14ab6a942093823a58e7c3a4b59a32a491cbfac",
+          "url": "https://github.com/awslabs/soci-snapshotter/commit/335515f746f50c964ed48159257e1aeba04805b6"
+        },
+        "date": 1705526064470,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "SociFullECR-public-node-lazyTaskDuration",
+            "value": 3.065,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-node-localTaskDuration",
+            "value": 0.454,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-node-pullTaskDuration",
+            "value": 1.9849999999999999,
             "unit": "Seconds",
             "extra": "P90"
           }
