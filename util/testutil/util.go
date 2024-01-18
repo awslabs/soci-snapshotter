@@ -127,6 +127,12 @@ func (tsr *ThreadsafeRandom) Intn(n int) int {
 	return tsr.r.Intn(n)
 }
 
+func (tsr *ThreadsafeRandom) Float32() float32 {
+	tsr.l.Lock()
+	defer tsr.l.Unlock()
+	return tsr.r.Float32()
+}
+
 func (tsr *ThreadsafeRandom) Int63() int64 {
 	tsr.l.Lock()
 	defer tsr.l.Unlock()
@@ -138,6 +144,8 @@ func (tsr *ThreadsafeRandom) Read(b []byte) (int, error) {
 	defer tsr.l.Unlock()
 	return tsr.r.Read(b)
 }
+
+const charset = "abcdefghijklmnopqrstuvwxyz" + "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789" + " "
 
 var r = NewThreadsafeRandom()
 
@@ -155,6 +163,15 @@ func RandomUInt64() (uint64, error) {
 	return binary.LittleEndian.Uint64(b), nil
 }
 
+// RandRangInc returns a random range between [min,max] inclusive
+func RandRangInc(min int, max int) int {
+	if min == max {
+		return min
+	}
+	r := NewThreadsafeRandom()
+	return r.Intn((max+1)-min) + min
+}
+
 // RandomByteData returns a byte slice with `size` populated with random generated data
 func RandomByteData(size int64) []byte {
 	b := make([]byte, size)
@@ -164,9 +181,6 @@ func RandomByteData(size int64) []byte {
 
 // RandomByteDataRange returns a byte slice with `size` between minBytes and maxBytes exclusive populated with random data
 func RandomByteDataRange(minBytes int, maxBytes int) []byte {
-	const charset = "abcdefghijklmnopqrstuvwxyz" +
-		"ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789" + " "
-
 	r := NewThreadsafeRandom()
 	randByteNum := r.Intn(maxBytes-minBytes) + minBytes
 	randBytes := make([]byte, randByteNum)
@@ -180,4 +194,13 @@ func RandomByteDataRange(minBytes int, maxBytes int) []byte {
 func RandomDigest() string {
 	d := digest.FromBytes(RandomByteData(10))
 	return d.String()
+}
+
+// RandString returns a random string of length n
+func RandString(n int) string {
+	randBytes := make([]byte, n)
+	for i := range randBytes {
+		randBytes[i] = charset[rand.Intn(len(charset))]
+	}
+	return string(randBytes)
 }

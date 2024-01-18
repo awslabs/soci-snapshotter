@@ -41,7 +41,7 @@ import (
 	"github.com/awslabs/soci-snapshotter/ztoc/compression"
 )
 
-// Attr reprensents the attributes of a node.
+// Attr represents the attributes of a node.
 type Attr struct {
 	// Size, for regular files, is the logical size of the file.
 	Size int64
@@ -102,7 +102,7 @@ type Options struct {
 	Telemetry *Telemetry
 }
 
-// Option is an option to configure the behaviour of reader.
+// Option is an option to configure the behavior of reader.
 type Option func(o *Options) error
 
 // WithTelemetry option specifies the telemetry hooks
@@ -113,10 +113,10 @@ func WithTelemetry(telemetry *Telemetry) Option {
 	}
 }
 
-// A func which takes start time and records the diff
+// MeasureLatencyHook is a func which takes start time and records the diff
 type MeasureLatencyHook func(time.Time)
 
-// A struct which defines telemetry hooks. By implementing these hooks you should be able to record
+// Telemetry defines telemetry hooks. By implementing these hooks you should be able to record
 // the latency metrics of the respective steps of SOCI open operation.
 type Telemetry struct {
 	InitMetadataStoreLatency MeasureLatencyHook // measure time to initialize metadata store (in milliseconds)
