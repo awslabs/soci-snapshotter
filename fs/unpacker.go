@@ -77,18 +77,19 @@ func (lu *layerUnpacker) Unpack(ctx context.Context, desc ocispec.Descriptor, mo
 	if err != nil {
 		return fmt.Errorf("cannot fetch layer: %w", err)
 	}
-	defer rc.Close()
 
 	if !local {
-		if err = lu.fetcher.Store(ctx, desc, rc); err != nil {
+		err := lu.fetcher.Store(ctx, desc, rc)
+		rc.Close()
+		if err != nil {
 			return fmt.Errorf("cannot store layer: %w", err)
 		}
-		rc.Close()
 		rc, _, err = lu.fetcher.Fetch(ctx, desc)
 		if err != nil {
 			return fmt.Errorf("cannot fetch layer: %w", err)
 		}
 	}
+	defer rc.Close()
 	parents, err := getLayerParents(mounts[0].Options)
 	if err != nil {
 		return fmt.Errorf("cannot get layer parents: %w", err)
