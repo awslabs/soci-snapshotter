@@ -100,7 +100,7 @@ func NewSociSnapshotterService(ctx context.Context, root string, serviceCfg *con
 	}
 	// Configure filesystem and snapshotter
 	fsOpts := append(sOpts.fsOpts, socifs.WithGetSources(
-		source.FromDefaultLabels(hosts), // provides source info based on default labels
+		source.FromDefaultLabels(source.RegistryHosts(hosts)), // provides source info based on default labels
 	), socifs.WithOverlayOpaqueType(opq))
 	fs, err := socifs.NewFilesystem(ctx, fsRoot(root), serviceCfg.FSConfig, fsOpts...)
 	if err != nil {

@@ -38,7 +38,6 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/awslabs/soci-snapshotter/service/resolver"
 	"github.com/containerd/containerd/images"
 	"github.com/containerd/containerd/labels"
 	ctdsnapshotters "github.com/containerd/containerd/pkg/snapshotters"
@@ -87,9 +86,13 @@ const (
 	TargetSociIndexDigestLabel = "containerd.io/snapshot/remote/soci.index.digest"
 )
 
+// RegistryHosts is copied from [github.com/awslabs/soci-snapshotter/service/resolver.RegistryHosts]
+// to reduce package dependency
+type RegistryHosts func(imgRefSpec reference.Spec) ([]docker.RegistryHost, error)
+
 // FromDefaultLabels returns a function for converting snapshot labels to
 // source information based on labels.
-func FromDefaultLabels(hosts resolver.RegistryHosts) GetSources {
+func FromDefaultLabels(hosts RegistryHosts) GetSources {
 	return func(labels map[string]string) ([]Source, error) {
 		refStr, ok := labels[ctdsnapshotters.TargetRefLabel]
 		if !ok {
