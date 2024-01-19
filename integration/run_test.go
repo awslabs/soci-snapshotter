@@ -35,20 +35,19 @@ package integration
 import (
 	"bufio"
 	"bytes"
-	"encoding/json"
 	"fmt"
-	"io"
 	"math"
 	"os"
 	"regexp"
-	"runtime"
 	"strconv"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
 	"github.com/awslabs/soci-snapshotter/soci/store"
 	shell "github.com/awslabs/soci-snapshotter/util/dockershell"
+	"github.com/awslabs/soci-snapshotter/util/testutil"
 )
 
 func TestRunWithDefaultConfig(t *testing.T) {
@@ -221,15 +220,7 @@ type retryConfig struct {
 // TestNetworkRetry runs a container, disables network access to the remote image, asks the container
 // to do something requiring the remote image, waits for some/all requests to fail, enables the network,
 // confirms retries and success/failure
-
-// TODO: Refactor test
 func TestNetworkRetry(t *testing.T) {
-	// This test makes the testing suite hang on ARM.
-	// Disabling for now till we can refactor this.
-	if runtime.GOARCH == "arm64" {
-		return
-	}
-
 	const containerImage = alpineImage
 
 	tests := []struct {
@@ -247,12 +238,12 @@ func TestNetworkRetry(t *testing.T) {
 			},
 		},
 		{
-			name: "1s network interruption, no retries allowed, failure",
+			name: "6s network interruption, no retries allowed, failure",
 			config: retryConfig{
 				maxRetries:         -1,
 				minWaitMsec:        0,
 				maxWaitMsec:        0,
-				networkDisableMsec: 1000,
+				networkDisableMsec: 6000,
 				expectedSuccess:    false,
 			},
 		},
@@ -267,12 +258,12 @@ func TestNetworkRetry(t *testing.T) {
 			},
 		},
 		{
-			name: "10s network interruption, ~6-7s retries allowed, failure",
+			name: "12s network interruption, ~6-7s retries allowed, failure",
 			config: retryConfig{
 				maxRetries:         1,
 				minWaitMsec:        100,
 				maxWaitMsec:        1600,
-				networkDisableMsec: 10000,
+				networkDisableMsec: 12000,
 				expectedSuccess:    false,
 			},
 		},
@@ -296,111 +287,59 @@ max_wait_msec = ` + strconv.FormatInt(tt.config.maxWaitMsec, 10) + `
 disable = true
 `
 
-			m := rebootContainerd(t, sh, getContainerdConfigToml(t, false), getSnapshotterConfigToml(t, false, config))
+			rebootContainerd(t, sh, getContainerdConfigToml(t, false), getSnapshotterConfigToml(t, false, config))
 			// Mirror image
 			copyImage(sh, dockerhub(containerImage), regConfig.mirror(containerImage))
-			// Pull image, create SOCI index with all layers and small (100kiB) spans
-			indexDigest := buildIndex(sh, regConfig.mirror(containerImage), withMinLayerSize(0), withSpanSize(100*1024))
-			sh.X(append(imagePullCmd, "--soci-index-digest", indexDigest, regConfig.mirror(containerImage).ref)...)
-
-			// Run the container
 			image := regConfig.mirror(containerImage).ref
-			sh.X(append(runSociCmd, "--name", "test-container", "-d", image, "sleep", "infinity")...)
+			indexDigest := buildIndex(sh, regConfig.mirror(containerImage), withMinLayerSize(0), withSpanSize(1<<20))
+			sh.X("soci", "push", "--user", regConfig.creds(), regConfig.mirror(containerImage).ref)
 
-			sh.X("apt-get", "--no-install-recommends", "install", "-qy", "iptables")
-
-			// TODO: Wait for the container to be up and running
-
+			rebootContainerd(t, sh, getContainerdConfigToml(t, false), getSnapshotterConfigToml(t, false, config))
+			// Re-pull image from our local registry mirror
+			sh.X(append(imagePullCmd, "--soci-index-digest", indexDigest, regConfig.mirror(containerImage).ref)...)
+			sh.X("apt-get", "-qq", "--no-install-recommends", "install", "-y", "iptables")
 			// Block network access to the registry
 			if tt.config.networkDisableMsec > 0 {
 				sh.X("iptables", "-A", "OUTPUT", "-d", registryHostIP, "-j", "DROP")
 			}
 
-			// Do something in the container that should work without network access
-			commandSucceedStdout, _, err := sh.R("nerdctl", "exec", "test-container", "sh", "-c", "times")
-			if err != nil {
-				t.Fatalf("attempt to run task without network access failed: %s", err)
-			}
-
-			type ErrorLogLine struct {
-				Error string `json:"error"`
-				Msg   string `json:"msg"`
-			}
-
-			gaveUpChannel := make(chan bool, 1)
-			defer close(gaveUpChannel)
-
-			monitorGaveUp := func(rawL string) {
-				if i := strings.Index(rawL, "{"); i > 0 {
-					rawL = rawL[i:] // trim garbage chars; expects "{...}"-styled JSON log
-				}
-				var logLine ErrorLogLine
-				if err := json.Unmarshal([]byte(rawL), &logLine); err == nil {
-					if logLine.Msg == "statFile error" && strings.Contains(logLine.Error, "giving up after") {
-						gaveUpChannel <- true
-						return
-					}
-				}
-			}
-
-			m.Add("retry", monitorGaveUp)
-			defer m.Remove("retry")
-
-			// Do something in the container to access un-fetched spans, requiring network access
-			commandNetworkStdout, _, err := sh.R("nerdctl", "exec", "test-container", "cat", "/etc/hosts")
+			// Read a file to trigger a synchronous network request.
+			cmdStdout, cmdStderr, err := sh.R(append(runSociCmd, image, "cat", "/etc/hosts")...)
 			if err != nil {
 				t.Fatalf("attempt to run task requiring network access failed: %s", err)
 			}
 
-			// Wait with network disabled
+			successChannel := make(chan string, 1)
+			failureChannel := make(chan string, 1)
+
+			listener := func(c chan string) func(string) {
+				var once sync.Once
+				return func(rawLog string) {
+					once.Do(func() { c <- rawLog })
+				}
+			}
+
+			// There's no way to split stdout and stderr with LogMonitor,
+			// and sh.R could orphan goroutines, so make new LogMonitors
+			// for stdout and stderr and monitor them separately
+			r := testutil.NewTestingReporter(t)
+
+			stdoutLogMonitor := testutil.NewLogMonitor(r, cmdStdout, strings.NewReader(""))
+			stdoutLogMonitor.Add("listener", listener(successChannel))
+			defer stdoutLogMonitor.Remove("listener")
+
+			stderrLogMonitor := testutil.NewLogMonitor(r, strings.NewReader(""), cmdStderr)
+			stderrLogMonitor.Add("listener", listener(failureChannel))
+			defer stderrLogMonitor.Remove("listener")
+
+			// Wait with network disabled. At this point the snapshotter should be
+			// retrying.
 			time.Sleep(time.Duration(tt.config.networkDisableMsec) * time.Millisecond)
 
-			// Short wait to allow commands to complete
-			time.Sleep(time.Duration(1000) * time.Millisecond)
-
-			// Confirm first command succeeded while network was down
-			buf := make([]byte, 100)
-			if _, err = commandSucceedStdout.Read(buf); err != nil {
-				t.Fatalf("read from expected successful task output failed: %s", err)
-			}
-			if !strings.Contains(string(buf), "s ") { // `times` output looks like "0m0.03s 0m0.05s"
-				t.Fatalf("expected successful task produced unexpected output: %s", string(buf))
-			}
-
-			// async read from command_network_stdout
-			commandNetworkStdoutChannel := make(chan []byte)
-			commandNetworkErrChannel := make(chan error)
-			go func() {
-				defer close(commandNetworkStdoutChannel)
-				defer close(commandNetworkErrChannel)
-				var b []byte
-				if _, err := commandNetworkStdout.Read(b); err != nil && err != io.EOF {
-					commandNetworkErrChannel <- fmt.Errorf("read from network bound task output failed: %s", err)
-					return
-				}
-				commandNetworkStdoutChannel <- b
-				if err == io.EOF {
-					commandNetworkErrChannel <- fmt.Errorf("read from network bound task output encountered EOF")
-					return
-				}
-			}()
-
+			// Restore network access
 			if tt.config.networkDisableMsec > 0 {
-
-				// Confirm second command has not succeeded while network was down
-				select {
-				case err := <-commandNetworkErrChannel:
-					t.Fatal(err)
-				case data := <-commandNetworkStdoutChannel:
-					if len(data) > 0 {
-						t.Fatalf("network bound task produced unexpected output: %s", string(data))
-					}
-				case <-time.After(100 * time.Millisecond):
-				}
-
 				// Restore access to the registry and image
 				sh.X("iptables", "-D", "OUTPUT", "-d", registryHostIP, "-j", "DROP")
-
 				// Wait with network enabled, so a final retry has a chance to succeed
 				time.Sleep(2 * time.Millisecond * time.Duration(math.Min(
 					float64(tt.config.maxWaitMsec),
@@ -408,23 +347,21 @@ disable = true
 				)))
 			}
 
-			// Confirm whether second command has succeeded with network restored
-
 			select {
-			case gaveUp := <-gaveUpChannel:
-				if tt.config.expectedSuccess && gaveUp {
-					t.Fatal("retries gave up despite test expecting retry success")
-				}
-			case data := <-commandNetworkStdoutChannel:
-				if !tt.config.expectedSuccess {
-					if len(data) > 0 {
-						t.Fatalf("network bound task produced unexpected output: %s", string(data))
-					}
-				}
-			case <-time.After(100 * time.Millisecond):
+			case data := <-failureChannel:
 				if tt.config.expectedSuccess {
-					t.Fatal("network bound task produced no output when expecting success")
+					t.Fatalf("expected Read request to succeed; got data in stderr: %s", data)
+				} else if len(successChannel) > 0 {
+					t.Fatalf("expected Read request to fail; got data in (stdout, stderr) : (%s, %s)", data, <-successChannel)
 				}
+			case data := <-successChannel:
+				if !tt.config.expectedSuccess {
+					t.Fatalf("expected Read request to fail; got data in stdout: %s", data)
+				} else if len(failureChannel) > 0 {
+					t.Fatalf("expected Read request to succeed; got data in (stdout, stderr) : (%s, %s)", data, <-failureChannel)
+				}
+			case <-time.After(15 * time.Second):
+				t.Fatal("neither stdout or stderr has been written to")
 			}
 		})
 	}
