@@ -92,7 +92,7 @@ jobs:
         with:
           draft: true
           prerelease: false
-          generate_release_notes: true
+          generate_release_notes: false
           files: |
             ${{ needs.generate-artifacts.outputs.dynamic_binary_name }}
             ${{ needs.generate-artifacts.outputs.dynamic_binary_name }}.sha256sum
