@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1705526069909,
+  "lastUpdate": 1705936392153,
   "repoUrl": "https://github.com/awslabs/soci-snapshotter",
   "entries": {
     "Soci Benchmark": [
@@ -3854,6 +3854,48 @@ window.BENCHMARK_DATA = {
           {
             "name": "SociFullECR-public-redis-pullTaskDuration",
             "value": 1.9629999999999999,
+            "unit": "Seconds",
+            "extra": "P90"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "macedonv@amazon.com",
+            "name": "Austin Vazquez",
+            "username": "austinvazquez"
+          },
+          "committer": {
+            "email": "55906459+austinvazquez@users.noreply.github.com",
+            "name": "Austin Vazquez",
+            "username": "austinvazquez"
+          },
+          "distinct": true,
+          "id": "9731bb29b37b0fb4e5b2c4f366f05eb38b4464da",
+          "message": "Disable release note generation in release automation\n\nAs part of the v0.5.0 release, automation generated release notes which\nincluded every commit in history. Instead the desired effect was to only\ninclude the diff since the last release. Disabling for now until another\nsolution is found.\n\nSigned-off-by: Austin Vazquez <macedonv@amazon.com>",
+          "timestamp": "2024-01-22T09:06:06-06:00",
+          "tree_id": "200c2b6be8e694e5f1f894c12225f557033b6610",
+          "url": "https://github.com/awslabs/soci-snapshotter/commit/9731bb29b37b0fb4e5b2c4f366f05eb38b4464da"
+        },
+        "date": 1705936391426,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "SociFullECR-public-redis-lazyTaskDuration",
+            "value": 1.117,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-redis-localTaskDuration",
+            "value": 0.02,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-redis-pullTaskDuration",
+            "value": 1.256,
             "unit": "Seconds",
             "extra": "P90"
           }
