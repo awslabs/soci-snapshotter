@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1705936394897,
+  "lastUpdate": 1706025063008,
   "repoUrl": "https://github.com/awslabs/soci-snapshotter",
   "entries": {
     "Soci Benchmark": [
@@ -3732,6 +3732,48 @@ window.BENCHMARK_DATA = {
           {
             "name": "SociFullECR-public-node-pullTaskDuration",
             "value": 1.7329999999999999,
+            "unit": "Seconds",
+            "extra": "P90"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "akihiro.suda.cz@hco.ntt.co.jp",
+            "name": "Akihiro Suda",
+            "username": "AkihiroSuda"
+          },
+          "committer": {
+            "email": "55906459+austinvazquez@users.noreply.github.com",
+            "name": "Austin Vazquez",
+            "username": "austinvazquez"
+          },
+          "distinct": true,
+          "id": "8d2b306690f9484a21c29963c6c56315580258fa",
+          "message": "fs/source: drop indirect dependency on k8s.io/cri-api\n\nnerdctl imports `soci-snapshotter/fs/source` but does not want to import\nk8s.io/cri-api\n\nSee containerd/nerdctl PR 2761\n\nSigned-off-by: Akihiro Suda <akihiro.suda.cz@hco.ntt.co.jp>",
+          "timestamp": "2024-01-23T09:44:19-06:00",
+          "tree_id": "17c65e4452569ff175e57513fd42ad066fb400f6",
+          "url": "https://github.com/awslabs/soci-snapshotter/commit/8d2b306690f9484a21c29963c6c56315580258fa"
+        },
+        "date": 1706025060304,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "SociFullECR-public-node-lazyTaskDuration",
+            "value": 1.536,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-node-localTaskDuration",
+            "value": 0.437,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-node-pullTaskDuration",
+            "value": 1.2160000000000002,
             "unit": "Seconds",
             "extra": "P90"
           }
