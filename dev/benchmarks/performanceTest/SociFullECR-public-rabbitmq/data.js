@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1706035010106,
+  "lastUpdate": 1706037436785,
   "repoUrl": "https://github.com/awslabs/soci-snapshotter",
   "entries": {
     "Soci Benchmark": [
@@ -3775,6 +3775,48 @@ window.BENCHMARK_DATA = {
           {
             "name": "SociFullECR-public-rabbitmq-pullTaskDuration",
             "value": 1.367,
+            "unit": "Seconds",
+            "extra": "P90"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "davbson@amazon.com",
+            "name": "David Son",
+            "username": "sondavidb"
+          },
+          "committer": {
+            "email": "55555210+sondavidb@users.noreply.github.com",
+            "name": "David Son",
+            "username": "sondavidb"
+          },
+          "distinct": true,
+          "id": "db7df3ab2a840bc927417a84448263885b3e21ff",
+          "message": "Fix file descriptor leak\n\nSigned-off-by: David Son <davbson@amazon.com>",
+          "timestamp": "2024-01-23T11:07:22-08:00",
+          "tree_id": "4bb28524fbd14033535eaa41d6d75e165576cd76",
+          "url": "https://github.com/awslabs/soci-snapshotter/commit/db7df3ab2a840bc927417a84448263885b3e21ff"
+        },
+        "date": 1706037435918,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "SociFullECR-public-rabbitmq-lazyTaskDuration",
+            "value": 17.1625,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-rabbitmq-localTaskDuration",
+            "value": 7.574,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-rabbitmq-pullTaskDuration",
+            "value": 2.128,
             "unit": "Seconds",
             "extra": "P90"
           }
