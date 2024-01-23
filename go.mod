@@ -6,7 +6,7 @@ require (
 	github.com/containerd/containerd v1.7.12
 	github.com/containerd/continuity v0.4.3
 	github.com/containerd/log v0.1.0
-	github.com/docker/cli v24.0.7+incompatible
+	github.com/docker/cli v25.0.0+incompatible
 	github.com/docker/go-metrics v0.0.1
 	github.com/golang/groupcache v0.0.0-20210331224755-41bb18bfe9da
 	github.com/google/flatbuffers v23.5.26+incompatible
@@ -18,7 +18,7 @@ require (
 	github.com/moby/sys/mountinfo v0.7.1
 	github.com/montanaflynn/stats v0.7.1
 	github.com/opencontainers/go-digest v1.0.0
-	github.com/opencontainers/image-spec v1.1.0-rc5
+	github.com/opencontainers/image-spec v1.1.0-rc6
 	github.com/opencontainers/runtime-spec v1.1.0
 	github.com/pelletier/go-toml v1.9.5
 	github.com/prometheus/client_golang v1.18.0
