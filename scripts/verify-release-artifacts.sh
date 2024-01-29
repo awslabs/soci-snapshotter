@@ -18,6 +18,10 @@
 
 set -o pipefail
 
+cur_dir="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+soci_snapshotter_project_root="$(cd -- "$cur_dir"/.. && pwd)"
+release_dir="${soci_snapshotter_project_root}/release"
+
 arch=""
 case $(uname -m) in
     x86_64) arch="amd64" ;;
@@ -35,10 +39,16 @@ if [ $# -eq 0 ]; then
     exit 1
 fi
 
+if [ ! -d "$release_dir" ]; then
+    echo "$0: Release directory not found in $release_dir"
+    exit 1
+fi
+
 release_tag=$1
 # Strip 'v' from release tag.
 release_version=${release_tag/v/} 
 
+pushd $release_dir
 tarballs=("soci-snapshotter-${release_version}-linux-${arch}.tar.gz" "soci-snapshotter-${release_version}-linux-${arch}-static.tar.gz")
 expected_contents=("soci-snapshotter-grpc" "soci" "THIRD_PARTY_LICENSES" "NOTICE.md")
 release_is_valid=true
@@ -96,4 +106,5 @@ if ( ! ${release_is_valid} ); then
     exit 1
 fi
 
+popd
 exit 0
