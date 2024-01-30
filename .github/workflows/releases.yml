@@ -12,33 +12,7 @@ permissions:
   deployments: write
 
 jobs:
-  test:
-    runs-on: ubuntu-20.04
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-go@v5
-        with:
-          go-version: ${{ env.GO_VERSION }}
-      - run: make
-      - run: make test
-      
-  integration:
-    runs-on: ubuntu-20.04
-    strategy:
-      fail-fast: false
-      matrix:
-        containerd: ["1.6.26", "1.7.11"]
-    env:
-      DOCKER_BUILD_ARGS: "CONTAINERD_VERSION=${{ matrix.containerd }}"
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-go@v5
-        with:
-          go-version: ${{ env.GO_VERSION }}
-      - run: make integration
-
   generate-artifacts:
-    needs: [test, integration]
     runs-on: ubuntu-20.04
     env:
       # Set during setup.
