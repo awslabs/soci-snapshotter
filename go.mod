@@ -6,15 +6,15 @@ require (
 	github.com/containerd/containerd v1.7.12
 	github.com/containerd/continuity v0.4.3
 	github.com/containerd/log v0.1.0
-	github.com/docker/cli v25.0.0+incompatible
+	github.com/docker/cli v25.0.1+incompatible
 	github.com/docker/go-metrics v0.0.1
 	github.com/golang/groupcache v0.0.0-20210331224755-41bb18bfe9da
 	github.com/google/flatbuffers v23.5.26+incompatible
 	github.com/google/go-cmp v0.6.0
-	github.com/google/uuid v1.5.0
+	github.com/google/uuid v1.6.0
 	github.com/hanwen/go-fuse/v2 v2.4.2
 	github.com/hashicorp/go-retryablehttp v0.7.5
-	github.com/klauspost/compress v1.17.4
+	github.com/klauspost/compress v1.17.5
 	github.com/moby/sys/mountinfo v0.7.1
 	github.com/montanaflynn/stats v0.7.1
 	github.com/opencontainers/go-digest v1.0.0
@@ -34,7 +34,7 @@ require (
 	k8s.io/apimachinery v0.26.3
 	k8s.io/client-go v0.26.3
 	k8s.io/cri-api v0.28.2
-	oras.land/oras-go/v2 v2.3.1
+	oras.land/oras-go/v2 v2.4.0
 )
 
 require (
