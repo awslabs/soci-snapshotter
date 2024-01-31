@@ -74,6 +74,9 @@ const (
 	// defaultFuseMetricsEmitWaitDurationSec is the amount of time the snapshotter will wait before emitting the metrics for FUSE operation.
 	defaultFuseMetricsEmitWaitDurationSec = 60
 
+	// defaultMaxConcurrency is the maximum number of layers allowed to be pulled at once
+	defaultMaxConcurrency = 100
+
 	defaultValidIntervalSec = 60
 
 	defaultFetchTimeoutSec = 300

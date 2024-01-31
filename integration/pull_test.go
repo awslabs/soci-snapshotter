@@ -410,6 +410,44 @@ func TestLazyPullNoIndexDigest(t *testing.T) {
 	}
 }
 
+func TestPullWithMaxConcurrency(t *testing.T) {
+	tests := []struct {
+		name           string
+		image          string
+		maxConcurrency int64
+	}{
+		{
+			name:           "Run with default max concurrency",
+			image:          rabbitmqImage,
+			maxConcurrency: 0,
+		},
+		{
+			name:           "Run with max concurrency of 2",
+			image:          rabbitmqImage,
+			maxConcurrency: 2,
+		},
+	}
+
+	for _, tt := range tests {
+		tt := tt
+		t.Run(tt.name, func(t *testing.T) {
+
+			regConfig := newRegistryConfig()
+			sh, done := newShellWithRegistry(t, regConfig)
+			defer done()
+
+			config := `
+max_concurrency = ` + fmt.Sprintf("%d\n", tt.maxConcurrency)
+
+			rebootContainerd(t, sh, getContainerdConfigToml(t, false), getSnapshotterConfigToml(t, false, config))
+			copyImage(sh, dockerhub(tt.image), regConfig.mirror(tt.image))
+
+			indexDigest := buildIndex(sh, regConfig.mirror(tt.image), withMinLayerSize(0), withSpanSize(100*1024))
+			sh.X(append(imagePullCmd, "--soci-index-digest", indexDigest, regConfig.mirror(tt.image).ref)...)
+		})
+	}
+}
+
 // TestPullWithAribtraryBlobInvalidZtocFormat tests the snapshotter behavior if an arbitrary blob is passed
 // as a Ztoc. In this case, the flatbuffer deserialization will fail, which will lead
 // to the snapshotter mounting the layer as a normal overlayfs mount.
