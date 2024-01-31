@@ -187,6 +187,13 @@ func parseFSConfig(cfg *Config) {
 	if cfg.FuseMetricsEmitWaitDurationSec == 0 {
 		cfg.FuseMetricsEmitWaitDurationSec = defaultFuseMetricsEmitWaitDurationSec
 	}
+	if cfg.MaxConcurrency == 0 {
+		cfg.MaxConcurrency = defaultMaxConcurrency
+	}
+	// If MaxConcurrency is negative, disable concurrency limits entirely.
+	if cfg.MaxConcurrency < 0 {
+		cfg.MaxConcurrency = 0
+	}
 	// Parse nested fs configs
 	parsers := []configParser{parseFuseConfig, parseBackgroundFetchConfig, parseRetryableHTTPClientConfig, parseBlobConfig, parseContentStoreConfig}
 	for _, p := range parsers {

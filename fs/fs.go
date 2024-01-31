@@ -74,12 +74,73 @@ import (
 	"github.com/opencontainers/go-digest"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/sirupsen/logrus"
+	"golang.org/x/sync/semaphore"
 )
 
 var (
 	defaultIndexSelectionPolicy = SelectFirstPolicy
 	fusermountBin               = "fusermount"
+	preresolverQueueBufferSize  = 1024 // arbitrarily chosen buffer size
 )
+
+// Preresolver will resolve a number of layers in parallel,
+// up to the amount specified by MaxConcurrency.
+type preresolver struct {
+	queue chan func(context.Context) string
+	cache *sync.Map
+	smp   *semaphore.Weighted
+}
+
+func newPreresolver(maxConcurrency int64) *preresolver {
+	pr := &preresolver{}
+	pr.queue = make(chan func(context.Context) string, preresolverQueueBufferSize)
+	pr.cache = &sync.Map{}
+	if maxConcurrency > 0 {
+		pr.smp = semaphore.NewWeighted(maxConcurrency)
+	}
+	return pr
+}
+
+func (pr *preresolver) Start(ctx context.Context) error {
+	go func() {
+		for {
+			select {
+			case <-ctx.Done():
+				log.G(ctx).Info("exiting preresolver")
+				return
+			default:
+				resolveFn := <-pr.queue
+				// If concurrency limits are disabled,
+				// we don't need to wait for a semaphore
+				if pr.smp != nil {
+					pr.smp.Acquire(ctx, 1)
+				}
+
+				go func() {
+					digest := resolveFn(ctx)
+					pr.cache.Delete(digest)
+					if pr.smp != nil {
+						pr.smp.Release(1)
+					}
+				}()
+			}
+		}
+	}()
+
+	return nil
+}
+
+func (pr *preresolver) Enqueue(imgNameAndDigest string, fn func(context.Context) string) {
+	if _, ok := pr.cache.Load(imgNameAndDigest); !ok {
+		select {
+		case pr.queue <- fn:
+			pr.cache.Store(imgNameAndDigest, struct{}{})
+		default:
+			return
+		}
+	}
+
+}
 
 type Option func(*options)
 
@@ -88,6 +149,7 @@ type options struct {
 	resolveHandlers   map[string]remote.Handler
 	metadataStore     metadata.Store
 	overlayOpaqueType layer.OverlayOpaqueType
+	maxConcurrency    int64
 }
 
 func WithGetSources(s source.GetSources) Option {
@@ -114,6 +176,12 @@ func WithMetadataStore(metadataStore metadata.Store) Option {
 func WithOverlayOpaqueType(overlayOpaqueType layer.OverlayOpaqueType) Option {
 	return func(opts *options) {
 		opts.overlayOpaqueType = overlayOpaqueType
+	}
+}
+
+func WithMaxConcurrency(maxConcurrency int64) Option {
+	return func(opts *options) {
+		opts.maxConcurrency = maxConcurrency
 	}
 }
 
@@ -180,6 +248,9 @@ func NewFilesystem(ctx context.Context, root string, cfg config.FSConfig, opts .
 		return nil, fmt.Errorf("failed to setup resolver: %w", err)
 	}
 
+	pr := newPreresolver(fsOpts.maxConcurrency)
+	pr.Start(ctx)
+
 	var ns *metrics.Namespace
 	if !cfg.NoPrometheus {
 		ns = metrics.NewNamespace("soci", "fs", nil)
@@ -215,6 +286,7 @@ func NewFilesystem(ctx context.Context, root string, cfg config.FSConfig, opts .
 		bgFetcher:                   bgFetcher,
 		mountTimeout:                mountTimeout,
 		fuseMetricsEmitWaitDuration: fuseMetricsEmitWaitDuration,
+		pr:                          pr,
 	}, nil
 }
 
@@ -318,6 +390,7 @@ type filesystem struct {
 	bgFetcher                   *bf.BackgroundFetcher
 	mountTimeout                time.Duration
 	fuseMetricsEmitWaitDuration time.Duration
+	pr                          *preresolver
 }
 
 func (fs *filesystem) MountLocal(ctx context.Context, mountpoint string, labels map[string]string, mounts []mount.Mount) error {
@@ -444,24 +517,26 @@ func (fs *filesystem) Mount(ctx context.Context, mountpoint string, labels map[s
 	preResolve := src[0] // TODO: should we pre-resolve blobs in other sources as well?
 	for _, desc := range neighboringLayers(preResolve.Manifest, preResolve.Target) {
 		desc := desc
-		go func() {
-			// Avoids to get canceled by client.
-			ctx := log.WithLogger(context.Background(), log.G(ctx).WithField("mountpoint", mountpoint))
+		imgNameAndDigest := preResolve.Name.String() + "/" + desc.Digest.String()
+		fs.pr.Enqueue(imgNameAndDigest, func(ctx context.Context) string {
+			// Use context from the preresolver
 			sociDesc, ok := c.imageLayerToSociDesc[desc.Digest.String()]
 			if !ok {
 				log.G(ctx).WithError(snapshot.ErrNoZtoc).WithField("layerDigest", desc.Digest.String()).Debug("skipping layer pre-resolve")
-				return
+				return imgNameAndDigest
 			}
 
 			l, err := fs.resolver.Resolve(ctx, preResolve.Hosts, preResolve.Name, desc, sociDesc, c.fuseOperationCounter, fs.disableVerification)
 			if err != nil {
 				log.G(ctx).WithError(err).Debug("failed to pre-resolve")
-				return
+				return imgNameAndDigest
 			}
 			// Release this layer because this isn't target and we don't use it anymore here.
 			// However, this will remain on the resolver cache until eviction.
 			l.Done()
-		}()
+
+			return imgNameAndDigest
+		})
 	}
 
 	// Wait for resolving completion
