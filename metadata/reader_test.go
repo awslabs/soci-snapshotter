@@ -33,6 +33,7 @@
 package metadata
 
 import (
+	"fmt"
 	"io"
 	"os"
 	"testing"
@@ -76,4 +77,75 @@ type testableReadCloser struct {
 func (r *testableReadCloser) Close() error {
 	r.closeFn()
 	return r.testableReader.Close()
+}
+
+func TestPartition(t *testing.T) {
+	testCases := []struct {
+		name      string
+		chunkSize int
+		input     []int
+		want      [][]int
+	}{
+		{
+			name:      "equality when length of slice mod chunkSize is zero",
+			chunkSize: 3,
+			input:     []int{1, 2, 3, 4, 5, 6, 7, 8, 9},
+			want:      [][]int{{1, 2, 3}, {4, 5, 6}, {7, 8, 9}},
+		},
+		{
+			name:      "equality when length of slice mod chunkSize is non-zero",
+			chunkSize: 4,
+			input:     []int{1, 2, 3, 4, 5, 6, 7, 8, 9},
+			want:      [][]int{{1, 2, 3, 4}, {5, 6, 7, 8}, {9}},
+		},
+		{
+			name:      "zero slice returns zero slice",
+			chunkSize: 1,
+			input:     []int{},
+			want:      [][]int{},
+		},
+		{
+			name:      "chunkSize greater than length of slice returns original slice",
+			chunkSize: 10,
+			input:     []int{1, 2, 3, 4, 5, 6, 7, 8, 9},
+			want:      [][]int{{1, 2, 3, 4, 5, 6, 7, 8, 9}},
+		},
+		{
+			name:      "zero chunkSize returns zero slice",
+			chunkSize: 0,
+			input:     []int{1, 2, 3, 4, 5, 6, 7, 8, 9},
+			want:      [][]int{},
+		},
+		{
+			name:      "negative chunkSize returns zero slice",
+			chunkSize: -1,
+			input:     []int{1, 2, 3, 4, 5, 6, 7, 8, 9},
+			want:      [][]int{},
+		},
+	}
+	for _, tc := range testCases {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			checkEquivalence := func(have, want [][]int) error {
+				if len(have) != len(want) {
+					return fmt.Errorf("mismatched chunk count; want: %v, have: %v", len(want), len(have))
+				}
+				for i := 0; i < len(have); i++ {
+					if len(have[i]) != len(want[i]) {
+						return fmt.Errorf("mismatched chunk length; want: %v, have: %v", len(want[i]), len(have[i]))
+					}
+					for j := 0; j < len(have[i]); j++ {
+						if have[i][j] != want[i][j] {
+							return fmt.Errorf("mismatched values; want: %v, have: %v", want[i][j], have[i][j])
+						}
+					}
+				}
+				return nil
+			}
+			if err := checkEquivalence(partition(tc.input, tc.chunkSize), tc.want); err != nil {
+				t.Fatal(err)
+			}
+		})
+
+	}
 }

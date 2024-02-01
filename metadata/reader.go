@@ -53,7 +53,15 @@ import (
 	"golang.org/x/sync/errgroup"
 )
 
-// reader stores filesystem metadata parsed from ztoc to metadata DB
+const (
+	// bboltInsertionChunkSize roughly determines the maximum number of insertions to
+	// bbolt per transaction. We chose 5K to be the chunk size as it yielded the best
+	// balance between performance and memory usage compared to other chunk sizes (1k and 10k)
+	// that were benchmarked.
+	bboltInsertionChunkSize = 5000
+)
+
+// reader stores filesystem metadata parsed from a TOC to metadata DB
 // and provides methods to read them.
 type reader struct {
 	db     *bolt.DB
@@ -76,7 +84,7 @@ func (r *reader) nextID() (uint32, error) {
 	return r.curID, nil
 }
 
-// NewReader parses ztoc and stores filesystem metadata to the provided DB.
+// NewReader parses a TOC and persists filesystem metadata to the provided bbolt DB.
 func NewReader(db *bolt.DB, sr *io.SectionReader, toc ztoc.TOC, opts ...Option) (Reader, error) {
 	var rOpts Options
 	for _, o := range opts {
@@ -95,26 +103,6 @@ func NewReader(db *bolt.DB, sr *io.SectionReader, toc ztoc.TOC, opts ...Option) 
 		return nil, fmt.Errorf("failed to initialize metadata: %w", err)
 	}
 	return r, nil
-}
-
-// RootID returns ID of the root node.
-func (r *reader) RootID() uint32 {
-	return r.rootID
-}
-
-// Clone returns a new reader identical to the current reader
-// but uses the provided section reader for retrieving file paylaods.
-func (r *reader) Clone(sr *io.SectionReader) (Reader, error) {
-	if err := r.waitInit(); err != nil {
-		return nil, err
-	}
-	return &reader{
-		db:     r.db,
-		fsID:   r.fsID,
-		rootID: r.rootID,
-		sr:     sr,
-		initG:  new(errgroup.Group),
-	}, nil
 }
 
 func (r *reader) init(toc ztoc.TOC, rOpts Options) (retErr error) {
@@ -176,99 +164,103 @@ func (r *reader) initRootNode(fsID string) error {
 }
 
 func (r *reader) initNodes(toc ztoc.TOC) error {
+	fileMetadataChunks := partition(toc.FileMetadata, bboltInsertionChunkSize)
+
 	md := make(map[uint32]*metadataEntry)
-	if err := r.db.Batch(func(tx *bolt.Tx) (err error) {
-		nodes, err := getNodes(tx, r.fsID)
-		if err != nil {
-			return err
-		}
-		nodes.FillPercent = 1.0 // we only do sequential write to this bucket
-		var attr Attr
-		for _, ent := range toc.FileMetadata {
-			var id uint32
-			var b *bolt.Bucket
-
-			// TAR stores trailing path separator for directory entries. We clean
-			// the path to remove the trailing separator, so that we can recurse
-			// parent paths using `filepath.Split`.
-			cleanName := cleanEntryPath(ent.Name)
-			cleanLinkName := cleanEntryPath(ent.Linkname)
-
-			isLink := ent.Type == "hardlink"
-			isDir := ent.Type == "dir"
-
-			if isLink {
-				id, err = getIDByName(md, cleanLinkName, r.rootID)
-				if err != nil {
-					return fmt.Errorf("%q is a hardlink but cannot get link destination %q: %w", ent.Name, ent.Linkname, err)
-				}
-				b, err = getNodeBucketByID(nodes, id)
-				if err != nil {
-					return fmt.Errorf("cannot get hardlink destination %q ==> %q (%d): %w", ent.Name, ent.Linkname, id, err)
-				}
-				numLink, _ := binary.Varint(b.Get(bucketKeyNumLink))
-				if err := putInt(b, bucketKeyNumLink, numLink+1); err != nil {
-					return fmt.Errorf("cannot put NumLink of %q ==> %q: %w", ent.Name, ent.Linkname, err)
-				}
-			} else {
-				// Write node bucket
-				var found bool
-				if isDir {
-					// Check if this directory is already created, if so overwrite it.
-					id, err = getIDByName(md, cleanName, r.rootID)
-					if err == nil {
-						b, err = getNodeBucketByID(nodes, id)
-						if err != nil {
-							return fmt.Errorf("failed to get directory bucket %d: %w", id, err)
-						}
-						found = true
-						attr.NumLink = readNumLink(b)
-					}
-				}
-				if !found {
-					// No existing node. Create a new one.
-					id, err = r.nextID()
-					if err != nil {
-						return err
-					}
-					b, err = nodes.CreateBucket(encodeID(id))
-					if err != nil {
-						return err
-					}
-					attr.NumLink = 1 // at least the parent dir references this directory.
-					if isDir {
-						attr.NumLink++ // at least "." references this directory.
-					}
-				}
-				// Write the new node object to the node bucket.
-				if err := writeAttr(b, attrFromZtocEntry(&ent, &attr)); err != nil {
-					return fmt.Errorf("failed to set attr to %d(%q): %w", id, ent.Name, err)
-				}
-			}
-
-			// Create relationship between node and its parent.
-			parentDirectoryName := parentDir(cleanName)
-			parentID, parentBucket, err := r.getOrCreateDir(nodes, md, parentDirectoryName, r.rootID)
+	for _, fileMetadataChunk := range fileMetadataChunks {
+		if err := r.db.Batch(func(tx *bolt.Tx) (err error) {
+			nodes, err := getNodes(tx, r.fsID)
 			if err != nil {
-				return fmt.Errorf("failed to create parent directory %q of %q: %w", parentDirectoryName, ent.Name, err)
-			}
-			if err := setChild(md, parentBucket, parentID, filepath.Base(cleanName), id, isDir); err != nil {
 				return err
 			}
+			nodes.FillPercent = 1.0 // we only do sequential write to this bucket
+			var attr Attr
+			for _, ent := range fileMetadataChunk {
+				var id uint32
+				var b *bolt.Bucket
 
-			if !isLink {
-				if md[id] == nil {
-					md[id] = &metadataEntry{}
+				// TAR stores trailing path separator for directory entries. We clean
+				// the path to remove the trailing separator, so that we can recurse
+				// parent paths using `filepath.Split`.
+				cleanName := cleanEntryPath(ent.Name)
+				cleanLinkName := cleanEntryPath(ent.Linkname)
+
+				isLink := ent.Type == "hardlink"
+				isDir := ent.Type == "dir"
+
+				if isLink {
+					id, err = getIDByName(md, cleanLinkName, r.rootID)
+					if err != nil {
+						return fmt.Errorf("%q is a hardlink but cannot get link destination %q: %w", ent.Name, ent.Linkname, err)
+					}
+					b, err = getNodeBucketByID(nodes, id)
+					if err != nil {
+						return fmt.Errorf("cannot get hardlink destination %q ==> %q (%d): %w", ent.Name, ent.Linkname, id, err)
+					}
+					numLink, _ := binary.Varint(b.Get(bucketKeyNumLink))
+					if err := putInt(b, bucketKeyNumLink, numLink+1); err != nil {
+						return fmt.Errorf("cannot put NumLink of %q ==> %q: %w", ent.Name, ent.Linkname, err)
+					}
+				} else {
+					// Write node bucket
+					var found bool
+					if isDir {
+						// Check if this directory is already created, if so overwrite it.
+						id, err = getIDByName(md, cleanName, r.rootID)
+						if err == nil {
+							b, err = getNodeBucketByID(nodes, id)
+							if err != nil {
+								return fmt.Errorf("failed to get directory bucket %d: %w", id, err)
+							}
+							found = true
+							attr.NumLink = readNumLink(b)
+						}
+					}
+					if !found {
+						// No existing node. Create a new one.
+						id, err = r.nextID()
+						if err != nil {
+							return err
+						}
+						b, err = nodes.CreateBucket(encodeID(id))
+						if err != nil {
+							return err
+						}
+						attr.NumLink = 1 // at least the parent dir references this directory.
+						if isDir {
+							attr.NumLink++ // at least "." references this directory.
+						}
+					}
+					// Write the new node object to the node bucket.
+					if err := writeAttr(b, attrFromZtocEntry(&ent, &attr)); err != nil {
+						return fmt.Errorf("failed to set attr to %d(%q): %w", id, ent.Name, err)
+					}
 				}
-				md[id].TarName = ent.Name
-				md[id].UncompressedOffset = ent.UncompressedOffset
-				md[id].TarHeaderOffset = ent.TarHeaderOffset
-				md[id].TarHeaderSize = ent.UncompressedOffset - ent.TarHeaderOffset
+
+				// Create relationship between node and its parent.
+				parentDirectoryName := parentDir(cleanName)
+				parentID, parentBucket, err := r.getOrCreateDir(nodes, md, parentDirectoryName, r.rootID)
+				if err != nil {
+					return fmt.Errorf("failed to create parent directory %q of %q: %w", parentDirectoryName, ent.Name, err)
+				}
+				if err := setChild(md, parentBucket, parentID, filepath.Base(cleanName), id, isDir); err != nil {
+					return err
+				}
+
+				if !isLink {
+					if md[id] == nil {
+						md[id] = &metadataEntry{}
+					}
+					md[id].TarName = ent.Name
+					md[id].UncompressedOffset = ent.UncompressedOffset
+					md[id].TarHeaderOffset = ent.TarHeaderOffset
+					md[id].TarHeaderSize = ent.UncompressedOffset - ent.TarHeaderOffset
+				}
 			}
+			return nil
+		}); err != nil {
+			return err
 		}
-		return nil
-	}); err != nil {
-		return err
 	}
 
 	addendum := make([]struct {
@@ -284,28 +276,54 @@ func (r *reader) initNodes(toc ztoc.TOC) error {
 		return bytes.Compare(addendum[i].id, addendum[j].id) < 0
 	})
 
-	if err := r.db.Batch(func(tx *bolt.Tx) (err error) {
-		meta, err := getMetadata(tx, r.fsID)
-		if err != nil {
-			return err
-		}
-		meta.FillPercent = 1.0 // we only do sequential write to this bucket
-
-		for _, m := range addendum {
-			md, err := meta.CreateBucket(m.id)
+	metadataChunks := partition(addendum, bboltInsertionChunkSize)
+	for _, metadataChunk := range metadataChunks {
+		if err := r.db.Batch(func(tx *bolt.Tx) (err error) {
+			meta, err := getMetadata(tx, r.fsID)
 			if err != nil {
 				return err
 			}
-			if err := writeMetadataEntry(md, m.md); err != nil {
-				return err
+			meta.FillPercent = 1.0 // we only do sequential write to this bucket
+			for _, m := range metadataChunk {
+				md, err := meta.CreateBucket(m.id)
+				if err != nil {
+					return err
+				}
+				if err := writeMetadataEntry(md, m.md); err != nil {
+					return err
+				}
 			}
+			return nil
+		}); err != nil {
+			return err
 		}
-		return nil
-	}); err != nil {
-		return err
-	}
 
+	}
 	return nil
+}
+
+// getIDByName returns the node ID associated with a path (file or directory). It recurses
+// the path all the way back to the root node, returning every child ID along the way.
+func getIDByName(md map[uint32]*metadataEntry, path string, rootID uint32) (uint32, error) {
+	if path == "" {
+		return rootID, nil
+	}
+	parentDirectory, base := filepath.Split(cleanEntryPath(path))
+	parentID, err := getIDByName(md, parentDirectory, rootID)
+	if err != nil {
+		return 0, err
+	}
+	if md[parentID] == nil {
+		return 0, fmt.Errorf("not found metadata of %d", parentID)
+	}
+	if md[parentID].children == nil {
+		return 0, fmt.Errorf("not found children of %q", parentID)
+	}
+	c, ok := md[parentID].children[base]
+	if !ok {
+		return 0, fmt.Errorf("not found child %q in %d", base, parentID)
+	}
+	return c.id, nil
 }
 
 // getOrCreateDir either retrieves a directory by name if it exists in the nodes bucket or creates
@@ -348,6 +366,52 @@ func (r *reader) getOrCreateDir(nodes *bolt.Bucket, md map[uint32]*metadataEntry
 	return id, b, nil
 }
 
+// setChild adds a child identified by base name to its parents children map as well
+// as incrementing the link count of the parent if the child is a directory.
+func setChild(md map[uint32]*metadataEntry, parentBucket *bolt.Bucket, parentID uint32, base string, id uint32, isDir bool) error {
+	if md[parentID] == nil {
+		md[parentID] = &metadataEntry{}
+	}
+	if md[parentID].children == nil {
+		md[parentID].children = make(map[string]childEntry)
+	}
+	md[parentID].children[base] = childEntry{base, id}
+	if isDir {
+		numLink, _ := binary.Varint(parentBucket.Get(bucketKeyNumLink))
+		if err := putInt(parentBucket, bucketKeyNumLink, numLink+1); err != nil {
+			return fmt.Errorf("cannot add numlink for children: %w", err)
+		}
+	}
+	return nil
+}
+
+// cleanEntryPath returns a clean file path, with trailing path separators removed.
+func cleanEntryPath(path string) string {
+	return strings.TrimPrefix(filepath.Clean(string(os.PathSeparator)+path), string(os.PathSeparator))
+}
+
+// parentDir returns the parent directory of a path.
+func parentDir(path string) string {
+	parentDirectory, _ := filepath.Split(path)
+	return parentDirectory
+}
+
+// partition partitions a slice of type T into chunks of size chunkSize.
+//
+// If the slice is empty or if the chunkSize is <= 0, an empty slice is
+// returned.
+func partition[T any](data []T, chunkSize int) [][]T {
+	if len(data) == 0 || chunkSize <= 0 {
+		return [][]T{}
+	}
+	chunks := make([][]T, 0, (len(data)+chunkSize-1)/chunkSize)
+	for chunkSize < len(data) {
+		data, chunks = data[chunkSize:], append(chunks, data[0:chunkSize:chunkSize])
+	}
+	chunks = append(chunks, data)
+	return chunks
+}
+
 func (r *reader) waitInit() error {
 	// TODO: add timeout
 	err := r.initG.Wait()
@@ -373,6 +437,26 @@ func (r *reader) update(fn func(tx *bolt.Tx) error) error {
 	return r.db.Batch(func(tx *bolt.Tx) error {
 		return fn(tx)
 	})
+}
+
+// RootID returns ID of the root node.
+func (r *reader) RootID() uint32 {
+	return r.rootID
+}
+
+// Clone returns a new reader identical to the current reader
+// but uses the provided section reader for retrieving file paylaods.
+func (r *reader) Clone(sr *io.SectionReader) (Reader, error) {
+	if err := r.waitInit(); err != nil {
+		return nil, err
+	}
+	return &reader{
+		db:     r.db,
+		fsID:   r.fsID,
+		rootID: r.rootID,
+		sr:     sr,
+		initG:  new(errgroup.Group),
+	}, nil
 }
 
 // Close closes this reader. This removes underlying filesystem metadata as well.
@@ -592,60 +676,6 @@ func attrFromZtocEntry(src *ztoc.FileMetadata, dst *Attr) *Attr {
 	}
 	dst.Xattrs = xattrs
 	return dst
-}
-
-// getIDByName returns the node ID associated with a path (file or directory). It recurses
-// the path all the way back to the root node, returning every child ID along the way.
-func getIDByName(md map[uint32]*metadataEntry, path string, rootID uint32) (uint32, error) {
-	if path == "" {
-		return rootID, nil
-	}
-	parentDirectory, base := filepath.Split(cleanEntryPath(path))
-	parentID, err := getIDByName(md, parentDirectory, rootID)
-	if err != nil {
-		return 0, err
-	}
-	if md[parentID] == nil {
-		return 0, fmt.Errorf("not found metadata of %d", parentID)
-	}
-	if md[parentID].children == nil {
-		return 0, fmt.Errorf("not found children of %q", parentID)
-	}
-	c, ok := md[parentID].children[base]
-	if !ok {
-		return 0, fmt.Errorf("not found child %q in %d", base, parentID)
-	}
-	return c.id, nil
-}
-
-// setChild adds a child identified by base name to its parents children map as well
-// as incrementing the link count of the parent if the child is a directory.
-func setChild(md map[uint32]*metadataEntry, parentBucket *bolt.Bucket, parentID uint32, base string, id uint32, isDir bool) error {
-	if md[parentID] == nil {
-		md[parentID] = &metadataEntry{}
-	}
-	if md[parentID].children == nil {
-		md[parentID].children = make(map[string]childEntry)
-	}
-	md[parentID].children[base] = childEntry{base, id}
-	if isDir {
-		numLink, _ := binary.Varint(parentBucket.Get(bucketKeyNumLink))
-		if err := putInt(parentBucket, bucketKeyNumLink, numLink+1); err != nil {
-			return fmt.Errorf("cannot add numlink for children: %w", err)
-		}
-	}
-	return nil
-}
-
-// cleanEntryPath returns a clean file path, with trailing path separators removed.
-func cleanEntryPath(path string) string {
-	return strings.TrimPrefix(filepath.Clean(string(os.PathSeparator)+path), string(os.PathSeparator))
-}
-
-// parentDir returns the parent directory of a path.
-func parentDir(path string) string {
-	parentDirectory, _ := filepath.Split(path)
-	return parentDirectory
 }
 
 func (r *reader) NumOfNodes() (i int, _ error) {
