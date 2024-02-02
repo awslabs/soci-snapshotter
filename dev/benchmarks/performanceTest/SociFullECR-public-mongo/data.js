@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1706847395730,
+  "lastUpdate": 1706916728084,
   "repoUrl": "https://github.com/awslabs/soci-snapshotter",
   "entries": {
     "Soci Benchmark": [
@@ -3982,6 +3982,48 @@ window.BENCHMARK_DATA = {
           {
             "name": "SociFullECR-public-mongo-pullTaskDuration",
             "value": 1.3585,
+            "unit": "Seconds",
+            "extra": "P90"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "davbson@amazon.com",
+            "name": "David Son",
+            "username": "sondavidb"
+          },
+          "committer": {
+            "email": "55555210+sondavidb@users.noreply.github.com",
+            "name": "David Son",
+            "username": "sondavidb"
+          },
+          "distinct": true,
+          "id": "04a83aaa56243152a0c14828a12cb810997ea6d8",
+          "message": "Modify artifact verification script\n\nAllowed artifact verification to be called without having to cd into\nthe release directory\n\nSigned-off-by: David Son <davbson@amazon.com>",
+          "timestamp": "2024-02-02T15:24:48-08:00",
+          "tree_id": "cd20bdccb2420224875483d34a685875ac332b02",
+          "url": "https://github.com/awslabs/soci-snapshotter/commit/04a83aaa56243152a0c14828a12cb810997ea6d8"
+        },
+        "date": 1706916724157,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "SociFullECR-public-mongo-lazyTaskDuration",
+            "value": 7.6475,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-mongo-localTaskDuration",
+            "value": 0.287,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-mongo-pullTaskDuration",
+            "value": 0.827,
             "unit": "Seconds",
             "extra": "P90"
           }
