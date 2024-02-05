@@ -152,7 +152,7 @@ func (r *reader) initRootNode(fsID string) error {
 		if err != nil {
 			return err
 		}
-		if err := writeAttr(rootBucket, &Attr{
+		if err := writeNodeEntry(rootBucket, &Attr{
 			Mode:    os.ModeDir | 0755,
 			NumLink: 2, // The directory itself(.) and the parent link to this directory.
 		}); err != nil {
@@ -169,7 +169,7 @@ func (r *reader) initNodes(toc ztoc.TOC) error {
 	md := make(map[uint32]*metadataEntry)
 	for _, fileMetadataChunk := range fileMetadataChunks {
 		if err := r.db.Batch(func(tx *bolt.Tx) (err error) {
-			nodes, err := getNodes(tx, r.fsID)
+			nodes, err := getNodesBucket(tx, r.fsID)
 			if err != nil {
 				return err
 			}
@@ -232,7 +232,7 @@ func (r *reader) initNodes(toc ztoc.TOC) error {
 						}
 					}
 					// Write the new node object to the node bucket.
-					if err := writeAttr(b, attrFromZtocEntry(&ent, &attr)); err != nil {
+					if err := writeNodeEntry(b, attrFromZtocEntry(&ent, &attr)); err != nil {
 						return fmt.Errorf("failed to set attr to %d(%q): %w", id, ent.Name, err)
 					}
 				}
@@ -272,6 +272,7 @@ func (r *reader) initNodes(toc ztoc.TOC) error {
 		addendum[i].id, addendum[i].md = encodeID(id), d
 		i++
 	}
+	// Sort metadata entries by node ID.
 	sort.Slice(addendum, func(i, j int) bool {
 		return bytes.Compare(addendum[i].id, addendum[j].id) < 0
 	})
@@ -279,7 +280,7 @@ func (r *reader) initNodes(toc ztoc.TOC) error {
 	metadataChunks := partition(addendum, bboltInsertionChunkSize)
 	for _, metadataChunk := range metadataChunks {
 		if err := r.db.Batch(func(tx *bolt.Tx) (err error) {
-			meta, err := getMetadata(tx, r.fsID)
+			meta, err := getMetadataBucket(tx, r.fsID)
 			if err != nil {
 				return err
 			}
@@ -352,7 +353,7 @@ func (r *reader) getOrCreateDir(nodes *bolt.Bucket, md map[uint32]*metadataEntry
 		Mode:    os.ModeDir | 0755,
 		NumLink: 2, // The directory itself(.) and the parent link to this directory.
 	}
-	if err := writeAttr(b, attr); err != nil {
+	if err := writeNodeEntry(b, attr); err != nil {
 		return 0, nil, err
 	}
 
@@ -474,7 +475,7 @@ func (r *reader) Close() error {
 func (r *reader) GetAttr(id uint32) (attr Attr, _ error) {
 	if r.rootID == id { // no need to wait for root dir
 		if err := r.db.View(func(tx *bolt.Tx) error {
-			nodes, err := getNodes(tx, r.fsID)
+			nodes, err := getNodesBucket(tx, r.fsID)
 			if err != nil {
 				return fmt.Errorf("nodes bucket of %q not found for sarching attr %d: %w", r.fsID, id, err)
 			}
@@ -482,14 +483,14 @@ func (r *reader) GetAttr(id uint32) (attr Attr, _ error) {
 			if err != nil {
 				return fmt.Errorf("failed to get attr bucket %d: %w", id, err)
 			}
-			return readAttr(b, &attr)
+			return readNodeEntryToAttr(b, &attr)
 		}); err != nil {
 			return Attr{}, err
 		}
 		return attr, nil
 	}
 	if err := r.view(func(tx *bolt.Tx) error {
-		nodes, err := getNodes(tx, r.fsID)
+		nodes, err := getNodesBucket(tx, r.fsID)
 		if err != nil {
 			return fmt.Errorf("nodes bucket of %q not found for sarching attr %d: %w", r.fsID, id, err)
 		}
@@ -497,7 +498,7 @@ func (r *reader) GetAttr(id uint32) (attr Attr, _ error) {
 		if err != nil {
 			return fmt.Errorf("failed to get attr bucket %d: %w", id, err)
 		}
-		return readAttr(b, &attr)
+		return readNodeEntryToAttr(b, &attr)
 	}); err != nil {
 		return Attr{}, err
 	}
@@ -507,7 +508,7 @@ func (r *reader) GetAttr(id uint32) (attr Attr, _ error) {
 // GetChild returns a child node that has the specified base name.
 func (r *reader) GetChild(pid uint32, base string) (id uint32, attr Attr, _ error) {
 	if err := r.view(func(tx *bolt.Tx) error {
-		metadataEntries, err := getMetadata(tx, r.fsID)
+		metadataEntries, err := getMetadataBucket(tx, r.fsID)
 		if err != nil {
 			return fmt.Errorf("metadata bucket of %q not found for getting child of %d: %w", r.fsID, pid, err)
 		}
@@ -519,7 +520,7 @@ func (r *reader) GetChild(pid uint32, base string) (id uint32, attr Attr, _ erro
 		if err != nil {
 			return fmt.Errorf("failed to read child %q of %d: %w", base, pid, err)
 		}
-		nodes, err := getNodes(tx, r.fsID)
+		nodes, err := getNodesBucket(tx, r.fsID)
 		if err != nil {
 			return fmt.Errorf("nodes bucket of %q not found for getting child of %d: %w", r.fsID, pid, err)
 		}
@@ -527,7 +528,7 @@ func (r *reader) GetChild(pid uint32, base string) (id uint32, attr Attr, _ erro
 		if err != nil {
 			return fmt.Errorf("failed to get child bucket %d: %w", id, err)
 		}
-		return readAttr(child, &attr)
+		return readNodeEntryToAttr(child, &attr)
 	}); err != nil {
 		return 0, Attr{}, err
 	}
@@ -543,7 +544,7 @@ func (r *reader) ForeachChild(id uint32, f func(name string, id uint32, mode os.
 	}
 	children := make(map[string]childInfo)
 	if err := r.view(func(tx *bolt.Tx) error {
-		metadataEntries, err := getMetadata(tx, r.fsID)
+		metadataEntries, err := getMetadataBucket(tx, r.fsID)
 		if err != nil {
 			return fmt.Errorf("nodes bucket of %q not found for getting child of %d: %w", r.fsID, id, err)
 		}
@@ -557,7 +558,7 @@ func (r *reader) ForeachChild(id uint32, f func(name string, id uint32, mode os.
 		if len(firstName) != 0 {
 			firstID := decodeID(md.Get(bucketKeyChildID))
 			if nodes == nil {
-				nodes, err = getNodes(tx, r.fsID)
+				nodes, err = getNodesBucket(tx, r.fsID)
 				if err != nil {
 					return fmt.Errorf("nodes bucket of %q not found for getting children of %d: %w", r.fsID, id, err)
 				}
@@ -575,7 +576,7 @@ func (r *reader) ForeachChild(id uint32, f func(name string, id uint32, mode os.
 			return nil // no child
 		}
 		if nodes == nil {
-			nodes, err = getNodes(tx, r.fsID)
+			nodes, err = getNodesBucket(tx, r.fsID)
 			if err != nil {
 				return fmt.Errorf("nodes bucket of %q not found for getting children of %d: %w", r.fsID, id, err)
 			}
@@ -607,7 +608,7 @@ func (r *reader) OpenFile(id uint32) (File, error) {
 	var mde metadataEntry
 
 	if err := r.view(func(tx *bolt.Tx) error {
-		nodes, err := getNodes(tx, r.fsID)
+		nodes, err := getNodesBucket(tx, r.fsID)
 		if err != nil {
 			return fmt.Errorf("nodes bucket of %q not found for opening %d: %w", r.fsID, id, err)
 		}
@@ -620,7 +621,7 @@ func (r *reader) OpenFile(id uint32) (File, error) {
 		if !os.FileMode(uint32(m)).IsRegular() {
 			return fmt.Errorf("%q is not a regular file", id)
 		}
-		metadataEntries, err := getMetadata(tx, r.fsID)
+		metadataEntries, err := getMetadataBucket(tx, r.fsID)
 		if err != nil {
 			return fmt.Errorf("metadata bucket of %q not found for opening %d: %w", r.fsID, id, err)
 		}
@@ -680,7 +681,7 @@ func attrFromZtocEntry(src *ztoc.FileMetadata, dst *Attr) *Attr {
 
 func (r *reader) NumOfNodes() (i int, _ error) {
 	if err := r.view(func(tx *bolt.Tx) error {
-		nodes, err := getNodes(tx, r.fsID)
+		nodes, err := getNodesBucket(tx, r.fsID)
 		if err != nil {
 			return err
 		}
@@ -690,7 +691,7 @@ func (r *reader) NumOfNodes() (i int, _ error) {
 				return fmt.Errorf("entry bucket for %q not found", string(k))
 			}
 			var attr Attr
-			if err := readAttr(b, &attr); err != nil {
+			if err := readNodeEntryToAttr(b, &attr); err != nil {
 				return err
 			}
 			i++

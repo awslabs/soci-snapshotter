@@ -33,9 +33,11 @@
 package metadata
 
 import (
+	"bytes"
 	"encoding/binary"
 	"fmt"
 	"os"
+	"sort"
 
 	"github.com/awslabs/soci-snapshotter/util/dbutil"
 	"github.com/awslabs/soci-snapshotter/ztoc/compression"
@@ -114,7 +116,9 @@ type metadataEntry struct {
 	TarHeaderSize      compression.Offset
 }
 
-func getNodes(tx *bolt.Tx, fsID string) (*bolt.Bucket, error) {
+// getNodesBucket returns the top-level nodes bucket that contains each node
+// as a sub-bucket.
+func getNodesBucket(tx *bolt.Tx, fsID string) (*bolt.Bucket, error) {
 	filesystems := tx.Bucket(bucketKeyFilesystems)
 	if filesystems == nil {
 		return nil, fmt.Errorf("fs %q not found: no fs is registered", fsID)
@@ -130,7 +134,9 @@ func getNodes(tx *bolt.Tx, fsID string) (*bolt.Bucket, error) {
 	return nodes, nil
 }
 
-func getMetadata(tx *bolt.Tx, fsID string) (*bolt.Bucket, error) {
+// getMetadataBucket returns the top-level metadata bucket that contains each node
+// as a sub-bucket.
+func getMetadataBucket(tx *bolt.Tx, fsID string) (*bolt.Bucket, error) {
 	filesystems := tx.Bucket(bucketKeyFilesystems)
 	if filesystems == nil {
 		return nil, fmt.Errorf("fs %q not found: no fs is registered", fsID)
@@ -146,6 +152,7 @@ func getMetadata(tx *bolt.Tx, fsID string) (*bolt.Bucket, error) {
 	return md, nil
 }
 
+// getNodeBucketByID returns the node sub-bucket with the appropriate node id inside the top-level nodes bucket.
 func getNodeBucketByID(nodes *bolt.Bucket, id uint32) (*bolt.Bucket, error) {
 	b := nodes.Bucket(encodeID(id))
 	if b == nil {
@@ -154,6 +161,7 @@ func getNodeBucketByID(nodes *bolt.Bucket, id uint32) (*bolt.Bucket, error) {
 	return b, nil
 }
 
+// getMetadataBucketByID returns the node sub-bucket with the appropriate node id inside the top-level metadata bucket.
 func getMetadataBucketByID(md *bolt.Bucket, id uint32) (*bolt.Bucket, error) {
 	b := md.Bucket(encodeID(id))
 	if b == nil {
@@ -162,36 +170,16 @@ func getMetadataBucketByID(md *bolt.Bucket, id uint32) (*bolt.Bucket, error) {
 	return b, nil
 }
 
-func writeAttr(b *bolt.Bucket, attr *Attr) error {
-	for _, v := range []struct {
-		key []byte
-		val int64
-	}{
-		{bucketKeySize, attr.Size},
-		{bucketKeyUID, int64(attr.UID)},
-		{bucketKeyGID, int64(attr.GID)},
-		{bucketKeyDevMajor, int64(attr.DevMajor)},
-		{bucketKeyDevMinor, int64(attr.DevMinor)},
-		{bucketKeyNumLink, int64(attr.NumLink - 1)}, // numLink = 0 means num link = 1 in DB
-	} {
-		if v.val != 0 {
-			val, err := dbutil.EncodeInt(v.val)
-			if err != nil {
-				return err
-			}
-			if err := b.Put(v.key, val); err != nil {
-				return err
-			}
-		}
+// writeNodeEntry writes node metadata to the appropriate node sub-bucket inside the top-level nodes bucket.
+func writeNodeEntry(b *bolt.Bucket, attr *Attr) error {
+	if attr.DevMajor != 0 {
+		putInt(b, bucketKeyDevMajor, int64(attr.DevMajor))
 	}
-	if !attr.ModTime.IsZero() {
-		te, err := attr.ModTime.GobEncode()
-		if err != nil {
-			return err
-		}
-		if err := b.Put(bucketKeyModTime, te); err != nil {
-			return err
-		}
+	if attr.DevMinor != 0 {
+		putInt(b, bucketKeyDevMinor, int64(attr.DevMinor))
+	}
+	if attr.GID != 0 {
+		putInt(b, bucketKeyGID, int64(attr.GID))
 	}
 	if len(attr.LinkName) > 0 {
 		if err := b.Put(bucketKeyLinkName, []byte(attr.LinkName)); err != nil {
@@ -207,18 +195,30 @@ func writeAttr(b *bolt.Bucket, attr *Attr) error {
 			return err
 		}
 	}
+	if !attr.ModTime.IsZero() {
+		te, err := attr.ModTime.GobEncode()
+		if err != nil {
+			return err
+		}
+		if err := b.Put(bucketKeyModTime, te); err != nil {
+			return err
+		}
+	}
+	if attr.NumLink != 0 {
+		putInt(b, bucketKeyNumLink, int64(attr.NumLink-1)) // numLink = 0 means num link = 1 in DB
+	}
+	if attr.Size != 0 {
+		putInt(b, bucketKeySize, attr.Size)
+	}
+	if attr.UID != 0 {
+		putInt(b, bucketKeyUID, int64(attr.UID))
+	}
 	if len(attr.Xattrs) > 0 {
 		var firstK string
 		var firstV []byte
 		for k, v := range attr.Xattrs {
 			firstK, firstV = k, v
 			break
-		}
-		if err := b.Put(bucketKeyXattrKey, []byte(firstK)); err != nil {
-			return err
-		}
-		if err := b.Put(bucketKeyXattrValue, firstV); err != nil {
-			return err
 		}
 		var xbkt *bolt.Bucket
 		for k, v := range attr.Xattrs {
@@ -242,12 +242,18 @@ func writeAttr(b *bolt.Bucket, attr *Attr) error {
 				return fmt.Errorf("failed to set xattr %q=%q: %w", k, string(v), err)
 			}
 		}
-	}
+		if err := b.Put(bucketKeyXattrKey, []byte(firstK)); err != nil {
+			return err
+		}
+		if err := b.Put(bucketKeyXattrValue, firstV); err != nil {
+			return err
+		}
 
+	}
 	return nil
 }
 
-func readAttr(b *bolt.Bucket, attr *Attr) error {
+func readNodeEntryToAttr(b *bolt.Bucket, attr *Attr) error {
 	return b.ForEach(func(k, v []byte) error {
 		switch string(k) {
 		case string(bucketKeySize):
@@ -317,6 +323,7 @@ func readChild(md *bolt.Bucket, base string) (uint32, error) {
 	return decodeID(eid), nil
 }
 
+// writeMetadataEntry writes a metadata entry to the appropriate node sub-bucket inside the top-level metadata bucket.
 func writeMetadataEntry(md *bolt.Bucket, m *metadataEntry) error {
 	if len(m.children) > 0 {
 		var firstChildName string
@@ -325,16 +332,18 @@ func writeMetadataEntry(md *bolt.Bucket, m *metadataEntry) error {
 			firstChildName, firstChild = name, child
 			break
 		}
-		if err := md.Put(bucketKeyChildID, encodeID(firstChild.id)); err != nil {
-			return fmt.Errorf("failed to put id of first child %q: %w", firstChildName, err)
-		}
-		if err := md.Put(bucketKeyChildName, []byte(firstChildName)); err != nil {
-			return fmt.Errorf("failed to put name first child %q: %w", firstChildName, err)
-		}
 		if len(m.children) > 1 {
+			// Sort children by base name.
+			keys := make([]string, 0, len(m.children))
+			for k := range m.children {
+				keys = append(keys, k)
+			}
+			sort.Slice(keys, func(i, j int) bool {
+				return bytes.Compare([]byte(m.children[keys[i]].base), []byte(m.children[keys[j]].base)) < 0
+			})
 			var cbkt *bolt.Bucket
-			for k, c := range m.children {
-				if k == firstChildName {
+			for _, key := range keys {
+				if key == firstChildName {
 					continue
 				}
 				if cbkt == nil {
@@ -350,25 +359,31 @@ func writeMetadataEntry(md *bolt.Bucket, m *metadataEntry) error {
 						return err
 					}
 				}
-				if err := cbkt.Put([]byte(c.base), encodeID(c.id)); err != nil {
-					return fmt.Errorf("failed to add child ID %q: %w", c.id, err)
+				if err := cbkt.Put([]byte(m.children[key].base), encodeID(m.children[key].id)); err != nil {
+					return fmt.Errorf("failed to add child ID %q: %w", m.children[key].id, err)
 				}
 			}
 		}
-	}
-	if err := putFileSize(md, bucketKeyUncompressedOffset, m.UncompressedOffset); err != nil {
-		return fmt.Errorf("failed to set UncompressedOffset value %d: %w", m.UncompressedOffset, err)
-	}
-	if err := putFileSize(md, bucketKeyTarHeaderOffset, m.TarHeaderOffset); err != nil {
-		return fmt.Errorf("failed to set TarHeaderOffset value %d: %w", m.TarHeaderOffset, err)
-	}
-	if err := putFileSize(md, bucketKeyTarHeaderSize, m.TarHeaderSize); err != nil {
-		return fmt.Errorf("failed to set TarHeaderSize value %d: %w", m.TarHeaderSize, err)
+		if err := md.Put(bucketKeyChildID, encodeID(firstChild.id)); err != nil {
+			return fmt.Errorf("failed to put id of first child %q: %w", firstChildName, err)
+		}
+		if err := md.Put(bucketKeyChildName, []byte(firstChildName)); err != nil {
+			return fmt.Errorf("failed to put name first child %q: %w", firstChildName, err)
+		}
+
 	}
 	if err := md.Put(bucketKeyName, []byte(m.TarName)); err != nil {
 		return fmt.Errorf("failed to set TarName value %s: %w", m.TarName, err)
 	}
-
+	if err := putInt(md, bucketKeyTarHeaderOffset, int64(m.TarHeaderOffset)); err != nil {
+		return fmt.Errorf("failed to set TarHeaderOffset value %d: %w", m.TarHeaderOffset, err)
+	}
+	if err := putInt(md, bucketKeyTarHeaderSize, int64(m.TarHeaderSize)); err != nil {
+		return fmt.Errorf("failed to set TarHeaderSize value %d: %w", m.TarHeaderSize, err)
+	}
+	if err := putInt(md, bucketKeyUncompressedOffset, int64(m.UncompressedOffset)); err != nil {
+		return fmt.Errorf("failed to set UncompressedOffset value %d: %w", m.UncompressedOffset, err)
+	}
 	return nil
 }
 
@@ -385,18 +400,6 @@ func getMetadataEntry(md *bolt.Bucket) metadataEntry {
 		compression.Offset(tarHeaderSize)}
 }
 
-func putFileSize(b *bolt.Bucket, k []byte, v compression.Offset) error {
-	return putInt(b, k, int64(v))
-}
-
-func putInt(b *bolt.Bucket, k []byte, v int64) error {
-	i, err := dbutil.EncodeInt(v)
-	if err != nil {
-		return err
-	}
-	return b.Put(k, i)
-}
-
 func encodeID(id uint32) []byte {
 	b := [4]byte{}
 	binary.BigEndian.PutUint32(b[:], id)
@@ -405,6 +408,14 @@ func encodeID(id uint32) []byte {
 
 func decodeID(b []byte) uint32 {
 	return binary.BigEndian.Uint32(b)
+}
+
+func putInt(b *bolt.Bucket, k []byte, v int64) error {
+	i, err := dbutil.EncodeInt(v)
+	if err != nil {
+		return err
+	}
+	return b.Put(k, i)
 }
 
 func encodeUint(i uint64) ([]byte, error) {
