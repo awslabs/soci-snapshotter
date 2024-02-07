@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1707255413671,
+  "lastUpdate": 1707267325881,
   "repoUrl": "https://github.com/awslabs/soci-snapshotter",
   "entries": {
     "Soci Benchmark": [
@@ -3985,6 +3985,48 @@ window.BENCHMARK_DATA = {
           {
             "name": "SociFullECR-public-rabbitmq-pullTaskDuration",
             "value": 1.23,
+            "unit": "Seconds",
+            "extra": "P90"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "davbson@amazon.com",
+            "name": "David Son",
+            "username": "sondavidb"
+          },
+          "committer": {
+            "email": "55555210+sondavidb@users.noreply.github.com",
+            "name": "David Son",
+            "username": "sondavidb"
+          },
+          "distinct": true,
+          "id": "0065fb0e834ee5c81cf60fe36f0b072f1c0393d0",
+          "message": "Remove testing from release workflow\n\nTesting on tag push is somewhat redundant since we will not be pushing\nout new versions unless the previous commit has passing tests, and\nmanual testing on ARM must be done before the release tag is pushed, so\nthis just saves us some time.\n\nSigned-off-by: David Son <davbson@amazon.com>",
+          "timestamp": "2024-02-06T16:48:02-08:00",
+          "tree_id": "08e3a29b7fa38bc62549842128b9e0e32865a5c6",
+          "url": "https://github.com/awslabs/soci-snapshotter/commit/0065fb0e834ee5c81cf60fe36f0b072f1c0393d0"
+        },
+        "date": 1707267321163,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "SociFullECR-public-rabbitmq-lazyTaskDuration",
+            "value": 9.015,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-rabbitmq-localTaskDuration",
+            "value": 7.284,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-rabbitmq-pullTaskDuration",
+            "value": 0.73,
             "unit": "Seconds",
             "extra": "P90"
           }
