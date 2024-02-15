@@ -327,6 +327,7 @@ func (r *Resolver) Resolve(ctx context.Context, hosts []docker.RegistryHost, ref
 	if err != nil {
 		return nil, err
 	}
+	ztoc.TOC.FileMetadata = nil
 	log.G(ctx).Debugf("[Resolver.Resolve]Initialized metadata store for layer sha=%v", desc.Digest)
 
 	spanManager := spanmanager.New(ztoc, sr, spanCache, r.config.BlobConfig.MaxSpanVerificationRetries, cache.Direct())
