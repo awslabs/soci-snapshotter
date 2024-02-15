@@ -91,6 +91,7 @@ var infoCommand = cli.Command{
 			return err
 		}
 		defer gzInfo.Close()
+		ztoc.Checkpoints = nil
 
 		multiSpanFiles := 0
 		zinfo := Info{

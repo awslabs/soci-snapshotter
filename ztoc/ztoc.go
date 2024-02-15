@@ -180,6 +180,7 @@ func (zt Ztoc) ExtractFile(r *io.SectionReader, filename string) ([]byte, error)
 		return nil, nil
 	}
 	defer zinfo.Close()
+	zt.Checkpoints = nil
 
 	spanStart := zinfo.UncompressedOffsetToSpanID(entry.UncompressedOffset)
 	spanEnd := zinfo.UncompressedOffsetToSpanID(entry.UncompressedOffset + entry.UncompressedSize)
@@ -244,6 +245,7 @@ func (zt Ztoc) ExtractFromTarGz(gz string, filename string) (string, error) {
 		return "", err
 	}
 	defer zinfo.Close()
+	zt.Checkpoints = nil
 
 	bytes, err := zinfo.ExtractDataFromFile(gz, entry.UncompressedSize, entry.UncompressedOffset)
 	if err != nil {

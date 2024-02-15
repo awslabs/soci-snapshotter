@@ -93,6 +93,7 @@ func New(ztoc *ztoc.Ztoc, r *io.SectionReader, cache cache.BlobCache, retries in
 	if err != nil {
 		return nil
 	}
+	ztoc.Checkpoints = nil
 	spans := make([]*span, ztoc.MaxSpanID+1)
 	m := &SpanManager{
 		cache:                             cache,
