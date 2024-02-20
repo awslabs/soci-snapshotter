@@ -189,7 +189,7 @@ func BuildTarZstd(ents []TarEntry, compressionLevel int, opts ...BuildTarOption)
 // WriteTarToTempFile writes the contents of a tar archive to a specified path and
 // return the temp filename and the tar data (as []byte).
 //
-// It's the caller's responsibility to remove the genreated temp file.
+// It's the caller's responsibility to remove the generated temp file.
 func WriteTarToTempFile(tarNamePattern string, tarReader io.Reader) (string, []byte, error) {
 	tarFile, err := os.CreateTemp("", tarNamePattern)
 	if err != nil {
@@ -492,4 +492,130 @@ func permAndExtraMode2TarMode(fm os.FileMode) (tm int64) {
 		tm |= cISVTX
 	}
 	return
+}
+
+type TarEntriesOptions struct {
+	// maxChildren controls the maximum number of children a directory could have.
+	maxChildren int
+	// regProbability controls the ratio of regular files in the TAR.
+	regProbability float32
+}
+
+type TarEntriesOption func(te *TarEntriesOptions)
+
+func WithMaxChildren(m int) TarEntriesOption {
+	return func(te *TarEntriesOptions) {
+		te.maxChildren = m
+	}
+}
+
+func WithRegProbability(p float32) TarEntriesOption {
+	return func(te *TarEntriesOptions) {
+		te.regProbability = p
+	}
+}
+
+func parseEntriesOptions(n int, te *TarEntriesOptions) error {
+	switch {
+	case n < 0:
+		return fmt.Errorf("entry count must not be less than 0")
+	case te.maxChildren < 0:
+		return fmt.Errorf("max children must not be less than 0")
+	case te.maxChildren > n:
+		return fmt.Errorf("cannot have more children than the required entry count")
+	}
+
+	if te.regProbability < 0 {
+		te.regProbability = 0
+	} else if te.regProbability == 0 {
+		te.regProbability = 0.5
+	}
+	if te.maxChildren == 0 {
+		te.maxChildren = (n / 2) + 1
+	}
+	return nil
+}
+
+// GenerateTarEntries generates a random set of tar entries of some given size. It creates
+// an m-ary tree of file/directory nodes and corresponding TarEntries for each.
+func GenerateTarEntries(entriesCount int, opts ...TarEntriesOption) ([]TarEntry, error) {
+	te := &TarEntriesOptions{}
+	for _, opt := range opts {
+		opt(te)
+	}
+	if err := parseEntriesOptions(entriesCount, te); err != nil {
+		return nil, err
+	}
+
+	var (
+		head           *node
+		insertionIndex int
+	)
+
+	tarEntries := make([]TarEntry, 0, entriesCount)
+	nodeQueue := make([]*node, entriesCount+1)
+
+	rootNode := &node{path: "", leaf: false}
+	nodeQueue[0] = rootNode
+
+	for insertionIndex < len(nodeQueue)-1 {
+		// POP() the first item in the queue
+		head, nodeQueue = nodeQueue[0], nodeQueue[1:]
+		// If the node is a leaf, continue.
+		if head.isLeaf() {
+			insertionIndex = insertionIndex - 1
+			continue
+		}
+		remainingEmptyNodes := len(nodeQueue) - insertionIndex
+		// Get children count [1,maxChildren]. The children count must not
+		// exceed the remaining empty nodes, so we take the min.
+		m := min(RandRangInc(1, te.maxChildren), remainingEmptyNodes)
+		endIndex := insertionIndex + m
+		nonLeafIndex := RandRangInc(insertionIndex, endIndex-1)
+
+		// Starting from the insertionIndex, create m children and add them to the queue.
+		for k := insertionIndex; k < endIndex; k++ {
+			childNode := &node{}
+			// At least 1 child node needs to a non-leaf, unless it is the last node in the tree.
+			if k == nonLeafIndex && k != len(nodeQueue)-1 {
+				childNode.leaf = false
+			} else {
+				childNode.leaf = shouldBeLeaf(te.regProbability)
+			}
+			path := RandString(10)
+			if childNode.isLeaf() {
+				childNode.path = fmt.Sprintf("%s%s.txt", head.path, path)
+				tarEntries = append(tarEntries, File(childNode.path, ""))
+			} else {
+				childNode.path = fmt.Sprintf("%s%s/", head.path, path)
+				tarEntries = append(tarEntries, Dir(childNode.path))
+			}
+			// ENQUEUE() childNode
+			nodeQueue[k] = childNode
+		}
+		insertionIndex = (insertionIndex - 1) + m
+	}
+
+	return tarEntries, nil
+}
+
+func shouldBeLeaf(p float32) bool {
+	r := NewThreadsafeRandom()
+	return r.Float32() < p
+}
+
+type node struct {
+	path string
+	leaf bool
+}
+
+func (n *node) isLeaf() bool {
+	return n.leaf
+}
+
+func min(x, y int) int {
+	if x < y {
+		return x
+	}
+	return y
 }
