@@ -12,14 +12,14 @@ require (
 	github.com/google/flatbuffers v23.5.26+incompatible
 	github.com/google/go-cmp v0.6.0
 	github.com/google/uuid v1.6.0
-	github.com/hanwen/go-fuse/v2 v2.4.2
+	github.com/hanwen/go-fuse/v2 v2.5.0
 	github.com/hashicorp/go-retryablehttp v0.7.5
 	github.com/klauspost/compress v1.17.6
 	github.com/moby/sys/mountinfo v0.7.1
 	github.com/montanaflynn/stats v0.7.1
 	github.com/opencontainers/go-digest v1.0.0
-	github.com/opencontainers/image-spec v1.1.0-rc6
-	github.com/opencontainers/runtime-spec v1.1.0
+	github.com/opencontainers/image-spec v1.1.0
+	github.com/opencontainers/runtime-spec v1.2.0
 	github.com/pelletier/go-toml v1.9.5
 	github.com/prometheus/client_golang v1.18.0
 	github.com/rs/xid v1.5.0
