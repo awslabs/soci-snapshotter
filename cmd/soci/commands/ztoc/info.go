@@ -90,6 +90,7 @@ var infoCommand = cli.Command{
 		if err != nil {
 			return err
 		}
+		defer gzInfo.Close()
 
 		multiSpanFiles := 0
 		zinfo := Info{
