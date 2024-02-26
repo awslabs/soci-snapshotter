@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1708463609101,
+  "lastUpdate": 1708990555658,
   "repoUrl": "https://github.com/awslabs/soci-snapshotter",
   "entries": {
     "Soci Benchmark": [
@@ -4152,6 +4152,48 @@ window.BENCHMARK_DATA = {
           {
             "name": "SociFullECR-public-node-pullTaskDuration",
             "value": 2.178,
+            "unit": "Seconds",
+            "extra": "P90"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "davbson@amazon.com",
+            "name": "David Son",
+            "username": "sondavidb"
+          },
+          "committer": {
+            "email": "55555210+sondavidb@users.noreply.github.com",
+            "name": "David Son",
+            "username": "sondavidb"
+          },
+          "distinct": true,
+          "id": "ae21d2640e9e409f73afa2c932a2965fbddb4994",
+          "message": "Remove unparsed references from zTOC\n\nOur current zTOC structure uses more memory than needed. Specifically,\nthe Checkpoints and FileMetadata arrays only get called once, yet they\ncannot be freed because the SpanManager retains a reference to them,\ndespite never needing either past their initial calls. This is an\ninherent design flaw with our zTOC APIs, and this fix is a temporary\nworkaround to increase performance. Once we can flesh out the zTOC\nAPI, this solution can be much more elegant, or even unneeded.\n\nSigned-off-by: David Son <davbson@amazon.com>",
+          "timestamp": "2024-02-26T15:28:08-08:00",
+          "tree_id": "c1f0537042b441dfe3464ae0b4b8af168c972d9a",
+          "url": "https://github.com/awslabs/soci-snapshotter/commit/ae21d2640e9e409f73afa2c932a2965fbddb4994"
+        },
+        "date": 1708990554365,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "SociFullECR-public-node-lazyTaskDuration",
+            "value": 6.6975,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-node-localTaskDuration",
+            "value": 0.4545,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-node-pullTaskDuration",
+            "value": 1.419,
             "unit": "Seconds",
             "extra": "P90"
           }
