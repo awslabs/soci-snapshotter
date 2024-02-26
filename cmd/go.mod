@@ -13,7 +13,7 @@ require (
 	github.com/opencontainers/image-spec v1.1.0
 	github.com/sirupsen/logrus v1.9.3
 	github.com/urfave/cli v1.22.14
-	go.etcd.io/bbolt v1.3.8
+	go.etcd.io/bbolt v1.3.9
 	golang.org/x/sys v0.17.0
 	google.golang.org/grpc v1.58.3
 	k8s.io/cri-api v0.28.2
