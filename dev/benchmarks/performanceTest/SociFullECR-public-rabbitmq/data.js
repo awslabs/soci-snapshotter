@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1708990557024,
+  "lastUpdate": 1709046697265,
   "repoUrl": "https://github.com/awslabs/soci-snapshotter",
   "entries": {
     "Soci Benchmark": [
@@ -4153,6 +4153,48 @@ window.BENCHMARK_DATA = {
           {
             "name": "SociFullECR-public-rabbitmq-pullTaskDuration",
             "value": 1.062,
+            "unit": "Seconds",
+            "extra": "P90"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "turyasin@amazon.com",
+            "name": "Yasin Turan",
+            "username": "turan18"
+          },
+          "committer": {
+            "email": "66654647+turan18@users.noreply.github.com",
+            "name": "Yasin Turan",
+            "username": "turan18"
+          },
+          "distinct": true,
+          "id": "3cd8cd448a09b4f9d69213da3075b3d045fd6a73",
+          "message": "Ensure bbolt KV pairs are inserted in key sorted order\n\nSigned-off-by: Yasin Turan <turyasin@amazon.com>",
+          "timestamp": "2024-02-27T10:04:12-05:00",
+          "tree_id": "8e93e925895b910d945fcfa0c0090ae2aeb0c7f6",
+          "url": "https://github.com/awslabs/soci-snapshotter/commit/3cd8cd448a09b4f9d69213da3075b3d045fd6a73"
+        },
+        "date": 1709046696595,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "SociFullECR-public-rabbitmq-lazyTaskDuration",
+            "value": 8.981,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-rabbitmq-localTaskDuration",
+            "value": 7.723,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-rabbitmq-pullTaskDuration",
+            "value": 1.3275,
             "unit": "Seconds",
             "extra": "P90"
           }
