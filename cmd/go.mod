@@ -13,7 +13,7 @@ require (
 	github.com/opencontainers/image-spec v1.1.0
 	github.com/sirupsen/logrus v1.9.3
 	github.com/urfave/cli v1.22.14
-	go.etcd.io/bbolt v1.3.8
+	go.etcd.io/bbolt v1.3.9
 	golang.org/x/sys v0.17.0
 	google.golang.org/grpc v1.58.3
 	k8s.io/cri-api v0.28.2
@@ -60,7 +60,7 @@ require (
 	github.com/imdario/mergo v0.3.13 // indirect
 	github.com/josharian/intern v1.0.0 // indirect
 	github.com/json-iterator/go v1.1.12 // indirect
-	github.com/klauspost/compress v1.17.6 // indirect
+	github.com/klauspost/compress v1.17.7 // indirect
 	github.com/mailru/easyjson v0.7.6 // indirect
 	github.com/matttproud/golang_protobuf_extensions/v2 v2.0.0 // indirect
 	github.com/moby/locker v1.0.1 // indirect
@@ -88,7 +88,7 @@ require (
 	go.opentelemetry.io/otel/metric v1.19.0 // indirect
 	go.opentelemetry.io/otel/trace v1.19.0 // indirect
 	golang.org/x/mod v0.12.0 // indirect
-	golang.org/x/net v0.17.0 // indirect
+	golang.org/x/net v0.21.0 // indirect
 	golang.org/x/oauth2 v0.12.0 // indirect
 	golang.org/x/sync v0.6.0 // indirect
 	golang.org/x/term v0.17.0 // indirect

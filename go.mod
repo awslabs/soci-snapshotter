@@ -14,7 +14,7 @@ require (
 	github.com/google/uuid v1.6.0
 	github.com/hanwen/go-fuse/v2 v2.5.0
 	github.com/hashicorp/go-retryablehttp v0.7.5
-	github.com/klauspost/compress v1.17.6
+	github.com/klauspost/compress v1.17.7
 	github.com/moby/sys/mountinfo v0.7.1
 	github.com/montanaflynn/stats v0.7.1
 	github.com/opencontainers/go-digest v1.0.0
@@ -24,8 +24,8 @@ require (
 	github.com/prometheus/client_golang v1.18.0
 	github.com/rs/xid v1.5.0
 	github.com/sirupsen/logrus v1.9.3
-	go.etcd.io/bbolt v1.3.8
-	golang.org/x/crypto v0.19.0
+	go.etcd.io/bbolt v1.3.9
+	golang.org/x/crypto v0.20.0
 	golang.org/x/sync v0.6.0
 	golang.org/x/sys v0.17.0
 	golang.org/x/time v0.5.0
@@ -94,7 +94,7 @@ require (
 	go.opentelemetry.io/otel/metric v1.19.0 // indirect
 	go.opentelemetry.io/otel/trace v1.19.0 // indirect
 	golang.org/x/mod v0.12.0 // indirect
-	golang.org/x/net v0.17.0 // indirect
+	golang.org/x/net v0.21.0 // indirect
 	golang.org/x/oauth2 v0.12.0 // indirect
 	golang.org/x/term v0.17.0 // indirect
 	golang.org/x/text v0.14.0 // indirect
