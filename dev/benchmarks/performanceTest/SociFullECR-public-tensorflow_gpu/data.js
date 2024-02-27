@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1709046698911,
+  "lastUpdate": 1709056649360,
   "repoUrl": "https://github.com/awslabs/soci-snapshotter",
   "entries": {
     "Soci Benchmark": [
@@ -4236,6 +4236,48 @@ window.BENCHMARK_DATA = {
           {
             "name": "SociFullECR-public-tensorflow_gpu-pullTaskDuration",
             "value": 2.8795,
+            "unit": "Seconds",
+            "extra": "P90"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "davbson@amazon.com",
+            "name": "David Son",
+            "username": "sondavidb"
+          },
+          "committer": {
+            "email": "55555210+sondavidb@users.noreply.github.com",
+            "name": "David Son",
+            "username": "sondavidb"
+          },
+          "distinct": true,
+          "id": "ba1058799622817963cbb694f0d9a3e5d3c2d9d5",
+          "message": "Add concurrency limits\n\nSigned-off-by: David Son <davbson@amazon.com>",
+          "timestamp": "2024-02-27T09:50:22-08:00",
+          "tree_id": "eecb6b370deb0b58ff7cad4e5b019713c4d27469",
+          "url": "https://github.com/awslabs/soci-snapshotter/commit/ba1058799622817963cbb694f0d9a3e5d3c2d9d5"
+        },
+        "date": 1709056648725,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "SociFullECR-public-tensorflow_gpu-lazyTaskDuration",
+            "value": 11.823,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-tensorflow_gpu-localTaskDuration",
+            "value": 2.332,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-tensorflow_gpu-pullTaskDuration",
+            "value": 1.556,
             "unit": "Seconds",
             "extra": "P90"
           }
