@@ -60,15 +60,19 @@ static_binary_name=soci-snapshotter-${release_version}-linux-${ARCH}-static.tar.
 
 make build
 cp "$NOTICE_FILE" "$LICENSE_FILE" "${OUT_DIR}"
-tar -czvf "$RELEASE_DIR"/"$dynamic_binary_name" -C "$OUT_DIR" .
+pushd "$OUT_DIR"
+tar -czvf "$RELEASE_DIR"/"$dynamic_binary_name" -- *
+popd
 rm -rf "{$OUT_DIR:?}"/*
 
 STATIC=1 make build
 cp "$NOTICE_FILE" "$LICENSE_FILE" "$OUT_DIR"
-tar -czvf "$RELEASE_DIR"/"$static_binary_name" -C "$OUT_DIR" .
+pushd "$OUT_DIR"
+tar -czvf "$RELEASE_DIR"/"$static_binary_name" -- *
+popd
 rm -rf "{$OUT_DIR:?}"/*
 
-pushd $RELEASE_DIR
+pushd "$RELEASE_DIR"
 sha256sum "$dynamic_binary_name" > "$RELEASE_DIR"/"$dynamic_binary_name".sha256sum
 sha256sum "$static_binary_name" > "$RELEASE_DIR"/"$static_binary_name".sha256sum
 popd
