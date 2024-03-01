@@ -73,8 +73,10 @@ in directories that a non-root user often does not have access to.
 
 In this document we will use `rabbitmq` from DockerHub `docker.io/library/rabbitmq:latest`.
 We use [AWS ECR](https://docs.aws.amazon.com/AmazonECR/latest/userguide/getting-started-console.html)
-as the public registry for demonstration. Other OCI 1.0 compatible registries such
-as dockerhub should also work.
+as the public registry for demonstration. Use of other registries is possible but please
+note that not all of the widely used container
+registries are `soci` compatible - please check the
+[registry compatibility list](https://github.com/awslabs/soci-snapshotter/blob/main/docs/registry.md#list-of-registry-compatibility) to ensure that the registry you wish to work with is compatible.
 
 First let's pull the image from docker into containerd's data store, then (tag and)
 push it up to your registry:
