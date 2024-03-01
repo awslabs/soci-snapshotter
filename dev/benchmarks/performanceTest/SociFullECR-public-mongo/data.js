@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1709217490060,
+  "lastUpdate": 1709332182039,
   "repoUrl": "https://github.com/awslabs/soci-snapshotter",
   "entries": {
     "Soci Benchmark": [
@@ -4402,6 +4402,48 @@ window.BENCHMARK_DATA = {
           {
             "name": "SociFullECR-public-mongo-pullTaskDuration",
             "value": 1.3415,
+            "unit": "Seconds",
+            "extra": "P90"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "davbson@amazon.com",
+            "name": "David Son",
+            "username": "sondavidb"
+          },
+          "committer": {
+            "email": "55555210+sondavidb@users.noreply.github.com",
+            "name": "David Son",
+            "username": "sondavidb"
+          },
+          "distinct": true,
+          "id": "0b85085ef6a20e1ef9aa95029794e72aaf1e0b2c",
+          "message": "Fix tar archive generation\n\nOur release scripts erreneously created tar archives with the ./ prefix.\nThis change removes this bug.\n\nSigned-off-by: David Son <davbson@amazon.com>",
+          "timestamp": "2024-03-01T14:23:07-08:00",
+          "tree_id": "86b1942bb2a942779de7dfea65884819aa42e16e",
+          "url": "https://github.com/awslabs/soci-snapshotter/commit/0b85085ef6a20e1ef9aa95029794e72aaf1e0b2c"
+        },
+        "date": 1709332177266,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "SociFullECR-public-mongo-lazyTaskDuration",
+            "value": 1.7839999999999998,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-mongo-localTaskDuration",
+            "value": 0.291,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-mongo-pullTaskDuration",
+            "value": 0.7105,
             "unit": "Seconds",
             "extra": "P90"
           }
