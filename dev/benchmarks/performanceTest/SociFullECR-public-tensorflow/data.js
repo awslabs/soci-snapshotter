@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1709577523541,
+  "lastUpdate": 1709580963721,
   "repoUrl": "https://github.com/awslabs/soci-snapshotter",
   "entries": {
     "Soci Benchmark": [
@@ -4568,6 +4568,48 @@ window.BENCHMARK_DATA = {
           {
             "name": "SociFullECR-public-tensorflow-pullTaskDuration",
             "value": 2.279,
+            "unit": "Seconds",
+            "extra": "P90"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "davbson@amazon.com",
+            "name": "David Son",
+            "username": "sondavidb"
+          },
+          "committer": {
+            "email": "55555210+sondavidb@users.noreply.github.com",
+            "name": "David Son",
+            "username": "sondavidb"
+          },
+          "distinct": true,
+          "id": "bb526c30097754683e91abb7836252b1bc3663f4",
+          "message": "Update RUNC_VERSION in Dockerfile\n\nThis addresses CVE-2024-21626 in our testing suite. Note that our\nbinaries do not depend on runc, and thus are unaffected.\n\nSigned-off-by: David Son <davbson@amazon.com>",
+          "timestamp": "2024-03-04T11:25:22-08:00",
+          "tree_id": "ca222f98a34c20558e258320bbd84fe178756ae1",
+          "url": "https://github.com/awslabs/soci-snapshotter/commit/bb526c30097754683e91abb7836252b1bc3663f4"
+        },
+        "date": 1709580962510,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "SociFullECR-public-tensorflow-lazyTaskDuration",
+            "value": 34.790499999999994,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-tensorflow-localTaskDuration",
+            "value": 2.3615000000000004,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-tensorflow-pullTaskDuration",
+            "value": 2.7969999999999997,
             "unit": "Seconds",
             "extra": "P90"
           }
