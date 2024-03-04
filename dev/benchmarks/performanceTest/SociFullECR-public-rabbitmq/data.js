@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1709577526257,
+  "lastUpdate": 1709580967803,
   "repoUrl": "https://github.com/awslabs/soci-snapshotter",
   "entries": {
     "Soci Benchmark": [
@@ -4363,6 +4363,48 @@ window.BENCHMARK_DATA = {
           {
             "name": "SociFullECR-public-rabbitmq-pullTaskDuration",
             "value": 1.6935,
+            "unit": "Seconds",
+            "extra": "P90"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "davbson@amazon.com",
+            "name": "David Son",
+            "username": "sondavidb"
+          },
+          "committer": {
+            "email": "55555210+sondavidb@users.noreply.github.com",
+            "name": "David Son",
+            "username": "sondavidb"
+          },
+          "distinct": true,
+          "id": "bb526c30097754683e91abb7836252b1bc3663f4",
+          "message": "Update RUNC_VERSION in Dockerfile\n\nThis addresses CVE-2024-21626 in our testing suite. Note that our\nbinaries do not depend on runc, and thus are unaffected.\n\nSigned-off-by: David Son <davbson@amazon.com>",
+          "timestamp": "2024-03-04T11:25:22-08:00",
+          "tree_id": "ca222f98a34c20558e258320bbd84fe178756ae1",
+          "url": "https://github.com/awslabs/soci-snapshotter/commit/bb526c30097754683e91abb7836252b1bc3663f4"
+        },
+        "date": 1709580962516,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "SociFullECR-public-rabbitmq-lazyTaskDuration",
+            "value": 9.649000000000001,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-rabbitmq-localTaskDuration",
+            "value": 7.72,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-rabbitmq-pullTaskDuration",
+            "value": 1.6645,
             "unit": "Seconds",
             "extra": "P90"
           }
