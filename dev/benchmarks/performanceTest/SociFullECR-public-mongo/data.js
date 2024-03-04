@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1709332182039,
+  "lastUpdate": 1709577525296,
   "repoUrl": "https://github.com/awslabs/soci-snapshotter",
   "entries": {
     "Soci Benchmark": [
@@ -4444,6 +4444,48 @@ window.BENCHMARK_DATA = {
           {
             "name": "SociFullECR-public-mongo-pullTaskDuration",
             "value": 0.7105,
+            "unit": "Seconds",
+            "extra": "P90"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "davbson@amazon.com",
+            "name": "David Son",
+            "username": "sondavidb"
+          },
+          "committer": {
+            "email": "55555210+sondavidb@users.noreply.github.com",
+            "name": "David Son",
+            "username": "sondavidb"
+          },
+          "distinct": true,
+          "id": "9bc4984587d46b8a8c4043858e564027ebed38ff",
+          "message": "Temporarily modify DCO check\n\nWe erreneously allowed a non-signed commit into main, so our pre-build\nscript would fail as long as this commit was put into the checker. This\nchange temporarily only checks from every commit after this commit, and\nshould be reverted once it falls out of the original scope.\n\nSigned-off-by: David Son <davbson@amazon.com>",
+          "timestamp": "2024-03-04T10:27:59-08:00",
+          "tree_id": "de6942af406f7d20d624da1f3d6898b59d611af2",
+          "url": "https://github.com/awslabs/soci-snapshotter/commit/9bc4984587d46b8a8c4043858e564027ebed38ff"
+        },
+        "date": 1709577523275,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "SociFullECR-public-mongo-lazyTaskDuration",
+            "value": 14.5835,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-mongo-localTaskDuration",
+            "value": 0.2935,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-mongo-pullTaskDuration",
+            "value": 1.6715,
             "unit": "Seconds",
             "extra": "P90"
           }
