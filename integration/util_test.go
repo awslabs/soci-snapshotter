@@ -75,7 +75,7 @@ const (
 	// Registry images to use in the test infrastructure. These are not intended to be used
 	// as images in the test itself, but just when we're setting up docker compose.
 	oci10RegistryImage = "registry2:soci_test"
-	oci11RegistryImage = "ghcr.io/project-zot/zot-linux-" + runtime.GOARCH + ":v2.0.0-rc6"
+	oci11RegistryImage = "ghcr.io/project-zot/zot-linux-" + runtime.GOARCH + ":v2.0.1"
 )
 
 // Commonly used CLI commands
