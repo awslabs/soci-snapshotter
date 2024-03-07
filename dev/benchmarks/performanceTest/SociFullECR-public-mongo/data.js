@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1709663480389,
+  "lastUpdate": 1709838776319,
   "repoUrl": "https://github.com/awslabs/soci-snapshotter",
   "entries": {
     "Soci Benchmark": [
@@ -4570,6 +4570,48 @@ window.BENCHMARK_DATA = {
           {
             "name": "SociFullECR-public-mongo-pullTaskDuration",
             "value": 0.6085,
+            "unit": "Seconds",
+            "extra": "P90"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "davbson@amazon.com",
+            "name": "David Son",
+            "username": "sondavidb"
+          },
+          "committer": {
+            "email": "55555210+sondavidb@users.noreply.github.com",
+            "name": "David Son",
+            "username": "sondavidb"
+          },
+          "distinct": true,
+          "id": "1d4d288d008d5f9b67f7179e25e2b6f22e8d1365",
+          "message": "Update zot image tag to v2.0.1\n\nThe v2.0.0-rc6 tag got removed, so using the latest stable version\nas of the time of this commit.\n\nSigned-off-by: David Son <davbson@amazon.com>",
+          "timestamp": "2024-03-07T11:02:45-08:00",
+          "tree_id": "f0d00c483ca3a8d05c9f116856f02f010cdd3ebf",
+          "url": "https://github.com/awslabs/soci-snapshotter/commit/1d4d288d008d5f9b67f7179e25e2b6f22e8d1365"
+        },
+        "date": 1709838772444,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "SociFullECR-public-mongo-lazyTaskDuration",
+            "value": 3.417,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-mongo-localTaskDuration",
+            "value": 0.2945,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-mongo-pullTaskDuration",
+            "value": 1.5605,
             "unit": "Seconds",
             "extra": "P90"
           }
