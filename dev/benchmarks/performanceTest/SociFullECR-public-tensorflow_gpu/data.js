@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1709663476029,
+  "lastUpdate": 1709838777784,
   "repoUrl": "https://github.com/awslabs/soci-snapshotter",
   "entries": {
     "Soci Benchmark": [
@@ -4488,6 +4488,48 @@ window.BENCHMARK_DATA = {
           {
             "name": "SociFullECR-public-tensorflow_gpu-pullTaskDuration",
             "value": 1.595,
+            "unit": "Seconds",
+            "extra": "P90"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "davbson@amazon.com",
+            "name": "David Son",
+            "username": "sondavidb"
+          },
+          "committer": {
+            "email": "55555210+sondavidb@users.noreply.github.com",
+            "name": "David Son",
+            "username": "sondavidb"
+          },
+          "distinct": true,
+          "id": "1d4d288d008d5f9b67f7179e25e2b6f22e8d1365",
+          "message": "Update zot image tag to v2.0.1\n\nThe v2.0.0-rc6 tag got removed, so using the latest stable version\nas of the time of this commit.\n\nSigned-off-by: David Son <davbson@amazon.com>",
+          "timestamp": "2024-03-07T11:02:45-08:00",
+          "tree_id": "f0d00c483ca3a8d05c9f116856f02f010cdd3ebf",
+          "url": "https://github.com/awslabs/soci-snapshotter/commit/1d4d288d008d5f9b67f7179e25e2b6f22e8d1365"
+        },
+        "date": 1709838771184,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "SociFullECR-public-tensorflow_gpu-lazyTaskDuration",
+            "value": 44.718,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-tensorflow_gpu-localTaskDuration",
+            "value": 2.5365,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-tensorflow_gpu-pullTaskDuration",
+            "value": 3.6855,
             "unit": "Seconds",
             "extra": "P90"
           }
