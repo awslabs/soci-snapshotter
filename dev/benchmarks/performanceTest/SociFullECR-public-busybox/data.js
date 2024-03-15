@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1710428991342,
+  "lastUpdate": 1710525045179,
   "repoUrl": "https://github.com/awslabs/soci-snapshotter",
   "entries": {
     "Soci Benchmark": [
@@ -4695,6 +4695,48 @@ window.BENCHMARK_DATA = {
           {
             "name": "SociFullECR-public-busybox-pullTaskDuration",
             "value": 1.5425,
+            "unit": "Seconds",
+            "extra": "P90"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "davbson@amazon.com",
+            "name": "David Son",
+            "username": "sondavidb"
+          },
+          "committer": {
+            "email": "55906459+austinvazquez@users.noreply.github.com",
+            "name": "Austin Vazquez",
+            "username": "austinvazquez"
+          },
+          "distinct": true,
+          "id": "27d6b4064e76871646fe021258556de436b669ae",
+          "message": "Update Golang to v1.21.7\n\nDockerfile + workflows — 1.20.13 -> 1.21.7\ngo.mod — 1.20 -> 1.21\ngolangci-lint — 1.53.3 -> 1.56.2\n\nSigned-off-by: David Son <davbson@amazon.com>",
+          "timestamp": "2024-03-15T10:42:37-07:00",
+          "tree_id": "4e2567a4e86cd5fe989120713488e14e88401ddc",
+          "url": "https://github.com/awslabs/soci-snapshotter/commit/27d6b4064e76871646fe021258556de436b669ae"
+        },
+        "date": 1710525043877,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "SociFullECR-public-busybox-lazyTaskDuration",
+            "value": 0.0175,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-busybox-localTaskDuration",
+            "value": 0.005,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-busybox-pullTaskDuration",
+            "value": 0.7995000000000001,
             "unit": "Seconds",
             "extra": "P90"
           }
