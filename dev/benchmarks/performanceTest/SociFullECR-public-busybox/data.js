@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1710526512202,
+  "lastUpdate": 1710528661915,
   "repoUrl": "https://github.com/awslabs/soci-snapshotter",
   "entries": {
     "Soci Benchmark": [
@@ -4779,6 +4779,48 @@ window.BENCHMARK_DATA = {
           {
             "name": "SociFullECR-public-busybox-pullTaskDuration",
             "value": 1.3575,
+            "unit": "Seconds",
+            "extra": "P90"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49699333+dependabot[bot]@users.noreply.github.com",
+            "name": "dependabot[bot]",
+            "username": "dependabot[bot]"
+          },
+          "committer": {
+            "email": "55906459+austinvazquez@users.noreply.github.com",
+            "name": "Austin Vazquez",
+            "username": "austinvazquez"
+          },
+          "distinct": true,
+          "id": "7af8577ac627f991d561f94d476ea4529a02626a",
+          "message": "Bump google.golang.org/protobuf from 1.32.0 to 1.33.0\n\nBumps google.golang.org/protobuf from 1.32.0 to 1.33.0.\n\n---\nupdated-dependencies:\n- dependency-name: google.golang.org/protobuf\n  dependency-type: indirect\n...\n\nSigned-off-by: Austin Vazquez <macedonv@amazon.com>",
+          "timestamp": "2024-03-15T11:43:40-07:00",
+          "tree_id": "27e8c2fffa72d90e7badc3246e1b6fc8b2547045",
+          "url": "https://github.com/awslabs/soci-snapshotter/commit/7af8577ac627f991d561f94d476ea4529a02626a"
+        },
+        "date": 1710528657203,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "SociFullECR-public-busybox-lazyTaskDuration",
+            "value": 0.012,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-busybox-localTaskDuration",
+            "value": 0.004,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-busybox-pullTaskDuration",
+            "value": 0.9155,
             "unit": "Seconds",
             "extra": "P90"
           }
