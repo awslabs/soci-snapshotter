@@ -51,7 +51,7 @@ Soci artifacts will be pushed only
 
 Flags:
 
-- ```--max-concurrent-uploads```: Max concurrent uploads. Default is 10
+- ```--max-concurrent-uploads```: Max concurrent uploads. Default is 3.
 - ```--quiet```, ```-q```: Enable quiet mode
 
 **Example:** 

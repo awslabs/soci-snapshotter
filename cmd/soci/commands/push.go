@@ -21,6 +21,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"math"
 	"net/http"
 	"sort"
 	"strings"
@@ -36,6 +37,15 @@ import (
 	oraslib "oras.land/oras-go/v2"
 	"oras.land/oras-go/v2/registry/remote"
 	"oras.land/oras-go/v2/registry/remote/auth"
+)
+
+const (
+	maxConcurrentUploadsFlag = "max-concurrent-uploads"
+
+	// defaultMaxConcurrentUploads is the default number of copy tasks used to upload the SOCI artifacts.
+	// This aligns with the ORAS Go library default value.
+	// Reference: https://github.com/oras-project/oras-go/blob/850a24737c15927603d1cecddc74c87f5f3377f4/copy.go#L38
+	defaultMaxConcurrentUploads = 3
 )
 
 // PushCommand is a command to push an image artifacts from local content store to the remote repository
@@ -55,9 +65,9 @@ if they are available in the snapshotter's local content store.
 		internal.PlatformFlags...),
 		internal.ExistingIndexFlag,
 		cli.Uint64Flag{
-			Name:  "max-concurrent-uploads",
-			Usage: "Max concurrent uploads. Default is 10",
-			Value: 10,
+			Name:  maxConcurrentUploadsFlag,
+			Usage: fmt.Sprintf("Max concurrent uploads. Default is %d", defaultMaxConcurrentUploads),
+			Value: defaultMaxConcurrentUploads,
 		},
 		cli.BoolFlag{
 			Name:  "quiet, q",
@@ -151,6 +161,16 @@ if they are available in the snapshotter's local content store.
 		}
 
 		options := oraslib.DefaultCopyGraphOptions
+		if value := cliContext.Uint64(maxConcurrentUploadsFlag); value == 0 {
+			options.Concurrency = defaultMaxConcurrentUploads
+		} else if value > math.MaxInt {
+			if !quiet {
+				fmt.Printf("warning: overflow for setting --%s=%d; defaulting to %d", maxConcurrentUploadsFlag, value, defaultMaxConcurrentUploads)
+			}
+			options.Concurrency = defaultMaxConcurrentUploads
+		} else {
+			options.Concurrency = int(value)
+		}
 		options.PreCopy = func(_ context.Context, desc ocispec.Descriptor) error {
 			if !quiet {
 				fmt.Printf("pushing artifact with digest: %v\n", desc.Digest)
