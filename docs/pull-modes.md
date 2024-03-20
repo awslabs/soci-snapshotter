@@ -32,9 +32,9 @@ The CLI accepts an optional flag `--soci-index-digest`, which is the sha256 of t
 SOCI index manifest and will be passed to the snapshotter.
 
 If not provided, the snapshotter will use the OCI distribution-spec's
-[Referrers API](https://github.com/opencontainers/distribution-spec/blob/main/spec.md#listing-referrers)
+[Referrers API](https://github.com/opencontainers/distribution-spec/blob/v1.1.0/spec.md#listing-referrers)
 (if available, otherwise the spec's
-[fallback mechanism](https://github.com/opencontainers/distribution-spec/blob/main/spec.md#unavailable-referrers-api))
+[fallback mechanism](https://github.com/opencontainers/distribution-spec/blob/v1.1.0/spec.md#unavailable-referrers-api))
 to fetch a list of available indices. An index will be chosen from the list of available indices,
 but the selection process is undefined and it may not choose the same index every time.
 

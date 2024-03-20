@@ -21,25 +21,25 @@ For most use-cases, compatibility is the only concern. However, there is a diffe
 
 In order for a registry to be compatible SOCI it must support the following features of the OCI distribution and image specs:
 
-1) Accept [OCI Image Manifests](https://github.com/opencontainers/image-spec/blob/v1.1.0-rc2/manifest.md) with [subject fields](https://github.com/opencontainers/image-spec/blob/v1.1.0-rc2/manifest.md#image-manifest-property-descriptions) and arbitrary config media types.
+1) Accept [OCI Image Manifests](https://github.com/opencontainers/image-spec/blob/v1.1.0/manifest.md) with [subject fields](https://github.com/opencontainers/image-spec/blob/v1.1.0/manifest.md#image-manifest-property-descriptions) and arbitrary config media types.
 This allows the registry to store SOCI indices and is supported by most registries.
 
-2) (optional) Support the [OCI referrers API](https://github.com/opencontainers/distribution-spec/blob/v1.1.0-rc1/spec.md#listing-referrers).
-This adds convenience around retrieving SOCI indices from the registry. If it is not supported, there is a [fallback mechanism](https://github.com/opencontainers/distribution-spec/blob/v1.1.0-rc1/spec.md#unavailable-referrers-api) that works with all registries, but it has a few issues noted in the next section.
+2) (optional) Support the [OCI referrers API](https://github.com/opencontainers/distribution-spec/blob/v1.1.0/spec.md#listing-referrers).
+This adds convenience around retrieving SOCI indices from the registry. If it is not supported, there is a [fallback mechanism](https://github.com/opencontainers/distribution-spec/blob/v1.1.0/spec.md#unavailable-referrers-api) that works with all registries, but it has a few issues noted in the next section.
 
 ## Referrers API vs Fallback
 
-The SOCI snapshotter can retrieve SOCI indices and ztocs either through the [OCI referrers API](https://github.com/opencontainers/distribution-spec/blob/v1.1.0-rc1/spec.md#listing-referrers) or a [Fallback mechanism](https://github.com/opencontainers/distribution-spec/blob/v1.1.0-rc1/spec.md#unavailable-referrers-api). The referrers API is part of the not-yet-released [OCI Distribution Spec v1.1](https://github.com/opencontainers/distribution-spec/blob/v1.1.0-rc1/spec.md) so registry support is limited. The Fallback is supported by all registries, but has notable edge cases.
+The SOCI snapshotter can retrieve SOCI indices and ztocs either through the [OCI referrers API](https://github.com/opencontainers/distribution-spec/blob/v1.1.0/spec.md#listing-referrers) or a [Fallback mechanism](https://github.com/opencontainers/distribution-spec/blob/v1.1.0/spec.md#unavailable-referrers-api). The referrers API is part of the not-yet-released [OCI Distribution Spec v1.1](https://github.com/opencontainers/distribution-spec/blob/v1.1.0/spec.md) so registry support is limited. The Fallback is supported by all registries, but has notable edge cases.
 
 The SOCI CLI and the SOCI snapshotter automatically uses the referrers API if the registry supports it or the fallback mechanism otherwise.
 
 ### Referrers API
 
-The [referrers API](https://github.com/opencontainers/distribution-spec/blob/v1.1.0-rc1/spec.md#listing-referrers) is a registry endpoint where an agent can query for all artifacts that reference a given image digest, optionally filtering by artifact type. The registry indexes artifacts for the referrers API when the artifact is pushed. When a container is launched, the SOCI snapshotter can query this API to find SOCI indices that reference the digest of the image.
+The [referrers API](https://github.com/opencontainers/distribution-spec/blob/v1.1.0/spec.md#listing-referrers) is a registry endpoint where an agent can query for all artifacts that reference a given image digest, optionally filtering by artifact type. The registry indexes artifacts for the referrers API when the artifact is pushed. When a container is launched, the SOCI snapshotter can query this API to find SOCI indices that reference the digest of the image.
 
 ### Fallback
 
-If the referrers API is not available, the OCI distribution spec defines a [fallback mechanism that works with existing registries](https://github.com/opencontainers/distribution-spec/blob/v1.1.0-rc1/spec.md#unavailable-referrers-api). In this mechanism, the contents that would normally be returned by the referrers API are instead put into an [OCI Image Index](https://github.com/opencontainers/image-spec/blob/v1.1.0-rc2/image-index.md) which is tagged in the registry with the digest of the manifest to which it refers.
+If the referrers API is not available, the OCI distribution spec defines a [fallback mechanism that works with existing registries](https://github.com/opencontainers/distribution-spec/blob/v1.1.0/spec.md#unavailable-referrers-api). In this mechanism, the contents that would normally be returned by the referrers API are instead put into an [OCI Image Index](https://github.com/opencontainers/image-spec/blob/v1.1.0/image-index.md) which is tagged in the registry with the digest of the manifest to which it refers.
 
 For example, imagine you had an image `myregistry.com/image:latest` with digest `sha:123`. If you created and pushed a SOCI index for that image, there would also be a new image index `myregistry.com/image:sha-123` which contains the SOCI index' descriptor. At runtime, the SOCI snapshotter will pull the `myregistry.com/image:sha-123` index and apply client side filtering to discover the SOCI index.
 

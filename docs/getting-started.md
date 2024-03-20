@@ -206,8 +206,8 @@ Once the snapshotter is running we can call the `pull` command from nerdctl.
 This command reads the manifest from the registry and mounts a FUSE filesystem
 for each layer.
 
-> The snapshotter will use the OCI distribution-spec's [Referrers API](https://github.com/opencontainers/distribution-spec/blob/main/spec.md#listing-referrers)
-> (if available, otherwise the spec's [fallback mechanism](https://github.com/opencontainers/distribution-spec/blob/main/spec.md#unavailable-referrers-api)) to fetch a list of available indices.
+> The snapshotter will use the OCI distribution-spec's [Referrers API](https://github.com/opencontainers/distribution-spec/blob/v1.1.0/spec.md#listing-referrers)
+> (if available, otherwise the spec's [fallback mechanism](https://github.com/opencontainers/distribution-spec/blob/v1.1.0/spec.md#unavailable-referrers-api)) to fetch a list of available indices.
 
 ```shell
 sudo nerdctl pull --snapshotter soci $REGISTRY/rabbitmq:latest
