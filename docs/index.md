@@ -28,11 +28,11 @@ content of the SOCI Index.
 
 The SOCI index manifest contains a subject reference to the image and a list of zTOCs.
 
-* `Subject` _[descriptor](https://github.com/opencontainers/image-spec/blob/v1.1.0-rc5/descriptor.md)_
+* `Subject` _[descriptor](https://github.com/opencontainers/image-spec/blob/v1.1.0/descriptor.md)_
 
     Reference to the image from which the index was generated.
 
-* `zTOCs` _array of [descriptor](https://github.com/opencontainers/image-spec/blob/v1.1.0-rc5/descriptor.md)_
+* `zTOCs` _array of [descriptor](https://github.com/opencontainers/image-spec/blob/v1.1.0/descriptor.md)_
 
 ![manifest-concept](images/soci-index-manifest-conceptual-data-model.drawio.svg)
 
@@ -75,10 +75,10 @@ The following figure builds a data model for a layer TAR and its zTOC:
 ## Physical Data Model
 
 The SOCI index is packaged as an
-[OCI image manifest](https://github.com/opencontainers/image-spec/blob/v1.1.0-rc5/manifest.md).
+[OCI image manifest](https://github.com/opencontainers/image-spec/blob/v1.1.0/manifest.md).
 This enables the SOCI index to be stored and distributed alongside its OCI image.
 
-See [guidelines for artifact usage](https://github.com/opencontainers/image-spec/blob/v1.1.0-rc5/manifest.md#guidelines-for-artifact-usage)
+See [guidelines for artifact usage](https://github.com/opencontainers/image-spec/blob/v1.1.0/manifest.md#guidelines-for-artifact-usage)
 for more information on packaging content using OCI image manifest.
 
 ### SOCI Index Property Descriptions
@@ -91,10 +91,10 @@ for more information on packaging content using OCI image manifest.
 
     This value MUST contain the media type `application/vnd.oci.image.manifest.v1+json`.
 
-* `config` _[descriptor](https://github.com/opencontainers/image-spec/blob/v1.1.0-rc5/descriptor.md)_
+* `config` _[descriptor](https://github.com/opencontainers/image-spec/blob/v1.1.0/descriptor.md)_
 
     A REQUIRED property for OCI image manifests to maintain portability. See
-    [guidance for an empty descriptor](https://github.com/opencontainers/image-spec/blob/v1.1.0-rc5/manifest.md#guidance-for-an-empty-descriptor)
+    [guidance for an empty descriptor](https://github.com/opencontainers/image-spec/blob/v1.1.0/manifest.md#guidance-for-an-empty-descriptor)
     for more information.
 
     * `mediaType` _string_
@@ -109,18 +109,18 @@ for more information on packaging content using OCI image manifest.
 
         This REQUIRED descriptor property specifies the size, in bytes, of the empty JSON payload (`size` of 2).
 
-* `subject` _[descriptor](https://github.com/opencontainers/image-spec/blob/v1.1.0-rc5/descriptor.md)_
+* `subject` _[descriptor](https://github.com/opencontainers/image-spec/blob/v1.1.0/descriptor.md)_
 
     A REQUIRED property which is used to specify the descriptor of the
     image manifest from which the index was generated. This value is used by the
-    [referrers API](https://github.com/opencontainers/distribution-spec/blob/v1.1.0-rc3/spec.md#listing-referrers)
+    [referrers API](https://github.com/opencontainers/distribution-spec/blob/v1.1.0/spec.md#listing-referrers)
     and associates a SOCI index with an OCI image.
 
     * `mediaType` _string_
 
         This REQUIRED property specifies the media type of the OCI image
         manifest from which the SOCI index was generated. The media type MUST
-        [be compatible](https://github.com/opencontainers/image-spec/blob/v1.1.0-rc5/media-types.md#compatibility-matrix)
+        [be compatible](https://github.com/opencontainers/image-spec/blob/v1.1.0/media-types.md#compatibility-matrix)
         with OCI image manifest.
 
     * `digest` _string_
@@ -133,7 +133,7 @@ for more information on packaging content using OCI image manifest.
         This REQUIRED property specifies the size, in bytes, of the OCI image
         manifest from which the SOCI index was generated.
 
-* `layers` _array of [descriptor](https://github.com/opencontainers/image-spec/blob/v1.1.0-rc5/descriptor.md)_
+* `layers` _array of [descriptor](https://github.com/opencontainers/image-spec/blob/v1.1.0/descriptor.md)_
 
     An ordered array where each item in the array is a serialized representation
     of a zTOC. See [zTOC](#ztoc) section.
