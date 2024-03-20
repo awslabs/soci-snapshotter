@@ -46,7 +46,9 @@ CMD_BINARIES=$(addprefix $(OUTDIR)/,$(CMD))
 
 GO_BENCHMARK_TESTS?=.
 
-.PHONY: all build check add-ltag install uninstall clean test integration release benchmarks build-benchmarks benchmarks-perf-test benchmarks-comparison-test
+.PHONY: all build check add-ltag install uninstall tidy vendor clean \
+	test integration release benchmarks build-benchmarks \
+	benchmarks-perf-test benchmarks-comparison-test
 
 all: build
 
@@ -81,9 +83,13 @@ uninstall:
 clean:
 	rm -rf $(OUTDIR)
 
-vendor:
+tidy:
 	@GO111MODULE=$(GO111MODULE_VALUE) go mod tidy
 	@cd ./cmd ; GO111MODULE=$(GO111MODULE_VALUE) go mod tidy
+
+vendor:
+	@GO111MODULE=$(GO111MODULE_VALUE) go mod vendor
+	@cd ./cmd ; GO111MODULE=$(GO111MODULE_VALUE) go mod vendor
 
 test:
 	@echo "$@"

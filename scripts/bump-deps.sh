@@ -27,7 +27,7 @@ pushd ${SOCI_SNAPSHOTTER_PROJECT_ROOT}
 go get $(go list -m -f '{{if not (or .Indirect .Main)}}{{.Path}}{{end}}' all | \
     grep -v "^google.golang.org/grpc" | \
     grep -v "^k8s.io/")
-make vendor
+make tidy
 
 pushd ./cmd
 # skip k8s deps and soci-snapshotter itself
@@ -38,6 +38,6 @@ go get $(go list -m -f '{{if not (or .Indirect .Main)}}{{.Path}}{{end}}' all | \
     grep -v "^google.golang.org/grpc" | \
     grep -v "^k8s.io/")
 popd
-make vendor
+make tidy
 
 popd
