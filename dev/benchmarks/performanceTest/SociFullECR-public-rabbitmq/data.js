@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1711044225720,
+  "lastUpdate": 1711044529069,
   "repoUrl": "https://github.com/awslabs/soci-snapshotter",
   "entries": {
     "Soci Benchmark": [
@@ -4783,6 +4783,48 @@ window.BENCHMARK_DATA = {
           {
             "name": "SociFullECR-public-rabbitmq-pullTaskDuration",
             "value": 1.536,
+            "unit": "Seconds",
+            "extra": "P90"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "macedonv@amazon.com",
+            "name": "Austin Vazquez",
+            "username": "austinvazquez"
+          },
+          "committer": {
+            "email": "55906459+austinvazquez@users.noreply.github.com",
+            "name": "Austin Vazquez",
+            "username": "austinvazquez"
+          },
+          "distinct": true,
+          "id": "d85499605b926c3bb94b125e76715d745387546a",
+          "message": "Fix max concurrent uploads on SOCI push\n\nThis change fixes the SOCI push command to set the maximum number of\nconcurrent copy tasks to the value passed via the CLI flag. Before this\nchange, the concurrency limit would ignore the value set via CLI and\ndefault to 3 copy tasks.\n\nSigned-off-by: Austin Vazquez <macedonv@amazon.com>",
+          "timestamp": "2024-03-21T11:01:23-07:00",
+          "tree_id": "7f3eb3701e32effdfc4aada2cbfc559a592c0d8c",
+          "url": "https://github.com/awslabs/soci-snapshotter/commit/d85499605b926c3bb94b125e76715d745387546a"
+        },
+        "date": 1711044524580,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "SociFullECR-public-rabbitmq-lazyTaskDuration",
+            "value": 8.3615,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-rabbitmq-localTaskDuration",
+            "value": 7.2684999999999995,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-rabbitmq-pullTaskDuration",
+            "value": 1.4715,
             "unit": "Seconds",
             "extra": "P90"
           }
