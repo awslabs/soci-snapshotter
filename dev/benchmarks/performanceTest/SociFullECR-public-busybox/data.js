@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1711044230690,
+  "lastUpdate": 1711044522859,
   "repoUrl": "https://github.com/awslabs/soci-snapshotter",
   "entries": {
     "Soci Benchmark": [
@@ -4947,6 +4947,48 @@ window.BENCHMARK_DATA = {
           {
             "name": "SociFullECR-public-busybox-pullTaskDuration",
             "value": 1.299,
+            "unit": "Seconds",
+            "extra": "P90"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "macedonv@amazon.com",
+            "name": "Austin Vazquez",
+            "username": "austinvazquez"
+          },
+          "committer": {
+            "email": "55906459+austinvazquez@users.noreply.github.com",
+            "name": "Austin Vazquez",
+            "username": "austinvazquez"
+          },
+          "distinct": true,
+          "id": "d85499605b926c3bb94b125e76715d745387546a",
+          "message": "Fix max concurrent uploads on SOCI push\n\nThis change fixes the SOCI push command to set the maximum number of\nconcurrent copy tasks to the value passed via the CLI flag. Before this\nchange, the concurrency limit would ignore the value set via CLI and\ndefault to 3 copy tasks.\n\nSigned-off-by: Austin Vazquez <macedonv@amazon.com>",
+          "timestamp": "2024-03-21T11:01:23-07:00",
+          "tree_id": "7f3eb3701e32effdfc4aada2cbfc559a592c0d8c",
+          "url": "https://github.com/awslabs/soci-snapshotter/commit/d85499605b926c3bb94b125e76715d745387546a"
+        },
+        "date": 1711044520929,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "SociFullECR-public-busybox-lazyTaskDuration",
+            "value": 0.010499999999999999,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-busybox-localTaskDuration",
+            "value": 0.0045000000000000005,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-busybox-pullTaskDuration",
+            "value": 1.4825,
             "unit": "Seconds",
             "extra": "P90"
           }
