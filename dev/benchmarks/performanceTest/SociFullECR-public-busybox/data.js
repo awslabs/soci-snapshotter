@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1710528661915,
+  "lastUpdate": 1710984380053,
   "repoUrl": "https://github.com/awslabs/soci-snapshotter",
   "entries": {
     "Soci Benchmark": [
@@ -4821,6 +4821,48 @@ window.BENCHMARK_DATA = {
           {
             "name": "SociFullECR-public-busybox-pullTaskDuration",
             "value": 0.9155,
+            "unit": "Seconds",
+            "extra": "P90"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49699333+dependabot[bot]@users.noreply.github.com",
+            "name": "dependabot[bot]",
+            "username": "dependabot[bot]"
+          },
+          "committer": {
+            "email": "55906459+austinvazquez@users.noreply.github.com",
+            "name": "Austin Vazquez",
+            "username": "austinvazquez"
+          },
+          "distinct": true,
+          "id": "f3eb99da462a140d0b4a581791bfefcc21eec0df",
+          "message": "Bump github.com/docker/cli\n\nBumps [github.com/docker/cli](https://github.com/docker/cli) from 25.0.4+incompatible to 25.0.5+incompatible.\n- [Commits](https://github.com/docker/cli/compare/v25.0.4...v25.0.5)\n\n---\nupdated-dependencies:\n- dependency-name: github.com/docker/cli\n  dependency-type: direct:production\n  update-type: version-update:semver-patch\n...\n\nSigned-off-by: Austin Vazquez <macedonv@amazon.com>",
+          "timestamp": "2024-03-20T18:17:31-07:00",
+          "tree_id": "006b0f56f20e0bb39b9541a5da4fad9db6e6b279",
+          "url": "https://github.com/awslabs/soci-snapshotter/commit/f3eb99da462a140d0b4a581791bfefcc21eec0df"
+        },
+        "date": 1710984376470,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "SociFullECR-public-busybox-lazyTaskDuration",
+            "value": 0.0245,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-busybox-localTaskDuration",
+            "value": 0.005,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-busybox-pullTaskDuration",
+            "value": 1.3984999999999999,
             "unit": "Seconds",
             "extra": "P90"
           }
