@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1711036905665,
+  "lastUpdate": 1711044226554,
   "repoUrl": "https://github.com/awslabs/soci-snapshotter",
   "entries": {
     "Soci Benchmark": [
@@ -4946,6 +4946,48 @@ window.BENCHMARK_DATA = {
           {
             "name": "SociFullECR-public-tensorflow-pullTaskDuration",
             "value": 1.972,
+            "unit": "Seconds",
+            "extra": "P90"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "macedonv@amazon.com",
+            "name": "Austin Vazquez",
+            "username": "austinvazquez"
+          },
+          "committer": {
+            "email": "55906459+austinvazquez@users.noreply.github.com",
+            "name": "Austin Vazquez",
+            "username": "austinvazquez"
+          },
+          "distinct": true,
+          "id": "fa59739309c7f823196aa54427742071736860cd",
+          "message": "Add make tidy and make vendor targets\n\nThis change reworks the vendor make target to vendor dependencies for\nusers looking for stronger build reproducibility. This change adds a new\ntidy make target for the previous behavior to install dependencies in\nthe local Go module cache and ensures go.mod file matches the source\ncode in the module.\n\nSigned-off-by: Austin Vazquez <macedonv@amazon.com>",
+          "timestamp": "2024-03-21T10:56:16-07:00",
+          "tree_id": "8692edf3bb8f29c79640492dc1568a7096b0a05a",
+          "url": "https://github.com/awslabs/soci-snapshotter/commit/fa59739309c7f823196aa54427742071736860cd"
+        },
+        "date": 1711044225824,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "SociFullECR-public-tensorflow-lazyTaskDuration",
+            "value": 13.563,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-tensorflow-localTaskDuration",
+            "value": 2.2155,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-tensorflow-pullTaskDuration",
+            "value": 1.984,
             "unit": "Seconds",
             "extra": "P90"
           }
