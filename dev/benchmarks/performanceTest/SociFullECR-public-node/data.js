@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1711045162482,
+  "lastUpdate": 1711052039602,
   "repoUrl": "https://github.com/awslabs/soci-snapshotter",
   "entries": {
     "Soci Benchmark": [
@@ -4908,6 +4908,48 @@ window.BENCHMARK_DATA = {
           {
             "name": "SociFullECR-public-node-pullTaskDuration",
             "value": 1.4089999999999998,
+            "unit": "Seconds",
+            "extra": "P90"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "arjunry@amazon.com",
+            "name": "Arjun Raja Yogidas",
+            "username": "coderbirju"
+          },
+          "committer": {
+            "email": "arjunry@amazon.com",
+            "name": "Arjun",
+            "username": "coderbirju"
+          },
+          "distinct": true,
+          "id": "f0a1fe4c4dae7a940c7932fdaf86ee03c5a66395",
+          "message": "Update go version in toolchain\n\nSigned-off-by: Arjun Raja <arjunry@amazon.com>",
+          "timestamp": "2024-03-21T13:06:56-07:00",
+          "tree_id": "b0bafdfd4df2535864b5c3a051d6f4579a92dfdb",
+          "url": "https://github.com/awslabs/soci-snapshotter/commit/f0a1fe4c4dae7a940c7932fdaf86ee03c5a66395"
+        },
+        "date": 1711052038297,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "SociFullECR-public-node-lazyTaskDuration",
+            "value": 1.29,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-node-localTaskDuration",
+            "value": 0.457,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-node-pullTaskDuration",
+            "value": 1.1995,
             "unit": "Seconds",
             "extra": "P90"
           }
