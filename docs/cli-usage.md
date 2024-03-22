@@ -33,6 +33,7 @@ Flags:
 
  - ```--span-size``` : Span size that soci index uses to segment layer data. Default is 4MiB 
  - ```--min-layer-size``` : Minimum layer size to build zTOC for. Smaller layers won't have zTOC and not lazy pulled. Default is 10MiB
+ - ```--disable-xattrs``` : When true, adds DisableXAttrs annotation to SOCI index. This annotation often helps performance at pull time. Default is true.
 
 **Example:** 
 ```

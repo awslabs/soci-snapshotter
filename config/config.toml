@@ -19,7 +19,7 @@ allow_no_verification=true
 # disable_verification=false
 # Causes TestRunWithDefaultConfig to break, but
 # fine to use in /etc/soci-snapshotter-grpc-config.toml
-max_concurrency=0  # Actually zero
+max_concurrency=0
 no_prometheus=false
 mount_timeout_sec=0
 fuse_metrics_emit_wait_duration_sec=0

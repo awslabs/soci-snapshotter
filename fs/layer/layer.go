@@ -345,14 +345,14 @@ func (r *Resolver) Resolve(ctx context.Context, hosts []docker.RegistryHost, ref
 	if err != nil {
 		return nil, fmt.Errorf("failed to read layer: %w", err)
 	}
-	disableXattrs := getDisableXAttrAnnotation(sociDesc)
+	disableXAttrs := getDisableXAttrAnnotation(sociDesc)
 	// Combine layer information together and cache it.
-	l := newLayer(r, desc, blobR, vr, bgLayerResolver, opCounter, disableXattrs)
+	l := newLayer(r, desc, blobR, vr, bgLayerResolver, opCounter, disableXAttrs)
 	r.layerCacheMu.Lock()
 	cachedL, done2, added := r.layerCache.Add(name, l)
 	r.layerCacheMu.Unlock()
 	if !added {
-		l.close() // layer already exists in the cache. discrad this.
+		l.close() // layer already exists in the cache. discard this.
 	}
 
 	log.G(ctx).Debugf("resolved layer")
