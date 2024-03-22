@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1711052035346,
+  "lastUpdate": 1711134809425,
   "repoUrl": "https://github.com/awslabs/soci-snapshotter",
   "entries": {
     "Soci Benchmark": [
@@ -5032,6 +5032,48 @@ window.BENCHMARK_DATA = {
           {
             "name": "SociFullECR-public-mongo-pullTaskDuration",
             "value": 0.6795,
+            "unit": "Seconds",
+            "extra": "P90"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "walster@amazon.com",
+            "name": "Kern Walster",
+            "username": "Kern--"
+          },
+          "committer": {
+            "email": "55555210+sondavidb@users.noreply.github.com",
+            "name": "David Son",
+            "username": "sondavidb"
+          },
+          "distinct": true,
+          "id": "715ac46f5741ac246435b31556aca7f53177e70a",
+          "message": "Fix xattr optimization\n\nThis change updates the xattr optimizaion by:\n1) Properly handling opaque directories\n2) Changing the CLI flag to `--optimizations xattr`\n3) Changing the label to `disable-xattrs`\n\nSigned-off-by: Kern Walster <walster@amazon.com>",
+          "timestamp": "2024-03-22T12:06:48-07:00",
+          "tree_id": "c4d79f627ad2b72a0189771bde246f6b5aa04b20",
+          "url": "https://github.com/awslabs/soci-snapshotter/commit/715ac46f5741ac246435b31556aca7f53177e70a"
+        },
+        "date": 1711134806970,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "SociFullECR-public-mongo-lazyTaskDuration",
+            "value": 2.0355,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-mongo-localTaskDuration",
+            "value": 0.3055,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-mongo-pullTaskDuration",
+            "value": 0.8385,
             "unit": "Seconds",
             "extra": "P90"
           }
