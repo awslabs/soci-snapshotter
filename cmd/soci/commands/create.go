@@ -32,6 +32,7 @@ const (
 	buildToolIdentifier = "AWS SOCI CLI v0.1"
 	spanSizeFlag        = "span-size"
 	minLayerSizeFlag    = "min-layer-size"
+	disableXAttrsFlag   = "disable-xattrs"
 	optimizationFlag    = "optimizations"
 )
 
@@ -54,6 +55,10 @@ var CreateCommand = cli.Command{
 			Name:  minLayerSizeFlag,
 			Usage: "Minimum layer size to build zTOC for. Smaller layers won't have zTOC and not lazy pulled. Default is 10 MiB.",
 			Value: 10 << 20,
+		},
+		cli.BoolTFlag{
+			Name:  disableXAttrsFlag,
+			Usage: "Specify this flag to skip adding DisableXAttrs annotation for every layer.",
 		},
 		cli.StringSliceFlag{
 			Name:  optimizationFlag,
@@ -120,6 +125,10 @@ var CreateCommand = cli.Command{
 			soci.WithSpanSize(spanSize),
 			soci.WithBuildToolIdentifier(buildToolIdentifier),
 			soci.WithOptimizations(optimizations),
+		}
+
+		if !cliContext.Bool(disableXAttrsFlag) {
+			builderOpts = append(builderOpts, soci.WithNoDisableXAttrs())
 		}
 
 		for _, plat := range ps {

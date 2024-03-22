@@ -56,6 +56,10 @@ type FSConfig struct {
 	NoPrometheus                   bool   `toml:"no_prometheus"`
 	MountTimeoutSec                int64  `toml:"mount_timeout_sec"`
 	FuseMetricsEmitWaitDurationSec int64  `toml:"fuse_metrics_emit_wait_duration_sec"`
+	// DisableXAttrs will read the DisableXAttrs annotation at pull time.
+	// Disabling this often results in degraded performance, as GetXAttrs
+	// is an expensive call, but it might be useful for debugging purposes.
+	DisableXAttrs bool `toml:"disable_xattrs" default:"true"`
 
 	RetryableHTTPClientConfig `toml:"http"`
 	BlobConfig                `toml:"blob"`

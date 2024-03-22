@@ -26,6 +26,7 @@ This set of variables must be at the top of your TOML file due to not belonging 
 - `no_prometheus` (bool) — Toggle prometheus metrics. Default: false.
 - `mount_timeout_sec` (int) — Timeout for mount if a layer can't be resolved. Default: 30.
 - `fuse_metrics_emit_wait_duration_sec` (int) — The wait time before the snaphotter emits FUSE operation counts for an image. Default: 60.
+- `disable_xattrs` (bool) — When false, will ignore DisableXAttrs annotation and check every layer for XAttrs, often at the cost of performance. Default: true.
 
 ## config/config.go
 ### Config

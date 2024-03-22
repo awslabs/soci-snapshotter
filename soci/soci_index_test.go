@@ -235,6 +235,7 @@ func TestDisableXattrs(t *testing.T) {
 		name                string
 		metadata            []ztoc.FileMetadata
 		shouldDisableXattrs bool
+		disableXAttrs       bool
 	}{
 		{
 			name: "ztoc with xattrs should not have xattrs disabled",
@@ -247,6 +248,7 @@ func TestDisableXattrs(t *testing.T) {
 				},
 			},
 			shouldDisableXattrs: false,
+			disableXAttrs:       true,
 		},
 		{
 			name: "ztoc with opaque dirs should not have xattrs disabled",
@@ -259,6 +261,7 @@ func TestDisableXattrs(t *testing.T) {
 				},
 			},
 			shouldDisableXattrs: false,
+			disableXAttrs:       true,
 		},
 		{
 			name: "ztoc with no xattrs or opaque dirs should have xattrs disabled",
@@ -271,6 +274,20 @@ func TestDisableXattrs(t *testing.T) {
 				},
 			},
 			shouldDisableXattrs: true,
+			disableXAttrs:       true,
+		},
+		{
+			name: "ztoc with no xattrs and forced GetXAttrs should have xattrs enabled",
+			metadata: []ztoc.FileMetadata{
+				{
+					Name: "dir/",
+				},
+				{
+					Name: "dir/file",
+				},
+			},
+			shouldDisableXattrs: false,
+			disableXAttrs:       false,
 		},
 	}
 	for _, tc := range testcases {
@@ -293,9 +310,13 @@ func TestDisableXattrs(t *testing.T) {
 			if err != nil {
 				t.Fatalf("can't create a test db")
 			}
-			builder, _ := NewIndexBuilder(cs, blobStore, artifactsDb, WithOptimizations([]Optimization{XAttrOptimization}))
+			opts := []BuildOption{}
+			if !tc.disableXAttrs {
+				opts = append(opts, WithNoDisableXAttrs())
+			}
+			builder, _ := NewIndexBuilder(cs, blobStore, artifactsDb, opts...)
 			builder.maybeAddDisableXattrAnnotation(&desc, &ztoc)
-			disableXattrs := desc.Annotations[IndexAnnotationDisableXAttrs] == "true"
+			disableXattrs := desc.Annotations[IndexAnnotationDisableXAttrs] == disableXAttrsTrue
 			if disableXattrs != tc.shouldDisableXattrs {
 				t.Fatalf("expected xattrs to be disabled = %v, actual = %v", tc.shouldDisableXattrs, disableXattrs)
 			}
