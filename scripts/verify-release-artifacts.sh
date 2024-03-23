@@ -48,7 +48,7 @@ release_tag=$1
 # Strip 'v' from release tag.
 release_version=${release_tag/v/} 
 
-pushd $release_dir
+pushd "$release_dir" || exit 1
 tarballs=("soci-snapshotter-${release_version}-linux-${arch}.tar.gz" "soci-snapshotter-${release_version}-linux-${arch}-static.tar.gz")
 expected_contents=("soci-snapshotter-grpc" "soci" "THIRD_PARTY_LICENSES" "NOTICE.md")
 release_is_valid=true
@@ -106,5 +106,5 @@ if ( ! ${release_is_valid} ); then
     exit 1
 fi
 
-popd
+popd || exit 1
 exit 0

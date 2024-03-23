@@ -37,7 +37,8 @@ compare_stat_p90() {
     local stat_name="$3"
 
     # Calculate 150% of the past value
-    local threshold=$(calculate_threshold "$past_value")
+    local threshold
+    threshold=$(calculate_threshold "$past_value")
 
     # Compare the current value with the threshold
     if (( $(echo "$current_value > $threshold" |bc -l) )); then
@@ -56,12 +57,15 @@ calculate_threshold() {
 # calculate the p90 ignoring the first result because we generally see an outlier in the first result
 calculate_p90_after_skip() {
     local times_array="$1"
-    local num_entries=$(echo "$times_array" | jq 'length')
-    local times=$(echo "$times_array" | jq -r '.[1:] | .[]')
-    local sorted_times=$(echo "$times" | tr '\n' ' ' | xargs -n1 | sort -g)
-    local index=$((num_entries * 90 / 100))
 
-    local p90=$(echo "$sorted_times" | sed -n "${index}p")
+    local num_entries times sorted_times index
+    num_entries=$(echo "$times_array" | jq 'length')
+    times=$(echo "$times_array" | jq -r '.[1:] | .[]')
+    sorted_times=$(echo "$times" | tr '\n' ' ' | xargs -n1 | sort -g)
+    index=$((num_entries * 90 / 100))
+
+    local p90
+    p90=$(echo "$sorted_times" | sed -n "${index}p")
     echo "$p90"
 }
 
@@ -70,7 +74,8 @@ compare_p90_values() {
     local past_json="$1"
     local current_json="$2"
 
-    local test_names=$(echo "$past_json" | jq -r '.benchmarkTests[].testName')
+    local test_names
+    test_names=$(echo "$past_json" | jq -r '.benchmarkTests[].testName')
 
     # Use a flag to indicate if any regression has been detected
     local regression_detected=0
@@ -78,10 +83,11 @@ compare_p90_values() {
     for test_name in $test_names; do
         echo "Checking for regression in '$test_name'"
         for stat_name in "fullRunStats" "pullStats" "lazyTaskStats" "localTaskStats"; do
-            local past_array=$(echo "$past_json" | jq -r --arg test "$test_name" '.benchmarkTests[] | select(.testName == $test) | .'"$stat_name"'.BenchmarkTimes')
-            local past_p90=$(calculate_p90_after_skip "$past_array")
-            local current_array=$(echo "$current_json" | jq -r --arg test "$test_name" '.benchmarkTests[] | select(.testName == $test) | .'"$stat_name"'.BenchmarkTimes')
-            local current_p90=$(calculate_p90_after_skip "$current_array")
+            local past_array past_p90 current_array current_p90
+            past_array=$(echo "$past_json" | jq -r --arg test "$test_name" '.benchmarkTests[] | select(.testName == $test) | .'"$stat_name"'.BenchmarkTimes')
+            past_p90=$(calculate_p90_after_skip "$past_array")
+            current_array=$(echo "$current_json" | jq -r --arg test "$test_name" '.benchmarkTests[] | select(.testName == $test) | .'"$stat_name"'.BenchmarkTimes')
+            current_p90=$(calculate_p90_after_skip "$current_array")
 
             # Call the compare_stat_p90 function
             compare_stat_p90 "$past_p90" "$current_p90" "$stat_name" || regression_detected=1

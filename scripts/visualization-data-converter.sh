@@ -67,20 +67,19 @@ create_json_file() {
 }
 
 # Parse the JSON using jq
-commit=$(jq -r '.commit' "$input_file")
 tests=$(jq -r '.benchmarkTests | length' "$input_file")
 
 # Loop through each test and extract the required data
 for ((i = 0; i < tests; i++)); do
-  testName=$(jq -r --argjson i $i '.benchmarkTests[$i].testName' "$input_file")
+  testName=$(jq -r --argjson i "$i" '.benchmarkTests[$i].testName' "$input_file")
 
   # Lazy Task Stats
-  lazyTaskPct90=$(jq -r --argjson i $i '.benchmarkTests[$i].lazyTaskStats.pct90' "$input_file")
+  lazyTaskPct90=$(jq -r --argjson i "$i" '.benchmarkTests[$i].lazyTaskStats.pct90' "$input_file")
 
   # Local Task Stats
-  localTaskPct90=$(jq -r --argjson i $i '.benchmarkTests[$i].localTaskStats.pct90' "$input_file")
+  localTaskPct90=$(jq -r --argjson i "$i" '.benchmarkTests[$i].localTaskStats.pct90' "$input_file")
 
-  pullTaskPct90=$(jq -r --argjson i $i '.benchmarkTests[$i].pullStats.pct90' "$input_file")
+  pullTaskPct90=$(jq -r --argjson i "$i" '.benchmarkTests[$i].pullStats.pct90' "$input_file")
 
   # Create JSON file for each testName
   create_json_file "$testName" "$lazyTaskPct90" "$localTaskPct90" "$pullTaskPct90"
