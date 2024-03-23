@@ -21,9 +21,9 @@ SOCI_SNAPSHOTTER_PROJECT_ROOT="${CUR_DIR}/.."
 GO111MODULE_VALUE=auto
 
 # check lint
-pushd ${SOCI_SNAPSHOTTER_PROJECT_ROOT}
-GO111MODULE=${GO111MODULE_VALUE} $(go env GOPATH)/bin/golangci-lint run
+pushd "${SOCI_SNAPSHOTTER_PROJECT_ROOT}"
+GO111MODULE=${GO111MODULE_VALUE} "$(go env GOPATH)/bin/golangci-lint" run
 pushd ./cmd
-GO111MODULE=${GO111MODULE_VALUE} $(go env GOPATH)/bin/golangci-lint run
+GO111MODULE=${GO111MODULE_VALUE} "$(go env GOPATH)/bin/golangci-lint" run
 popd
 popd

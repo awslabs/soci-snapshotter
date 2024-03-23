@@ -20,7 +20,7 @@ set -eux -o pipefail
 # the installation shouldn't assume the script is executed in a specific directory.
 # move to tmp in case there is leftover while installing dependencies.
 TMPDIR=$(mktemp -d)
-pushd ${TMPDIR}
+pushd "${TMPDIR}"
 
 # install cmake
 if ! command -v cmake &> /dev/null

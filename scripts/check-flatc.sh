@@ -22,6 +22,6 @@ FBS_FILE_PATH=${SOCI_SNAPSHOTTER_PROJECT_ROOT}/ztoc/fbs/ztoc.fbs
 
 # check if flatbuffers needs to be generated again
 TMPDIR=$(mktemp -d)
-flatc -o ${TMPDIR} -g ${FBS_FILE_PATH}
-diff -qr ${TMPDIR}/ztoc ${SOCI_SNAPSHOTTER_PROJECT_ROOT}/ztoc/fbs/ztoc || (printf "\n\nThe Ztoc schema seems to be modified. Please run 'make flatc' to re-generate Go files\n\n"; rm -rf ${TMPDIR}; exit 1)
-rm -rf ${TMPDIR}
+flatc -o "${TMPDIR}" -g "${FBS_FILE_PATH}"
+diff -qr "${TMPDIR}/ztoc" "${SOCI_SNAPSHOTTER_PROJECT_ROOT}/ztoc/fbs/ztoc" || (printf "\n\nThe Ztoc schema seems to be modified. Please run 'make flatc' to re-generate Go files\n\n"; rm -rf "${TMPDIR}"; exit 1)
+rm -rf "${TMPDIR}"
