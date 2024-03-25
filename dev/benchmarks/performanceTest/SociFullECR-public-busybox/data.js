@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1711134805444,
+  "lastUpdate": 1711405138556,
   "repoUrl": "https://github.com/awslabs/soci-snapshotter",
   "entries": {
     "Soci Benchmark": [
@@ -5115,6 +5115,48 @@ window.BENCHMARK_DATA = {
           {
             "name": "SociFullECR-public-busybox-pullTaskDuration",
             "value": 0.7335,
+            "unit": "Seconds",
+            "extra": "P90"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "macedonv@amazon.com",
+            "name": "Austin Vazquez",
+            "username": "austinvazquez"
+          },
+          "committer": {
+            "email": "55906459+austinvazquez@users.noreply.github.com",
+            "name": "Austin Vazquez",
+            "username": "austinvazquez"
+          },
+          "distinct": true,
+          "id": "9d6a4202b4831daa193ccd08ae125ba216b09780",
+          "message": "Add shellcheck to lint\n\nSigned-off-by: Austin Vazquez <macedonv@amazon.com>",
+          "timestamp": "2024-03-25T15:10:56-07:00",
+          "tree_id": "251be8188e5ba5ee274b7279eefcf25c49ba8b34",
+          "url": "https://github.com/awslabs/soci-snapshotter/commit/9d6a4202b4831daa193ccd08ae125ba216b09780"
+        },
+        "date": 1711405137197,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "SociFullECR-public-busybox-lazyTaskDuration",
+            "value": 0.0125,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-busybox-localTaskDuration",
+            "value": 0.0045000000000000005,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-busybox-pullTaskDuration",
+            "value": 0.5995,
             "unit": "Seconds",
             "extra": "P90"
           }
