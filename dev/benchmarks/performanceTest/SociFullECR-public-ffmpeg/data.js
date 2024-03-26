@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1711405146263,
+  "lastUpdate": 1711468460214,
   "repoUrl": "https://github.com/awslabs/soci-snapshotter",
   "entries": {
     "Soci Benchmark": [
@@ -5157,6 +5157,48 @@ window.BENCHMARK_DATA = {
           {
             "name": "SociFullECR-public-ffmpeg-pullTaskDuration",
             "value": 1.1835,
+            "unit": "Seconds",
+            "extra": "P90"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "davbson@amazon.com",
+            "name": "David Son",
+            "username": "sondavidb"
+          },
+          "committer": {
+            "email": "55906459+austinvazquez@users.noreply.github.com",
+            "name": "Austin Vazquez",
+            "username": "austinvazquez"
+          },
+          "distinct": true,
+          "id": "1997f8731ed7c4ab068c2dbb9f7eec62b3ef4584",
+          "message": "Fix scripts/check-dco.sh CI failure\n\nSigned-off-by: David Son <davbson@amazon.com>",
+          "timestamp": "2024-03-26T08:46:43-07:00",
+          "tree_id": "9583df4662cb0b06923db3a9692a62a2cf92d1f5",
+          "url": "https://github.com/awslabs/soci-snapshotter/commit/1997f8731ed7c4ab068c2dbb9f7eec62b3ef4584"
+        },
+        "date": 1711468455365,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "SociFullECR-public-ffmpeg-lazyTaskDuration",
+            "value": 0.164,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-ffmpeg-localTaskDuration",
+            "value": 0.006,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-ffmpeg-pullTaskDuration",
+            "value": 2.011,
             "unit": "Seconds",
             "extra": "P90"
           }
