@@ -83,7 +83,7 @@ uninstall:
 clean:
 	@echo "🧹 ... 🗑️"
 	@rm -rf $(OUTDIR)
-	@rm -rf release/
+	@rm -rf $(CURDIR)/release/
 	@echo "All clean!"
 
 tidy:
