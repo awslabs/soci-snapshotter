@@ -170,10 +170,11 @@ func main() {
 		credsFuncs = append(credsFuncs, f)
 	}
 	var fsOpts []fs.Option
-	mt, err := getMetadataStore(*rootDir, *cfg)
+	mt, err := getMetadataStore(ctx, *rootDir, *cfg)
 	if err != nil {
 		log.G(ctx).WithError(err).Fatalf("failed to configure metadata store")
 	}
+	log.G(ctx).Debug("metadata store initialized")
 
 	fsOpts = append(fsOpts, fs.WithMetadataStore(mt))
 	rs, err := service.NewSociSnapshotterService(ctx, *rootDir, &cfg.ServiceConfig,
@@ -289,9 +290,14 @@ const (
 	dbMetadataType = "db"
 )
 
-func getMetadataStore(rootDir string, config config.Config) (metadata.Store, error) {
+func getMetadataStore(ctx context.Context, rootDir string, config config.Config) (metadata.Store, error) {
 	switch config.MetadataStore {
 	case "", dbMetadataType:
+		log.G(ctx).WithFields(logrus.Fields{
+			"root":       rootDir,
+			"store_type": config.MetadataStore,
+		}).Debug("initializing metadata store")
+
 		bOpts := bolt.Options{
 			NoFreelistSync:  true,
 			InitialMmapSize: 64 * 1024 * 1024,
