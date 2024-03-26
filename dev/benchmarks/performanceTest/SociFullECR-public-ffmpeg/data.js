@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1711468460214,
+  "lastUpdate": 1711472631712,
   "repoUrl": "https://github.com/awslabs/soci-snapshotter",
   "entries": {
     "Soci Benchmark": [
@@ -5199,6 +5199,48 @@ window.BENCHMARK_DATA = {
           {
             "name": "SociFullECR-public-ffmpeg-pullTaskDuration",
             "value": 2.011,
+            "unit": "Seconds",
+            "extra": "P90"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "macedonv@amazon.com",
+            "name": "Austin Vazquez",
+            "username": "austinvazquez"
+          },
+          "committer": {
+            "email": "55906459+austinvazquez@users.noreply.github.com",
+            "name": "Austin Vazquez",
+            "username": "austinvazquez"
+          },
+          "distinct": true,
+          "id": "eb5189203bfaf5e30b8f11e406aa1f5200ae536b",
+          "message": "Revert changes to bump-deps script and ignore SC2046\n\nThis change reverts the changes to quote the output of go list in\nbump-deps script to prevent word splitting. This has caused a regression\nin the dependency update automation.\n\nSigned-off-by: Austin Vazquez <macedonv@amazon.com>",
+          "timestamp": "2024-03-26T09:52:54-07:00",
+          "tree_id": "d436ad45e83860e126d3f7a043098ae713002625",
+          "url": "https://github.com/awslabs/soci-snapshotter/commit/eb5189203bfaf5e30b8f11e406aa1f5200ae536b"
+        },
+        "date": 1711472630605,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "SociFullECR-public-ffmpeg-lazyTaskDuration",
+            "value": 0.1835,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-ffmpeg-localTaskDuration",
+            "value": 0.007,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-ffmpeg-pullTaskDuration",
+            "value": 1.9705,
             "unit": "Seconds",
             "extra": "P90"
           }
