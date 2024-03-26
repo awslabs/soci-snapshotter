@@ -81,7 +81,10 @@ uninstall:
 	@rm -f $(addprefix $(CMD_DESTDIR)/bin/,$(notdir $(CMD_BINARIES)))
 
 clean:
-	rm -rf $(OUTDIR)
+	@echo "🧹 ... 🗑️"
+	@rm -rf $(OUTDIR)
+	@rm -rf release/
+	@echo "All clean!"
 
 tidy:
 	@GO111MODULE=$(GO111MODULE_VALUE) go mod tidy
