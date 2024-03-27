@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1711475071562,
+  "lastUpdate": 1711559343597,
   "repoUrl": "https://github.com/awslabs/soci-snapshotter",
   "entries": {
     "Soci Benchmark": [
@@ -5366,6 +5366,48 @@ window.BENCHMARK_DATA = {
           {
             "name": "SociFullECR-public-tensorflow-pullTaskDuration",
             "value": 2.3035,
+            "unit": "Seconds",
+            "extra": "P90"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "davbson@amazon.com",
+            "name": "David Son",
+            "username": "sondavidb"
+          },
+          "committer": {
+            "email": "wh_henry@hotmail.com",
+            "name": "Henry Wang",
+            "username": "henry118"
+          },
+          "distinct": true,
+          "id": "059e9e86b69e1c545504d4a89c6a0de3c732c51e",
+          "message": "Allow make clean to be called from anywhere\n\nSigned-off-by: David Son <davbson@amazon.com>",
+          "timestamp": "2024-03-27T10:02:40-07:00",
+          "tree_id": "1478bc1064835067109e718df40d2823a16f5d4d",
+          "url": "https://github.com/awslabs/soci-snapshotter/commit/059e9e86b69e1c545504d4a89c6a0de3c732c51e"
+        },
+        "date": 1711559341621,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "SociFullECR-public-tensorflow-lazyTaskDuration",
+            "value": 8.906,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-tensorflow-localTaskDuration",
+            "value": 2.2335,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-tensorflow-pullTaskDuration",
+            "value": 1.3565,
             "unit": "Seconds",
             "extra": "P90"
           }
