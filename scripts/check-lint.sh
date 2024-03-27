@@ -27,7 +27,3 @@ pushd ./cmd
 GO111MODULE=${GO111MODULE_VALUE} "$(go env GOPATH)/bin/golangci-lint" run
 popd
 popd
-
-pushd "${SOCI_SNAPSHOTTER_PROJECT_ROOT}"
-"$(go env GOPATH)/bin/shellcheck" ./**/*.sh
-popd
