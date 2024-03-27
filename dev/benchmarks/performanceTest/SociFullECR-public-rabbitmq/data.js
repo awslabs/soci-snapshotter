@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1711579933417,
+  "lastUpdate": 1711580555163,
   "repoUrl": "https://github.com/awslabs/soci-snapshotter",
   "entries": {
     "Soci Benchmark": [
@@ -5329,6 +5329,48 @@ window.BENCHMARK_DATA = {
           {
             "name": "SociFullECR-public-rabbitmq-pullTaskDuration",
             "value": 1.4705,
+            "unit": "Seconds",
+            "extra": "P90"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "macedonv@amazon.com",
+            "name": "Austin Vazquez",
+            "username": "austinvazquez"
+          },
+          "committer": {
+            "email": "55555210+sondavidb@users.noreply.github.com",
+            "name": "David Son",
+            "username": "sondavidb"
+          },
+          "distinct": true,
+          "id": "373be7f0fa8cb9ba631c55a45fb8c61eacbdecc8",
+          "message": "Run shellcheck from container in CI\n\nThis change runs shellcheck from container in CI instead of installing\nthe binary to the system and running from the lint bash script.\n\nSigned-off-by: Austin Vazquez <macedonv@amazon.com>",
+          "timestamp": "2024-03-27T15:52:20-07:00",
+          "tree_id": "745cfd2435e374186ae326719449c18e8d0c4f65",
+          "url": "https://github.com/awslabs/soci-snapshotter/commit/373be7f0fa8cb9ba631c55a45fb8c61eacbdecc8"
+        },
+        "date": 1711580554219,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "SociFullECR-public-rabbitmq-lazyTaskDuration",
+            "value": 8.989,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-rabbitmq-localTaskDuration",
+            "value": 7.513999999999999,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-rabbitmq-pullTaskDuration",
+            "value": 1.4115,
             "unit": "Seconds",
             "extra": "P90"
           }
