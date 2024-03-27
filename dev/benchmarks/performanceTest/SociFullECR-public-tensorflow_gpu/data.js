@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1711559347773,
+  "lastUpdate": 1711559509316,
   "repoUrl": "https://github.com/awslabs/soci-snapshotter",
   "entries": {
     "Soci Benchmark": [
@@ -5244,6 +5244,48 @@ window.BENCHMARK_DATA = {
           {
             "name": "SociFullECR-public-tensorflow_gpu-pullTaskDuration",
             "value": 1.483,
+            "unit": "Seconds",
+            "extra": "P90"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "davbson@amazon.com",
+            "name": "David Son",
+            "username": "sondavidb"
+          },
+          "committer": {
+            "email": "wh_henry@hotmail.com",
+            "name": "Henry Wang",
+            "username": "henry118"
+          },
+          "distinct": true,
+          "id": "41bbfbb384eaad104bb8b7393d0b8e2cf5e60dc1",
+          "message": "Add debug logging to metadata DB initialization\n\nSigned-off-by: David Son <davbson@amazon.com>",
+          "timestamp": "2024-03-27T10:03:22-07:00",
+          "tree_id": "6189f24d7ce6a0b6b80c80df461fdcf72f85f4ba",
+          "url": "https://github.com/awslabs/soci-snapshotter/commit/41bbfbb384eaad104bb8b7393d0b8e2cf5e60dc1"
+        },
+        "date": 1711559507658,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "SociFullECR-public-tensorflow_gpu-lazyTaskDuration",
+            "value": 28.335,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-tensorflow_gpu-localTaskDuration",
+            "value": 2.2445,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-tensorflow_gpu-pullTaskDuration",
+            "value": 2.487,
             "unit": "Seconds",
             "extra": "P90"
           }
