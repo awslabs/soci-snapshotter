@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1711559341753,
+  "lastUpdate": 1711559510233,
   "repoUrl": "https://github.com/awslabs/soci-snapshotter",
   "entries": {
     "Soci Benchmark": [
@@ -5326,6 +5326,48 @@ window.BENCHMARK_DATA = {
           {
             "name": "SociFullECR-public-mongo-pullTaskDuration",
             "value": 0.7315,
+            "unit": "Seconds",
+            "extra": "P90"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "davbson@amazon.com",
+            "name": "David Son",
+            "username": "sondavidb"
+          },
+          "committer": {
+            "email": "wh_henry@hotmail.com",
+            "name": "Henry Wang",
+            "username": "henry118"
+          },
+          "distinct": true,
+          "id": "41bbfbb384eaad104bb8b7393d0b8e2cf5e60dc1",
+          "message": "Add debug logging to metadata DB initialization\n\nSigned-off-by: David Son <davbson@amazon.com>",
+          "timestamp": "2024-03-27T10:03:22-07:00",
+          "tree_id": "6189f24d7ce6a0b6b80c80df461fdcf72f85f4ba",
+          "url": "https://github.com/awslabs/soci-snapshotter/commit/41bbfbb384eaad104bb8b7393d0b8e2cf5e60dc1"
+        },
+        "date": 1711559508620,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "SociFullECR-public-mongo-lazyTaskDuration",
+            "value": 5.043,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-mongo-localTaskDuration",
+            "value": 0.312,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-mongo-pullTaskDuration",
+            "value": 1.771,
             "unit": "Seconds",
             "extra": "P90"
           }
