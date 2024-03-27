@@ -46,4 +46,4 @@ RUN curl -sSL --output /tmp/nerdctl.tgz https://github.com/containerd/nerdctl/re
     tar zxvf /tmp/nerdctl.tgz -C /usr/local/bin/ && \
     rm -f /tmp/nerdctl.tgz
 
-FROM registry:2 AS registry2
+FROM registry:3.0.0-alpha.1 AS registry

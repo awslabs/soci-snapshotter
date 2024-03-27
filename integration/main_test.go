@@ -107,9 +107,9 @@ func TestMain(m *testing.M) {
 // setup can be used to initialize things before integration tests start (as of now it only builds the services used by the integration tests so they can be referenced)
 func setup() ([]func() error, error) {
 	var (
-		serviceName    = "testing"
-		targetStage    = "containerd-snapshotter-base"
-		registry2Stage = "registry2"
+		serviceName   = "testing"
+		targetStage   = "containerd-snapshotter-base"
+		registryStage = "registry"
 	)
 	pRoot, err := testutil.GetProjectRoot()
 	if err != nil {
@@ -124,7 +124,7 @@ func setup() ([]func() error, error) {
 		ServiceName:     serviceName,
 		ImageContextDir: pRoot,
 		TargetStage:     targetStage,
-		Registry2Stage:  registry2Stage,
+		RegistryStage:   registryStage,
 	})
 	if err != nil {
 		return nil, err
