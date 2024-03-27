@@ -8,6 +8,7 @@ on:
 
 env:
   GO_VERSION: '1.21.8'
+  GOLANGCI_LINT_VERSION: '1.56.2'
 
 jobs:
   check:
@@ -28,8 +29,19 @@ jobs:
       - run: ./scripts/install-check-tools.sh
       - run: ./scripts/check-ltag.sh
       - run: ./scripts/check-dco.sh
-      - run: ./scripts/check-lint.sh
       - run: PATH=$PATH:$(pwd) ./scripts/check-flatc.sh
+  
+  lint:
+    strategy:
+      matrix:
+        working_dir: ['', 'cmd']
+    runs-on: ubuntu-20.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: golangci/golangci-lint-action@v4
+        with:
+          version: v${{ env.GOLANGCI_LINT_VERSION }}
+          working-directory: ${{ matrix.working_dir }}
 
   shellcheck:
     runs-on: ubuntu-20.04
