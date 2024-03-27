@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1711475070254,
+  "lastUpdate": 1711559342800,
   "repoUrl": "https://github.com/awslabs/soci-snapshotter",
   "entries": {
     "Soci Benchmark": [
@@ -5202,6 +5202,48 @@ window.BENCHMARK_DATA = {
           {
             "name": "SociFullECR-public-node-pullTaskDuration",
             "value": 2.1195,
+            "unit": "Seconds",
+            "extra": "P90"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "davbson@amazon.com",
+            "name": "David Son",
+            "username": "sondavidb"
+          },
+          "committer": {
+            "email": "wh_henry@hotmail.com",
+            "name": "Henry Wang",
+            "username": "henry118"
+          },
+          "distinct": true,
+          "id": "059e9e86b69e1c545504d4a89c6a0de3c732c51e",
+          "message": "Allow make clean to be called from anywhere\n\nSigned-off-by: David Son <davbson@amazon.com>",
+          "timestamp": "2024-03-27T10:02:40-07:00",
+          "tree_id": "1478bc1064835067109e718df40d2823a16f5d4d",
+          "url": "https://github.com/awslabs/soci-snapshotter/commit/059e9e86b69e1c545504d4a89c6a0de3c732c51e"
+        },
+        "date": 1711559341313,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "SociFullECR-public-node-lazyTaskDuration",
+            "value": 1.2854999999999999,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-node-localTaskDuration",
+            "value": 0.4405,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-node-pullTaskDuration",
+            "value": 1.2785000000000002,
             "unit": "Seconds",
             "extra": "P90"
           }
