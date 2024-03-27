@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1711567482159,
+  "lastUpdate": 1711579932612,
   "repoUrl": "https://github.com/awslabs/soci-snapshotter",
   "entries": {
     "Soci Benchmark": [
@@ -5328,6 +5328,48 @@ window.BENCHMARK_DATA = {
           {
             "name": "SociFullECR-public-tensorflow_gpu-pullTaskDuration",
             "value": 3.181,
+            "unit": "Seconds",
+            "extra": "P90"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "macedonv@amazon.com",
+            "name": "Austin Vazquez",
+            "username": "austinvazquez"
+          },
+          "committer": {
+            "email": "wh_henry@hotmail.com",
+            "name": "Henry Wang",
+            "username": "henry118"
+          },
+          "distinct": true,
+          "id": "e8ffbc8f7f93e3313f30af2650ff9ba251c666ba",
+          "message": "Update registry test dependency to registry:3.0.0-alpha.1\n\nThis change updates the test registry version to v3.0.0-alpha.1 for\nregistry CVE updates.\n\nSigned-off-by: Austin Vazquez <macedonv@amazon.com>",
+          "timestamp": "2024-03-27T15:44:43-07:00",
+          "tree_id": "688fa07f8e7e7da10eb202e3d755ad0eb6842c63",
+          "url": "https://github.com/awslabs/soci-snapshotter/commit/e8ffbc8f7f93e3313f30af2650ff9ba251c666ba"
+        },
+        "date": 1711579930367,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "SociFullECR-public-tensorflow_gpu-lazyTaskDuration",
+            "value": 15.440999999999999,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-tensorflow_gpu-localTaskDuration",
+            "value": 2.251,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-tensorflow_gpu-pullTaskDuration",
+            "value": 2.2984999999999998,
             "unit": "Seconds",
             "extra": "P90"
           }
