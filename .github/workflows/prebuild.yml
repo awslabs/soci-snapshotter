@@ -30,3 +30,10 @@ jobs:
       - run: ./scripts/check-dco.sh
       - run: ./scripts/check-lint.sh
       - run: PATH=$PATH:$(pwd) ./scripts/check-flatc.sh
+
+  shellcheck:
+    runs-on: ubuntu-20.04
+    container: koalaman/shellcheck-alpine:v0.10.0
+    steps:
+      - uses: actions/checkout@v4
+      - run: shellcheck ./**/*.sh
