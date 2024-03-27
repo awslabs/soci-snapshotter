@@ -74,7 +74,7 @@ const (
 	dockerLibrary                = "public.ecr.aws/docker/library/"
 	// Registry images to use in the test infrastructure. These are not intended to be used
 	// as images in the test itself, but just when we're setting up docker compose.
-	oci10RegistryImage = "registry2:soci_test"
+	oci10RegistryImage = "registry:soci_test"
 	oci11RegistryImage = "ghcr.io/project-zot/zot-linux-" + runtime.GOARCH + ":v2.0.1"
 )
 
@@ -232,10 +232,10 @@ services:
    args:
     - SNAPSHOTTER_BUILD_FLAGS="-race"
  registry:
-  image: registry2:soci_test
+  image: registry:soci_test
   build:
    context: {{.ImageContextDir}}
-   target: {{.Registry2Stage}}
+   target: {{.RegistryStage}}
 `
 
 const zotConfigTemplate = `
@@ -264,7 +264,7 @@ type dockerComposeYaml struct {
 	ServiceName         string
 	ImageContextDir     string
 	TargetStage         string
-	Registry2Stage      string
+	RegistryStage       string
 	RegistryImageRef    string
 	RegistryAltImageRef string
 	RegistryHost        string
