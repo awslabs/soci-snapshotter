@@ -167,9 +167,10 @@ func TestAuthentication(t *testing.T) {
 	normalForbiddenResponse, _ := docker.Errors([]error{docker.ErrorCodeDenied}).MarshalJSON()
 	unauthorizedResponse, _ := docker.Errors([]error{docker.ErrorCodeUnauthorized}).MarshalJSON()
 	testCases := []struct {
-		name        string
-		performAuth bool
-		response    *http.Response
+		name               string
+		performAuth        bool
+		response           *http.Response
+		expectedAuthHeader string
 	}{
 		{
 			name:        "Authenticate on 403 with token expiry.",
@@ -178,6 +179,7 @@ func TestAuthentication(t *testing.T) {
 				StatusCode: http.StatusForbidden,
 				Body:       io.NopCloser(bytes.NewReader(ecrForbiddenResponse)),
 			},
+			expectedAuthHeader: "Basic realm=\"\",service=\"ecr.amazonaws.com\"",
 		},
 		{
 			name:        "Do not authenticate on 403 without token expiry.",
@@ -210,5 +212,18 @@ func TestAuthentication(t *testing.T) {
 			t.Fatalf("failed test case: %s: expected auth: %v; got auth: %v",
 				tc.name, tc.performAuth, shouldPerformAuthentication)
 		}
+
+		if tc.expectedAuthHeader != "" {
+			authHeader, exists := tc.response.Header["Www-Authenticate"]
+			if !exists {
+				t.Fatalf("failed test case: %s: expected Www-Authenticate header: %s; got nothing",
+					tc.name, tc.expectedAuthHeader)
+			}
+			if authHeader[0] != tc.expectedAuthHeader {
+				t.Fatalf("failed test case: %s: expected Www-Authenticate header: %s; got %s",
+					tc.name, tc.expectedAuthHeader, authHeader[0])
+			}
+		}
+
 	}
 }
