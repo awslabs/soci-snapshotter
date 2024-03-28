@@ -250,6 +250,26 @@ func shouldAuthenticate(resp *http.Response) bool {
 		for _, e := range errs {
 			if err, ok := e.(docker.Error); ok {
 				if err.Message == ecrTokenExpiredResponseMessage {
+					// ECR's 403 doesn't return a Www-Authenticate and so doesn't trigger the
+					// basic re-authentication in containerd's docker authorizer.
+					// Ideally ECR would return the Www-Authenticate for expired tokens,
+					// but until then we'll have to use this workaround.
+					if resp.Header == nil {
+						resp.Header = map[string][]string{}
+					}
+
+					authenticateHeader := http.CanonicalHeaderKey("Www-Authenticate")
+					if _, exists := resp.Header[authenticateHeader]; !exists {
+						realm := ""
+						if resp.Request != nil {
+							realm = "https://" + resp.Request.URL.Host + "/"
+						}
+						service := "ecr.amazonaws.com"
+
+						authHeaderContent := fmt.Sprintf("Basic realm=\"%s\",service=\"%s\"", realm, service)
+						resp.Header[authenticateHeader] = []string{authHeaderContent}
+					}
+
 					return true
 				}
 			}
