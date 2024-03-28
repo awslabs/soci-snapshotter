@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1711580555163,
+  "lastUpdate": 1711668848032,
   "repoUrl": "https://github.com/awslabs/soci-snapshotter",
   "entries": {
     "Soci Benchmark": [
@@ -5371,6 +5371,48 @@ window.BENCHMARK_DATA = {
           {
             "name": "SociFullECR-public-rabbitmq-pullTaskDuration",
             "value": 1.4115,
+            "unit": "Seconds",
+            "extra": "P90"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "davbson@amazon.com",
+            "name": "David Son",
+            "username": "sondavidb"
+          },
+          "committer": {
+            "email": "55906459+austinvazquez@users.noreply.github.com",
+            "name": "Austin Vazquez",
+            "username": "austinvazquez"
+          },
+          "distinct": true,
+          "id": "a85ea6c84d5d0cf369a707f3800eaffeb64fa8f9",
+          "message": "Fine-tune shell scripts\n\nAdded some modularity in our installation scripts by moving versions\ninto their own variable. Also added an integrity check for cmake, as\nwell as TODO comments for the other scripts.\n\nSigned-off-by: David Son <davbson@amazon.com>",
+          "timestamp": "2024-03-28T16:25:57-07:00",
+          "tree_id": "74832e057642560ffcdc7bdf5ef78b324e543ae2",
+          "url": "https://github.com/awslabs/soci-snapshotter/commit/a85ea6c84d5d0cf369a707f3800eaffeb64fa8f9"
+        },
+        "date": 1711668842690,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "SociFullECR-public-rabbitmq-lazyTaskDuration",
+            "value": 13.8635,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-rabbitmq-localTaskDuration",
+            "value": 8.04,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-rabbitmq-pullTaskDuration",
+            "value": 1.375,
             "unit": "Seconds",
             "extra": "P90"
           }
