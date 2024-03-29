@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1711668841570,
+  "lastUpdate": 1711688237227,
   "repoUrl": "https://github.com/awslabs/soci-snapshotter",
   "entries": {
     "Soci Benchmark": [
@@ -5577,6 +5577,48 @@ window.BENCHMARK_DATA = {
           {
             "name": "SociFullECR-public-ffmpeg-pullTaskDuration",
             "value": 2.2205,
+            "unit": "Seconds",
+            "extra": "P90"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "davbson@amazon.com",
+            "name": "David Son",
+            "username": "sondavidb"
+          },
+          "committer": {
+            "email": "wh_henry@hotmail.com",
+            "name": "Henry Wang",
+            "username": "henry118"
+          },
+          "distinct": true,
+          "id": "cc90b9b2f645972aef36230323366d108ee06dd0",
+          "message": "Move golangci-lint to GH Actions\n\nSigned-off-by: David Son <davbson@amazon.com>",
+          "timestamp": "2024-03-28T21:49:28-07:00",
+          "tree_id": "2bc14fd50356c6a67e009b092bdd30e260ca9033",
+          "url": "https://github.com/awslabs/soci-snapshotter/commit/cc90b9b2f645972aef36230323366d108ee06dd0"
+        },
+        "date": 1711688233106,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "SociFullECR-public-ffmpeg-lazyTaskDuration",
+            "value": 0.8520000000000001,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-ffmpeg-localTaskDuration",
+            "value": 0.007,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-ffmpeg-pullTaskDuration",
+            "value": 1.8559999999999999,
             "unit": "Seconds",
             "extra": "P90"
           }
