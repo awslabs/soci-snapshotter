@@ -78,13 +78,19 @@ type breakableLayer struct {
 	success bool
 }
 
-func (l *breakableLayer) Info() layer.Info                                    { return layer.Info{} }
-func (l *breakableLayer) DisableXAttrs() bool                                 { return false }
-func (l *breakableLayer) RootNode(uint32) (fusefs.InodeEmbedder, error)       { return nil, nil }
-func (l *breakableLayer) Verify(tocDigest digest.Digest) error                { return nil }
-func (l *breakableLayer) SkipVerify()                                         {}
-func (l *breakableLayer) ReadAt([]byte, int64, ...remote.Option) (int, error) { return 0, nil }
-func (l *breakableLayer) BackgroundFetch() error                              { return fmt.Errorf("fail") }
+func (l *breakableLayer) Info() layer.Info {
+	return layer.Info{
+		Size: 1,
+	}
+}
+func (l *breakableLayer) DisableXAttrs() bool                           { return false }
+func (l *breakableLayer) RootNode(uint32) (fusefs.InodeEmbedder, error) { return nil, nil }
+func (l *breakableLayer) Verify(tocDigest digest.Digest) error          { return nil }
+func (l *breakableLayer) SkipVerify()                                   {}
+func (l *breakableLayer) ReadAt([]byte, int64, ...remote.Option) (int, error) {
+	return 0, fmt.Errorf("fail")
+}
+func (l *breakableLayer) BackgroundFetch() error { return fmt.Errorf("fail") }
 func (l *breakableLayer) Check() error {
 	if !l.success {
 		return fmt.Errorf("failed")
