@@ -30,6 +30,25 @@ jobs:
       - run: ./scripts/check-ltag.sh
       - run: ./scripts/check-dco.sh
       - run: PATH=$PATH:$(pwd) ./scripts/check-flatc.sh
+
+  git-secrets:
+    runs-on: ubuntu-20.04
+    steps:
+      - name: Pull latest awslabs/git-secrets repo
+        uses: actions/checkout@v4
+        with:
+           repository: awslabs/git-secrets
+           ref: 1.3.0
+           fetch-tags: true
+           path: git-secrets
+      - name: Install git secrets from source
+        run: sudo make install
+        working-directory: git-secrets
+      - uses: actions/checkout@v4
+      - name: Scan repository for git secrets
+        run: |
+          git secrets --register-aws
+          git secrets --scan-history
   
   lint:
     strategy:
