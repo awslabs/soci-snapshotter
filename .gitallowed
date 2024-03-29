@@ -1,0 +1,6 @@
+# Ignore items listed in .gitallowed
+# Workaround for https://github.com/awslabs/git-secrets/issues/198
+.gitallowed
+
+# Ignore false positive in docs/getting-started.md
+docs/getting-started.md:[0-9]+:export AWS_ACCOUNT=000000000000
