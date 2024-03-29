@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1711668842728,
+  "lastUpdate": 1711688231110,
   "repoUrl": "https://github.com/awslabs/soci-snapshotter",
   "entries": {
     "Soci Benchmark": [
@@ -5618,6 +5618,48 @@ window.BENCHMARK_DATA = {
           {
             "name": "SociFullECR-public-tensorflow-pullTaskDuration",
             "value": 1.973,
+            "unit": "Seconds",
+            "extra": "P90"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "davbson@amazon.com",
+            "name": "David Son",
+            "username": "sondavidb"
+          },
+          "committer": {
+            "email": "wh_henry@hotmail.com",
+            "name": "Henry Wang",
+            "username": "henry118"
+          },
+          "distinct": true,
+          "id": "cc90b9b2f645972aef36230323366d108ee06dd0",
+          "message": "Move golangci-lint to GH Actions\n\nSigned-off-by: David Son <davbson@amazon.com>",
+          "timestamp": "2024-03-28T21:49:28-07:00",
+          "tree_id": "2bc14fd50356c6a67e009b092bdd30e260ca9033",
+          "url": "https://github.com/awslabs/soci-snapshotter/commit/cc90b9b2f645972aef36230323366d108ee06dd0"
+        },
+        "date": 1711688230404,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "SociFullECR-public-tensorflow-lazyTaskDuration",
+            "value": 27.571,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-tensorflow-localTaskDuration",
+            "value": 2.194,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-tensorflow-pullTaskDuration",
+            "value": 2.3885,
             "unit": "Seconds",
             "extra": "P90"
           }
