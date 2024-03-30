@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1711688235727,
+  "lastUpdate": 1711811475870,
   "repoUrl": "https://github.com/awslabs/soci-snapshotter",
   "entries": {
     "Soci Benchmark": [
@@ -5660,6 +5660,48 @@ window.BENCHMARK_DATA = {
           {
             "name": "SociFullECR-public-redis-pullTaskDuration",
             "value": 1.232,
+            "unit": "Seconds",
+            "extra": "P90"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "davbson@amazon.com",
+            "name": "David Son",
+            "username": "sondavidb"
+          },
+          "committer": {
+            "email": "55906459+austinvazquez@users.noreply.github.com",
+            "name": "Austin Vazquez",
+            "username": "austinvazquez"
+          },
+          "distinct": true,
+          "id": "2a70d12d833f8e93f62dea30d400bac1e2d7810d",
+          "message": "Disable xattrs by default\n\nChange --optimizations xattr to be default behavior, and add a new flag\nto disable this annotation when creating a SOCI index.\n\nThis change also eliminated the need for the optimizations structure in\nthe CLI.\n\nSigned-off-by: David Son <davbson@amazon.com>",
+          "timestamp": "2024-03-30T08:04:50-07:00",
+          "tree_id": "d37fbdcd7d94d32f6aecd11f9503f65173093511",
+          "url": "https://github.com/awslabs/soci-snapshotter/commit/2a70d12d833f8e93f62dea30d400bac1e2d7810d"
+        },
+        "date": 1711811475100,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "SociFullECR-public-redis-lazyTaskDuration",
+            "value": 0.54,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-redis-localTaskDuration",
+            "value": 0.020499999999999997,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-redis-pullTaskDuration",
+            "value": 0.7955,
             "unit": "Seconds",
             "extra": "P90"
           }
