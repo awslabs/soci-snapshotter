@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1711811475157,
+  "lastUpdate": 1711991110798,
   "repoUrl": "https://github.com/awslabs/soci-snapshotter",
   "entries": {
     "Soci Benchmark": [
@@ -5538,6 +5538,48 @@ window.BENCHMARK_DATA = {
           {
             "name": "SociFullECR-public-node-pullTaskDuration",
             "value": 1.468,
+            "unit": "Seconds",
+            "extra": "P90"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "macedonv@amazon.com",
+            "name": "Austin Vazquez",
+            "username": "austinvazquez"
+          },
+          "committer": {
+            "email": "55906459+austinvazquez@users.noreply.github.com",
+            "name": "Austin Vazquez",
+            "username": "austinvazquez"
+          },
+          "distinct": true,
+          "id": "1e42eeb6f8e1ddcc9888b86c74a5601d2517d473",
+          "message": "Add git secrets scanning to CI\n\nThis change adds a GitHub Actions job to validate git secrets are not\nsubmitted to version control.\n\nSigned-off-by: Austin Vazquez <macedonv@amazon.com>",
+          "timestamp": "2024-04-01T09:57:08-07:00",
+          "tree_id": "25fb2506384f170ab73131b8930693280d54803d",
+          "url": "https://github.com/awslabs/soci-snapshotter/commit/1e42eeb6f8e1ddcc9888b86c74a5601d2517d473"
+        },
+        "date": 1711991107864,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "SociFullECR-public-node-lazyTaskDuration",
+            "value": 8.612499999999999,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-node-localTaskDuration",
+            "value": 0.4315,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-node-pullTaskDuration",
+            "value": 2.568,
             "unit": "Seconds",
             "extra": "P90"
           }
