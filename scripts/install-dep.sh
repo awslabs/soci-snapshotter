@@ -26,18 +26,10 @@ arch="$(uname -m)"
 
 # install cmake
 cmake_ver="3.24.1"
+cmake_expected_shasum="4d9be98ee0ff1c5ad36df0d64892eed3af86a2d2ecdef81a0c78344754e2af44"
 if ! command -v cmake &> /dev/null
 then
     wget https://github.com/Kitware/CMake/releases/download/v"${cmake_ver}"/cmake-"${cmake_ver}"-Linux-"${arch}".sh -O cmake.sh
-    wget https://github.com/Kitware/CMake/releases/download/v"${cmake_ver}"/cmake-"${cmake_ver}"-SHA-256.txt -O shasums.txt
-
-    # Verify integrity
-
-    # The sha256sum will come in the format like the following:
-    # sha256hash filename
-    # Since we rename the script for convenience purposes,
-    # we only want to compare hashes to verify file integrity.
-    cmake_expected_shasum="$(grep "${arch}".sh < shasums.txt | awk '{print $1}')"
     cmake_actual_shasum="$(sha256sum cmake.sh | awk '{print $1}')"
     if [ "${cmake_expected_shasum}" != "${cmake_actual_shasum}" ]
     then
