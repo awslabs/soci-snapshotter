@@ -16,8 +16,9 @@ ARG CONTAINERD_VERSION=1.6.30
 ARG RUNC_VERSION=1.1.12
 ARG NERDCTL_VERSION=1.7.1
 ARG GO_VERSION=1.21.8
+ARG REGISTRY_VERSION=3.0.0-alpha.1
 
-FROM golang:${GO_VERSION}-bookworm AS golang-base
+FROM public.ecr.aws/docker/library/golang:${GO_VERSION}-bookworm AS golang-base
 
 FROM golang-base AS containerd-snapshotter-base
 ARG CONTAINERD_VERSION
@@ -46,4 +47,4 @@ RUN curl -sSL --output /tmp/nerdctl.tgz https://github.com/containerd/nerdctl/re
     tar zxvf /tmp/nerdctl.tgz -C /usr/local/bin/ && \
     rm -f /tmp/nerdctl.tgz
 
-FROM registry:3.0.0-alpha.1 AS registry
+FROM public.ecr.aws/docker/library/registry:${REGISTRY_VERSION} AS registry
