@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1712169064286,
+  "lastUpdate": 1712169220965,
   "repoUrl": "https://github.com/awslabs/soci-snapshotter",
   "entries": {
     "Soci Benchmark": [
@@ -5665,6 +5665,48 @@ window.BENCHMARK_DATA = {
           {
             "name": "SociFullECR-public-rabbitmq-pullTaskDuration",
             "value": 0.9285,
+            "unit": "Seconds",
+            "extra": "P90"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "davbson@amazon.com",
+            "name": "David Son",
+            "username": "sondavidb"
+          },
+          "committer": {
+            "email": "55555210+sondavidb@users.noreply.github.com",
+            "name": "David Son",
+            "username": "sondavidb"
+          },
+          "distinct": true,
+          "id": "a04f8abec2ea6ebcbde26eccf02ec9ad8065f023",
+          "message": "Hardcode cmake.sh expected shasum\n\nSigned-off-by: David Son <davbson@amazon.com>",
+          "timestamp": "2024-04-03T11:26:19-07:00",
+          "tree_id": "b498629b2f5c4a2df7be946a12035bc897196c3a",
+          "url": "https://github.com/awslabs/soci-snapshotter/commit/a04f8abec2ea6ebcbde26eccf02ec9ad8065f023"
+        },
+        "date": 1712169218023,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "SociFullECR-public-rabbitmq-lazyTaskDuration",
+            "value": 9.339,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-rabbitmq-localTaskDuration",
+            "value": 8.214,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-rabbitmq-pullTaskDuration",
+            "value": 0.8069999999999999,
             "unit": "Seconds",
             "extra": "P90"
           }
