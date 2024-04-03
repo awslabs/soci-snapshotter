@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1712083296445,
+  "lastUpdate": 1712169072032,
   "repoUrl": "https://github.com/awslabs/soci-snapshotter",
   "entries": {
     "Soci Benchmark": [
@@ -5664,6 +5664,48 @@ window.BENCHMARK_DATA = {
           {
             "name": "SociFullECR-public-node-pullTaskDuration",
             "value": 2.2735000000000003,
+            "unit": "Seconds",
+            "extra": "P90"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "davbson@amazon.com",
+            "name": "David Son",
+            "username": "sondavidb"
+          },
+          "committer": {
+            "email": "55555210+sondavidb@users.noreply.github.com",
+            "name": "David Son",
+            "username": "sondavidb"
+          },
+          "distinct": true,
+          "id": "ab85d3dee2d5471b864e1b0a54ed4a187db2f22f",
+          "message": "Check connection only when image isn't fully cached\n\nTaken from stargz:\nhttps://github.com/containerd/stargz-snapshotter/pull/1584/files\n\nSigned-off-by: David Son <davbson@amazon.com>",
+          "timestamp": "2024-04-03T11:23:32-07:00",
+          "tree_id": "62f928928bddce2ec80c9a4229561d7de3d61a1d",
+          "url": "https://github.com/awslabs/soci-snapshotter/commit/ab85d3dee2d5471b864e1b0a54ed4a187db2f22f"
+        },
+        "date": 1712169067290,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "SociFullECR-public-node-lazyTaskDuration",
+            "value": 1.6625,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-node-localTaskDuration",
+            "value": 0.4325,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-node-pullTaskDuration",
+            "value": 1.4,
             "unit": "Seconds",
             "extra": "P90"
           }
