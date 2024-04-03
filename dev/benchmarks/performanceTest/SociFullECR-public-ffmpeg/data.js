@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1712169068783,
+  "lastUpdate": 1712169218485,
   "repoUrl": "https://github.com/awslabs/soci-snapshotter",
   "entries": {
     "Soci Benchmark": [
@@ -5829,6 +5829,48 @@ window.BENCHMARK_DATA = {
           {
             "name": "SociFullECR-public-ffmpeg-pullTaskDuration",
             "value": 1.3205,
+            "unit": "Seconds",
+            "extra": "P90"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "davbson@amazon.com",
+            "name": "David Son",
+            "username": "sondavidb"
+          },
+          "committer": {
+            "email": "55555210+sondavidb@users.noreply.github.com",
+            "name": "David Son",
+            "username": "sondavidb"
+          },
+          "distinct": true,
+          "id": "a04f8abec2ea6ebcbde26eccf02ec9ad8065f023",
+          "message": "Hardcode cmake.sh expected shasum\n\nSigned-off-by: David Son <davbson@amazon.com>",
+          "timestamp": "2024-04-03T11:26:19-07:00",
+          "tree_id": "b498629b2f5c4a2df7be946a12035bc897196c3a",
+          "url": "https://github.com/awslabs/soci-snapshotter/commit/a04f8abec2ea6ebcbde26eccf02ec9ad8065f023"
+        },
+        "date": 1712169215252,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "SociFullECR-public-ffmpeg-lazyTaskDuration",
+            "value": 0.136,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-ffmpeg-localTaskDuration",
+            "value": 0.013500000000000002,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-ffmpeg-pullTaskDuration",
+            "value": 1.115,
             "unit": "Seconds",
             "extra": "P90"
           }
