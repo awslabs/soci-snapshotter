@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1712169214851,
+  "lastUpdate": 1712181280121,
   "repoUrl": "https://github.com/awslabs/soci-snapshotter",
   "entries": {
     "Soci Benchmark": [
@@ -5912,6 +5912,48 @@ window.BENCHMARK_DATA = {
           {
             "name": "SociFullECR-public-redis-pullTaskDuration",
             "value": 0.6815,
+            "unit": "Seconds",
+            "extra": "P90"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "davbson@amazon.com",
+            "name": "David Son",
+            "username": "sondavidb"
+          },
+          "committer": {
+            "email": "arjunry@amazon.com",
+            "name": "Arjun",
+            "username": "coderbirju"
+          },
+          "distinct": true,
+          "id": "4547e50a7c9961d0cf1c2d534a85d1a7cd7efdc3",
+          "message": "Add prebuild workflow to release branches\n\nSigned-off-by: David Son <davbson@amazon.com>",
+          "timestamp": "2024-04-03T14:46:10-07:00",
+          "tree_id": "e1ba618e874be0ba09baf06cfaf8f1fda196c160",
+          "url": "https://github.com/awslabs/soci-snapshotter/commit/4547e50a7c9961d0cf1c2d534a85d1a7cd7efdc3"
+        },
+        "date": 1712181278631,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "SociFullECR-public-redis-lazyTaskDuration",
+            "value": 2.79,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-redis-localTaskDuration",
+            "value": 0.023,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-redis-pullTaskDuration",
+            "value": 1.7345,
             "unit": "Seconds",
             "extra": "P90"
           }
