@@ -4,7 +4,7 @@ name: Bump Deps
 
 on:
   schedule:
-  - cron: '0 10 * * 2' # weekly at 10AM Tuesday
+    - cron: '0 10 * * 2' # weekly at 10AM Tuesday
   workflow_dispatch:
 
 env:
@@ -23,19 +23,19 @@ jobs:
     runs-on: ubuntu-20.04
 
     steps:
-    - uses: actions/checkout@v4
-    - uses: actions/setup-go@v5
-      with:
-        go-version: ${{ env.GO_VERSION }}
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
 
-    - run: ./scripts/bump-deps.sh
-    - name: Create Pull Request
-      uses: peter-evans/create-pull-request@v6
-      with:
-        title: "Bump dependencies using scripts/bump-deps.sh"
-        commit-message: "Bump dependencies using scripts/bump-deps.sh"
-        body: "This PR created by [create-pull-request](https://github.com/peter-evans/create-pull-request) must be closed and reopened manually to trigger automated checks."
-        labels: dependencies
-        delete-branch: true
-        author: "GitHub <no-reply@github.com>"
-        signoff: true
+      - run: ./scripts/bump-deps.sh
+      - name: Create Pull Request
+        uses: peter-evans/create-pull-request@v6
+        with:
+          title: "Bump dependencies using scripts/bump-deps.sh"
+          commit-message: "Bump dependencies using scripts/bump-deps.sh"
+          body: "This PR created by [create-pull-request](https://github.com/peter-evans/create-pull-request) must be closed and reopened manually to trigger automated checks."
+          labels: dependencies
+          delete-branch: true
+          author: "GitHub <no-reply@github.com>"
+          signoff: true

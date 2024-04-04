@@ -2,7 +2,7 @@ name: Visualize Benchmark and upload results
 
 on:
   push:
-    branches: [ main ]
+    branches: [main]
     paths:
       - '**'
       - '!docs/**' # ignore docs changes
@@ -14,7 +14,7 @@ permissions:
 
 env:
   GO_VERSION: '1.21.9'
-      
+
 jobs:
   benchmark:
     runs-on: ubuntu-20.04
@@ -29,13 +29,13 @@ jobs:
           go-version: ${{ env.GO_VERSION }}
       - run: make
       - name: Run benchmark
-        run: make benchmarks-perf-test 
+        run: make benchmarks-perf-test
       - name: Upload latest benchmark result
         uses: actions/upload-artifact@v4
         with:
           name: benchmark-result-artifact
           path: ${{github.workspace}}/benchmark/performanceTest/output/results.json
-      
+
   download-and-convert-benchmark-result-to-visualization-data:
     runs-on: ubuntu-20.04
     needs: benchmark
@@ -52,10 +52,10 @@ jobs:
       - name: Change permission of visualization-data-converter.sh
         run: chmod +x ${{github.workspace}}/scripts/visualization-data-converter.sh
       - name: Convert benchmark result to visualization data
-        run: ${{github.workspace}}/scripts/visualization-data-converter.sh ${{github.workspace}}/results.json ${{github.workspace}}/current  
+        run: ${{github.workspace}}/scripts/visualization-data-converter.sh ${{github.workspace}}/results.json ${{github.workspace}}/current
       - name: Build matrix of filepaths
         id: set-matrix
-         # Create a JSON array with the file paths and store it in the 'files' output
+        # Create a JSON array with the file paths and store it in the 'files' output
         run: echo "files=$(find ${{github.workspace}}/current -type f -name '*.json' -printf '%p\n' | jq -R . | jq -cs .)" >> $GITHUB_OUTPUT
       - name: Upload visualization files as github artifacts
         uses: actions/upload-artifact@v4
@@ -84,7 +84,7 @@ jobs:
         with:
           name: benchmark-gh-pages-artifact
           path: ${{github.workspace}}/current
-      
+
       - name: Extract file names
         id: get_filename
         run: |
@@ -92,7 +92,7 @@ jobs:
           filename=$(basename "${{ matrix.file }}")
           # Remove the .json extension
           filename_without_extension="${filename%.json}"
-          echo "filename=$filename_without_extension" >> $GITHUB_OUTPUT    
+          echo "filename=$filename_without_extension" >> $GITHUB_OUTPUT
 
       - name: Run benchmark action
         uses: benchmark-action/github-action-benchmark@v1
