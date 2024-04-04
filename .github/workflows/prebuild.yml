@@ -53,7 +53,7 @@ jobs:
   lint:
     strategy:
       matrix:
-        working_dir: ['', 'cmd']
+        working_dir: ['.', 'cmd']
     runs-on: ubuntu-20.04
     steps:
       - uses: actions/checkout@v4
@@ -61,6 +61,13 @@ jobs:
         with:
           version: v${{ env.GOLANGCI_LINT_VERSION }}
           working-directory: ${{ matrix.working_dir }}
+
+  yamllint:
+    name: yamllint-lint
+    runs-on: ubuntu-20.04
+    steps:
+      - uses: actions/checkout@v4
+      - run: yamllint .
 
   shellcheck:
     runs-on: ubuntu-20.04
