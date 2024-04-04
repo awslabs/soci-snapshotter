@@ -2,9 +2,9 @@ name: Pre-build
 
 on:
   push:
-    branches: [ 'main', 'release/**']
+    branches: ['main', 'release/**']
   pull_request:
-    branches: [ 'main', 'release/**']
+    branches: ['main', 'release/**']
 
 env:
   GO_VERSION: '1.21.9'
@@ -37,10 +37,10 @@ jobs:
       - name: Pull latest awslabs/git-secrets repo
         uses: actions/checkout@v4
         with:
-           repository: awslabs/git-secrets
-           ref: 1.3.0
-           fetch-tags: true
-           path: git-secrets
+          repository: awslabs/git-secrets
+          ref: 1.3.0
+          fetch-tags: true
+          path: git-secrets
       - name: Install git secrets from source
         run: sudo make install
         working-directory: git-secrets
@@ -49,7 +49,7 @@ jobs:
         run: |
           git secrets --register-aws
           git secrets --scan-history
-  
+
   lint:
     strategy:
       matrix:

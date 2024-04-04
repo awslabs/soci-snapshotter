@@ -1,14 +1,15 @@
 version: 2
 updates:
- 
+
   # Automatic upgrade for go modules.
   - package-ecosystem: "gomod"
     directory: "/"
     schedule:
       interval: "daily"
     ignore:
-      # skip grpc because the current latest is not compatible with containerd 1.7
-      # skip k8s deps since they use the latest go version/features that may not be in the go version soci uses
+      # skip grpc because the current latest not compatible with containerd 1.7
+      # skip k8s deps since they use the latest go version/features that may
+      # not be in the go version soci uses
       # Also ignored in /scripts/bump-deps.sh
       - dependency-name: "google.golang.org/grpc"
       - dependency-name: "k8s.io/*"
@@ -19,8 +20,9 @@ updates:
     schedule:
       interval: "daily"
     ignore:
-      # skip grpc because the current latest is not compatible with containerd 1.7
-      # skip k8s deps since they use the latest go version/features that may not be in the go version soci uses
+      # skip grpc because the current latest not compatible with containerd 1.7
+      # skip k8s deps since they use the latest go version/features that may
+      # not be in the go version soci uses
       # Also ignored in /scripts/bump-deps.sh
       - dependency-name: "github.com/awslabs/soci-snapshotter"
       - dependency-name: "google.golang.org/grpc"

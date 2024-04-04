@@ -20,30 +20,30 @@ jobs:
       DYNAMIC_BINARY_NAME: ''
       STATIC_BINARY_NAME: ''
     steps:
-    - uses: actions/checkout@v4
-    - name: Setup and export variables
-      run: |
-        export release_tag=${GITHUB_REF#refs/*/} # Strip down to raw tag name
-        export release_version=${release_tag/v/} # Remove v from tag name
+      - uses: actions/checkout@v4
+      - name: Setup and export variables
+        run: |
+          export release_tag=${GITHUB_REF#refs/*/} # Strip down to raw tag name
+          export release_version=${release_tag/v/} # Remove v from tag name
 
-        echo "RELEASE_TAG=${release_tag}" >> $GITHUB_ENV
-        echo "DYNAMIC_BINARY_NAME=soci-snapshotter-${release_version}-linux-amd64.tar.gz" >> $GITHUB_ENV
-        echo "STATIC_BINARY_NAME=soci-snapshotter-${release_version}-linux-amd64-static.tar.gz" >> $GITHUB_ENV
-        
-        mkdir release
-    - name: Create release binaries
-      run: make RELEASE_TAG=${{ env.RELEASE_TAG }} release
-    - uses: actions/upload-artifact@v4
-      with:
-        name: artifacts
-        path: release/
-        if-no-files-found: error
+          echo "RELEASE_TAG=${release_tag}" >> $GITHUB_ENV
+          echo "DYNAMIC_BINARY_NAME=soci-snapshotter-${release_version}-linux-amd64.tar.gz" >> $GITHUB_ENV
+          echo "STATIC_BINARY_NAME=soci-snapshotter-${release_version}-linux-amd64-static.tar.gz" >> $GITHUB_ENV
+
+          mkdir release
+      - name: Create release binaries
+        run: make RELEASE_TAG=${{ env.RELEASE_TAG }} release
+      - uses: actions/upload-artifact@v4
+        with:
+          name: artifacts
+          path: release/
+          if-no-files-found: error
 
     outputs:
       release_tag: ${{ env.RELEASE_TAG }}
       dynamic_binary_name: ${{ env.DYNAMIC_BINARY_NAME }}
       static_binary_name: ${{ env.STATIC_BINARY_NAME }}
-  
+
   validate-artifacts:
     needs: generate-artifacts
     runs-on: ubuntu-20.04
