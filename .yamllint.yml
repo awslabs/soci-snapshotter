@@ -1,0 +1,12 @@
+extends: default
+
+rules:
+  trailing-spaces:
+    # issue templates intentionally have some whitespace
+    ignore: .github/ISSUE_TEMPLATE/
+
+  document-start: disable # preference, can enable if desired
+  comments: disable # doesn't like in-line comments like this
+  line-length: disable # hard to enforce <80 chars for some cmds
+  truthy:
+    allowed-values: ['true', 'false', 'on']
