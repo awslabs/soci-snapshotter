@@ -4,7 +4,7 @@ go 1.21
 
 require (
 	github.com/awslabs/soci-snapshotter v0.0.0-local
-	github.com/containerd/containerd v1.7.14
+	github.com/containerd/containerd v1.7.15
 	github.com/containerd/log v0.1.0
 	github.com/coreos/go-systemd/v22 v22.5.0
 	github.com/docker/cli v26.0.0+incompatible
@@ -46,7 +46,7 @@ require (
 	github.com/go-openapi/swag v0.19.14 // indirect
 	github.com/gogo/protobuf v1.3.2 // indirect
 	github.com/golang/groupcache v0.0.0-20210331224755-41bb18bfe9da // indirect
-	github.com/golang/protobuf v1.5.3 // indirect
+	github.com/golang/protobuf v1.5.4 // indirect
 	github.com/google/flatbuffers v24.3.25+incompatible // indirect
 	github.com/google/gnostic v0.5.7-v3refs // indirect
 	github.com/google/go-cmp v0.6.0 // indirect
