@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1712181280121,
+  "lastUpdate": 1712683723427,
   "repoUrl": "https://github.com/awslabs/soci-snapshotter",
   "entries": {
     "Soci Benchmark": [
@@ -5954,6 +5954,48 @@ window.BENCHMARK_DATA = {
           {
             "name": "SociFullECR-public-redis-pullTaskDuration",
             "value": 1.7345,
+            "unit": "Seconds",
+            "extra": "P90"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "davbson@amazon.com",
+            "name": "David Son",
+            "username": "sondavidb"
+          },
+          "committer": {
+            "email": "55555210+sondavidb@users.noreply.github.com",
+            "name": "David Son",
+            "username": "sondavidb"
+          },
+          "distinct": true,
+          "id": "dbdef0840b1d5fa609273829f438361d5a5d9f70",
+          "message": "Address yamllint findings\n\nSigned-off-by: David Son <davbson@amazon.com>",
+          "timestamp": "2024-04-09T10:19:41-07:00",
+          "tree_id": "8bbd5cc118003574234ff8da2e180a67f5dedb9a",
+          "url": "https://github.com/awslabs/soci-snapshotter/commit/dbdef0840b1d5fa609273829f438361d5a5d9f70"
+        },
+        "date": 1712683719204,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "SociFullECR-public-redis-lazyTaskDuration",
+            "value": 2.759,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-redis-localTaskDuration",
+            "value": 0.018,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-redis-pullTaskDuration",
+            "value": 1.033,
             "unit": "Seconds",
             "extra": "P90"
           }
