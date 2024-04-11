@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1712683844789,
+  "lastUpdate": 1712875108052,
   "repoUrl": "https://github.com/awslabs/soci-snapshotter",
   "entries": {
     "Soci Benchmark": [
@@ -6038,6 +6038,48 @@ window.BENCHMARK_DATA = {
           {
             "name": "SociFullECR-public-tensorflow-pullTaskDuration",
             "value": 2.101,
+            "unit": "Seconds",
+            "extra": "P90"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "davbson@amazon.com",
+            "name": "David Son",
+            "username": "sondavidb"
+          },
+          "committer": {
+            "email": "55555210+sondavidb@users.noreply.github.com",
+            "name": "David Son",
+            "username": "sondavidb"
+          },
+          "distinct": true,
+          "id": "afec192851a0783ed504d49f06997aa57c7d01c4",
+          "message": "Check first header in each layer\n\nIn #1147, we cherry-picked a commit from stargz where we don't make\nregistry calls if layers are fully pulled. This works fine for stargz,\nbut for SOCI, we skip reading the first header for each layer, as we\ndon't need it. This caused a bug where our fetched size never matched\nour expected size, so this condition was never met.\n\nThis commit fixes this by reading the initially skipped header. This\ncommit also checks this header to ensure that it is not malformed for\nany reason.\n\nSigned-off-by: David Son <davbson@amazon.com>",
+          "timestamp": "2024-04-11T15:29:53-07:00",
+          "tree_id": "cf0bbd527eb9906bbf8fc3692e94f198c09180c8",
+          "url": "https://github.com/awslabs/soci-snapshotter/commit/afec192851a0783ed504d49f06997aa57c7d01c4"
+        },
+        "date": 1712875105647,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "SociFullECR-public-tensorflow-lazyTaskDuration",
+            "value": 12.100999999999999,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-tensorflow-localTaskDuration",
+            "value": 2.3685,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-tensorflow-pullTaskDuration",
+            "value": 2.6965,
             "unit": "Seconds",
             "extra": "P90"
           }
