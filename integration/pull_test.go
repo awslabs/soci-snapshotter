@@ -36,6 +36,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"math"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -871,4 +872,32 @@ min_layer_size=` + strconv.FormatInt(middleSize, 10) + `
 	sh.X(append(imagePullCmd, "--soci-index-digest", indexDigest, regConfig.mirror(containerImage).ref)...)
 
 	checkFuseMounts(t, sh, layerCount-middleIndex)
+}
+
+// This checks if the initial header is properly recorded in the image descriptor on image pull
+func TestFullLayerRead(t *testing.T) {
+	regConfig := newRegistryConfig()
+	sh, done := newShellWithRegistry(t, regConfig)
+	defer done()
+	rebootContainerd(t, sh, getContainerdConfigToml(t, false), "")
+
+	containerImage := alpineImage
+	copyImage(sh, dockerhub(containerImage), regConfig.mirror(containerImage))
+	indexDigest := buildIndex(sh, regConfig.mirror(containerImage), withMinLayerSize(0), withSpanSize(math.MaxInt64))
+	// Max span size is used to ensure that the entire image will always be fetched at once.
+
+	sh.X(append(imagePullCmd, "--soci-index-digest", indexDigest, regConfig.mirror(containerImage).ref)...)
+	sh.X(append(runSociCmd, "-d", "--name", t.Name(), regConfig.mirror(containerImage).ref, "sleep", "infinity")...)
+	jsonFile := sh.O("nerdctl", "exec", t.Name(), "ls", "/.soci-snapshotter")
+	rawJSON := sh.O("nerdctl", "exec", t.Name(), "cat", "/.soci-snapshotter/"+strings.TrimSpace(string(jsonFile)))
+
+	var layers struct {
+		FetchedPercent float64
+	}
+	if err := json.Unmarshal(rawJSON, &layers); err != nil {
+		t.Fatalf("cannot unmarshal image layer JSON: %v", err)
+	}
+	if layers.FetchedPercent != 100 {
+		t.Fatalf("Expected 100%% fetchedPercent, found %v", layers.FetchedPercent)
+	}
 }

@@ -27,6 +27,7 @@ import (
 	"github.com/awslabs/soci-snapshotter/cache"
 	"github.com/awslabs/soci-snapshotter/ztoc"
 	"github.com/awslabs/soci-snapshotter/ztoc/compression"
+	"github.com/containerd/log"
 	"github.com/opencontainers/go-digest"
 	"golang.org/x/sync/errgroup"
 )
@@ -88,12 +89,25 @@ type spanInfo struct {
 
 // New creates a SpanManager with given ztoc and content reader, and builds all
 // spans based on the ztoc.
+
+// TODO: return errors/nil objects on failure
 func New(ztoc *ztoc.Ztoc, r *io.SectionReader, cache cache.BlobCache, retries int, cacheOpt ...cache.Option) *SpanManager {
 	index, err := ztoc.Zinfo()
 	if err != nil {
 		return nil
 	}
 	ztoc.Checkpoints = nil
+
+	// We don't need the header anywhere else, but we want to ensure we read every byte from the layer.
+	// This also serves as a sanity check to make sure the file isn't corrupted.
+	b := make([]byte, index.StartCompressedOffset(0))
+	if _, err := r.Read(b); err != nil {
+		log.L.Errorf("unable to read ztoc header: %v", err)
+	}
+	if err := index.VerifyHeader(bytes.NewReader(b)); err != nil {
+		log.L.Errorf("unable to verify %v header: %v", ztoc.CompressionAlgorithm, err)
+	}
+
 	spans := make([]*span, ztoc.MaxSpanID+1)
 	m := &SpanManager{
 		cache:                             cache,

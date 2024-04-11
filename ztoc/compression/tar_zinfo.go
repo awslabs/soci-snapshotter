@@ -18,6 +18,7 @@ package compression
 
 import (
 	"fmt"
+	"io"
 	"os"
 
 	zinfo_flatbuffers "github.com/awslabs/soci-snapshotter/ztoc/compression/fbs/zinfo"
@@ -184,6 +185,14 @@ func (i *TarZinfo) EndUncompressedOffset(spanID SpanID, fileSize Offset) Offset 
 		return fileSize
 	}
 	return i.spanIDToOffset(spanID + 1)
+}
+
+// VerifyHeader checks if the given zinfo has a proper header
+func (i *TarZinfo) VerifyHeader(r io.Reader) error {
+	// As this is a catch-all for all compression algorithms,
+	// there's not really a way to verify the header,
+	// so blindly assume it's correct.
+	return nil
 }
 
 func (i *TarZinfo) spanIDToOffset(spanID SpanID) Offset {
