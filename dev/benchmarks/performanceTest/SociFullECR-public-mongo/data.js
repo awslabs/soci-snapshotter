@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1712875111071,
+  "lastUpdate": 1712875341843,
   "repoUrl": "https://github.com/awslabs/soci-snapshotter",
   "entries": {
     "Soci Benchmark": [
@@ -5998,6 +5998,48 @@ window.BENCHMARK_DATA = {
           {
             "name": "SociFullECR-public-mongo-pullTaskDuration",
             "value": 1.5234999999999999,
+            "unit": "Seconds",
+            "extra": "P90"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "davbson@amazon.com",
+            "name": "David Son",
+            "username": "sondavidb"
+          },
+          "committer": {
+            "email": "arjunry@amazon.com",
+            "name": "Arjun",
+            "username": "coderbirju"
+          },
+          "distinct": true,
+          "id": "779edee7a038c13875945f4c6db56c575d0c0266",
+          "message": "Disable TestNetworkRetry on ARM machines\n\nThis test currently hangs on ARM machines, so disabling till we can fix\nthis.\n\nSigned-off-by: David Son <davbson@amazon.com>",
+          "timestamp": "2024-04-11T15:33:37-07:00",
+          "tree_id": "5bea95a4da1476f3ef79c504292734e370aff90c",
+          "url": "https://github.com/awslabs/soci-snapshotter/commit/779edee7a038c13875945f4c6db56c575d0c0266"
+        },
+        "date": 1712875337985,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "SociFullECR-public-mongo-lazyTaskDuration",
+            "value": 2.6475,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-mongo-localTaskDuration",
+            "value": 0.2905,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-mongo-pullTaskDuration",
+            "value": 1.4955,
             "unit": "Seconds",
             "extra": "P90"
           }
