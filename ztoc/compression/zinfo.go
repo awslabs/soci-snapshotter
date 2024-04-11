@@ -18,6 +18,7 @@ package compression
 
 import (
 	"fmt"
+	"io"
 )
 
 // Zinfo is the interface for dealing with compressed data efficiently. It chunks
@@ -75,6 +76,8 @@ type Zinfo interface {
 	// EndUncompressedOffset returns the offset (in uncompressed stream)
 	// of the last byte belonging to `spanID`. If it's the last span, `fileSize` is returned.
 	EndUncompressedOffset(spanID SpanID, fileSize Offset) Offset
+	// VerifyHeader checks if the given zinfo has a proper header
+	VerifyHeader(r io.Reader) error
 }
 
 // NewZinfo deseralizes given zinfo bytes into a zinfo struct.

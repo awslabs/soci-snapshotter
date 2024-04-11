@@ -24,7 +24,9 @@ package compression
 import "C"
 
 import (
+	"compress/gzip"
 	"fmt"
+	"io"
 	"unsafe"
 )
 
@@ -179,6 +181,15 @@ func (i *GzipZinfo) EndUncompressedOffset(spanID SpanID, fileSize Offset) Offset
 		return fileSize
 	}
 	return i.getUncompressedOffset(spanID + 1)
+}
+
+// VerifyHeader checks if the given zinfo has a proper header
+func (i *GzipZinfo) VerifyHeader(r io.Reader) error {
+	gz, err := gzip.NewReader(r)
+	if gz != nil {
+		gz.Close()
+	}
+	return err
 }
 
 // getCompressedOffset wraps `C.get_comp_off` and returns the offset for the span in the compressed stream.
