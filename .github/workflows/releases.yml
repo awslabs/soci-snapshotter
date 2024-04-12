@@ -52,6 +52,7 @@ jobs:
       - uses: actions/download-artifact@v4
         with:
           name: artifacts
+          path: release/
       - run: bash scripts/verify-release-artifacts.sh ${{ needs.generate-artifacts.outputs.release_tag }}
 
   create-release:
