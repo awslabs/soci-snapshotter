@@ -739,7 +739,7 @@ insecure = true
 		t.Fatalf("failed to write %v: %v", caCertDir, err)
 	}
 	sh.
-		X("apt-get", "--no-install-recommends", "install", "-y", "iptables").
+		X("apk", "add", "--no-cache", "iptables").
 		X("update-ca-certificates").
 		Retry(100, "nerdctl", "login", "-u", regConfig.user, "-p", regConfig.pass, regConfig.host)
 

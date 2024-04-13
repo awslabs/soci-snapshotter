@@ -15,21 +15,27 @@
 ARG CONTAINERD_VERSION=1.6.30
 ARG RUNC_VERSION=1.1.12
 ARG NERDCTL_VERSION=1.7.1
-ARG GO_VERSION=1.21.10
-ARG REGISTRY_VERSION=3.0.0-alpha.1
 
-FROM public.ecr.aws/docker/library/golang:${GO_VERSION}-bookworm AS golang-base
+FROM public.ecr.aws/docker/library/registry:3.0.0-alpha.1 AS registry
 
-FROM golang-base AS containerd-snapshotter-base
+FROM public.ecr.aws/docker/library/golang:1.21.9-alpine AS containerd-snapshotter-base
+
 ARG CONTAINERD_VERSION
 ARG RUNC_VERSION
 ARG NERDCTL_VERSION
-ARG GO_VERSION
 ARG TARGETARCH
 COPY ./integ_entrypoint.sh /integ_entrypoint.sh
 COPY . $GOPATH/src/github.com/awslabs/soci-snapshotter
 ENV GOPROXY direct
-RUN apt-get update -y && apt-get install -y libbtrfs-dev libseccomp-dev libz-dev gcc fuse pigz
+RUN apk add --no-cache \
+    btrfs-progs-libs \
+    curl \
+    fuse \
+    gcc \
+    libc6-compat \
+    libseccomp-dev \
+    pigz \
+    zlib-dev
 RUN cp $GOPATH/src/github.com/awslabs/soci-snapshotter/out/soci /usr/local/bin/ && \
     cp $GOPATH/src/github.com/awslabs/soci-snapshotter/out/soci-snapshotter-grpc /usr/local/bin/ && \
     mkdir /etc/soci-snapshotter-grpc && \
@@ -46,5 +52,3 @@ RUN curl -sSL --output /tmp/runc https://github.com/opencontainers/runc/releases
 RUN curl -sSL --output /tmp/nerdctl.tgz https://github.com/containerd/nerdctl/releases/download/v${NERDCTL_VERSION}/nerdctl-${NERDCTL_VERSION}-linux-${TARGETARCH:-amd64}.tar.gz && \
     tar zxvf /tmp/nerdctl.tgz -C /usr/local/bin/ && \
     rm -f /tmp/nerdctl.tgz
-
-FROM public.ecr.aws/docker/library/registry:${REGISTRY_VERSION} AS registry
