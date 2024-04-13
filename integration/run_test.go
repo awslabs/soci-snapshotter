@@ -307,7 +307,7 @@ disable = true
 			image := regConfig.mirror(containerImage).ref
 			sh.X(append(runSociCmd, "--name", "test-container", "-d", image, "sleep", "infinity")...)
 
-			sh.X("apt-get", "--no-install-recommends", "install", "-qy", "iptables")
+			sh.X("apk", "add", "--no-cache", "--quiet", "iptables")
 
 			// TODO: Wait for the container to be up and running
 
