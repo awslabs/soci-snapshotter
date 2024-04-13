@@ -346,7 +346,7 @@ func KillMatchingProcess(sh *shell.Shell, psLinePattern string) error {
 			if len(es) < 2 {
 				continue
 			}
-			pid, err := strconv.ParseInt(es[1], 10, 32)
+			pid, err := strconv.ParseInt(es[0], 10, 32)
 			if err != nil {
 				continue
 			}
