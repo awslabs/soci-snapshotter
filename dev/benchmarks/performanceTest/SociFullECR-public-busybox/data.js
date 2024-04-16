@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1713305581585,
+  "lastUpdate": 1713307731100,
   "repoUrl": "https://github.com/awslabs/soci-snapshotter",
   "entries": {
     "Soci Benchmark": [
@@ -6123,6 +6123,48 @@ window.BENCHMARK_DATA = {
           {
             "name": "SociFullECR-public-busybox-pullTaskDuration",
             "value": 0.6915,
+            "unit": "Seconds",
+            "extra": "P90"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "davbson@amazon.com",
+            "name": "David Son",
+            "username": "sondavidb"
+          },
+          "committer": {
+            "email": "55555210+sondavidb@users.noreply.github.com",
+            "name": "David Son",
+            "username": "sondavidb"
+          },
+          "distinct": true,
+          "id": "8a3b3617a0dff68c7728b99369e458e360d48c53",
+          "message": "Fix binary download directory in release workflow\n\nSigned-off-by: David Son <davbson@amazon.com>",
+          "timestamp": "2024-04-16T15:40:18-07:00",
+          "tree_id": "21856b2491d6aa882134c9063eb7b4ca8edcd54c",
+          "url": "https://github.com/awslabs/soci-snapshotter/commit/8a3b3617a0dff68c7728b99369e458e360d48c53"
+        },
+        "date": 1713307730284,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "SociFullECR-public-busybox-lazyTaskDuration",
+            "value": 0.015,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-busybox-localTaskDuration",
+            "value": 0.004,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-busybox-pullTaskDuration",
+            "value": 0.7230000000000001,
             "unit": "Seconds",
             "extra": "P90"
           }
