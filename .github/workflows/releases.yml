@@ -4,6 +4,13 @@ on:
   push:
     tags:
       - 'v[0-9]+.[0-9]+.[0-9]+'
+  pull_request:
+    branches: ['main', 'release/**']
+    paths:
+      - '.github/workflows/releases.yml'
+      - 'scripts/**'
+      - 'Makefile'
+
 env:
   GO_VERSION: '1.21.9'
 
@@ -21,12 +28,19 @@ jobs:
       STATIC_BINARY_NAME: ''
     steps:
       - uses: actions/checkout@v4
-      - name: Setup and export variables
+      - name: Export cleaned release tag
         run: |
           export release_tag=${GITHUB_REF#refs/*/} # Strip down to raw tag name
-          export release_version=${release_tag/v/} # Remove v from tag name
-
           echo "RELEASE_TAG=${release_tag}" >> $GITHUB_ENV
+      - name: Create dummy environment for release
+        if: github.event_name == 'pull_request'
+        run: |
+          touch THIRD_PARTY_LICENSES
+          echo "RELEASE_TAG=v0.0.0" >> $GITHUB_ENV
+      - name: Setup variables and release directories
+        run: |
+          export release_tag=${{ env.RELEASE_TAG }}
+          export release_version=${release_tag/v/} # Remove v from tag name
           echo "DYNAMIC_BINARY_NAME=soci-snapshotter-${release_version}-linux-amd64.tar.gz" >> $GITHUB_ENV
           echo "STATIC_BINARY_NAME=soci-snapshotter-${release_version}-linux-amd64-static.tar.gz" >> $GITHUB_ENV
 
@@ -56,6 +70,7 @@ jobs:
       - run: bash scripts/verify-release-artifacts.sh ${{ needs.generate-artifacts.outputs.release_tag }}
 
   create-release:
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
     needs: [generate-artifacts, validate-artifacts]
     runs-on: ubuntu-20.04
     steps:
