@@ -44,6 +44,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"regexp"
+	"runtime"
 	"strconv"
 	"strings"
 	"sync/atomic"
@@ -70,14 +71,24 @@ func NewTestingReporter(t *testing.T) *TestingReporter {
 
 // Errorf prints the provided message to TestingL and stops the test using testing.T.Fatalf.
 func (r *TestingReporter) Errorf(format string, v ...interface{}) {
-	TestingL.Printf(format, v...)
-	r.t.Fatalf(format, v...)
+	msg := fmt.Sprintf(format, v...)
+	_, file, lineNum, ok := runtime.Caller(2)
+	if ok {
+		r.t.Fatalf("%s:%d: %s", file, lineNum, msg)
+	} else {
+		r.t.Fatalf(format, v...)
+	}
 }
 
 // Logf prints the provided message to TestingL testing.T.
 func (r *TestingReporter) Logf(format string, v ...interface{}) {
-	TestingL.Printf(format, v...)
-	r.t.Logf(format, v...)
+	msg := fmt.Sprintf(format, v...)
+	_, file, lineNum, ok := runtime.Caller(2)
+	if ok {
+		r.t.Logf("%s:%d: %s", file, lineNum, msg)
+	} else {
+		r.t.Logf(format, v...)
+	}
 }
 
 // Stdout returns the writer to TestingL as stdout. This enables to print command logs realtime.
