@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1713307737795,
+  "lastUpdate": 1713828536456,
   "repoUrl": "https://github.com/awslabs/soci-snapshotter",
   "entries": {
     "Soci Benchmark": [
@@ -6165,6 +6165,48 @@ window.BENCHMARK_DATA = {
           {
             "name": "SociFullECR-public-ffmpeg-pullTaskDuration",
             "value": 1.6245,
+            "unit": "Seconds",
+            "extra": "P90"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "davbson@amazon.com",
+            "name": "David Son",
+            "username": "sondavidb"
+          },
+          "committer": {
+            "email": "55555210+sondavidb@users.noreply.github.com",
+            "name": "David Son",
+            "username": "sondavidb"
+          },
+          "distinct": true,
+          "id": "dfcd5e5fd22bf0e78fb6b666b522613964a3f933",
+          "message": "Add release workflow testing\n\nSigned-off-by: David Son <davbson@amazon.com>",
+          "timestamp": "2024-04-22T16:21:42-07:00",
+          "tree_id": "0f02d28390e2daba3e7d8eca6000583f8154af0c",
+          "url": "https://github.com/awslabs/soci-snapshotter/commit/dfcd5e5fd22bf0e78fb6b666b522613964a3f933"
+        },
+        "date": 1713828530351,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "SociFullECR-public-ffmpeg-lazyTaskDuration",
+            "value": 0.149,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-ffmpeg-localTaskDuration",
+            "value": 0.0075,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-ffmpeg-pullTaskDuration",
+            "value": 1.137,
             "unit": "Seconds",
             "extra": "P90"
           }
