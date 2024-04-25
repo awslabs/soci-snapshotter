@@ -27,6 +27,9 @@ arch="$(uname -m)"
 # install cmake
 cmake_ver="3.24.1"
 cmake_expected_shasum="4d9be98ee0ff1c5ad36df0d64892eed3af86a2d2ecdef81a0c78344754e2af44"
+if [ "${arch}" == "aarch64" ]; then
+    cmake_expected_shasum="393f8fdec35d0fbbe81bf9aceef33a93d1f1bcaf1c1c5d63963ccf3301538309"
+fi
 if ! command -v cmake &> /dev/null
 then
     wget https://github.com/Kitware/CMake/releases/download/v"${cmake_ver}"/cmake-"${cmake_ver}"-Linux-"${arch}".sh -O cmake.sh
