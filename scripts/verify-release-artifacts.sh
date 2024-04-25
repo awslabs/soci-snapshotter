@@ -22,12 +22,18 @@ cur_dir="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 soci_snapshotter_project_root="$(cd -- "$cur_dir"/.. && pwd)"
 release_dir="${soci_snapshotter_project_root}/release"
 
-arch=""
-case $(uname -m) in
-    x86_64) arch="amd64" ;;
-    aarch64) arch="arm64" ;;
-    *) echo "Error: unsupported arch"; exit 1 ;;
-esac
+arch="$2"
+if [ "${arch}" == "" ]; then
+    case $(uname -m) in
+        x86_64) arch="amd64" ;;
+        aarch64) arch="arm64" ;;
+    esac
+fi
+
+if [ "${arch}" != "amd64" ] && [ "${arch}" != "amd64" ] ; then
+    echo "Error: unsupported arch"
+    exit 1
+fi
 
 function usage {
     echo "Usage: $0 <release_tag>"
