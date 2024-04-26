@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1714002189317,
+  "lastUpdate": 1714154498040,
   "repoUrl": "https://github.com/awslabs/soci-snapshotter",
   "entries": {
     "Soci Benchmark": [
@@ -6290,6 +6290,48 @@ window.BENCHMARK_DATA = {
           {
             "name": "SociFullECR-public-redis-pullTaskDuration",
             "value": 0.8515,
+            "unit": "Seconds",
+            "extra": "P90"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "haddscot@amazon.com",
+            "name": "Scott Haddlesey",
+            "username": "haddscot"
+          },
+          "committer": {
+            "email": "160976906+haddscot@users.noreply.github.com",
+            "name": "haddscot",
+            "username": "haddscot"
+          },
+          "distinct": true,
+          "id": "a9952c0206f197e6479cea8722de7785b9f7b8d3",
+          "message": "remove duplicate logging on integ tests, add info for where log came from\n\nSigned-off-by: Scott Haddlesey <haddscot@amazon.com>",
+          "timestamp": "2024-04-26T10:53:07-07:00",
+          "tree_id": "fd68ec48b398cd3fcce8bf5d42cced1e80fe05ad",
+          "url": "https://github.com/awslabs/soci-snapshotter/commit/a9952c0206f197e6479cea8722de7785b9f7b8d3"
+        },
+        "date": 1714154497314,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "SociFullECR-public-redis-lazyTaskDuration",
+            "value": 2.7744999999999997,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-redis-localTaskDuration",
+            "value": 0.018,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-redis-pullTaskDuration",
+            "value": 1.7345000000000002,
             "unit": "Seconds",
             "extra": "P90"
           }
