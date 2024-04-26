@@ -24,7 +24,7 @@ env:
 
 jobs:
   test:
-    runs-on: ubuntu-20.04
+    runs-on: codebuild-soci-snapshotter-personal-pipeline-${{ github.run_id }}-${{ github.run_attempt }}-ubuntu-5.0-xlarge
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5
@@ -33,7 +33,7 @@ jobs:
       - run: make
       - run: make test
   integration:
-    runs-on: ubuntu-20.04
+    runs-on: codebuild-soci-snapshotter-personal-pipeline-${{ github.run_id }}-${{ github.run_attempt }}-ubuntu-5.0-xlarge
     strategy:
       fail-fast: false
       matrix:
