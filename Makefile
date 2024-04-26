@@ -45,6 +45,9 @@ COMPRESSION_FBS_GO_FILES=$(wildcard $(COMPRESSION_FBS_DIR)/zinfo/*.go)
 COMMIT=$(shell git rev-parse HEAD)
 STARGZ_BINARY?=/usr/local/bin/containerd-stargz-grpc
 
+INTEG_TEST_CONTAINERS=$(strip $(shell docker ps -aqf name="soci-integration-*"))
+SOCI_BASE_IMAGE_IDS=$(shell docker image ls -qf reference="*:soci_test")
+
 CMD=soci-snapshotter-grpc soci
 
 CMD_BINARIES=$(addprefix $(OUTDIR)/,$(CMD))
@@ -52,7 +55,7 @@ CMD_BINARIES=$(addprefix $(OUTDIR)/,$(CMD))
 GO_BENCHMARK_TESTS?=.
 
 .PHONY: all build check flatc add-ltag install uninstall tidy vendor clean \
-	test integration release benchmarks build-benchmarks \
+	clean-integration test integration release benchmarks build-benchmarks \
 	benchmarks-perf-test benchmarks-comparison-test
 
 all: build
@@ -89,11 +92,27 @@ uninstall:
 	@echo "$@"
 	@rm -f $(addprefix $(CMD_DESTDIR)/bin/,$(notdir $(CMD_BINARIES)))
 
-clean:
+clean: clean-integration
 	@echo "🧹 ... 🗑️"
 	@rm -rf $(OUTDIR)
 	@rm -rf $(CURDIR)/release/
 	@echo "All clean!"
+
+clean-integration:
+	@echo "🧹 Cleaning leftover integration test artifacts..."
+
+	@echo "🐳 Cleaning Docker artifacts..."
+ifneq ($(INTEG_TEST_CONTAINERS),)
+	docker stop $(INTEG_TEST_CONTAINERS)
+	docker rm $(INTEG_TEST_CONTAINERS)
+	docker network rm $(shell docker network ls -qf name="soci-integration-*")
+	docker image rm $(SOCI_BASE_IMAGE_IDS)
+	@echo "🐳 All SOCI containers, networks, and images cleaned!"
+else
+	@echo "🐳 No leftover Docker artifacts."
+endif
+
+	@echo "All testing artifacts cleaned!"
 
 tidy:
 	@GO111MODULE=$(GO111MODULE_VALUE) go mod tidy

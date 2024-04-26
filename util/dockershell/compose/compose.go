@@ -35,6 +35,7 @@ package compose
 import (
 	"bufio"
 	"errors"
+	"fmt"
 	"io"
 	"os"
 	"os/exec"
@@ -43,6 +44,10 @@ import (
 
 	dexec "github.com/awslabs/soci-snapshotter/util/dockershell/exec"
 	"github.com/rs/xid"
+)
+
+const (
+	TestContainerBaseName string = "soci-integration"
 )
 
 // Supported checks if this pkg can run on the current system.
@@ -133,7 +138,7 @@ func Up(dockerComposeYaml string, opts ...Option) (*Compose, error) {
 	for _, o := range opts {
 		o(&cOpts)
 	}
-	tmpContext, err := os.MkdirTemp("", "compose"+xid.New().String())
+	tmpContext, err := os.MkdirTemp("", fmt.Sprintf("%s-compose-%s", TestContainerBaseName, xid.New().String()))
 	if err != nil {
 		return nil, err
 	}

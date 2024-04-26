@@ -413,7 +413,7 @@ func withPlainHTTP() registryConfigOpt {
 
 func newRegistryConfig(opts ...registryConfigOpt) registryConfig {
 	rc := registryConfig{
-		host: fmt.Sprintf("registry-%s.test", xid.New().String()),
+		host: fmt.Sprintf("%s-registry-%s.test", compose.TestContainerBaseName, xid.New().String()),
 		user: "dummyuser",
 		pass: "dummypass",
 	}
