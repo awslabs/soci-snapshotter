@@ -27,7 +27,13 @@ import (
 
 var RebuildDBCommand = cli.Command{
 	Name:  "rebuild-db",
-	Usage: `rebuild the artifacts database. You should use this command after "rpull" so that indices/ztocs can be discovered by commands like "soci index list", and after "index rm" when using the containerd content store so that deleted orphaned zTOCs will be forgotten`,
+	Usage: "rebuilds the artifacts database",
+	UsageText: `
+	soci [global options] rebuild-db
+
+	Use after pulling an image to discover SOCI indices/ztocs or after "index rm"
+	when using the containerd content store to clear the database of removed zTOCs.
+	`,
 	Action: func(cliContext *cli.Context) error {
 		client, ctx, cancel, err := internal.NewClient(cliContext)
 		if err != nil {

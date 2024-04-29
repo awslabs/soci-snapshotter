@@ -61,7 +61,8 @@ soci push public.ecr.aws/soci-workshop-examples/ffmpeg:latest
 ```
 
 ### soci rebuild_db
-Use this command after image pull so that indices/ztocs can be discovered by commands like "```soci index list```", and after "```index rm```" when using the containerd content store so that deleted orphaned zTOCs will be forgotten
+Use after pulling an image to discover SOCI indices/ztocs or after "```index rm```" 
+when using the containerd content store to clear the database of removed zTOCs.
 
 **Example:** 
 ```
