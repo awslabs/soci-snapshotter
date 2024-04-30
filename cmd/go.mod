@@ -4,7 +4,7 @@ go 1.21
 
 require (
 	github.com/awslabs/soci-snapshotter v0.0.0-local
-	github.com/containerd/containerd v1.7.15
+	github.com/containerd/containerd v1.7.16
 	github.com/containerd/log v0.1.0
 	github.com/coreos/go-systemd/v22 v22.5.0
 	github.com/docker/cli v26.1.0+incompatible
@@ -12,7 +12,7 @@ require (
 	github.com/opencontainers/go-digest v1.0.0
 	github.com/opencontainers/image-spec v1.1.0
 	github.com/sirupsen/logrus v1.9.3
-	github.com/urfave/cli v1.22.14
+	github.com/urfave/cli v1.22.15
 	go.etcd.io/bbolt v1.3.9
 	golang.org/x/sys v0.19.0
 	google.golang.org/grpc v1.58.3
@@ -32,7 +32,7 @@ require (
 	github.com/containerd/fifo v1.1.0 // indirect
 	github.com/containerd/ttrpc v1.2.3 // indirect
 	github.com/containerd/typeurl/v2 v2.1.1 // indirect
-	github.com/cpuguy83/go-md2man/v2 v2.0.2 // indirect
+	github.com/cpuguy83/go-md2man/v2 v2.0.4 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/docker/docker v25.0.5+incompatible // indirect
 	github.com/docker/docker-credential-helpers v0.7.0 // indirect
