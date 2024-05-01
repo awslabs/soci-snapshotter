@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1714516415201,
+  "lastUpdate": 1714605825364,
   "repoUrl": "https://github.com/awslabs/soci-snapshotter",
   "entries": {
     "Soci Benchmark": [
@@ -6416,6 +6416,48 @@ window.BENCHMARK_DATA = {
           {
             "name": "SociFullECR-public-redis-pullTaskDuration",
             "value": 1.5859999999999999,
+            "unit": "Seconds",
+            "extra": "P90"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "davbson@amazon.com",
+            "name": "David Son",
+            "username": "sondavidb"
+          },
+          "committer": {
+            "email": "kern.walster@gmail.com",
+            "name": "Kern Walster",
+            "username": "Kern--"
+          },
+          "distinct": true,
+          "id": "3fd12f4337230326e8df20a3c759e1e6c11c8f18",
+          "message": "Fix scripts/install-dep.sh cmake shasum for ARM64\n\nSigned-off-by: David Son <davbson@amazon.com>",
+          "timestamp": "2024-05-01T16:15:53-07:00",
+          "tree_id": "4eb5459d4c775dbed1737cf76906b750c851d6a3",
+          "url": "https://github.com/awslabs/soci-snapshotter/commit/3fd12f4337230326e8df20a3c759e1e6c11c8f18"
+        },
+        "date": 1714605819324,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "SociFullECR-public-redis-lazyTaskDuration",
+            "value": 0.9325,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-redis-localTaskDuration",
+            "value": 0.019,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-redis-pullTaskDuration",
+            "value": 0.776,
             "unit": "Seconds",
             "extra": "P90"
           }
