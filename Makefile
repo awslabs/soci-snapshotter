@@ -35,8 +35,13 @@ GO_LD_FLAGS+='
 
 SOCI_SNAPSHOTTER_PROJECT_ROOT ?= $(shell pwd)
 LTAG_TEMPLATE_FLAG=-t ./.headers
-FBS_FILE_PATH=$(CURDIR)/ztoc/fbs/ztoc.fbs
-FBS_FILE_PATH_COMPRESSION=$(CURDIR)/ztoc/compression/fbs/zinfo.fbs
+ZTOC_FBS_DIR=$(CURDIR)/ztoc/fbs
+ZTOC_FBS_FILE=$(ZTOC_FBS_DIR)/ztoc.fbs
+ZTOC_FBS_GO_FILES=$(wildcard $(ZTOC_FBS_DIR)/ztoc/*.go)
+COMPRESSION_FBS_DIR=$(CURDIR)/ztoc/compression/fbs
+COMPRESSION_FBS_FILE=$(COMPRESSION_FBS_DIR)/zinfo.fbs
+COMPRESSION_FBS_GO_FILES=$(wildcard $(COMPRESSION_FBS_DIR)/zinfo/*.go)
+
 COMMIT=$(shell git rev-parse HEAD)
 STARGZ_BINARY?=/usr/local/bin/containerd-stargz-grpc
 
@@ -46,7 +51,7 @@ CMD_BINARIES=$(addprefix $(OUTDIR)/,$(CMD))
 
 GO_BENCHMARK_TESTS?=.
 
-.PHONY: all build check add-ltag install uninstall tidy vendor clean \
+.PHONY: all build check flatc add-ltag install uninstall tidy vendor clean \
 	test integration release benchmarks build-benchmarks \
 	benchmarks-perf-test benchmarks-comparison-test
 
@@ -56,7 +61,7 @@ build: $(CMD)
 
 FORCE:
 
-soci-snapshotter-grpc: FORCE
+soci-snapshotter-grpc: flatc FORCE
 	cd cmd/ ; GO111MODULE=$(GO111MODULE_VALUE) go build -o $(OUTDIR)/$@ $(GO_BUILD_FLAGS) $(GO_LD_FLAGS) $(GO_TAGS) ./soci-snapshotter-grpc
 
 soci: FORCE
@@ -65,11 +70,15 @@ soci: FORCE
 check:
 	cd scripts/ ; ./check-all.sh
 
-flatc:
-	rm -rf $(CURDIR)/ztoc/fbs/ztoc
-	flatc -o $(CURDIR)/ztoc/fbs -g $(FBS_FILE_PATH)
-	rm -rf $(CURDIR)/ztoc/compression/fbs/zinfo
-	flatc -o $(CURDIR)/ztoc/compression/fbs -g $(FBS_FILE_PATH_COMPRESSION)
+flatc: $(ZTOC_FBS_GO_FILES) $(COMPRESSION_FBS_GO_FILES)
+
+$(ZTOC_FBS_GO_FILES): $(ZTOC_FBS_FILE)
+	rm -rf $(ZTOC_FBS_DIR)/ztoc
+	flatc -o $(ZTOC_FBS_DIR) -g $(ZTOC_FBS_FILE)
+
+$(COMPRESSION_FBS_GO_FILES): $(COMPRESSION_FBS_FILE)
+	rm -rf $(COMPRESSION_FBS_DIR)/zinfo
+	flatc -o $(COMPRESSION_FBS_DIR) -g $(COMPRESSION_FBS_FILE)
 
 install:
 	@echo "$@"
@@ -97,7 +106,6 @@ vendor:
 test:
 	@echo "$@"
 	@GO111MODULE=$(GO111MODULE_VALUE) go test $(GO_TEST_FLAGS) $(GO_LD_FLAGS) -race ./...
-
 
 integration: build
 	@echo "$@"
