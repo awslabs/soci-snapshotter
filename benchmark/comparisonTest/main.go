@@ -34,7 +34,7 @@ func main() {
 
 	var (
 		numberOfTests int
-		configFile    string
+		jsonFile      string
 		showCom       bool
 		imageList     []benchmark.ImageDescriptor
 		err           error
@@ -43,7 +43,7 @@ func main() {
 
 	flag.BoolVar(&showCom, "show-commit", false, "tag the commit hash to the benchmark results")
 	flag.IntVar(&numberOfTests, "count", 5, "Describes the number of runs a benchmarker should run. Default: 5")
-	flag.StringVar(&configFile, "f", "default", "Path to a file describing image details as a json file or csv in this order ['Name','Image ref', 'Ready line', 'manifest ref'].")
+	flag.StringVar(&jsonFile, "f", "default", "Path to a json file describing image details in this order ['Name','Image ref', 'Ready line', 'manifest ref']")
 
 	flag.Parse()
 
@@ -53,12 +53,12 @@ func main() {
 		commit = "N/A"
 	}
 
-	if configFile == "default" {
+	if jsonFile == "default" {
 		imageList = benchmark.GetDefaultWorkloads()
 	} else {
-		imageList, err = benchmark.GetImageList(configFile)
+		imageList, err = benchmark.GetImageList(jsonFile)
 		if err != nil {
-			errMsg := fmt.Sprintf("Failed to read file %s with error:%v\n", configFile, err)
+			errMsg := fmt.Sprintf("Failed to read file %s with error:%v\n", jsonFile, err)
 			panic(errMsg)
 		}
 	}

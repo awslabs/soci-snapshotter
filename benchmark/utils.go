@@ -17,9 +17,7 @@
 package benchmark
 
 import (
-	"encoding/csv"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -109,15 +107,7 @@ func GetImageList(file string) ([]ImageDescriptor, error) {
 		return nil, err
 	}
 	defer f.Close()
-	images, jsonErr := GetImageListFromJSON(f)
-	if jsonErr == nil {
-		return images, nil
-	}
-	images, csvErr := GetImageListFromCsv(f)
-	if csvErr == nil {
-		return images, nil
-	}
-	return nil, errors.Join(jsonErr, csvErr)
+	return GetImageListFromJSON(f)
 
 }
 
@@ -126,29 +116,6 @@ func GetImageListFromJSON(r io.Reader) ([]ImageDescriptor, error) {
 	err := json.NewDecoder(r).Decode(&images)
 	if err != nil {
 		return nil, err
-	}
-	return images, nil
-}
-
-func GetImageListFromCsv(r io.Reader) ([]ImageDescriptor, error) {
-	csv, err := csv.NewReader(r).ReadAll()
-	if err != nil {
-		return nil, err
-	}
-	var images []ImageDescriptor
-	for _, image := range csv {
-		if len(image) < 3 {
-			return nil, errors.New("image input is not sufficient")
-		}
-		var sociIndexManifestRef string
-		if len(image) == 4 {
-			sociIndexManifestRef = image[2]
-		}
-		images = append(images, ImageDescriptor{
-			ShortName:       image[0],
-			ImageRef:        image[1],
-			ReadyLine:       image[3],
-			SociIndexDigest: sociIndexManifestRef})
 	}
 	return images, nil
 }

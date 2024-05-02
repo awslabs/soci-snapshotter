@@ -12,7 +12,7 @@ There are two types of benchmarks:
 - [Running benchmarks on default workloads](#running-benchmarks-on-default-workloads)
 - [Running benchmarks on custom workloads](#running-benchmarks-on-custom-workloads)
 - [Benchmark binaries cli flags](#benchmark-binaries-have-different-cli-flags)
-- [Csv file format for custom workloads](#csv-file-format-for-custom-workloads)
+- [JSON file format for custom workloads](#json-file-format-for-custom-workloads)
 - [Default workloads](#default-workloads)
 - [Benchmark results format](#benchmark-results)
 
@@ -36,31 +36,41 @@ Custom workloads can also be benchmarked with SOCI.
 
 In order to run the benchmarks on custom workloads the custom container image needs to have its soci indices generated and pushed to a contianer registry as described in the [Getting started docs](/docs/getting-started.md)
 
-Generate benchmark binaries: 
+Generate benchmark binaries:
 ``` make build-benchmarks``` will generate benchmark binaries for performance testing and comparison testing against overlayFS. The binaries will be available in the ```/benchmark/bin``` folder.
- 
-### Benchmark binaries have different cli flags: 
+
+### Benchmark binaries have different cli flags:
 
 | Flag | Description | Required / Optional |
 |----------|----------|----------|
-| ```-f``` | File path to a csv file containing details of multiple images to be tested | Optional
+| ```-f``` | File path to a json file containing details of multiple images to be tested | Optional
 | ```-count``` | Specify number of times the benchmarker needs to run  | Optional
 | ```-show-commit``` | Tag the latest commit hash to the benchmark results | Optional
 
-We can now run benchmarks on custom workloads using the ```-f``` flag to specify the file path to a csv file containing details of the workloads.
+We can now run benchmarks on custom workloads using the ```-f``` flag to specify the file path to a json file containing details of the workloads.
 
-### Csv file format for custom workloads
+### JSON file format for custom workloads
 
 Ensure that the file being used with the ```-f``` flag follows the following format
 
-```shell
-<Test_name>, <Container_Image_ref>, <Ready_line>, <Soci_Index_Manifest_Digest>
+```json
+{
+    "short_name": "<Test_name>",
+    "image_ref": "<Container_Image_ref>",
+    "ready_line": "<Ready_line>",
+    "soci_index_digest": "<Soci_Index_Manifest_Digest>"
+}
 ```
 
 Example :
 
-```shell
-ffmpeg, public.ecr.aws/soci-workshop-examples/ffmpeg:latest, "Hello World",ef63578971ebd8fc700c74c96f81dafab4f3875e9117ef3c5eb7446e169d91cb
+```json
+{
+    "short_name": "ffmpeg",
+    "image_ref": "public.ecr.aws/soci-workshop-examples/ffmpeg:latest",
+    "ready_line": "Hello World",
+    "soci_index_digest": "ef63578971ebd8fc700c74c96f81dafab4f3875e9117ef3c5eb7446e169d91cb"
+}
 ```
 
 ### Default workloads
