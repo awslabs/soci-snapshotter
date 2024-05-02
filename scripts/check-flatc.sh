@@ -16,12 +16,21 @@
 
 set -eux -o pipefail
 
-CUR_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
-SOCI_SNAPSHOTTER_PROJECT_ROOT="${CUR_DIR}/.."
-FBS_FILE_PATH=${SOCI_SNAPSHOTTER_PROJECT_ROOT}/ztoc/fbs/ztoc.fbs
+cur_dir="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+soci_snapshotter_project_root="${cur_dir}/.."
+ztoc_fbs_dir="${soci_snapshotter_project_root}"/ztoc/fbs
+ztoc_fbs_file="${ztoc_fbs_dir}"/ztoc.fbs
+compression_fbs_dir="${soci_snapshotter_project_root}"/ztoc/compression/fbs
+compression_fbs_file="${compression_fbs_dir}"/zinfo.fbs
 
-# check if flatbuffers needs to be generated again
-TMPDIR=$(mktemp -d)
-flatc -o "${TMPDIR}" -g "${FBS_FILE_PATH}"
-diff -qr "${TMPDIR}/ztoc" "${SOCI_SNAPSHOTTER_PROJECT_ROOT}/ztoc/fbs/ztoc" || (printf "\n\nThe Ztoc schema seems to be modified. Please run 'make flatc' to re-generate Go files\n\n"; rm -rf "${TMPDIR}"; exit 1)
-rm -rf "${TMPDIR}"
+# check if ztoc flatbuffers needs to be generated again
+tmpdir=$(mktemp -d)
+flatc -o "${tmpdir}" -g "${ztoc_fbs_file}"
+diff -qr "${tmpdir}/ztoc" "${ztoc_fbs_dir}/ztoc" || (printf "\n\nThe Ztoc schema seems to be modified. Please run 'make flatc' to re-generate Go files\n\n"; rm -rf "${tmpdir}"; exit 1)
+rm -rf "${tmpdir}"
+
+# check if zinfo flatbuffers needs to be generated again
+tmpdir=$(mktemp -d)
+flatc -o "${tmpdir}" -g "${compression_fbs_file}"
+diff -qr "${tmpdir}/zinfo" "${compression_fbs_dir}/zinfo" || (printf "\n\nThe Zinfo schema seems to be modified. Please run 'make flatc' to re-generate Go files\n\n"; rm -rf "${tmpdir}"; exit 1)
+rm -rf "${tmpdir}"
