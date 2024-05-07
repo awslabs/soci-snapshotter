@@ -57,7 +57,7 @@ jobs:
     runs-on: ubuntu-20.04
     steps:
       - uses: actions/checkout@v4
-      - uses: golangci/golangci-lint-action@v5
+      - uses: golangci/golangci-lint-action@v6
         with:
           version: v${{ env.GOLANGCI_LINT_VERSION }}
           working-directory: ${{ matrix.working_dir }}
