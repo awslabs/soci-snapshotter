@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1715025210259,
+  "lastUpdate": 1715103680261,
   "repoUrl": "https://github.com/awslabs/soci-snapshotter",
   "entries": {
     "Soci Benchmark": [
@@ -6542,6 +6542,48 @@ window.BENCHMARK_DATA = {
           {
             "name": "SociFullECR-public-tensorflow-pullTaskDuration",
             "value": 1.7825,
+            "unit": "Seconds",
+            "extra": "P90"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "haddscot@amazon.com",
+            "name": "haddscot",
+            "username": "haddscot"
+          },
+          "committer": {
+            "email": "160976906+haddscot@users.noreply.github.com",
+            "name": "haddscot",
+            "username": "haddscot"
+          },
+          "distinct": true,
+          "id": "21b8effe32e05e174e685a24773334c1e19a7b0d",
+          "message": "Remove benchmarker CSV input in favor of JSON #946\n\nSigned-off-by: Scott Haddlesey <haddscot@amazon.com>",
+          "timestamp": "2024-05-07T10:32:33-07:00",
+          "tree_id": "c6c0a6567c8150bdd82e4c9780fd87e6e55ef69a",
+          "url": "https://github.com/awslabs/soci-snapshotter/commit/21b8effe32e05e174e685a24773334c1e19a7b0d"
+        },
+        "date": 1715103677390,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "SociFullECR-public-tensorflow-lazyTaskDuration",
+            "value": 11.3345,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-tensorflow-localTaskDuration",
+            "value": 2.255,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-tensorflow-pullTaskDuration",
+            "value": 2.161,
             "unit": "Seconds",
             "extra": "P90"
           }
