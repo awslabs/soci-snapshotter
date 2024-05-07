@@ -355,13 +355,13 @@ func (db *ArtifactsDb) RemoveArtifactEntryByIndexDigest(digest []byte) error {
 
 		dgstBucket := bucket.Bucket(digest)
 		if dgstBucket == nil {
-			return fmt.Errorf("the index of the digest %v doesn't exist", digest)
+			return fmt.Errorf("the index of the digest %s doesn't exist", digest)
 		}
 
 		if indexBucket(dgstBucket) {
 			return bucket.DeleteBucket(digest)
 		}
-		return fmt.Errorf("the digest %v does not correspond to an index", digest)
+		return fmt.Errorf("the digest %s does not correspond to an index", digest)
 	})
 }
 
