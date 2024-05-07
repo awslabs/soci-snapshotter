@@ -7,14 +7,14 @@ require (
 	github.com/containerd/containerd v1.7.16
 	github.com/containerd/log v0.1.0
 	github.com/coreos/go-systemd/v22 v22.5.0
-	github.com/docker/cli v26.1.0+incompatible
+	github.com/docker/cli v26.1.1+incompatible
 	github.com/docker/go-metrics v0.0.1
 	github.com/opencontainers/go-digest v1.0.0
 	github.com/opencontainers/image-spec v1.1.0
 	github.com/sirupsen/logrus v1.9.3
 	github.com/urfave/cli v1.22.15
-	go.etcd.io/bbolt v1.3.9
-	golang.org/x/sys v0.19.0
+	go.etcd.io/bbolt v1.3.10
+	golang.org/x/sys v0.20.0
 	google.golang.org/grpc v1.58.3
 	k8s.io/cri-api v0.28.2
 	oras.land/oras-go/v2 v2.5.0
@@ -87,11 +87,11 @@ require (
 	go.opentelemetry.io/otel/metric v1.19.0 // indirect
 	go.opentelemetry.io/otel/trace v1.19.0 // indirect
 	golang.org/x/mod v0.12.0 // indirect
-	golang.org/x/net v0.21.0 // indirect
+	golang.org/x/net v0.25.0 // indirect
 	golang.org/x/oauth2 v0.16.0 // indirect
 	golang.org/x/sync v0.7.0 // indirect
-	golang.org/x/term v0.19.0 // indirect
-	golang.org/x/text v0.14.0 // indirect
+	golang.org/x/term v0.20.0 // indirect
+	golang.org/x/text v0.15.0 // indirect
 	golang.org/x/time v0.5.0 // indirect
 	golang.org/x/tools v0.11.0 // indirect
 	google.golang.org/appengine v1.6.7 // indirect
