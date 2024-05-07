@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1715025215494,
+  "lastUpdate": 1715103678865,
   "repoUrl": "https://github.com/awslabs/soci-snapshotter",
   "entries": {
     "Soci Benchmark": [
@@ -6501,6 +6501,48 @@ window.BENCHMARK_DATA = {
           {
             "name": "SociFullECR-public-busybox-pullTaskDuration",
             "value": 0.752,
+            "unit": "Seconds",
+            "extra": "P90"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "haddscot@amazon.com",
+            "name": "haddscot",
+            "username": "haddscot"
+          },
+          "committer": {
+            "email": "160976906+haddscot@users.noreply.github.com",
+            "name": "haddscot",
+            "username": "haddscot"
+          },
+          "distinct": true,
+          "id": "21b8effe32e05e174e685a24773334c1e19a7b0d",
+          "message": "Remove benchmarker CSV input in favor of JSON #946\n\nSigned-off-by: Scott Haddlesey <haddscot@amazon.com>",
+          "timestamp": "2024-05-07T10:32:33-07:00",
+          "tree_id": "c6c0a6567c8150bdd82e4c9780fd87e6e55ef69a",
+          "url": "https://github.com/awslabs/soci-snapshotter/commit/21b8effe32e05e174e685a24773334c1e19a7b0d"
+        },
+        "date": 1715103675161,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "SociFullECR-public-busybox-lazyTaskDuration",
+            "value": 0.0345,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-busybox-localTaskDuration",
+            "value": 0.0045000000000000005,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-busybox-pullTaskDuration",
+            "value": 1.4365,
             "unit": "Seconds",
             "extra": "P90"
           }
