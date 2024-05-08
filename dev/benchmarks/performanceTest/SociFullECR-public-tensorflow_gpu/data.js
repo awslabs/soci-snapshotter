@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1715179111206,
+  "lastUpdate": 1715181175789,
   "repoUrl": "https://github.com/awslabs/soci-snapshotter",
   "entries": {
     "Soci Benchmark": [
@@ -6504,6 +6504,48 @@ window.BENCHMARK_DATA = {
           {
             "name": "SociFullECR-public-tensorflow_gpu-pullTaskDuration",
             "value": 3.1734999999999998,
+            "unit": "Seconds",
+            "extra": "P90"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "macedonv@amazon.com",
+            "name": "Austin Vazquez",
+            "username": "austinvazquez"
+          },
+          "committer": {
+            "email": "55906459+austinvazquez@users.noreply.github.com",
+            "name": "Austin Vazquez",
+            "username": "austinvazquez"
+          },
+          "distinct": true,
+          "id": "f2e945397fe6bf9f1f1440dd66c3ca9a6d1d27c5",
+          "message": "Update to Go 1.21.10 in CI\n\nSigned-off-by: Austin Vazquez <macedonv@amazon.com>",
+          "timestamp": "2024-05-08T08:03:41-07:00",
+          "tree_id": "3ffc261330e72110219cbe6139d3721dbbd172dc",
+          "url": "https://github.com/awslabs/soci-snapshotter/commit/f2e945397fe6bf9f1f1440dd66c3ca9a6d1d27c5"
+        },
+        "date": 1715181170304,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "SociFullECR-public-tensorflow_gpu-lazyTaskDuration",
+            "value": 17.108999999999998,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-tensorflow_gpu-localTaskDuration",
+            "value": 2.3145,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-tensorflow_gpu-pullTaskDuration",
+            "value": 2.659,
             "unit": "Seconds",
             "extra": "P90"
           }
