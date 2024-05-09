@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1715181174416,
+  "lastUpdate": 1715291716172,
   "repoUrl": "https://github.com/awslabs/soci-snapshotter",
   "entries": {
     "Soci Benchmark": [
@@ -6628,6 +6628,48 @@ window.BENCHMARK_DATA = {
           {
             "name": "SociFullECR-public-mongo-pullTaskDuration",
             "value": 1.7770000000000001,
+            "unit": "Seconds",
+            "extra": "P90"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "turyasin@amazon.com",
+            "name": "Yasin Turan",
+            "username": "turan18"
+          },
+          "committer": {
+            "email": "55555210+sondavidb@users.noreply.github.com",
+            "name": "David Son",
+            "username": "sondavidb"
+          },
+          "distinct": true,
+          "id": "3a5819f9fe8f54d842d53f59eef68bb07689d4f3",
+          "message": "Fix network retry integration test\n\nSigned-off-by: Yasin Turan <turyasin@amazon.com>\nSigned-off-by: David Son <davbson@amazon.com>",
+          "timestamp": "2024-05-09T14:45:51-07:00",
+          "tree_id": "657dbe3975d3d76207604288dc937c82f7322766",
+          "url": "https://github.com/awslabs/soci-snapshotter/commit/3a5819f9fe8f54d842d53f59eef68bb07689d4f3"
+        },
+        "date": 1715291711028,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "SociFullECR-public-mongo-lazyTaskDuration",
+            "value": 10.36,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-mongo-localTaskDuration",
+            "value": 0.301,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-mongo-pullTaskDuration",
+            "value": 1.7309999999999999,
             "unit": "Seconds",
             "extra": "P90"
           }
