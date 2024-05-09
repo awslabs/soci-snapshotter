@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1715181170737,
+  "lastUpdate": 1715291710704,
   "repoUrl": "https://github.com/awslabs/soci-snapshotter",
   "entries": {
     "Soci Benchmark": [
@@ -6710,6 +6710,48 @@ window.BENCHMARK_DATA = {
           {
             "name": "SociFullECR-public-tensorflow-pullTaskDuration",
             "value": 2.613,
+            "unit": "Seconds",
+            "extra": "P90"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "turyasin@amazon.com",
+            "name": "Yasin Turan",
+            "username": "turan18"
+          },
+          "committer": {
+            "email": "55555210+sondavidb@users.noreply.github.com",
+            "name": "David Son",
+            "username": "sondavidb"
+          },
+          "distinct": true,
+          "id": "3a5819f9fe8f54d842d53f59eef68bb07689d4f3",
+          "message": "Fix network retry integration test\n\nSigned-off-by: Yasin Turan <turyasin@amazon.com>\nSigned-off-by: David Son <davbson@amazon.com>",
+          "timestamp": "2024-05-09T14:45:51-07:00",
+          "tree_id": "657dbe3975d3d76207604288dc937c82f7322766",
+          "url": "https://github.com/awslabs/soci-snapshotter/commit/3a5819f9fe8f54d842d53f59eef68bb07689d4f3"
+        },
+        "date": 1715291707802,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "SociFullECR-public-tensorflow-lazyTaskDuration",
+            "value": 11.6405,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-tensorflow-localTaskDuration",
+            "value": 2.3755,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-tensorflow-pullTaskDuration",
+            "value": 2.1475,
             "unit": "Seconds",
             "extra": "P90"
           }
