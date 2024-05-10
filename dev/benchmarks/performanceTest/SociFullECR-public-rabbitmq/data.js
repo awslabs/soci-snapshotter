@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1715291708741,
+  "lastUpdate": 1715379614561,
   "repoUrl": "https://github.com/awslabs/soci-snapshotter",
   "entries": {
     "Soci Benchmark": [
@@ -6547,6 +6547,48 @@ window.BENCHMARK_DATA = {
           {
             "name": "SociFullECR-public-rabbitmq-pullTaskDuration",
             "value": 1.8014999999999999,
+            "unit": "Seconds",
+            "extra": "P90"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "macedonv@amazon.com",
+            "name": "Austin Vazquez",
+            "username": "austinvazquez"
+          },
+          "committer": {
+            "email": "55555210+sondavidb@users.noreply.github.com",
+            "name": "David Son",
+            "username": "sondavidb"
+          },
+          "distinct": true,
+          "id": "c098211421153be89d153688210c69cfb9aaf08f",
+          "message": "Change containerd-snapshotter-base to alpine based\n\nThis was done to use a smaller base image which makes us less prone to\nsecurity issues.\n\nAdditionally, this commit switches to using raw image URLs instead of\ninserting in the version via a variable, so that dependabot can track\nnew versions.\n\nThe Dockerfile line that pulls the registry  was moved up to allow\nproper tagging when building locally instead of with Docker Compose.\n\nSigned-off-by: Austin Vazquez <macedonv@amazon.com>",
+          "timestamp": "2024-05-10T15:08:59-07:00",
+          "tree_id": "194608fc3eb730d98fba6678ce5162e3758723fa",
+          "url": "https://github.com/awslabs/soci-snapshotter/commit/c098211421153be89d153688210c69cfb9aaf08f"
+        },
+        "date": 1715379613526,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "SociFullECR-public-rabbitmq-lazyTaskDuration",
+            "value": 11.374,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-rabbitmq-localTaskDuration",
+            "value": 7.4305,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-rabbitmq-pullTaskDuration",
+            "value": 1.6715,
             "unit": "Seconds",
             "extra": "P90"
           }
