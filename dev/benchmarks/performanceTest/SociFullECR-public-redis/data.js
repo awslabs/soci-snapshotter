@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1715400002679,
+  "lastUpdate": 1715428140891,
   "repoUrl": "https://github.com/awslabs/soci-snapshotter",
   "entries": {
     "Soci Benchmark": [
@@ -6836,6 +6836,48 @@ window.BENCHMARK_DATA = {
           {
             "name": "SociFullECR-public-redis-pullTaskDuration",
             "value": 2.7075,
+            "unit": "Seconds",
+            "extra": "P90"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "davbson@amazon.com",
+            "name": "David Son",
+            "username": "sondavidb"
+          },
+          "committer": {
+            "email": "55906459+austinvazquez@users.noreply.github.com",
+            "name": "Austin Vazquez",
+            "username": "austinvazquez"
+          },
+          "distinct": true,
+          "id": "7a5056d16a5b1ad0845ba5ef58c77ef4108b2f60",
+          "message": "Add manual arch option in artifact verification\n\nSigned-off-by: David Son <davbson@amazon.com>",
+          "timestamp": "2024-05-11T04:41:29-07:00",
+          "tree_id": "1abdad6cf4206ccc3e44d5ac73edc00aeca4ba9d",
+          "url": "https://github.com/awslabs/soci-snapshotter/commit/7a5056d16a5b1ad0845ba5ef58c77ef4108b2f60"
+        },
+        "date": 1715428140094,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "SociFullECR-public-redis-lazyTaskDuration",
+            "value": 1.693,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-redis-localTaskDuration",
+            "value": 0.019,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-redis-pullTaskDuration",
+            "value": 0.9135,
             "unit": "Seconds",
             "extra": "P90"
           }
