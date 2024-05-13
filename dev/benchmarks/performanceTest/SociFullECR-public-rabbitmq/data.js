@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1715619407871,
+  "lastUpdate": 1715621995207,
   "repoUrl": "https://github.com/awslabs/soci-snapshotter",
   "entries": {
     "Soci Benchmark": [
@@ -6757,6 +6757,48 @@ window.BENCHMARK_DATA = {
           {
             "name": "SociFullECR-public-rabbitmq-pullTaskDuration",
             "value": 0.7575000000000001,
+            "unit": "Seconds",
+            "extra": "P90"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "davbson@amazon.com",
+            "name": "David Son",
+            "username": "sondavidb"
+          },
+          "committer": {
+            "email": "55555210+sondavidb@users.noreply.github.com",
+            "name": "David Son",
+            "username": "sondavidb"
+          },
+          "distinct": true,
+          "id": "1142aec4a8b18a763e2e76284cfaa48a36012fc3",
+          "message": "Add testing suite cleanup to Makefile\n\nSigned-off-by: David Son <davbson@amazon.com>",
+          "timestamp": "2024-05-13T10:29:54-07:00",
+          "tree_id": "a90a804d63109c6a585bb2b873d51a8c3a5cc1d9",
+          "url": "https://github.com/awslabs/soci-snapshotter/commit/1142aec4a8b18a763e2e76284cfaa48a36012fc3"
+        },
+        "date": 1715621989752,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "SociFullECR-public-rabbitmq-lazyTaskDuration",
+            "value": 9.585,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-rabbitmq-localTaskDuration",
+            "value": 7.763,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-rabbitmq-pullTaskDuration",
+            "value": 1.5525,
             "unit": "Seconds",
             "extra": "P90"
           }
