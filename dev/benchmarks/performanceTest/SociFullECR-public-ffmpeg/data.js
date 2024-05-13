@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1715428288036,
+  "lastUpdate": 1715619401833,
   "repoUrl": "https://github.com/awslabs/soci-snapshotter",
   "entries": {
     "Soci Benchmark": [
@@ -6879,6 +6879,48 @@ window.BENCHMARK_DATA = {
           {
             "name": "SociFullECR-public-ffmpeg-pullTaskDuration",
             "value": 3.134,
+            "unit": "Seconds",
+            "extra": "P90"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "davbson@amazon.com",
+            "name": "David Son",
+            "username": "sondavidb"
+          },
+          "committer": {
+            "email": "55555210+sondavidb@users.noreply.github.com",
+            "name": "David Son",
+            "username": "sondavidb"
+          },
+          "distinct": true,
+          "id": "292499059e1bc84bef2fa227b7c56361752cb7cf",
+          "message": "Regenerate changed flatbuffer definitions\n\nSigned-off-by: David Son <davbson@amazon.com>",
+          "timestamp": "2024-05-13T09:49:29-07:00",
+          "tree_id": "955bfde5fbd2a27cea3d41d2cb196fbc40242545",
+          "url": "https://github.com/awslabs/soci-snapshotter/commit/292499059e1bc84bef2fa227b7c56361752cb7cf"
+        },
+        "date": 1715619400145,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "SociFullECR-public-ffmpeg-lazyTaskDuration",
+            "value": 0.139,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-ffmpeg-localTaskDuration",
+            "value": 0.0075,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-ffmpeg-pullTaskDuration",
+            "value": 1.2835,
             "unit": "Seconds",
             "extra": "P90"
           }
