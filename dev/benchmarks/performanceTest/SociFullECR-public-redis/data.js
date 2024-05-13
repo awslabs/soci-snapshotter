@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1715428281031,
+  "lastUpdate": 1715619403821,
   "repoUrl": "https://github.com/awslabs/soci-snapshotter",
   "entries": {
     "Soci Benchmark": [
@@ -6920,6 +6920,48 @@ window.BENCHMARK_DATA = {
           {
             "name": "SociFullECR-public-redis-pullTaskDuration",
             "value": 2.7255000000000003,
+            "unit": "Seconds",
+            "extra": "P90"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "davbson@amazon.com",
+            "name": "David Son",
+            "username": "sondavidb"
+          },
+          "committer": {
+            "email": "55555210+sondavidb@users.noreply.github.com",
+            "name": "David Son",
+            "username": "sondavidb"
+          },
+          "distinct": true,
+          "id": "292499059e1bc84bef2fa227b7c56361752cb7cf",
+          "message": "Regenerate changed flatbuffer definitions\n\nSigned-off-by: David Son <davbson@amazon.com>",
+          "timestamp": "2024-05-13T09:49:29-07:00",
+          "tree_id": "955bfde5fbd2a27cea3d41d2cb196fbc40242545",
+          "url": "https://github.com/awslabs/soci-snapshotter/commit/292499059e1bc84bef2fa227b7c56361752cb7cf"
+        },
+        "date": 1715619401209,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "SociFullECR-public-redis-lazyTaskDuration",
+            "value": 2.0195,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-redis-localTaskDuration",
+            "value": 0.0205,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-redis-pullTaskDuration",
+            "value": 0.8095000000000001,
             "unit": "Seconds",
             "extra": "P90"
           }
