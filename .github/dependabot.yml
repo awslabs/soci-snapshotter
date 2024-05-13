@@ -28,11 +28,17 @@ updates:
       - dependency-name: "google.golang.org/grpc"
       - dependency-name: "k8s.io/*"
 
-  # Automatic upgrade for base images used in the Dockerfile
+  # Automatic update for base images used in the Dockerfile
   - package-ecosystem: "docker"
     directory: "/"
     schedule:
       interval: "daily"
+    ignore:
+      # Skip major and minor updates for the base Go image.
+      # Major updates should not occur.
+      # Minor updates for the Go toolchain should be done manually to be aligned with release CI.
+      - dependency-name: "docker/library/golang"
+        update-types: ["version-update:semver-major", "version-update:semver-minor"]
 
   # Automatic upgrade for Github Actions
   - package-ecosystem: "github-actions"
