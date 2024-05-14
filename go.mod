@@ -6,14 +6,14 @@ require (
 	github.com/containerd/containerd v1.7.16
 	github.com/containerd/continuity v0.4.3
 	github.com/containerd/log v0.1.0
-	github.com/docker/cli v26.1.1+incompatible
+	github.com/docker/cli v26.1.2+incompatible
 	github.com/docker/go-metrics v0.0.1
 	github.com/golang/groupcache v0.0.0-20210331224755-41bb18bfe9da
 	github.com/google/flatbuffers v24.3.25+incompatible
 	github.com/google/go-cmp v0.6.0
 	github.com/google/uuid v1.6.0
 	github.com/hanwen/go-fuse/v2 v2.5.1
-	github.com/hashicorp/go-retryablehttp v0.7.5
+	github.com/hashicorp/go-retryablehttp v0.7.6
 	github.com/klauspost/compress v1.17.8
 	github.com/moby/sys/mountinfo v0.7.1
 	github.com/montanaflynn/stats v0.7.1
@@ -21,7 +21,7 @@ require (
 	github.com/opencontainers/image-spec v1.1.0
 	github.com/opencontainers/runtime-spec v1.2.0
 	github.com/pelletier/go-toml v1.9.5
-	github.com/prometheus/client_golang v1.19.0
+	github.com/prometheus/client_golang v1.19.1
 	github.com/rs/xid v1.5.0
 	github.com/sirupsen/logrus v1.9.3
 	go.etcd.io/bbolt v1.3.10
