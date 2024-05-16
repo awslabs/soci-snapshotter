@@ -7,7 +7,7 @@ require (
 	github.com/containerd/containerd v1.7.16
 	github.com/containerd/log v0.1.0
 	github.com/coreos/go-systemd/v22 v22.5.0
-	github.com/docker/cli v26.1.2+incompatible
+	github.com/docker/cli v26.1.3+incompatible
 	github.com/docker/go-metrics v0.0.1
 	github.com/opencontainers/go-digest v1.0.0
 	github.com/opencontainers/image-spec v1.1.0
