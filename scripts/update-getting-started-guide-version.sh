@@ -21,8 +21,6 @@
 
 set -eux -o pipefail
 
-tag=$1
-
 ASSERT=false
 VERBOSE=false
 
@@ -41,14 +39,19 @@ while [[ $# -gt 0 ]]; do
       exit 1
       ;;
     *)
-      tag=$1
+      VERSION=$1
       shift # past argument
       ;;
   esac
 done
 
-# Strip 'v' prefix from tag if not already stripped.
-VERSION=${tag/v/} 
+sanitize_input() {
+  # Strip 'v' prefix from input if present.
+  VERSION=${VERSION/v/}
+  [[ $VERSION =~ ^([0-9]+\.){2}[0-9]+(-.*){0,1}$ ]] || (echo "Error: version does not match expect <major>.<minor>.<patch> version format" && exit 1)
+}
+
+sanitize_input
 
 assert_diff() {
   local diff_output
