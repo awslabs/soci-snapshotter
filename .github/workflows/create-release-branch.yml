@@ -1,0 +1,115 @@
+name: Create release branch
+
+on:
+  workflow_dispatch:
+    inputs:
+      major_minor_version:
+        description: 'Major.Minor release version'
+        required: true
+      base_commit:
+        description: 'Base commit SHA. Empty will just use HEAD from main.'
+  pull_request:
+    # Workflow should only ever be run from main, so exclude
+    # running on pull requests to release branch resources.
+    branches: ['main']
+    paths:
+      # Run workflow on changes to the workflow definition and its
+      # dependencies to spot check the workflow functionality.
+      - '.github/workflows/create-release-branch.yml'
+      - '.github/workflows/create-third-party-licenses.yml'
+      - '.github/workflows/update-version-in-docs.yml'
+      - 'scripts/create-release-branch.sh'
+      - 'scripts/build-third-party-licenses.sh'
+      - 'scripts/update-version-in-docs.sh'
+
+env:
+  GO_VERSION: '1.25.10'
+
+jobs:
+  test-create-branch:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-22.04
+
+    env:
+      VERSION: ''
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Mock workflow inputs on pull request
+        run: |
+          echo "VERSION=0.${{ github.event.pull_request.number }}" >> $GITHUB_ENV
+
+      - name: Test create release branch
+        run: bash scripts/create-release-branch.sh --assert --base ${{ github.sha }} --dry-run ${{ env.VERSION }}
+
+      - uses: actions/setup-go@v6
+        with:
+          go-version: ${{ env.GO_VERSION }}
+
+      - name: Install go-licenses
+        run: go install github.com/google/go-licenses/v2@v2.0.1
+
+      - name: Generate third party licenses file
+        run: bash scripts/build-third-party-licenses.sh
+
+      - name: Test update getting started version in release branch
+        run: bash scripts/update-version-in-docs.sh --assert ${{ env.VERSION }}.0
+
+  create-branch:
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-22.04
+
+    permissions:
+      # Write permissions needed to create release branch.
+      # Risk for pwn requests is mitigated by seperating jobs such that
+      # workflows running with write permissions only use code from main.
+      contents: write
+
+    env:
+      VERSION: ''
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          sparse-checkout:
+            scripts/create-release-branch.sh
+
+      - name: Set environment variable version to output to dependent jobs
+        run: |
+          # This will fail if doesn't follow major.minor format
+          echo "${{ github.event.inputs.major_minor_version }}" | grep -qP '^v[0-9]+\.[0-9]'
+          echo "Got version ${{ github.event.inputs.major_minor_version }}"
+
+          echo "VERSION=v${{ github.event.inputs.major_minor_version }}.0" >> $GITHUB_ENV
+      - name: Create release branch
+        run: |
+          commit=${{ github.event.inputs.base_commit }}
+          commit_sha=${commit}
+          if [[ -z "$commit_sha" ]]; then commit_sha="HEAD"; fi
+          bash scripts/create-release-branch.sh --base "${commit}" ${{ github.event.inputs.major_minor_version }}
+          echo "Created release branch release/${{ github.event.inputs.major_minor_version }} from ${commit_sha}"
+
+    outputs:
+      version: ${{ env.VERSION }}
+
+  third-party-license-generation:
+    needs: create-branch
+    uses: ./.github/workflows/create-third-party-licenses.yml
+    secrets: inherit
+    permissions:
+      contents: write
+      pull-requests: write
+    with:
+      tag_name: "${{ needs.create-branch.outputs.version }}"
+
+  doc-changes:
+    needs: create-branch
+    uses: ./.github/workflows/update-version-in-docs.yml
+    secrets: inherit
+    permissions:
+      contents: write
+      pull-requests: write
+    with:
+      tag_name: "${{ needs.create-branch.outputs.version }}"
