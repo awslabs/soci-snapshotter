@@ -24,7 +24,7 @@ env:
 
 jobs:
   test:
-    runs-on: ubuntu-20.04
+    runs-on: codebuild-soci-github-ci-pipeline-${{ github.run_id }}-${{ github.run_attempt }}-ubuntu-7.0-xlarge
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
@@ -34,7 +34,7 @@ jobs:
       - run: make
       - run: make test
   integration:
-    runs-on: ubuntu-20.04
+    runs-on: codebuild-soci-github-ci-pipeline-${{ github.run_id }}-${{ github.run_attempt }}-ubuntu-7.0-xlarge
     timeout-minutes: 40
     strategy:
       fail-fast: false
