@@ -141,7 +141,7 @@ func GetContentStorePath(contentStoreType ContentStoreType) (string, error) {
 
 type CleanupFunc func(context.Context) error
 
-func nopCleanup(context.Context) error { return nil }
+func NopCleanup(context.Context) error { return nil }
 
 func NewContentStore(ctx context.Context, opts ...Option) (context.Context, Store, error) {
 	storeConfig := NewStoreConfig(opts...)
@@ -185,7 +185,7 @@ func (s *SociStore) Delete(_ context.Context, _ digest.Digest) error {
 
 // BatchOpen is a no-op for sociStore; it does not support batching operations.
 func (s *SociStore) BatchOpen(ctx context.Context) (context.Context, CleanupFunc, error) {
-	return ctx, nopCleanup, nil
+	return ctx, NopCleanup, nil
 }
 
 type ContainerdStore struct {
@@ -336,7 +336,7 @@ func (s *ContainerdStore) Delete(ctx context.Context, dgst digest.Digest) error 
 func (s *ContainerdStore) BatchOpen(ctx context.Context) (context.Context, CleanupFunc, error) {
 	ctx, leaseDone, err := s.client.WithLease(ctx)
 	if err != nil {
-		return ctx, nopCleanup, fmt.Errorf("unable to open batch: %w", err)
+		return ctx, NopCleanup, fmt.Errorf("unable to open batch: %w", err)
 	}
 	return ctx, leaseDone, nil
 }
