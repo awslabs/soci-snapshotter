@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1716403275223,
+  "lastUpdate": 1716475799731,
   "repoUrl": "https://github.com/awslabs/soci-snapshotter",
   "entries": {
     "Soci Benchmark": [
@@ -6924,6 +6924,48 @@ window.BENCHMARK_DATA = {
           {
             "name": "SociFullECR-public-tensorflow_gpu-pullTaskDuration",
             "value": 2.4515,
+            "unit": "Seconds",
+            "extra": "P90"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "macedonv@amazon.com",
+            "name": "Austin Vazquez",
+            "username": "austinvazquez"
+          },
+          "committer": {
+            "email": "55906459+austinvazquez@users.noreply.github.com",
+            "name": "Austin Vazquez",
+            "username": "austinvazquez"
+          },
+          "distinct": true,
+          "id": "d0a67cf8230d2b9a4ffd136a770f200de6057aae",
+          "message": "Add dependabot configuration to ignore Go minor updates\n\nThis change adds dependabot configuration to ignore Go major and minor\nupdates. This is to keep the container image aligned with the version\nused by the release pipeline. A major update should not occur.\n\nSigned-off-by: Austin Vazquez <macedonv@amazon.com>",
+          "timestamp": "2024-05-23T07:43:10-07:00",
+          "tree_id": "92d6967acaec2093eed70bfbdf112667bd1d09fc",
+          "url": "https://github.com/awslabs/soci-snapshotter/commit/d0a67cf8230d2b9a4ffd136a770f200de6057aae"
+        },
+        "date": 1716475798227,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "SociFullECR-public-tensorflow_gpu-lazyTaskDuration",
+            "value": 10.5435,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-tensorflow_gpu-localTaskDuration",
+            "value": 2.2809999999999997,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-tensorflow_gpu-pullTaskDuration",
+            "value": 1.307,
             "unit": "Seconds",
             "extra": "P90"
           }
