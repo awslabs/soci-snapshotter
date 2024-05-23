@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1716403276759,
+  "lastUpdate": 1716475796858,
   "repoUrl": "https://github.com/awslabs/soci-snapshotter",
   "entries": {
     "Soci Benchmark": [
@@ -6924,6 +6924,48 @@ window.BENCHMARK_DATA = {
           {
             "name": "SociFullECR-public-node-pullTaskDuration",
             "value": 4.345000000000001,
+            "unit": "Seconds",
+            "extra": "P90"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "macedonv@amazon.com",
+            "name": "Austin Vazquez",
+            "username": "austinvazquez"
+          },
+          "committer": {
+            "email": "55906459+austinvazquez@users.noreply.github.com",
+            "name": "Austin Vazquez",
+            "username": "austinvazquez"
+          },
+          "distinct": true,
+          "id": "d0a67cf8230d2b9a4ffd136a770f200de6057aae",
+          "message": "Add dependabot configuration to ignore Go minor updates\n\nThis change adds dependabot configuration to ignore Go major and minor\nupdates. This is to keep the container image aligned with the version\nused by the release pipeline. A major update should not occur.\n\nSigned-off-by: Austin Vazquez <macedonv@amazon.com>",
+          "timestamp": "2024-05-23T07:43:10-07:00",
+          "tree_id": "92d6967acaec2093eed70bfbdf112667bd1d09fc",
+          "url": "https://github.com/awslabs/soci-snapshotter/commit/d0a67cf8230d2b9a4ffd136a770f200de6057aae"
+        },
+        "date": 1716475796008,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "SociFullECR-public-node-lazyTaskDuration",
+            "value": 1.2005,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-node-localTaskDuration",
+            "value": 0.4335,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-node-pullTaskDuration",
+            "value": 1.1400000000000001,
             "unit": "Seconds",
             "extra": "P90"
           }
