@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1716475799731,
+  "lastUpdate": 1716494943440,
   "repoUrl": "https://github.com/awslabs/soci-snapshotter",
   "entries": {
     "Soci Benchmark": [
@@ -6966,6 +6966,48 @@ window.BENCHMARK_DATA = {
           {
             "name": "SociFullECR-public-tensorflow_gpu-pullTaskDuration",
             "value": 1.307,
+            "unit": "Seconds",
+            "extra": "P90"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49699333+dependabot[bot]@users.noreply.github.com",
+            "name": "dependabot[bot]",
+            "username": "dependabot[bot]"
+          },
+          "committer": {
+            "email": "55555210+sondavidb@users.noreply.github.com",
+            "name": "David Son",
+            "username": "sondavidb"
+          },
+          "distinct": true,
+          "id": "81b170fdf88c19efa3c35c431abd3cfd511c6903",
+          "message": "Bump docker/library/golang from 1.21.9-alpine to 1.21.10-alpine\n\nBumps docker/library/golang from 1.21.9-alpine to 1.21.10-alpine.\n\n---\nupdated-dependencies:\n- dependency-name: docker/library/golang\n  dependency-type: direct:production\n  update-type: version-update:semver-patch\n...\n\nSigned-off-by: dependabot[bot] <support@github.com>",
+          "timestamp": "2024-05-23T12:59:49-07:00",
+          "tree_id": "b6767dc2f1661eb0fbc004fb61b6cd99f2f5c7b0",
+          "url": "https://github.com/awslabs/soci-snapshotter/commit/81b170fdf88c19efa3c35c431abd3cfd511c6903"
+        },
+        "date": 1716494940193,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "SociFullECR-public-tensorflow_gpu-lazyTaskDuration",
+            "value": 36.5345,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-tensorflow_gpu-localTaskDuration",
+            "value": 2.334,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-tensorflow_gpu-pullTaskDuration",
+            "value": 2.67,
             "unit": "Seconds",
             "extra": "P90"
           }
