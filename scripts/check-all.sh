@@ -20,3 +20,4 @@ set -eux -o pipefail
 ./check-flatc.sh
 ./check-ltag.sh
 ./check-lint.sh
+./check-third-party-licenses.sh

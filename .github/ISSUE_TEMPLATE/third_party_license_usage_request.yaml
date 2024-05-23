@@ -1,19 +1,23 @@
-name: 3rd Party License Request
-description: File a request for usage of a 3rd party license in the Amazon ECR credential helpers project.
-title: "[3rd Party License Request]: "
+name: 3rd Party License Usage Request
+title: "[3rd Party License Usage Request]: "
+description: File a request for usage of a 3rd party license in the SOCI project.
 labels: "license-request"
 body:
   - type: markdown
     attributes:
       value: |
-        Thanks for taking the time to fill out this request!
+        Thanks for taking the time to fill out this request! The SOCI project adheres to the guidance set forth by
+        Amazon Open Source Usage policies and [CNCF Allowlist License Policy](https://github.com/cncf/foundation/blob/88f1a47550eb2df71b4b6e9c148a1c2f99a1d92e/allowed-third-party-license-policy.md) (with the exception of MPL-2.0).
 
   - type: textarea
     id: license-request
     attributes:
-      label: License request
+      label: License usage request
       value: |
+        Dependency: <link to dependency>
         License: <link to license>
+    validations:
+      required: true
 
   - type: textarea
     id: use-case
@@ -25,6 +29,6 @@ body:
       required: true
 
   - type: textarea
-    id: other-solutions
+    id: alternative-solutions
     attributes:
-      label: Other solutions considered
+      label: Alternative solutions considered
