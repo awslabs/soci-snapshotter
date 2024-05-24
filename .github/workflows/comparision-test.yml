@@ -9,7 +9,7 @@ env:
 
 jobs:
   check:
-    runs-on: ubuntu-20.04
+    runs-on: codebuild-soci-comparision-test-${{ github.run_id }}-${{ github.run_attempt }}-ubuntu-7.0-xlarge
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5
