@@ -19,7 +19,8 @@ set -eux -o pipefail
 CUR_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 SOCI_SNAPSHOTTER_PROJECT_ROOT="${CUR_DIR}/.."
 
+
 # check ltag
 pushd "${SOCI_SNAPSHOTTER_PROJECT_ROOT}"
-"$(go env GOPATH)"/bin/ltag -t "${SOCI_SNAPSHOTTER_PROJECT_ROOT}/.headers" -check -v || (echo "The files listed above are missing a licence header. Please run ./scripts/add-ltag.sh"; exit 1)
+ltag -t "${SOCI_SNAPSHOTTER_PROJECT_ROOT}/.headers" -check -v || (echo "The files listed above are missing a licence header. Please run ./scripts/add-ltag.sh"; exit 1)
 popd

@@ -18,4 +18,4 @@ set -eux -o pipefail
 
 # the very first auto-commit doesn't have a DCO and the first real commit has a slightly different format. Exclude those when doing the check.
 # We erreneously allowed a non-signed commit to be pushed to main.
-"$(go env GOPATH)"/bin/git-validation -run DCO -range HEAD~20..HEAD
+git-validation -run DCO -range HEAD~20..HEAD

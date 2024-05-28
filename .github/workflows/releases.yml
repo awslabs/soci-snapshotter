@@ -28,6 +28,9 @@ jobs:
       STATIC_BINARY_NAME: ''
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
       - name: Export cleaned release tag
         run: |
           export release_tag=${GITHUB_REF#refs/*/} # Strip down to raw tag name

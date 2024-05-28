@@ -57,6 +57,9 @@ jobs:
     runs-on: codebuild-soci-prebuild-workflow-${{ github.run_id }}-${{ github.run_attempt }}-ubuntu-7.0-small
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
       - uses: golangci/golangci-lint-action@v6
         with:
           version: v${{ env.GOLANGCI_LINT_VERSION }}
@@ -67,6 +70,7 @@ jobs:
     runs-on: codebuild-soci-prebuild-workflow-${{ github.run_id }}-${{ github.run_attempt }}-ubuntu-7.0-small
     steps:
       - uses: actions/checkout@v4
+      - run: pip install yamllint
       - run: yamllint .
 
   shellcheck:
