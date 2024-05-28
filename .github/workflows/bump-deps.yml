@@ -20,7 +20,7 @@ jobs:
 
     # Don't bother bumping deps on forks.
     if: ${{ github.repository == 'awslabs/soci-snapshotter' || github.event_name == 'workflow_dispatch' }}
-    runs-on: codebuild-soci-bump-dependencies-${{ github.run_id }}-${{ github.run_attempt }}-ubuntu-7.0-medium
+    runs-on: ubuntu-22.04
 
     steps:
       - uses: actions/checkout@v4

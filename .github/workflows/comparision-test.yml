@@ -9,7 +9,8 @@ env:
 
 jobs:
   check:
-    runs-on: codebuild-soci-comparision-test-${{ github.run_id }}-${{ github.run_attempt }}-ubuntu-7.0-xlarge
+    if: github.repository == 'awslabs/soci-snapshotter'
+    runs-on: codebuild-soci-snapshotter-comparison-test-${{ github.run_id }}-${{ github.run_attempt }}-ubuntu-7.0-xlarge
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5

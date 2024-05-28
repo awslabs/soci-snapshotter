@@ -17,7 +17,9 @@ env:
 
 jobs:
   benchmark:
-    runs-on: codebuild-soci-visualization-workflow-${{ github.run_id }}-${{ github.run_attempt }}-ubuntu-7.0-xlarge
+    # skip running benchmarks in forks
+    if: github.repository == 'awslabs/soci-snapshotter'
+    runs-on: codebuild-soci-snapshotter-benchmark-visualization-${{ github.run_id }}-${{ github.run_attempt }}-ubuntu-7.0-xlarge
     steps:
       - name: Checkout main branch
         uses: actions/checkout@v4
@@ -37,7 +39,8 @@ jobs:
           path: ${{github.workspace}}/benchmark/performanceTest/output/results.json
 
   download-and-convert-benchmark-result-to-visualization-data:
-    runs-on: codebuild-soci-visualization-workflow-${{ github.run_id }}-${{ github.run_attempt }}-ubuntu-7.0-xlarge
+    if: github.repository == 'awslabs/soci-snapshotter'
+    runs-on: codebuild-soci-snapshotter-benchmark-visualization-${{ github.run_id }}-${{ github.run_attempt }}-ubuntu-7.0-xlarge
     needs: benchmark
     steps:
       - name: Checkout main branch
@@ -66,8 +69,9 @@ jobs:
       matrix: ${{ steps.set-matrix.outputs.files }}
 
   push-benchmark-result-gh-pages:
+    if: github.repository == 'awslabs/soci-snapshotter'
     name: Push benchmark result to Github-pages
-    runs-on: codebuild-soci-visualization-workflow-${{ github.run_id }}-${{ github.run_attempt }}-ubuntu-7.0-xlarge
+    runs-on: codebuild-soci-snapshotter-benchmark-visualization-${{ github.run_id }}-${{ github.run_attempt }}-ubuntu-7.0-xlarge
     needs: download-and-convert-benchmark-result-to-visualization-data
     strategy:
       matrix:
