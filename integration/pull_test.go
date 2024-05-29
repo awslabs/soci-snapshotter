@@ -236,7 +236,7 @@ func TestLazyPullWithSparseIndex(t *testing.T) {
 }
 
 func checkFuseMounts(t *testing.T, sh *shell.Shell, remoteSnapshotsExpectedCount int) {
-	mounts := string(sh.O("mount"))
+	mounts := string(sh.O("cat", "/proc/mounts"))
 	remoteSnapshotsActualCount := strings.Count(mounts, "fuse.rawBridge")
 	if remoteSnapshotsExpectedCount != remoteSnapshotsActualCount {
 		t.Fatalf("incorrect number of remote snapshots; expected=%d, actual=%d",
