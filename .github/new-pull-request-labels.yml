@@ -1,0 +1,22 @@
+documentation:
+  - '**/*.md'
+
+github_actions:
+  - .github/**
+  - scripts/**
+
+go:
+  - '**/*.go'
+
+testing:
+  - integration/**
+  - '**/*_test.go'
+
+benchmarking:
+  - benchmark/**
+
+dependencies:
+  - cmd/go.mod
+  - cmd.go.sum
+  - go.mod
+  - go.sum
