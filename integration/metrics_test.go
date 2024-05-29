@@ -153,10 +153,14 @@ log_fuse_operations = true
 
 	manipulateZtocMetadata := func(zt *ztoc.Ztoc) {
 		for i, md := range zt.FileMetadata {
-			md.UncompressedOffset += 2
-			md.UncompressedSize = math.MaxInt64
-			md.PAXHeaders = map[string]string{"foo": "bar"}
-			zt.FileMetadata[i] = md
+			// Setting UncompressedSize high triggers a "value too large" error
+			// Maniulate regular files to alter ztoc data and trigger fuse ops failure.
+			if md.Type == "reg" {
+				md.UncompressedOffset += 2
+				md.UncompressedSize = math.MaxInt64
+				md.PAXHeaders = map[string]string{"foo": "bar"}
+				zt.FileMetadata[i] = md
+			}
 		}
 	}
 
