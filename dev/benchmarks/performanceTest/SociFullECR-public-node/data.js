@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1716494951783,
+  "lastUpdate": 1717177979168,
   "repoUrl": "https://github.com/awslabs/soci-snapshotter",
   "entries": {
     "Soci Benchmark": [
@@ -7008,6 +7008,48 @@ window.BENCHMARK_DATA = {
           {
             "name": "SociFullECR-public-node-pullTaskDuration",
             "value": 1.5685,
+            "unit": "Seconds",
+            "extra": "P90"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "macedonv@amazon.com",
+            "name": "Austin Vazquez",
+            "username": "austinvazquez"
+          },
+          "committer": {
+            "email": "55906459+austinvazquez@users.noreply.github.com",
+            "name": "Austin Vazquez",
+            "username": "austinvazquez"
+          },
+          "distinct": true,
+          "id": "310a88e7a7d9ef8fcc6f8c835edb2edb71a87642",
+          "message": "Add workflow to update getting started guide\n\nThis change adds an automated workflow to open a pull request to update the\nversion in the getting started guide when a release is made.\n\nSigned-off-by: Austin Vazquez <macedonv@amazon.com>",
+          "timestamp": "2024-05-31T10:44:25-07:00",
+          "tree_id": "efa4a8b4b08318e0a9c1163f145b8dcf9d959567",
+          "url": "https://github.com/awslabs/soci-snapshotter/commit/310a88e7a7d9ef8fcc6f8c835edb2edb71a87642"
+        },
+        "date": 1717177977580,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "SociFullECR-public-node-lazyTaskDuration",
+            "value": 1.945,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-node-localTaskDuration",
+            "value": 0.439,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-node-pullTaskDuration",
+            "value": 1.9395,
             "unit": "Seconds",
             "extra": "P90"
           }
