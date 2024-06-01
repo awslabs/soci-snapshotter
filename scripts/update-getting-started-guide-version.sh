@@ -69,5 +69,11 @@ assert_diff() {
 
 sed -i -E "s/version=\"([0-9]+\.){2}[0-9]+\"/version=\"${VERSION}\"/" docs/getting-started.md
 
-[ $VERBOSE = true ] && git diff
-[ $ASSERT = true ] && assert_diff
+if [ $VERBOSE = true ]; then
+  git --no-pager diff
+fi
+
+if [ $ASSERT = true ]; then
+  assert_diff
+fi
+

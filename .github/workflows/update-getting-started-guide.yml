@@ -23,9 +23,6 @@ jobs:
       contents: read
       pull-requests: read
 
-    env:
-      RELEASE_TAG: ''
-
     steps:
       - uses: actions/checkout@v4
         with:
@@ -33,11 +30,8 @@ jobs:
             docs/getting-started.md
             scripts/update-getting-started-guide-version.sh
 
-      - name: Mock release tag on pull request
-        run: echo "RELEASE_TAG=v0.0.0-${{ github.event.pull_request.number }}" >> $GITHUB_ENV
-
       - name: Test update getting started version
-        run: bash scripts/update-getting-started-guide-version.sh --assert ${{ env.RELEASE_TAG }}
+        run: bash scripts/update-getting-started-guide-version.sh --assert v0.0.0-${{ github.event.pull_request.number }}
 
   update-version:
     if: github.event_name == 'release'
