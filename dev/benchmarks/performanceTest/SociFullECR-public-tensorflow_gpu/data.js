@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1717433696351,
+  "lastUpdate": 1717435691018,
   "repoUrl": "https://github.com/awslabs/soci-snapshotter",
   "entries": {
     "Soci Benchmark": [
@@ -7092,6 +7092,48 @@ window.BENCHMARK_DATA = {
           {
             "name": "SociFullECR-public-tensorflow_gpu-pullTaskDuration",
             "value": 2.71,
+            "unit": "Seconds",
+            "extra": "P90"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "davbson@amazon.com",
+            "name": "David Son",
+            "username": "sondavidb"
+          },
+          "committer": {
+            "email": "55555210+sondavidb@users.noreply.github.com",
+            "name": "David Son",
+            "username": "sondavidb"
+          },
+          "distinct": true,
+          "id": "f7858b69111e1f68e8d94e0f178c7a548744d3e9",
+          "message": "Enforce lease when building SOCI index\n\nPreviously, in our CLI create command, we would create zTOCs, push them\nto the content store, then label the index to refer to the zTOCs.\nThis created a problem where a user using the containerd content store\nmight have their zTOCs deleted by the containerd garbage collector\nbefore it could be labeled. While a lease was used, it was only done\nduring the latter step, so it did not prevent zTOCs from being deleted\nbefore being labeled.\n\nThis commit fixes this by using a lease on the entire process via a new\ncommand, BuildAndWriteIndex, which is called by \"soci create\".\n\nSigned-off-by: David Son <davbson@amazon.com>",
+          "timestamp": "2024-06-03T10:20:46-07:00",
+          "tree_id": "136b9859783114dea8ef1bc95a56341b442447c7",
+          "url": "https://github.com/awslabs/soci-snapshotter/commit/f7858b69111e1f68e8d94e0f178c7a548744d3e9"
+        },
+        "date": 1717435686975,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "SociFullECR-public-tensorflow_gpu-lazyTaskDuration",
+            "value": 10.759,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-tensorflow_gpu-localTaskDuration",
+            "value": 2.2960000000000003,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-tensorflow_gpu-pullTaskDuration",
+            "value": 2.508,
             "unit": "Seconds",
             "extra": "P90"
           }
