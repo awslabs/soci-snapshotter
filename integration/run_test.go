@@ -35,8 +35,10 @@ package integration
 import (
 	"bufio"
 	"bytes"
+	"errors"
 	"fmt"
 	"os"
+	"path/filepath"
 	"regexp"
 	"strconv"
 	"strings"
@@ -517,6 +519,239 @@ func TestRunInNamespace(t *testing.T) {
 					}
 				})
 			}
+		}
+	}
+}
+
+func TestRunWithIdMap(t *testing.T) {
+	type checker struct {
+		path string
+
+		// All expected UID/GIDs should be of length 5,
+		// so make sure to left pad any UIDs/GIDs to
+		// be strings of length 5
+		expectedUIDOnHost      string
+		expectedGIDOnHost      string
+		expectedUIDInContainer string
+		expectedGIDInContainer string
+	}
+
+	baseSnapshotDir := "/var/lib/soci-snapshotter-grpc/snapshotter/snapshots"
+	baseRuntimeDir := "/run/containerd/io.containerd.runtime.v2.task/default"
+
+	uidPath := "/etc/subuid"
+	gidPath := "/etc/subgid"
+
+	dummyuser := "dummy-user"
+	dummygroup := "dummy-group"
+
+	minContainerdVersion := "v1.7.23"
+	shouldSkip := func(version string) bool {
+		semVer := strings.Replace(version, "v", "", 1)
+		onlySemVer := strings.Split(semVer, "-")[0] // remove rc tag if exists
+		onlySemVerArr := strings.Split(onlySemVer, ".")
+
+		major, _ := strconv.Atoi(onlySemVerArr[0])
+		minor, _ := strconv.Atoi(onlySemVerArr[1])
+		patch, _ := strconv.Atoi(onlySemVerArr[2])
+
+		switch {
+		case major >= 2 || minor >= 8:
+			return false
+		case minor == 7 && patch >= 23:
+			return false
+		default:
+			return true
+		}
+	}
+
+	checkUIDGID := func(stat, uid, gid string) error {
+		if len(uid) < 5 || len(gid) < 5 {
+			return errors.New("UID or GID not a string of length 5")
+		}
+
+		matchUID := fmt.Sprintf("Uid: (%s", uid)
+		if !strings.Contains(stat, matchUID) {
+			return fmt.Errorf("expected UID: %s; actual UID: %s", matchUID, uid)
+		}
+
+		matchGID := fmt.Sprintf("Uid: (%s", gid)
+		if !strings.Contains(stat, matchGID) {
+			return fmt.Errorf("expected GID: %s; actual GID: %s", matchGID, gid)
+		}
+
+		return nil
+	}
+
+	modes := []struct {
+		name           string
+		indexBuilderFn func(sh *shell.Shell, src imageInfo, opts ...indexBuildOption) string
+	}{
+		{
+			name: "with only FUSE layers",
+			indexBuilderFn: func(sh *shell.Shell, src imageInfo, opts ...indexBuildOption) string {
+				opts = append(opts, withMinLayerSize(0))
+				return buildIndex(sh, src, opts...)
+			},
+		},
+		{
+			name: "with mixed layers",
+			indexBuilderFn: func(sh *shell.Shell, src imageInfo, opts ...indexBuildOption) string {
+				return buildIndex(sh, src, opts...)
+			},
+		},
+		{
+			name: "with no SOCI index",
+			indexBuilderFn: func(sh *shell.Shell, src imageInfo, opts ...indexBuildOption) string {
+				return ""
+			},
+		},
+	}
+
+	tests := []struct {
+		name           string
+		imageName      string
+		subUIDContents string
+		subGIDContents string
+		checkFiles     []checker
+	}{
+		{
+			name:           "with one set of substitutions",
+			imageName:      rabbitmqImage,
+			subUIDContents: fmt.Sprintf("%s:12345:1001", dummyuser),
+			subGIDContents: fmt.Sprintf("%s:12345:1001", dummyuser),
+			checkFiles: []checker{
+				{
+					path:                   "/usr/bin/sh",
+					expectedUIDOnHost:      "12345",
+					expectedGIDOnHost:      "12345",
+					expectedUIDInContainer: "    0",
+					expectedGIDInContainer: "    0",
+				},
+			},
+		},
+		{
+			name: "with multiple substitutions",
+			// This version of ubuntu has a default "ubuntu" user, so we can use that
+			// to ensure that the user there has proper multi-uid/gid perms done
+			// Note that as the ubuntu image is one layer, the mixed layer use case will
+			// effectively act the same as the only FUSE layer usecase.
+			// Maybe we can find a more suitable image for this test.
+			imageName:      "ubuntu:24.04",
+			subUIDContents: fmt.Sprintf("%s:12345:1000\n%s:22222:1", dummyuser, dummyuser),
+			subGIDContents: fmt.Sprintf("%s:12345:1000\n%s:22222:1", dummyuser, dummyuser),
+			checkFiles: []checker{
+				{
+					path:                   "/usr/bin/sh",
+					expectedUIDOnHost:      "12345",
+					expectedGIDOnHost:      "12345",
+					expectedUIDInContainer: "    0",
+					expectedGIDInContainer: "    0",
+				},
+				{
+					path:                   "/home/ubuntu",
+					expectedUIDOnHost:      "22222",
+					expectedGIDOnHost:      "22222",
+					expectedUIDInContainer: " 1000",
+					expectedGIDInContainer: " 1000",
+				},
+			},
+		},
+	}
+
+	for _, mode := range modes {
+		mode := mode
+		for _, tt := range tests {
+			tt := tt
+			t.Run(tt.name+" "+mode.name, func(t *testing.T) {
+				regConfig := newRegistryConfig()
+				sh, done := newShellWithRegistry(t, regConfig)
+				defer done()
+
+				arr := strings.Split(string(sh.O("containerd", "--version")), " ")
+				if len(arr) < 3 {
+					t.Fatal("error parsing containerd version")
+				}
+
+				// index 2 contains the semantic version when running 'containerd --version'
+				ver := arr[2]
+				if shouldSkip(ver) {
+					t.Skipf("version %s is less than %s, skipping", ver, minContainerdVersion)
+				}
+
+				sh.X("groupadd", "-g", "12345", dummygroup)
+				sh.X("useradd", "-u", "12345", "-g", "12345", "-m", dummyuser)
+
+				sh.Pipe(nil, shell.C("echo", tt.subUIDContents), shell.C("tee", uidPath))
+				sh.Pipe(nil, shell.C("echo", tt.subGIDContents), shell.C("tee", gidPath))
+
+				rebootContainerd(t, sh, getContainerdConfigToml(t, false), getSnapshotterConfigToml(t, false))
+				imageInfo := dockerhub(tt.imageName)
+				sh.X("nerdctl", "pull", "-q", imageInfo.ref)
+
+				filenames, err := sh.OLog("ls", baseSnapshotDir)
+				if err != nil {
+					t.Fatalf("error listing files in %s", baseSnapshotDir)
+				}
+
+				// Copy image, remove blobs, and re-pull with SOCI
+				mirrorInfo := regConfig.mirror(imageInfo.ref)
+				copyImage(sh, imageInfo, mirrorInfo)
+				indexDigest := mode.indexBuilderFn(sh, mirrorInfo)
+				if indexDigest != "" {
+					sh.X("soci", "push", "--user", regConfig.creds(), mirrorInfo.ref)
+				}
+				sh.X("rm", "-rf", filepath.Join(store.DefaultSociContentStorePath, "blobs", "sha256"))
+
+				pullCmd := imagePullCmd
+				if indexDigest != "" {
+					pullCmd = append(pullCmd, "--soci-index-digest", indexDigest)
+				}
+				sh.X(append(pullCmd, mirrorInfo.ref)...)
+				containerID := strings.TrimSpace(string(sh.O("nerdctl-with-idmapping", "run", "-d",
+					"--net", "none",
+					"--pull", "never",
+					"--userns", dummyuser,
+					"--snapshotter", "soci",
+					imageInfo.ref, "sleep", "infinity",
+				)))
+
+				newFilenames, err := sh.OLog("ls", baseSnapshotDir)
+				if err != nil {
+					t.Fatalf("error listing files in %s", baseSnapshotDir)
+				}
+
+				if len(filenames) == len(newFilenames) {
+					t.Fatalf("error: id-mapping failed")
+				}
+
+				for _, check := range tt.checkFiles {
+					// Check UID/GID on host
+					fullCheckPath := filepath.Join(baseRuntimeDir, containerID, "rootfs", check.path)
+					statHost, err := sh.OLog("stat", fullCheckPath)
+					if err != nil {
+						t.Fatalf("error stat files in %s", fullCheckPath)
+					}
+					strstatHost := string(statHost)
+
+					err = checkUIDGID(strstatHost, check.expectedUIDOnHost, check.expectedGIDOnHost)
+					if err != nil {
+						t.Fatalf("incorrect IDs on host at %s: %v", check.path, err)
+					}
+
+					// Check UID/GID in container
+					statContainer, err := sh.OLog("nerdctl", "exec", containerID, "stat", check.path)
+					if err != nil {
+						t.Fatalf("error stat files in %s", fullCheckPath)
+					}
+					strStatContainer := string(statContainer)
+
+					err = checkUIDGID(strStatContainer, check.expectedUIDInContainer, check.expectedGIDInContainer)
+					if err != nil {
+						t.Fatalf("incorrect IDs in container at %s: %v", check.path, err)
+					}
+				}
+			})
 		}
 	}
 }

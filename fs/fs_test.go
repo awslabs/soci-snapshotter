@@ -46,6 +46,7 @@ import (
 	"github.com/awslabs/soci-snapshotter/fs/layer"
 	"github.com/awslabs/soci-snapshotter/fs/remote"
 	"github.com/awslabs/soci-snapshotter/fs/source"
+	"github.com/awslabs/soci-snapshotter/idtools"
 	"github.com/containerd/containerd/reference"
 	"github.com/containerd/containerd/remotes/docker"
 	fusefs "github.com/hanwen/go-fuse/v2/fs"
@@ -83,10 +84,12 @@ func (l *breakableLayer) Info() layer.Info {
 		Size: 1,
 	}
 }
-func (l *breakableLayer) DisableXAttrs() bool                           { return false }
-func (l *breakableLayer) RootNode(uint32) (fusefs.InodeEmbedder, error) { return nil, nil }
-func (l *breakableLayer) Verify(tocDigest digest.Digest) error          { return nil }
-func (l *breakableLayer) SkipVerify()                                   {}
+func (l *breakableLayer) DisableXAttrs() bool { return false }
+func (l *breakableLayer) RootNode(uint32, idtools.IDMap) (fusefs.InodeEmbedder, error) {
+	return nil, nil
+}
+func (l *breakableLayer) Verify(tocDigest digest.Digest) error { return nil }
+func (l *breakableLayer) SkipVerify()                          {}
 func (l *breakableLayer) ReadAt([]byte, int64, ...remote.Option) (int, error) {
 	return 0, fmt.Errorf("fail")
 }

@@ -84,6 +84,9 @@ const (
 
 	// TargetSociIndexDigestLabel is a label which contains the digest of the soci index.
 	TargetSociIndexDigestLabel = "containerd.io/snapshot/remote/soci.index.digest"
+
+	// HasSociIndexDigest is a label that tells if the layer was pulled with a SOCI index.
+	HasSociIndexDigest = "containerd.io/snapshot/remote/has.soci.index.digest"
 )
 
 // RegistryHosts is copied from [github.com/awslabs/soci-snapshotter/service/resolver.RegistryHosts]

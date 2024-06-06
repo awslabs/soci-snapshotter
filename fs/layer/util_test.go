@@ -56,6 +56,7 @@ import (
 	"github.com/awslabs/soci-snapshotter/fs/reader"
 	"github.com/awslabs/soci-snapshotter/fs/remote"
 	spanmanager "github.com/awslabs/soci-snapshotter/fs/span-manager"
+	"github.com/awslabs/soci-snapshotter/idtools"
 	"github.com/awslabs/soci-snapshotter/metadata"
 	"github.com/awslabs/soci-snapshotter/util/testutil"
 	"github.com/awslabs/soci-snapshotter/ztoc"
@@ -360,7 +361,7 @@ func hasSize(name string, size int) check {
 }
 
 func getRootNode(t *testing.T, r reader.Reader, opaque OverlayOpaqueType) *node {
-	rootNode, err := newNode(testStateLayerDigest, &testReader{r}, &testBlobState{10, 5}, 100, opaque, false, nil)
+	rootNode, err := newNode(testStateLayerDigest, &testReader{r}, &testBlobState{10, 5}, 100, opaque, false, nil, idtools.IDMap{})
 	if err != nil {
 		t.Fatalf("failed to get root node: %v", err)
 	}
