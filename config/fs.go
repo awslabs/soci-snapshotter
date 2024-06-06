@@ -56,6 +56,7 @@ type FSConfig struct {
 	NoPrometheus                   bool   `toml:"no_prometheus"`
 	MountTimeoutSec                int64  `toml:"mount_timeout_sec"`
 	FuseMetricsEmitWaitDurationSec int64  `toml:"fuse_metrics_emit_wait_duration_sec"`
+	AllowIDMap                     bool   `toml:"allow_idmap" default:"true"`
 
 	RetryableHTTPClientConfig `toml:"http"`
 	BlobConfig                `toml:"blob"`

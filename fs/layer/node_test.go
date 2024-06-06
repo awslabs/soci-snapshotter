@@ -50,7 +50,8 @@ func TestEntryToAttr(t *testing.T) {
 		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			var actual fuse.Attr
-			entryToAttr(0, tc.attr, &actual)
+			var n node
+			n.entryToAttr(0, tc.attr, &actual)
 			tc.expected.Mtime = actual.Mtime
 			if actual != tc.expected {
 				t.Fatalf("unexpected fuse attr. actual %v expected %v", actual, tc.expected)
