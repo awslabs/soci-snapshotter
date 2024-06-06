@@ -27,7 +27,10 @@ ifneq ($(STATIC),)
 endif
 GO_TAGS=$(if $(GO_BUILDTAGS),-tags "$(strip $(GO_BUILDTAGS))",)
 
-GO_LD_FLAGS=-ldflags '-s -w -X $(PKG)/version.Version=$(VERSION) -X $(PKG)/version.Revision=$(REVISION) $(GO_EXTRA_LDFLAGS)
+GO_LD_FLAGS=-ldflags '-X $(PKG)/version.Version=$(VERSION) -X $(PKG)/version.Revision=$(REVISION) $(GO_EXTRA_LDFLAGS)
+ifeq ($(GODEBUG),)
+    GO_LD_FLAGS += -s -w
+endif
 ifneq ($(STATIC),)
 	GO_LD_FLAGS += -extldflags "-static"
 endif
