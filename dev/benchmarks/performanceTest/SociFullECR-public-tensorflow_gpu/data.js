@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1717435691018,
+  "lastUpdate": 1717702351033,
   "repoUrl": "https://github.com/awslabs/soci-snapshotter",
   "entries": {
     "Soci Benchmark": [
@@ -7134,6 +7134,48 @@ window.BENCHMARK_DATA = {
           {
             "name": "SociFullECR-public-tensorflow_gpu-pullTaskDuration",
             "value": 2.508,
+            "unit": "Seconds",
+            "extra": "P90"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "sbora@amazon.com",
+            "name": "Swagat Bora",
+            "username": "swagatbora90"
+          },
+          "committer": {
+            "email": "swagatbora90@gmail.com",
+            "name": "Swagat Bora",
+            "username": "swagatbora90"
+          },
+          "distinct": true,
+          "id": "c538952debec5e42451b5accf04dc77ac60a7558",
+          "message": "Update Go version to 1.21.11 in CI\n\nSigned-off-by: Swagat Bora <sbora@amazon.com>",
+          "timestamp": "2024-06-06T12:22:31-07:00",
+          "tree_id": "ed9d4cd916a88d0186a88301f963f8a42e6eb3e8",
+          "url": "https://github.com/awslabs/soci-snapshotter/commit/c538952debec5e42451b5accf04dc77ac60a7558"
+        },
+        "date": 1717702347203,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "SociFullECR-public-tensorflow_gpu-lazyTaskDuration",
+            "value": 37.960499999999996,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-tensorflow_gpu-localTaskDuration",
+            "value": 2.5060000000000002,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-tensorflow_gpu-pullTaskDuration",
+            "value": 2.7855,
             "unit": "Seconds",
             "extra": "P90"
           }
