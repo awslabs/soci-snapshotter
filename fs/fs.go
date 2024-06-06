@@ -45,9 +45,12 @@ package fs
 import (
 	"context"
 	"fmt"
+	"io"
 	golog "log"
 	"net/http"
+	"os"
 	"os/exec"
+	"path/filepath"
 	"sync"
 	"syscall"
 	"time"
@@ -59,6 +62,7 @@ import (
 	layermetrics "github.com/awslabs/soci-snapshotter/fs/metrics/layer"
 	"github.com/awslabs/soci-snapshotter/fs/remote"
 	"github.com/awslabs/soci-snapshotter/fs/source"
+	"github.com/awslabs/soci-snapshotter/idtools"
 	"github.com/awslabs/soci-snapshotter/metadata"
 	"github.com/awslabs/soci-snapshotter/snapshot"
 	"github.com/awslabs/soci-snapshotter/soci"
@@ -67,6 +71,7 @@ import (
 	ctdsnapshotters "github.com/containerd/containerd/pkg/snapshotters"
 	"github.com/containerd/containerd/reference"
 	"github.com/containerd/containerd/remotes/docker"
+	"github.com/containerd/errdefs"
 	"github.com/containerd/log"
 	metrics "github.com/docker/go-metrics"
 	fusefs "github.com/hanwen/go-fuse/v2/fs"
@@ -455,6 +460,58 @@ func (fs *filesystem) getSociContext(ctx context.Context, imageRef, indexDigest,
 	return c, err
 }
 
+func getIDMappedMountpoint(mountpoint, activeLayerKey string) string {
+	d := filepath.Dir(mountpoint)
+	return filepath.Join(fmt.Sprintf("%s_%s", d, activeLayerKey), "fs")
+}
+
+func (fs *filesystem) IDMapMount(ctx context.Context, mountpoint, activeLayerKey string, idmapper idtools.IDMap) (string, error) {
+	newMountpoint := getIDMappedMountpoint(mountpoint, activeLayerKey)
+	logger := log.G(ctx).WithField("mountpoint", newMountpoint)
+
+	logger.Debug("creating remote id-mapped mount")
+	if err := os.Mkdir(filepath.Dir(newMountpoint), 0700); err != nil {
+		return "", err
+	}
+	if err := os.Mkdir(newMountpoint, 0755); err != nil {
+		return "", err
+	}
+
+	fs.layerMu.Lock()
+	l := fs.layer[mountpoint]
+	if l == nil {
+		fs.layerMu.Unlock()
+		logger.Debug("failed to create remote id-mapped mount")
+		return "", errdefs.ErrNotFound
+	}
+	fs.layer[newMountpoint] = l
+	fs.layerMu.Unlock()
+	node, err := l.RootNode(0, idmapper)
+	if err != nil {
+		return "", err
+	}
+
+	fuseLogger := log.L.
+		WithField("mountpoint", mountpoint).
+		WriterLevel(logrus.TraceLevel)
+
+	return newMountpoint, fs.setupFuseServer(ctx, newMountpoint, node, l, fuseLogger, nil)
+}
+
+func (fs *filesystem) IDMapMountLocal(ctx context.Context, mountpoint, activeLayerKey string, idmapper idtools.IDMap) (string, error) {
+	newMountpoint := getIDMappedMountpoint(mountpoint, activeLayerKey)
+	logger := log.G(ctx).WithField("mountpoint", newMountpoint)
+
+	logger.Debug("creating local id-mapped mount")
+	if err := idtools.RemapDir(ctx, mountpoint, newMountpoint, idmapper); err != nil {
+		logger.WithError(err).Error("failed to create local mount")
+		return "", err
+	}
+
+	logger.Debug("successfully created local mountpoint")
+	return newMountpoint, nil
+}
+
 func (fs *filesystem) Mount(ctx context.Context, mountpoint string, labels map[string]string) (retErr error) {
 	// Setting the start time to measure the Mount operation duration.
 	start := time.Now()
@@ -566,7 +623,7 @@ func (fs *filesystem) Mount(ctx context.Context, mountpoint string, labels map[s
 	// Maybe we should reword the log here or remove it entirely,
 	// since the old Verify() function no longer serves any purpose.
 
-	node, err := l.RootNode(0)
+	node, err := l.RootNode(0, idtools.IDMap{})
 	if err != nil {
 		log.G(ctx).WithError(err).Warnf("Failed to get root node")
 		retErr = fmt.Errorf("failed to get root node: %w", err)
@@ -583,6 +640,16 @@ func (fs *filesystem) Mount(ctx context.Context, mountpoint string, labels map[s
 	fs.layerMu.Unlock()
 	fs.metricsController.Add(mountpoint, l)
 
+	// Pass in a logger to go-fuse with the layer digest
+	// The go-fuse logs are useful for tracing exactly what's happening at the fuse level.
+	fuseLogger := log.L.
+		WithField("layerDigest", labels[ctdsnapshotters.TargetLayerDigestLabel]).
+		WriterLevel(logrus.TraceLevel)
+
+	return fs.setupFuseServer(ctx, mountpoint, node, l, fuseLogger, c)
+}
+
+func (fs *filesystem) setupFuseServer(ctx context.Context, mountpoint string, node fusefs.InodeEmbedder, l layer.Layer, logger *io.PipeWriter, c *sociContext) error {
 	// mount the node to the specified mountpoint
 	// TODO: bind mount the state directory as a read-only fs on snapshotter's side
 	rawFS := fusefs.NewNodeFS(node, &fusefs.Options{
@@ -591,40 +658,37 @@ func (fs *filesystem) Mount(ctx context.Context, mountpoint string, labels map[s
 		NegativeTimeout: &fs.negativeTimeout,
 		NullPermissions: true,
 	})
-	// Pass in a logger to go-fuse with the layer digest
-	// The go-fuse logs are useful for tracing exactly what's happening at the fuse level.
-	logger := log.L.
-		WithField("layerDigest", labels[ctdsnapshotters.TargetLayerDigestLabel]).
-		WriterLevel(logrus.TraceLevel)
 	mountOpts := &fuse.MountOptions{
 		AllowOther:    true,   // allow users other than root&mounter to access fs
 		FsName:        "soci", // name this filesystem as "soci"
 		Debug:         fs.debug,
 		Logger:        golog.New(logger, "", 0),
 		DisableXAttrs: l.DisableXAttrs(),
+		Options:       []string{"default_permissions", "ro"},
 	}
 	if _, err := exec.LookPath(fusermountBin); err == nil {
 		mountOpts.Options = []string{"suid"} // option for fusermount; allow setuid inside container
 	} else {
-		log.G(ctx).WithError(err).Infof("%s not installed; trying direct mount", fusermountBin)
+		log.G(ctx).WithField("binary", fusermountBin).WithError(err).Info("fuse binary not installed; trying direct mount")
 		mountOpts.DirectMount = true
 	}
 	server, err := fuse.NewServer(rawFS, mountpoint, mountOpts)
 	if err != nil {
-		log.G(ctx).WithError(err).Debug("failed to make filesystem server")
-		retErr = err
-		return
+		log.G(ctx).WithError(err).Error("failed to make filesystem server")
+		return err
 	}
 
 	go server.Serve()
 
-	// Send a signal to the background fetcher that a new image is being mounted
-	// and to pause all background fetches.
-	c.bgFetchPauseOnce.Do(func() {
-		if fs.bgFetcher != nil {
-			fs.bgFetcher.Pause()
-		}
-	})
+	if c != nil {
+		// Send a signal to the background fetcher that a new image is being mounted
+		// and to pause all background fetches.
+		c.bgFetchPauseOnce.Do(func() {
+			if fs.bgFetcher != nil {
+				fs.bgFetcher.Pause()
+			}
+		})
+	}
 
 	return server.WaitMount()
 }
@@ -692,7 +756,8 @@ func (fs *filesystem) Unmount(ctx context.Context, mountpoint string) error {
 	l, ok := fs.layer[mountpoint]
 	if !ok {
 		fs.layerMu.Unlock()
-		return fmt.Errorf("specified path %q isn't a mountpoint", mountpoint)
+		log.G(ctx).Errorf("specified path %q isn't a remote mount", mountpoint)
+		return errdefs.ErrNotFound
 	}
 	delete(fs.layer, mountpoint) // unregisters the corresponding layer
 	l.Done()
@@ -703,6 +768,10 @@ func (fs *filesystem) Unmount(ctx context.Context, mountpoint string) error {
 	// In the future, we might be able to consider to kill that specific hanging
 	// goroutine using channel, etc.
 	// See also: https://www.kernel.org/doc/html/latest/filesystems/fuse.html#aborting-a-filesystem-connection
+	return syscall.Unmount(mountpoint, syscall.MNT_FORCE)
+}
+
+func (fs *filesystem) UnmountLocal(ctx context.Context, mountpoint string) error {
 	return syscall.Unmount(mountpoint, syscall.MNT_FORCE)
 }
 

@@ -44,6 +44,7 @@ import (
 
 	commonmetrics "github.com/awslabs/soci-snapshotter/fs/metrics/common"
 	"github.com/awslabs/soci-snapshotter/fs/source"
+	"github.com/awslabs/soci-snapshotter/idtools"
 	"github.com/containerd/containerd/mount"
 	ctdsnapshotters "github.com/containerd/containerd/pkg/snapshotters"
 	"github.com/containerd/containerd/snapshots"
@@ -104,7 +105,10 @@ type FileSystem interface {
 	Mount(ctx context.Context, mountpoint string, labels map[string]string) error
 	Check(ctx context.Context, mountpoint string, labels map[string]string) error
 	Unmount(ctx context.Context, mountpoint string) error
+	UnmountLocal(ctx context.Context, mountpoint string) error
 	MountLocal(ctx context.Context, mountpoint string, labels map[string]string, mounts []mount.Mount) error
+	IDMapMount(ctx context.Context, mountpoint, activeLayerKey string, idmap idtools.IDMap) (string, error)
+	IDMapMountLocal(ctx context.Context, mountpoint, activeLayerKey string, idmap idtools.IDMap) (string, error)
 }
 
 // SnapshotterConfig is used to configure the remote snapshotter instance
@@ -113,6 +117,7 @@ type SnapshotterConfig struct {
 	// minLayerSize skips remote mounting of smaller layers
 	minLayerSize                int64
 	allowInvalidMountsOnRestart bool
+	allowIDMap                  bool
 }
 
 // Opt is an option to configure the remote snapshotter
@@ -140,6 +145,11 @@ func AllowInvalidMountsOnRestart(config *SnapshotterConfig) error {
 	return nil
 }
 
+func AllowIDMap(config *SnapshotterConfig) error {
+	config.allowIDMap = true
+	return nil
+}
+
 type snapshotter struct {
 	root        string
 	ms          *storage.MetaStore
@@ -150,6 +160,8 @@ type snapshotter struct {
 	userxattr                   bool  // whether to enable "userxattr" mount option
 	minLayerSize                int64 // minimum layer size for remote mounting
 	allowInvalidMountsOnRestart bool
+	allowIDMap                  bool
+	idmapped                    map[string]interface{}
 }
 
 // NewSnapshotter returns a Snapshotter which can use unpacked remote layers
@@ -200,6 +212,11 @@ func NewSnapshotter(ctx context.Context, root string, targetFs FileSystem, opts 
 		userxattr:                   userxattr,
 		minLayerSize:                config.minLayerSize,
 		allowInvalidMountsOnRestart: config.allowInvalidMountsOnRestart,
+		allowIDMap:                  config.allowIDMap,
+	}
+
+	if o.allowIDMap {
+		o.idmapped = make(map[string]interface{})
 	}
 
 	if err := o.restoreRemoteSnapshot(ctx); err != nil {
@@ -285,6 +302,48 @@ func (o *snapshotter) Usage(ctx context.Context, key string) (snapshots.Usage, e
 	return usage, nil
 }
 
+func (o *snapshotter) setupIDMap(ctx context.Context, s storage.Snapshot, parent string, labels map[string]string) error {
+	// load id-map if appropriate labels are present.
+	idmap, err := idtools.LoadIDMap(s.ID, labels)
+	if err != nil {
+		log.G(ctx).WithError(err).Error("failed to load id-map")
+		return err
+	}
+
+	if !idmap.Empty() {
+		parentSnapshot, err := o.Stat(ctx, parent)
+		if err != nil {
+			log.G(ctx).WithError(err).Error("failed to stat parent snapshot")
+			return err
+		}
+
+		// If there is no SOCI index, you can safely mount from the root without copying over every single layer
+		if _, ok := parentSnapshot.Labels[source.HasSociIndexDigest]; !ok {
+			// Fallback to overlay
+			log.G(ctx).Debug("no SOCI index found, remapping from root")
+			mounts, err := o.mounts(ctx, s, parent)
+			if err != nil {
+				return err
+			}
+
+			err = idtools.RemapRootFS(ctx, mounts, idmap)
+			if err != nil {
+				return err
+			}
+		} else {
+			o.idmapped[s.ID] = struct{}{}
+			err = o.createIDMapMounts(ctx, s, idmap)
+			if err != nil {
+				log.G(ctx).WithError(err).Error("failed to create id-mapped mounts")
+				return err
+			}
+		}
+
+		log.G(ctx).Debug("id-mapping successful")
+	}
+	return nil
+}
+
 func (o *snapshotter) Prepare(ctx context.Context, key, parent string, opts ...snapshots.Opt) ([]mount.Mount, error) {
 	log.G(ctx).WithField("key", key).WithField("parent", parent).Debug("prepare")
 	s, err := o.createSnapshot(ctx, snapshots.KindActive, key, parent, opts)
@@ -302,7 +361,15 @@ func (o *snapshotter) Prepare(ctx context.Context, key, parent string, opts ...s
 	}
 
 	target, ok := base.Labels[targetSnapshotLabel]
+	// !ok means we are in an active snapshot
 	if !ok {
+		// Setup id-mapped mounts if config allows.
+		// Any error here needs to stop the container from starting.
+		if o.allowIDMap {
+			if err := o.setupIDMap(ctx, s, parent, base.Labels); err != nil {
+				return nil, err
+			}
+		}
 		return o.mounts(ctx, s, parent)
 	}
 
@@ -319,7 +386,8 @@ func (o *snapshotter) Prepare(ctx context.Context, key, parent string, opts ...s
 	if !o.skipRemoteSnapshotPrepare(lCtx, base.Labels) {
 		err := o.prepareRemoteSnapshot(lCtx, key, base.Labels)
 		if err == nil {
-			base.Labels[remoteLabel] = remoteLabelVal // Mark this snapshot as remote
+			base.Labels[remoteLabel] = remoteLabelVal       // Mark this snapshot as remote
+			base.Labels[source.HasSociIndexDigest] = "true" // Mark that this snapshot was loaded with a SOCI index
 			err := o.commit(ctx, true, target, key, append(opts, snapshots.WithLabels(base.Labels))...)
 			if err == nil || errdefs.IsAlreadyExists(err) {
 				// count also AlreadyExists as "success"
@@ -361,6 +429,7 @@ func (o *snapshotter) Prepare(ctx context.Context, key, parent string, opts ...s
 	log.G(ctx).WithField("layerDigest", base.Labels[ctdsnapshotters.TargetLayerDigestLabel]).Info("preparing snapshot as local snapshot")
 	err = o.prepareLocalSnapshot(lCtx, key, base.Labels, mounts)
 	if err == nil {
+		base.Labels[source.HasSociIndexDigest] = "true" // Mark that this snapshot was loaded with a SOCI index
 		err := o.commit(ctx, false, target, key, append(opts, snapshots.WithLabels(base.Labels))...)
 		if err == nil || errdefs.IsAlreadyExists(err) {
 			// count also AlreadyExists as "success"
@@ -578,7 +647,13 @@ func (o *snapshotter) getCleanupDirectories(ctx context.Context, t storage.Trans
 	cleanup := []string{}
 	for _, d := range dirs {
 		if !cleanupCommitted {
-			if _, ok := ids[d]; ok {
+			currDir := d
+			// Use the id-mapped suffix if present
+			temp := strings.Split(d, "_")
+			if len(temp) > 1 {
+				currDir = temp[1]
+			}
+			if _, ok := ids[currDir]; ok {
 				continue
 			}
 		}
@@ -613,7 +688,10 @@ func (o *snapshotter) unmountSnapshotDirectory(ctx context.Context, dir string) 
 		return err
 	}
 	if mounted {
-		return o.fs.Unmount(ctx, mp)
+		if err := o.fs.Unmount(ctx, mp); err == errdefs.ErrNotFound {
+			return o.fs.UnmountLocal(ctx, mp)
+		}
+		return err
 	}
 	return nil
 }
@@ -757,15 +835,16 @@ func (o *snapshotter) mounts(ctx context.Context, s storage.Snapshot, checkKey s
 		}, nil
 	}
 
-	parentPaths := make([]string, len(s.ParentIDs))
-	for i := range s.ParentIDs {
-		parentPaths[i] = o.upperPath(s.ParentIDs[i])
+	parentPaths, err := o.getParentPaths(ctx, s)
+	if err != nil {
+		return nil, err
 	}
 
 	options = append(options, fmt.Sprintf("lowerdir=%s", strings.Join(parentPaths, ":")))
 	if o.userxattr {
 		options = append(options, "userxattr")
 	}
+
 	return []mount.Mount{
 		{
 			Type:    "overlay",
@@ -773,7 +852,49 @@ func (o *snapshotter) mounts(ctx context.Context, s storage.Snapshot, checkKey s
 			Options: options,
 		},
 	}, nil
+}
 
+func (o *snapshotter) getParentPaths(ctx context.Context, s storage.Snapshot) ([]string, error) {
+	parentPaths := make([]string, len(s.ParentIDs))
+
+	for i, id := range s.ParentIDs {
+		if _, ok := o.idmapped[s.ID]; ok {
+			id = fmt.Sprintf("%s_%s", id, s.ID)
+		}
+		parentPaths[i] = o.upperPath(id)
+	}
+
+	return parentPaths, nil
+}
+
+func (o *snapshotter) createIDMapMounts(ctx context.Context, s storage.Snapshot, idmap idtools.IDMap) error {
+	log.G(ctx).Debug("mapping ids")
+
+	for _, id := range s.ParentIDs {
+		err := o.createIDMapMount(ctx, o.upperPath(id), s.ID, idmap)
+		if err != nil {
+			return err
+		}
+	}
+
+	return idtools.RemapRoot(ctx, o.upperPath(s.ID), idmap)
+}
+
+func (o *snapshotter) createIDMapMount(ctx context.Context, path, id string, idmap idtools.IDMap) error {
+	// s.ID is the shortest unique identifier for each new container,
+	// so append it to the end of the new mountpoint
+	_, err := o.fs.IDMapMount(ctx, path, id, idmap)
+	if errdefs.IsNotFound(err) {
+		// Remote mount failed, attempt to create a local id-mapped mount
+
+		// Cleanup dirty snapshot folder — perhaps we can have a return cleanup func?
+		dirtyDir := fmt.Sprintf("%s_%s", filepath.Dir(path), id)
+		if err := os.RemoveAll(dirtyDir); err != nil {
+			return err
+		}
+		_, err = o.fs.IDMapMountLocal(ctx, path, id, idmap)
+	}
+	return err
 }
 
 // upperPath produces a file path like "{snapshotter.root}/snapshots/{id}/fs"

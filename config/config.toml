@@ -16,6 +16,7 @@ filesystem_cache_type=""
 resolve_result_entry=0
 debug=false
 allow_no_verification=true
+allow_idmap=true
 # disable_verification=false
 # Causes TestRunWithDefaultConfig to break, but
 # fine to use in /etc/soci-snapshotter-grpc-config.toml

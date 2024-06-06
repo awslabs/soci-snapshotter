@@ -37,9 +37,17 @@
 package idtools
 
 import (
+	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
+	"os"
+	"os/exec"
+	"path/filepath"
+	"syscall"
 
+	"github.com/containerd/containerd/mount"
+	"github.com/containerd/containerd/snapshots"
 	"github.com/opencontainers/runtime-spec/specs-go"
 )
 
@@ -63,7 +71,22 @@ type IDMap struct {
 	GidMap []specs.LinuxIDMapping `json:"GidMap"`
 }
 
-// ToHost returns the host user ID pair for the container ID pair.
+func LoadIDMap(id string, labels map[string]string) (IDMap, error) {
+	var idmap IDMap
+	uidmapJSON, okUID := labels[snapshots.LabelSnapshotUIDMapping]
+	gidmapJSON, okGID := labels[snapshots.LabelSnapshotGIDMapping]
+	if okUID && okGID {
+		if err := json.Unmarshal([]byte(uidmapJSON), &idmap.UidMap); err != nil {
+			return IDMap{}, err
+		}
+		if err := json.Unmarshal([]byte(gidmapJSON), &idmap.GidMap); err != nil {
+			return IDMap{}, err
+		}
+	}
+	return idmap, nil
+}
+
+// ToHost returns the mapped host user ID pair
 func (i IDMap) ToHost(pair User) (User, error) {
 	var (
 		target User
@@ -115,4 +138,50 @@ func safeSum(x, y uint32) (uint32, error) {
 		return invalidID, errors.New("ID overflow")
 	}
 	return z, nil
+}
+
+func RemapDir(ctx context.Context, originalMountpoint, newMountpoint string, idMap IDMap) error {
+	idmappedSnapshotBase := filepath.Dir(newMountpoint)
+	if err := os.Mkdir(idmappedSnapshotBase, 0755); err != nil {
+		return err
+	}
+
+	// It would be preferred to use something like continuity.CopyDir, but we need to avoid copying hardlinks,
+	// unless there is a more efficient way to ensure we don't id-map the same inode multiple times
+	if err := exec.Command("cp", "-R", originalMountpoint, idmappedSnapshotBase).Run(); err != nil {
+		return err
+	}
+	return filepath.Walk(newMountpoint, chown(idMap))
+}
+
+func RemapRoot(ctx context.Context, root string, idMap IDMap) error {
+	return filepath.Walk(root, chown(idMap))
+}
+
+func RemapRootFS(ctx context.Context, mounts []mount.Mount, idmap IDMap) error {
+	return mount.WithTempMount(ctx, mounts, func(root string) error {
+		return filepath.Walk(root, chown(idmap))
+	})
+}
+
+func chown(idMap IDMap) filepath.WalkFunc {
+	return func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+		stat := info.Sys().(*syscall.Stat_t)
+		h, cerr := idMap.ToHost(User{Uid: stat.Uid, Gid: stat.Gid})
+		if cerr != nil {
+			return cerr
+		}
+		// be sure the lchown the path as to not de-reference the symlink to a host file
+		if cerr = os.Lchown(path, int(h.Uid), int(h.Gid)); cerr != nil {
+			return cerr
+		}
+		// we must retain special permissions such as setuid, setgid and sticky bits
+		if mode := info.Mode(); mode&os.ModeSymlink == 0 && mode&(os.ModeSetuid|os.ModeSetgid|os.ModeSticky) != 0 {
+			return os.Chmod(path, mode)
+		}
+		return nil
+	}
 }

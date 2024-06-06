@@ -41,6 +41,7 @@ import (
 	"syscall"
 	"testing"
 
+	"github.com/awslabs/soci-snapshotter/idtools"
 	"github.com/containerd/containerd/mount"
 	"github.com/containerd/containerd/pkg/testutil"
 	"github.com/containerd/containerd/snapshots"
@@ -406,6 +407,9 @@ func (fs *bindFs) Check(ctx context.Context, mountpoint string, labels map[strin
 func (fs *bindFs) Unmount(ctx context.Context, mountpoint string) error {
 	return syscall.Unmount(mountpoint, 0)
 }
+func (fs *bindFs) UnmountLocal(ctx context.Context, mountpoint string) error {
+	return errdefs.ErrNotImplemented
+}
 
 func (fs *bindFs) MountLocal(ctx context.Context, mountpoint string, labels map[string]string, mounts []mount.Mount) error {
 	if _, ok := labels[brokenLabel]; ok {
@@ -415,6 +419,14 @@ func (fs *bindFs) MountLocal(ctx context.Context, mountpoint string, labels map[
 		fs.t.Fatalf("failed to bind mount %q to %q: %v", fs.root, mountpoint, err)
 	}
 	return nil
+}
+
+func (fs *bindFs) IDMapMount(ctx context.Context, mountpoint, activeLayerKey string, idmap idtools.IDMap) (string, error) {
+	return mountpoint, nil
+}
+
+func (fs *bindFs) IDMapMountLocal(ctx context.Context, mountpoint, activeLayerKey string, idmap idtools.IDMap) (string, error) {
+	return mountpoint, nil
 }
 
 func dummyFileSystem() FileSystem { return &dummyFs{} }
@@ -433,8 +445,20 @@ func (fs *dummyFs) Unmount(ctx context.Context, mountpoint string) error {
 	return fmt.Errorf("dummy")
 }
 
+func (fs *dummyFs) UnmountLocal(ctx context.Context, mountpoint string) error {
+	return fmt.Errorf("dummy")
+}
+
 func (fs *dummyFs) MountLocal(ctx context.Context, mountpoint string, labels map[string]string, mounts []mount.Mount) error {
 	return fmt.Errorf("dummy")
+}
+
+func (fs *dummyFs) IDMapMount(ctx context.Context, mountpoint, activeLayerKey string, idmap idtools.IDMap) (string, error) {
+	return "", fmt.Errorf("dummy")
+}
+
+func (fs *dummyFs) IDMapMountLocal(ctx context.Context, mountpoint, activeLayerKey string, idmap idtools.IDMap) (string, error) {
+	return "", fmt.Errorf("dummy")
 }
 
 // =============================================================================
