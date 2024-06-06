@@ -56,6 +56,7 @@ import (
 	commonmetrics "github.com/awslabs/soci-snapshotter/fs/metrics/common"
 	"github.com/awslabs/soci-snapshotter/fs/reader"
 	"github.com/awslabs/soci-snapshotter/fs/remote"
+	"github.com/awslabs/soci-snapshotter/idtools"
 	"github.com/awslabs/soci-snapshotter/metadata"
 	"github.com/containerd/log"
 	fusefs "github.com/hanwen/go-fuse/v2/fs"
@@ -189,7 +190,7 @@ func (f *FuseOperationCounter) Run(ctx context.Context) {
 
 // logFSOperations may cause sensitive information to be emitted to logs
 // e.g. filenames and paths within an image
-func newNode(layerDgst digest.Digest, r reader.Reader, blob remote.Blob, baseInode uint32, opaque OverlayOpaqueType, logFSOperations bool, opCounter *FuseOperationCounter) (fusefs.InodeEmbedder, error) {
+func newNode(layerDgst digest.Digest, r reader.Reader, blob remote.Blob, baseInode uint32, opaque OverlayOpaqueType, logFSOperations bool, opCounter *FuseOperationCounter, idMapper idtools.IDMap) (fusefs.InodeEmbedder, error) {
 	rootID := r.Metadata().RootID()
 	rootAttr, err := r.Metadata().GetAttr(rootID)
 	if err != nil {
@@ -210,9 +211,10 @@ func newNode(layerDgst digest.Digest, r reader.Reader, blob remote.Blob, baseIno
 	}
 	ffs.s = ffs.newState(layerDgst, blob)
 	return &node{
-		id:   rootID,
-		attr: rootAttr,
-		fs:   ffs,
+		id:       rootID,
+		attr:     rootAttr,
+		fs:       ffs,
+		idMapper: idMapper,
 	}, nil
 }
 
@@ -272,9 +274,10 @@ func (fs *fs) inodeOfID(id uint32) (uint64, error) {
 // node is a filesystem inode abstraction.
 type node struct {
 	fusefs.Inode
-	fs   *fs
-	id   uint32
-	attr metadata.Attr
+	fs       *fs
+	id       uint32
+	attr     metadata.Attr
+	idMapper idtools.IDMap
 
 	ents       []fuse.DirEntry
 	entsCached bool
@@ -407,14 +410,14 @@ func (n *node) Lookup(ctx context.Context, name string, out *fuse.EntryOut) (*fu
 				n.fs.reportFailure(fuseOpLookup, fmt.Errorf("%s: %v", fuseOpLookup, err))
 				return nil, syscall.EIO
 			}
-			entryToAttr(ino, tn.attr, &out.Attr)
+			n.entryToAttr(ino, tn.attr, &out.Attr)
 		case *whiteout:
 			ino, err := n.fs.inodeOfID(tn.id)
 			if err != nil {
 				n.fs.reportFailure(fuseOpLookup, fmt.Errorf("%s: %v", fuseOpLookup, err))
 				return nil, syscall.EIO
 			}
-			entryToAttr(ino, tn.attr, &out.Attr)
+			n.entryToAttr(ino, tn.attr, &out.Attr)
 		default:
 			n.fs.reportFailure(fuseOpLookup, fmt.Errorf("%s: unknown node type detected", fuseOpLookup))
 			return nil, syscall.EIO
@@ -463,10 +466,11 @@ func (n *node) Lookup(ctx context.Context, name string, out *fuse.EntryOut) (*fu
 		return nil, syscall.EIO
 	}
 	return n.NewInode(ctx, &node{
-		id:   id,
-		fs:   n.fs,
-		attr: ce,
-	}, entryToAttr(ino, ce, &out.Attr)), 0
+		id:       id,
+		fs:       n.fs,
+		attr:     ce,
+		idMapper: n.idMapper,
+	}, n.entryToAttr(ino, ce, &out.Attr)), 0
 }
 
 var _ = (fusefs.NodeOpener)((*node)(nil))
@@ -495,7 +499,7 @@ func (n *node) Getattr(ctx context.Context, f fusefs.FileHandle, out *fuse.AttrO
 		n.fs.reportFailure(fuseOpGetattr, fmt.Errorf("%s: %v", fuseOpGetattr, err))
 		return syscall.EIO
 	}
-	entryToAttr(ino, n.attr, &out.Attr)
+	n.entryToAttr(ino, n.attr, &out.Attr)
 	return 0
 }
 
@@ -594,7 +598,7 @@ func (f *file) Getattr(ctx context.Context, out *fuse.AttrOut) syscall.Errno {
 		f.n.fs.reportFailure(fuseOpFileGetattr, fmt.Errorf("%s: %v", fuseOpFileGetattr, err))
 		return syscall.EIO
 	}
-	entryToAttr(ino, f.n.attr, &out.Attr)
+	f.n.entryToAttr(ino, f.n.attr, &out.Attr)
 	return 0
 }
 
@@ -797,7 +801,7 @@ func (sf *statFile) updateStatUnlocked() ([]byte, error) {
 }
 
 // entryToAttr converts metadata.Attr to go-fuse's Attr.
-func entryToAttr(ino uint64, e metadata.Attr, out *fuse.Attr) fusefs.StableAttr {
+func (n *node) entryToAttr(ino uint64, e metadata.Attr, out *fuse.Attr) fusefs.StableAttr {
 	out.Ino = ino
 	out.Size = uint64(e.Size)
 	if e.Mode&os.ModeSymlink != 0 {
@@ -808,7 +812,8 @@ func entryToAttr(ino uint64, e metadata.Attr, out *fuse.Attr) fusefs.StableAttr 
 	mtime := e.ModTime
 	out.SetTimes(nil, &mtime, nil)
 	out.Mode = fileModeToSystemMode(e.Mode)
-	out.Owner = fuse.Owner{Uid: uint32(e.UID), Gid: uint32(e.GID)}
+	mappedID, _ := n.idMapper.ToHost(idtools.User{Uid: uint32(e.UID), Gid: uint32(e.GID)})
+	out.Owner = fuse.Owner{Uid: mappedID.Uid, Gid: mappedID.Gid}
 	out.Rdev = uint32(unix.Mkdev(uint32(e.DevMajor), uint32(e.DevMinor)))
 	out.Nlink = uint32(e.NumLink)
 	if out.Nlink == 0 {

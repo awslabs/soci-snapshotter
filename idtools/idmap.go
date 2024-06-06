@@ -37,10 +37,17 @@
 package idtools
 
 import (
+	"context"
 	"errors"
 	"fmt"
+	"os"
+	"os/exec"
+	"path/filepath"
 	"strings"
+	"syscall"
 
+	"github.com/containerd/containerd/mount"
+	"github.com/containerd/containerd/snapshots"
 	"github.com/opencontainers/runtime-spec/specs-go"
 )
 
@@ -62,6 +69,18 @@ type User struct {
 type IDMap struct {
 	UidMap []specs.LinuxIDMapping `json:"UidMap"`
 	GidMap []specs.LinuxIDMapping `json:"GidMap"`
+}
+
+func LoadIDMap(id string, labels map[string]string) (IDMap, error) {
+	var idmap IDMap
+	uidmapJSON, okUID := labels[snapshots.LabelSnapshotUIDMapping]
+	gidmapJSON, okGID := labels[snapshots.LabelSnapshotGIDMapping]
+	if okUID && okGID {
+		if err := idmap.Unmarshal(uidmapJSON, gidmapJSON); err != nil {
+			return IDMap{}, err
+		}
+	}
+	return idmap, nil
 }
 
 // ToHost returns the host user ID pair for the container ID pair.
@@ -166,4 +185,51 @@ func safeSum(x, y uint32) (uint32, error) {
 		return invalidID, errors.New("ID overflow")
 	}
 	return z, nil
+}
+
+func RemapDir(ctx context.Context, originalMountpoint, newMountpoint string, idMap IDMap) error {
+	idmappedSnapshotBase := filepath.Dir(newMountpoint)
+	if err := os.Mkdir(idmappedSnapshotBase, 0755); err != nil {
+		return err
+	}
+
+	// Use --no-preserve=links to avoid copying hardlinks
+	// (Copying hardlinks results in issues with chown as
+	// it will attempt to chown twice on the same inode)
+	if err := exec.Command("cp", "-a", "--no-preserve=links", originalMountpoint, idmappedSnapshotBase).Run(); err != nil {
+		return err
+	}
+	return filepath.Walk(newMountpoint, chown(idMap))
+}
+
+func RemapRoot(ctx context.Context, root string, idMap IDMap) error {
+	return filepath.Walk(root, chown(idMap))
+}
+
+func RemapRootFS(ctx context.Context, mounts []mount.Mount, idmap IDMap) error {
+	return mount.WithTempMount(ctx, mounts, func(root string) error {
+		return filepath.Walk(root, chown(idmap))
+	})
+}
+
+func chown(idMap IDMap) filepath.WalkFunc {
+	return func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+		stat := info.Sys().(*syscall.Stat_t)
+		h, cerr := idMap.ToHost(User{Uid: stat.Uid, Gid: stat.Gid})
+		if cerr != nil {
+			return cerr
+		}
+		// be sure the lchown the path as to not de-reference the symlink to a host file
+		if cerr = os.Lchown(path, int(h.Uid), int(h.Gid)); cerr != nil {
+			return cerr
+		}
+		// we must retain special permissions such as setuid, setgid and sticky bits
+		if mode := info.Mode(); mode&os.ModeSymlink == 0 && mode&(os.ModeSetuid|os.ModeSetgid|os.ModeSticky) != 0 {
+			return os.Chmod(path, mode)
+		}
+		return nil
+	}
 }

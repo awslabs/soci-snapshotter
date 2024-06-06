@@ -106,6 +106,7 @@ const proxySnapshotterConfig = `
   [proxy_plugins.soci]
     type = "snapshot"
     address = "/run/soci-snapshotter-grpc/soci-snapshotter-grpc.sock"
+	capabilities = ["multi-remap-ids", "remap-ids"]
 `
 
 const containerdConfigTemplate = `

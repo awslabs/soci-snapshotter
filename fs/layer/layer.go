@@ -58,6 +58,7 @@ import (
 	"github.com/awslabs/soci-snapshotter/fs/remote"
 
 	spanmanager "github.com/awslabs/soci-snapshotter/fs/span-manager"
+	"github.com/awslabs/soci-snapshotter/idtools"
 	"github.com/awslabs/soci-snapshotter/metadata"
 	"github.com/awslabs/soci-snapshotter/soci"
 	"github.com/awslabs/soci-snapshotter/util/lrucache"
@@ -86,7 +87,7 @@ type Layer interface {
 	Info() Info
 
 	// RootNode returns the root node of this layer.
-	RootNode(baseInode uint32) (fusefs.InodeEmbedder, error)
+	RootNode(baseInode uint32, idMapper idtools.IDMap) (fusefs.InodeEmbedder, error)
 
 	// Check checks if the layer is still connectable.
 	Check() error
@@ -456,11 +457,11 @@ func (l *layerRef) Done() {
 	l.done()
 }
 
-func (l *layer) RootNode(baseInode uint32) (fusefs.InodeEmbedder, error) {
+func (l *layer) RootNode(baseInode uint32, idMapper idtools.IDMap) (fusefs.InodeEmbedder, error) {
 	if l.isClosed() {
 		return nil, fmt.Errorf("layer is already closed")
 	}
-	return newNode(l.desc.Digest, l.r, l.blob, baseInode, l.resolver.overlayOpaqueType, l.resolver.config.LogFuseOperations, l.fuseOperationCounter)
+	return newNode(l.desc.Digest, l.r, l.blob, baseInode, l.resolver.overlayOpaqueType, l.resolver.config.LogFuseOperations, l.fuseOperationCounter, idMapper)
 }
 
 func (l *layer) ReadAt(p []byte, offset int64, opts ...remote.Option) (int, error) {
