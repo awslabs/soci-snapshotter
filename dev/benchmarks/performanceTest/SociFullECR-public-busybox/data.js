@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1717702395878,
+  "lastUpdate": 1717710093554,
   "repoUrl": "https://github.com/awslabs/soci-snapshotter",
   "entries": {
     "Soci Benchmark": [
@@ -7341,6 +7341,48 @@ window.BENCHMARK_DATA = {
           {
             "name": "SociFullECR-public-busybox-pullTaskDuration",
             "value": 1.4645,
+            "unit": "Seconds",
+            "extra": "P90"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "macedonv@amazon.com",
+            "name": "Austin Vazquez",
+            "username": "austinvazquez"
+          },
+          "committer": {
+            "email": "kern.walster@gmail.com",
+            "name": "Kern Walster",
+            "username": "Kern--"
+          },
+          "distinct": true,
+          "id": "99fc201a71114eafcc9b0c8a126a968d319b1138",
+          "message": "Update SOCI rebuild DB CLI help text and doc\n\nRemoves rpull command reference from help text which support has been\nremoved. Aligns help text in CLI and documentation to match.\n\nSigned-off-by: Austin Vazquez <macedonv@amazon.com>",
+          "timestamp": "2024-06-06T14:33:12-07:00",
+          "tree_id": "dc0af7b575d7c4750408be1136b6510929d84ff9",
+          "url": "https://github.com/awslabs/soci-snapshotter/commit/99fc201a71114eafcc9b0c8a126a968d319b1138"
+        },
+        "date": 1717710091890,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "SociFullECR-public-busybox-lazyTaskDuration",
+            "value": 0.0095,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-busybox-localTaskDuration",
+            "value": 0.004,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-busybox-pullTaskDuration",
+            "value": 1.051,
             "unit": "Seconds",
             "extra": "P90"
           }
