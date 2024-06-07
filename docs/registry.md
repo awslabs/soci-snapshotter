@@ -77,7 +77,7 @@ Registries that are not listed have not been tested by the SOCI maintainers or r
 | [Google Cloud Artifact Registry (AR)](https://cloud.google.com/artifact-registry)         | No          | N/A           | Testing the referrers API redirects to login         |
 | [Quay.io](https://quay.io)                                                                | No          | N/A           | Does not support image manifests with subject fields |
 | [Artifactory](https://jfrog.com/artifactory/)                                             | Yes         | Fallback      |                                                      |
-| [Harbor](https://github.com/goharbor/harbor)                                              | Yes         | Fallback      |                                                      |
+| [Harbor](https://github.com/goharbor/harbor)                                              | Yes         | Referrers API (>= v2.8.1)<br/>Fallback (< v2.8.1) | For versions >= v2.8.1 and < v2.11.0, harbor had a bug in the referrers API implementation that prevents SOCI from pulling indexes. Upgrade to >= v2.11.0 to fix the issue |
 | [Distribution](https://github.com/distribution/distribution)                              | Yes         | Fallback      |                                                      |
 | [OCI-playground Distribution](https://github.com/oci-playground/distribution)             | Yes         | Referrers API |                                                      |
 
