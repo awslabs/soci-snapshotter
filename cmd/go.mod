@@ -4,17 +4,17 @@ go 1.21
 
 require (
 	github.com/awslabs/soci-snapshotter v0.0.0-local
-	github.com/containerd/containerd v1.7.17
+	github.com/containerd/containerd v1.7.18
 	github.com/containerd/log v0.1.0
 	github.com/coreos/go-systemd/v22 v22.5.0
-	github.com/docker/cli v26.1.3+incompatible
+	github.com/docker/cli v26.1.4+incompatible
 	github.com/docker/go-metrics v0.0.1
 	github.com/opencontainers/go-digest v1.0.0
 	github.com/opencontainers/image-spec v1.1.0
 	github.com/sirupsen/logrus v1.9.3
 	github.com/urfave/cli v1.22.15
 	go.etcd.io/bbolt v1.3.10
-	golang.org/x/sys v0.20.0
+	golang.org/x/sys v0.21.0
 	google.golang.org/grpc v1.59.0
 	k8s.io/cri-api v0.28.2
 	oras.land/oras-go/v2 v2.5.0
@@ -29,6 +29,7 @@ require (
 	github.com/cespare/xxhash/v2 v2.2.0 // indirect
 	github.com/containerd/cgroups v1.1.0 // indirect
 	github.com/containerd/continuity v0.4.3 // indirect
+	github.com/containerd/errdefs v0.1.0 // indirect
 	github.com/containerd/fifo v1.1.0 // indirect
 	github.com/containerd/ttrpc v1.2.4 // indirect
 	github.com/containerd/typeurl/v2 v2.1.1 // indirect
@@ -89,12 +90,12 @@ require (
 	golang.org/x/net v0.25.0 // indirect
 	golang.org/x/oauth2 v0.16.0 // indirect
 	golang.org/x/sync v0.7.0 // indirect
-	golang.org/x/term v0.20.0 // indirect
-	golang.org/x/text v0.15.0 // indirect
+	golang.org/x/term v0.21.0 // indirect
+	golang.org/x/text v0.16.0 // indirect
 	golang.org/x/time v0.5.0 // indirect
 	google.golang.org/appengine v1.6.7 // indirect
-	google.golang.org/genproto v0.0.0-20230822172742-b8732ec3820d // indirect
-	google.golang.org/genproto/googleapis/rpc v0.0.0-20230822172742-b8732ec3820d // indirect
+	google.golang.org/genproto v0.0.0-20230920204549-e6e6cdab5c13 // indirect
+	google.golang.org/genproto/googleapis/rpc v0.0.0-20231002182017-d307bd883b97 // indirect
 	google.golang.org/protobuf v1.33.0 // indirect
 	gopkg.in/inf.v0 v0.9.1 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
