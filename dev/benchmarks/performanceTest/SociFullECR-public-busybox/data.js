@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1717710093554,
+  "lastUpdate": 1718235695220,
   "repoUrl": "https://github.com/awslabs/soci-snapshotter",
   "entries": {
     "Soci Benchmark": [
@@ -7383,6 +7383,48 @@ window.BENCHMARK_DATA = {
           {
             "name": "SociFullECR-public-busybox-pullTaskDuration",
             "value": 1.051,
+            "unit": "Seconds",
+            "extra": "P90"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "macedonv@amazon.com",
+            "name": "Austin Vazquez",
+            "username": "austinvazquez"
+          },
+          "committer": {
+            "email": "kern.walster@gmail.com",
+            "name": "Kern Walster",
+            "username": "Kern--"
+          },
+          "distinct": true,
+          "id": "184d564b9003d0fca62b6e8cc331bb5451a06bc3",
+          "message": "Add workflow to label pull requests\n\nThis change adds a GitHub Actions workflow to label PR's based on their\nchanges. The following labels will be applied to pull requests:\n\n- `documentation` - updates to `**/*.md`\n- `go` - updates to `**/*.go`\n- `testing` - updates to `**/*_test.go`\n- `github_actions` - updates to `.github/`\n- `benchmarking` - updates to `benchmark/`\n- `dependencies` - updates to `go.(mod|sum)`\n\nSigned-off-by: Austin Vazquez <macedonv@amazon.com>",
+          "timestamp": "2024-06-12T16:32:52-07:00",
+          "tree_id": "f719eade37bc161b09ccdd52d683701e38a5901d",
+          "url": "https://github.com/awslabs/soci-snapshotter/commit/184d564b9003d0fca62b6e8cc331bb5451a06bc3"
+        },
+        "date": 1718235694418,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "SociFullECR-public-busybox-lazyTaskDuration",
+            "value": 0.018,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-busybox-localTaskDuration",
+            "value": 0.006500000000000001,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-busybox-pullTaskDuration",
+            "value": 1.574,
             "unit": "Seconds",
             "extra": "P90"
           }
