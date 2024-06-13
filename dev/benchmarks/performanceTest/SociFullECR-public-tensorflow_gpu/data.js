@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1718235697392,
+  "lastUpdate": 1718298911618,
   "repoUrl": "https://github.com/awslabs/soci-snapshotter",
   "entries": {
     "Soci Benchmark": [
@@ -7302,6 +7302,48 @@ window.BENCHMARK_DATA = {
           {
             "name": "SociFullECR-public-tensorflow_gpu-pullTaskDuration",
             "value": 2.6665,
+            "unit": "Seconds",
+            "extra": "P90"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "macedonv@amazon.com",
+            "name": "Austin Vazquez",
+            "username": "austinvazquez"
+          },
+          "committer": {
+            "email": "55906459+austinvazquez@users.noreply.github.com",
+            "name": "Austin Vazquez",
+            "username": "austinvazquez"
+          },
+          "distinct": true,
+          "id": "1a00a81fed3422845e4773311c5bb0267bcbc86e",
+          "message": "Fix bug in update getting started guide workflow\n\nThis change fixes a bug in the update getting started guide workflow\nwhen assertions are disabled. This change also fixes a bug where\n'--verbose' executed git diff command in interactive mode.\n\nSigned-off-by: Austin Vazquez <macedonv@amazon.com>",
+          "timestamp": "2024-06-13T10:06:10-07:00",
+          "tree_id": "5f773d856156000cdb485960a4f85d2c2a89b153",
+          "url": "https://github.com/awslabs/soci-snapshotter/commit/1a00a81fed3422845e4773311c5bb0267bcbc86e"
+        },
+        "date": 1718298909525,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "SociFullECR-public-tensorflow_gpu-lazyTaskDuration",
+            "value": 19.459500000000002,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-tensorflow_gpu-localTaskDuration",
+            "value": 2.3785,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-tensorflow_gpu-pullTaskDuration",
+            "value": 2.8685,
             "unit": "Seconds",
             "extra": "P90"
           }
