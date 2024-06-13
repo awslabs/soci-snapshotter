@@ -1,22 +1,23 @@
 documentation:
-  - '**/*.md'
+  - changed-files:
+      - all-globs-to-all-files: ['**/*.md']
 
 github_actions:
-  - .github/**
-  - scripts/**
+  - changed-files:
+      - any-glob-to-any-file: ['.github/**', 'scripts/**']
 
 go:
-  - '**/*.go'
+  - changed-files:
+      - any-glob-to-any-file: ['**/*.go']
 
 testing:
-  - integration/**
-  - '**/*_test.go'
+  - changed-files:
+      - any-glob-to-any-file: ['integration/**', '**/*_test.go']
 
 benchmarking:
-  - benchmark/**
+  - changed-files:
+      - any-glob-to-any-file: ['benchmark/**']
 
 dependencies:
-  - cmd/go.mod
-  - cmd.go.sum
-  - go.mod
-  - go.sum
+  - changed-files:
+      - any-glob-to-any-file: ['**/go.mod', '**/go.sum']
