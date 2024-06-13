@@ -47,7 +47,7 @@ for more details.
 - [Getting Started](docs/getting-started.md): walk through SOCI setups and features.
 - [Build](docs/build.md): how to build SOCI from source, test SOCI (and contribute).
 - [Install](docs/install.md): how to install SOCI as a systemd unit.
-- [Debug](docs/debug.md): accessing logs/metrics and debugging common errors.
+- [Debug and Useful Commands](docs/debug.md): accessing logs/metrics and debugging common errors.
 - [Glossary](docs/glossary.md): glossary we use in the project.
 
 ## Project Origin
