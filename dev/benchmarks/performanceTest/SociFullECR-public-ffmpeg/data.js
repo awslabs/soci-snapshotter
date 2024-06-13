@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1718235704115,
+  "lastUpdate": 1718298910440,
   "repoUrl": "https://github.com/awslabs/soci-snapshotter",
   "entries": {
     "Soci Benchmark": [
@@ -7425,6 +7425,48 @@ window.BENCHMARK_DATA = {
           {
             "name": "SociFullECR-public-ffmpeg-pullTaskDuration",
             "value": 1.9725000000000001,
+            "unit": "Seconds",
+            "extra": "P90"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "macedonv@amazon.com",
+            "name": "Austin Vazquez",
+            "username": "austinvazquez"
+          },
+          "committer": {
+            "email": "55906459+austinvazquez@users.noreply.github.com",
+            "name": "Austin Vazquez",
+            "username": "austinvazquez"
+          },
+          "distinct": true,
+          "id": "1a00a81fed3422845e4773311c5bb0267bcbc86e",
+          "message": "Fix bug in update getting started guide workflow\n\nThis change fixes a bug in the update getting started guide workflow\nwhen assertions are disabled. This change also fixes a bug where\n'--verbose' executed git diff command in interactive mode.\n\nSigned-off-by: Austin Vazquez <macedonv@amazon.com>",
+          "timestamp": "2024-06-13T10:06:10-07:00",
+          "tree_id": "5f773d856156000cdb485960a4f85d2c2a89b153",
+          "url": "https://github.com/awslabs/soci-snapshotter/commit/1a00a81fed3422845e4773311c5bb0267bcbc86e"
+        },
+        "date": 1718298905616,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "SociFullECR-public-ffmpeg-lazyTaskDuration",
+            "value": 0.14,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-ffmpeg-localTaskDuration",
+            "value": 0.0095,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-ffmpeg-pullTaskDuration",
+            "value": 1.4765000000000001,
             "unit": "Seconds",
             "extra": "P90"
           }
