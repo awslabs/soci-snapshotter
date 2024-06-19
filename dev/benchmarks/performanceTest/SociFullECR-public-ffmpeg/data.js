@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1718740529291,
+  "lastUpdate": 1718837745293,
   "repoUrl": "https://github.com/awslabs/soci-snapshotter",
   "entries": {
     "Soci Benchmark": [
@@ -7551,6 +7551,48 @@ window.BENCHMARK_DATA = {
           {
             "name": "SociFullECR-public-ffmpeg-pullTaskDuration",
             "value": 1.44,
+            "unit": "Seconds",
+            "extra": "P90"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "shubhum@amazon.com",
+            "name": "Shubharanshu Mahapatra",
+            "username": "Shubhranshu153"
+          },
+          "committer": {
+            "email": "55555210+sondavidb@users.noreply.github.com",
+            "name": "David Son",
+            "username": "sondavidb"
+          },
+          "distinct": true,
+          "id": "07296f9741ff540f226125dfa795270c2f9900a7",
+          "message": "Fix daemon startup latency issue by providing an option to skip snapshotter supported flag\n\nSigned-off-by: Shubharanshu Mahapatra <shubhum@amazon.com>",
+          "timestamp": "2024-06-19T15:48:43-07:00",
+          "tree_id": "3b0ccddec373fb6aec21c3e932067bbfe0bb32a9",
+          "url": "https://github.com/awslabs/soci-snapshotter/commit/07296f9741ff540f226125dfa795270c2f9900a7"
+        },
+        "date": 1718837744321,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "SociFullECR-public-ffmpeg-lazyTaskDuration",
+            "value": 0.119,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-ffmpeg-localTaskDuration",
+            "value": 0.009,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-ffmpeg-pullTaskDuration",
+            "value": 1.4805000000000001,
             "unit": "Seconds",
             "extra": "P90"
           }
