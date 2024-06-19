@@ -125,8 +125,13 @@ func main() {
 		log.G(ctx).WithError(err).Fatal(err)
 	}
 
-	if err := service.Supported(*rootDir); err != nil {
-		log.G(ctx).WithError(err).Fatalf("snapshotter is not supported")
+	if !cfg.SkipCheckSnapshotterSupported {
+		if err := service.Supported(*rootDir); err != nil {
+			log.G(ctx).WithError(err).Fatalf("snapshotter is not supported")
+		}
+		log.G(ctx).Debug("snapshotter is supported")
+	} else {
+		log.G(ctx).Warn("skipped snapshotter is supported check")
 	}
 
 	// Create a gRPC server

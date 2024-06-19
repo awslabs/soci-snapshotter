@@ -34,6 +34,7 @@ This set of variables must be at the top of your TOML file due to not belonging 
 - `no_prometheus` — Defined [above](#configfsgofsconfig), cannot be redeclared.
 - `debug_address` (string) — Address where [go pprof](https://pkg.go.dev/net/http/pprof) server will listen. If empty, no logs will be emitted. Default: "".
 - `metadata_store` (string) — Metadata storage type. Only "db" is valid. Default: "db".
+- `skip_check_snapshotter_supported` (bool) - skip check for snapshotter is supported which can give performance benefits for SOCI daemon startup time. This config should only be done if you are sure overlayfs is supported. Default: false
 
 #
 
