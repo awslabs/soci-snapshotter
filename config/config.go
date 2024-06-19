@@ -69,6 +69,9 @@ type Config struct {
 
 	// MetadataStore is the type of the metadata store to use.
 	MetadataStore string `toml:"metadata_store" default:"db"`
+
+	// SkipCheckSnapshotterSupported is a flag to skip check for overlayfs support needed to confirm if SOCI can work
+	SkipCheckSnapshotterSupported bool `toml:"skip_check_snapshotter_supported"`
 }
 type configParser func(*Config)
 
