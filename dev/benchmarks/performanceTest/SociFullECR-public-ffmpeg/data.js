@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1718837745293,
+  "lastUpdate": 1718985861203,
   "repoUrl": "https://github.com/awslabs/soci-snapshotter",
   "entries": {
     "Soci Benchmark": [
@@ -7593,6 +7593,48 @@ window.BENCHMARK_DATA = {
           {
             "name": "SociFullECR-public-ffmpeg-pullTaskDuration",
             "value": 1.4805000000000001,
+            "unit": "Seconds",
+            "extra": "P90"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "davbson@amazon.com",
+            "name": "David Son",
+            "username": "sondavidb"
+          },
+          "committer": {
+            "email": "swagatbora90@gmail.com",
+            "name": "Swagat Bora",
+            "username": "swagatbora90"
+          },
+          "distinct": true,
+          "id": "145a4382bad97921bb72b08a8376d6276b58afbc",
+          "message": "Auto-update packages in Dockerfile\n\nSigned-off-by: David Son <davbson@amazon.com>",
+          "timestamp": "2024-06-21T08:56:25-07:00",
+          "tree_id": "53fd21ddcb40740f3af3c8d794af8a8e7170981d",
+          "url": "https://github.com/awslabs/soci-snapshotter/commit/145a4382bad97921bb72b08a8376d6276b58afbc"
+        },
+        "date": 1718985860305,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "SociFullECR-public-ffmpeg-lazyTaskDuration",
+            "value": 0.3315,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-ffmpeg-localTaskDuration",
+            "value": 0.007,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-ffmpeg-pullTaskDuration",
+            "value": 1.875,
             "unit": "Seconds",
             "extra": "P90"
           }
