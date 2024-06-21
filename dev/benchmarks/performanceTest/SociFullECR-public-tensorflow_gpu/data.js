@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1718837746281,
+  "lastUpdate": 1718985866763,
   "repoUrl": "https://github.com/awslabs/soci-snapshotter",
   "entries": {
     "Soci Benchmark": [
@@ -7470,6 +7470,48 @@ window.BENCHMARK_DATA = {
           {
             "name": "SociFullECR-public-tensorflow_gpu-pullTaskDuration",
             "value": 1.8900000000000001,
+            "unit": "Seconds",
+            "extra": "P90"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "davbson@amazon.com",
+            "name": "David Son",
+            "username": "sondavidb"
+          },
+          "committer": {
+            "email": "swagatbora90@gmail.com",
+            "name": "Swagat Bora",
+            "username": "swagatbora90"
+          },
+          "distinct": true,
+          "id": "145a4382bad97921bb72b08a8376d6276b58afbc",
+          "message": "Auto-update packages in Dockerfile\n\nSigned-off-by: David Son <davbson@amazon.com>",
+          "timestamp": "2024-06-21T08:56:25-07:00",
+          "tree_id": "53fd21ddcb40740f3af3c8d794af8a8e7170981d",
+          "url": "https://github.com/awslabs/soci-snapshotter/commit/145a4382bad97921bb72b08a8376d6276b58afbc"
+        },
+        "date": 1718985863171,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "SociFullECR-public-tensorflow_gpu-lazyTaskDuration",
+            "value": 13.115,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-tensorflow_gpu-localTaskDuration",
+            "value": 2.3689999999999998,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-tensorflow_gpu-pullTaskDuration",
+            "value": 4.5785,
             "unit": "Seconds",
             "extra": "P90"
           }
