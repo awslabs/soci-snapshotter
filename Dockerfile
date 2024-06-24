@@ -27,6 +27,7 @@ ARG TARGETARCH
 COPY ./integ_entrypoint.sh /integ_entrypoint.sh
 COPY . $GOPATH/src/github.com/awslabs/soci-snapshotter
 ENV GOPROXY direct
+RUN apk update && apk upgrade
 RUN apk add --no-cache \
     btrfs-progs-libs \
     curl \
