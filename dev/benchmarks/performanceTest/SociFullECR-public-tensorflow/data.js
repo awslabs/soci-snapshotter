@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1718985864751,
+  "lastUpdate": 1719246385182,
   "repoUrl": "https://github.com/awslabs/soci-snapshotter",
   "entries": {
     "Soci Benchmark": [
@@ -7676,6 +7676,48 @@ window.BENCHMARK_DATA = {
           {
             "name": "SociFullECR-public-tensorflow-pullTaskDuration",
             "value": 2.1174999999999997,
+            "unit": "Seconds",
+            "extra": "P90"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "shubhum@amazon.com",
+            "name": "Shubharanshu Mahapatra",
+            "username": "Shubhranshu153"
+          },
+          "committer": {
+            "email": "47723536+Shubhranshu153@users.noreply.github.com",
+            "name": "Subhransu",
+            "username": "Shubhranshu153"
+          },
+          "distinct": true,
+          "id": "a857d2b83d3c86e70392ae658e918816c747d5d8",
+          "message": "Bump version of containerd to 1.7.18 for latest and 1.6.33 for LTS\n\nSigned-off-by: Shubharanshu Mahapatra <shubhum@amazon.com>",
+          "timestamp": "2024-06-24T09:18:25-07:00",
+          "tree_id": "a2d8d2413c0a74defbfb63af7c7eec8e8f416f20",
+          "url": "https://github.com/awslabs/soci-snapshotter/commit/a857d2b83d3c86e70392ae658e918816c747d5d8"
+        },
+        "date": 1719246382199,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "SociFullECR-public-tensorflow-lazyTaskDuration",
+            "value": 9.393,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-tensorflow-localTaskDuration",
+            "value": 2.2605,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-tensorflow-pullTaskDuration",
+            "value": 1.8155,
             "unit": "Seconds",
             "extra": "P90"
           }
