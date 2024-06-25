@@ -29,6 +29,7 @@ import (
 	"github.com/awslabs/soci-snapshotter/soci/store"
 	"github.com/awslabs/soci-snapshotter/util/ioutils"
 	"github.com/containerd/containerd/reference"
+	"github.com/containerd/containerd/remotes/docker"
 	"github.com/containerd/log"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"golang.org/x/sync/errgroup"
@@ -73,6 +74,11 @@ func newRemoteStore(refspec reference.Spec, client *http.Client) (*remote.Reposi
 		return nil, fmt.Errorf("cannot create repository %s: %w", refspec.Locator, err)
 	}
 	repo.Client = client
+	repo.PlainHTTP, err = docker.MatchLocalhost(refspec.Hostname())
+	if err != nil {
+		return nil, fmt.Errorf("cannot create repository %s: %w", refspec.Locator, err)
+	}
+
 	return repo, nil
 }
 
