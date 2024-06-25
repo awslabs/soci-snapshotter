@@ -39,7 +39,6 @@ import (
 	"github.com/opencontainers/go-digest"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 
-	orascontent "oras.land/oras-go/v2/content"
 	"oras.land/oras-go/v2/errdef"
 )
 
@@ -273,14 +272,14 @@ func WithArtifactsDb(db *ArtifactsDb) BuildOption {
 // IndexBuilder creates soci indices.
 type IndexBuilder struct {
 	contentStore content.Store
-	blobStore    orascontent.Storage
+	blobStore    store.Store
 	ArtifactsDb  *ArtifactsDb
 	config       *buildConfig
 	ztocBuilder  *ztoc.Builder
 }
 
 // NewIndexBuilder returns an `IndexBuilder` that is used to create soci indices.
-func NewIndexBuilder(contentStore content.Store, blobStore orascontent.Storage, artifactsDb *ArtifactsDb, opts ...BuildOption) (*IndexBuilder, error) {
+func NewIndexBuilder(contentStore content.Store, blobStore store.Store, artifactsDb *ArtifactsDb, opts ...BuildOption) (*IndexBuilder, error) {
 	defaultPlatform := platforms.DefaultSpec()
 	config := &buildConfig{
 		spanSize:            defaultSpanSize,
@@ -305,8 +304,35 @@ func NewIndexBuilder(contentStore content.Store, blobStore orascontent.Storage, 
 	}, nil
 }
 
-// Build builds a soci index for `img` and return the index with metadata.
+// Build builds a soci index for `img` and pushes it with its corresponding zTOCs to the blob store.
+// Returns the SOCI index and its metadata.
 func (b *IndexBuilder) Build(ctx context.Context, img images.Image) (*IndexWithMetadata, error) {
+	// batch will prevent content from being garbage collected in the middle of the following operations
+	ctx, done, err := b.blobStore.BatchOpen(ctx)
+	if err != nil {
+		return nil, err
+	}
+	defer done(ctx)
+
+	// Create and push zTOCs to blob store
+	index, err := b.build(ctx, img)
+	if err != nil {
+		return nil, err
+	}
+
+	// Label zTOCs and push SOCI index
+	err = b.writeSociIndex(ctx, index)
+	if err != nil {
+		return nil, err
+	}
+
+	return index, nil
+}
+
+// build attempts to create a zTOC in each layer and pushes the zTOC to the blob store.
+// It then creates the SOCI index and returns it with some metadata.
+// This should be done within a Batch and followed by writeSociIndex() to prevent garbage collection.
+func (b *IndexBuilder) build(ctx context.Context, img images.Image) (*IndexWithMetadata, error) {
 	// we get manifest descriptor before calling images.Manifest, since after calling
 	// images.Manifest, images.Children will error out when reading the manifest blob (this happens on containerd side)
 	imgManifestDesc, err := GetImageManifestDescriptor(ctx, b.contentStore, img.Target, platforms.OnlyStrict(b.config.platform))
@@ -357,7 +383,6 @@ func (b *IndexBuilder) Build(ctx context.Context, img images.Image) (*IndexWithM
 		for _, err := range errs {
 			errWrap = fmt.Errorf("%w; %v", errWrap, err)
 		}
-
 		return nil, errWrap
 	}
 
@@ -393,6 +418,7 @@ func (b *IndexBuilder) Build(ctx context.Context, img images.Image) (*IndexWithM
 
 // buildSociLayer builds a ztoc for an image layer (`desc`) and returns ztoc descriptor.
 // It may skip building ztoc (e.g., if layer size < `minLayerSize`) and return nil.
+// This should be done within a Batch and followed by Label calls to prevent garbage collection.
 func (b *IndexBuilder) buildSociLayer(ctx context.Context, desc ocispec.Descriptor) (*ocispec.Descriptor, error) {
 	if !images.IsLayerType(desc.MediaType) {
 		return nil, errNotLayerType
@@ -541,15 +567,9 @@ func GetImageManifestDescriptor(ctx context.Context, cs content.Store, imageTarg
 	return nil, nil
 }
 
-// WriteSociIndex writes the SociIndex manifest to oras `store`.
-func WriteSociIndex(ctx context.Context, indexWithMetadata *IndexWithMetadata, contentStore store.Store, artifactsDb *ArtifactsDb) error {
-	// batch will prevent content from being garbage collected in the middle of the following operations
-	ctx, batchDone, err := contentStore.BatchOpen(ctx)
-	if err != nil {
-		return err
-	}
-	defer batchDone(ctx)
-
+// writeSociIndex writes the SociIndex manifest to the blob store.
+// This should be done within a Batch to prevent garbage collection.
+func (b *IndexBuilder) writeSociIndex(ctx context.Context, indexWithMetadata *IndexWithMetadata) error {
 	manifest, err := MarshalIndex(indexWithMetadata.Index)
 	if err != nil {
 		return err
@@ -559,7 +579,7 @@ func WriteSociIndex(ctx context.Context, indexWithMetadata *IndexWithMetadata, c
 	// empty config objct in the store as well. We will need to push this to the
 	// registry later.
 	if indexWithMetadata.Index.MediaType == ocispec.MediaTypeImageManifest {
-		err = contentStore.Push(ctx, defaultConfigDescriptor, bytes.NewReader(defaultConfigContent))
+		err = b.blobStore.Push(ctx, defaultConfigDescriptor, bytes.NewReader(defaultConfigContent))
 		if err != nil && !errors.Is(err, errdef.ErrAlreadyExists) {
 			return fmt.Errorf("error creating OCI 1.0 empty config: %w", err)
 		}
@@ -572,25 +592,25 @@ func WriteSociIndex(ctx context.Context, indexWithMetadata *IndexWithMetadata, c
 		Size:   size,
 	}
 
-	err = contentStore.Push(ctx, desc, bytes.NewReader(manifest))
+	err = b.blobStore.Push(ctx, desc, bytes.NewReader(manifest))
 	if err != nil && !errors.Is(err, errdef.ErrAlreadyExists) {
 		return fmt.Errorf("cannot write SOCI index to local store: %w", err)
 	}
 
 	log.G(ctx).WithField("digest", dgst.String()).Debugf("soci index has been written")
 
-	err = store.LabelGCRoot(ctx, contentStore, desc)
+	err = store.LabelGCRoot(ctx, b.blobStore, desc)
 	if err != nil {
 		return fmt.Errorf("cannot apply garbage collection label to index %s: %w", desc.Digest.String(), err)
 	}
-	err = store.LabelGCRefContent(ctx, contentStore, desc, "config", defaultConfigDescriptor.Digest.String())
+	err = store.LabelGCRefContent(ctx, b.blobStore, desc, "config", defaultConfigDescriptor.Digest.String())
 	if err != nil {
 		return fmt.Errorf("cannot apply garbage collection label to index %s referencing default config: %w", desc.Digest.String(), err)
 	}
 
 	var allErr error
 	for i, blob := range indexWithMetadata.Index.Blobs {
-		err = store.LabelGCRefContent(ctx, contentStore, desc, "ztoc."+strconv.Itoa(i), blob.Digest.String())
+		err = store.LabelGCRefContent(ctx, b.blobStore, desc, "ztoc."+strconv.Itoa(i), blob.Digest.String())
 		if err != nil {
 			errors.Join(allErr, err)
 		}
@@ -617,7 +637,7 @@ func WriteSociIndex(ctx context.Context, indexWithMetadata *IndexWithMetadata, c
 		MediaType:      indexWithMetadata.Index.MediaType,
 		CreatedAt:      indexWithMetadata.CreatedAt,
 	}
-	return artifactsDb.WriteArtifactEntry(entry)
+	return b.ArtifactsDb.WriteArtifactEntry(entry)
 }
 
 func (b *IndexBuilder) maybeAddDisableXattrAnnotation(ztocDesc *ocispec.Descriptor, ztoc *ztoc.Ztoc) {

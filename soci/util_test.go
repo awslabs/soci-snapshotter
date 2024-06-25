@@ -20,14 +20,50 @@ import (
 	"context"
 	"io"
 
+	"github.com/awslabs/soci-snapshotter/soci/store"
 	"github.com/containerd/containerd/content"
 	"github.com/opencontainers/go-digest"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
+	"oras.land/oras-go/v2/content/memory"
 )
 
 func parseDigest(digestString string) digest.Digest {
 	dgst, _ := digest.Parse(digestString)
 	return dgst
+}
+
+type OrasMemoryStore struct {
+	s *memory.Store
+}
+
+func (*OrasMemoryStore) BatchOpen(ctx context.Context) (context.Context, store.CleanupFunc, error) {
+	return ctx, store.NopCleanup, nil
+}
+
+func (m *OrasMemoryStore) Exists(ctx context.Context, target ocispec.Descriptor) (bool, error) {
+	return m.s.Exists(ctx, target)
+}
+
+func (m *OrasMemoryStore) Fetch(ctx context.Context, target ocispec.Descriptor) (io.ReadCloser, error) {
+	return m.s.Fetch(ctx, target)
+}
+
+func (m *OrasMemoryStore) Push(ctx context.Context, expected ocispec.Descriptor, reader io.Reader) error {
+	return m.s.Push(ctx, expected, reader)
+}
+
+func (m *OrasMemoryStore) Label(ctx context.Context, target ocispec.Descriptor, label string, value string) error {
+	return nil
+}
+
+func (m *OrasMemoryStore) Delete(ctx context.Context, dgst digest.Digest) error {
+	return nil
+}
+
+func NewOrasMemoryStore() *OrasMemoryStore {
+	return &OrasMemoryStore{
+		s: memory.New(),
+	}
 }
 
 type fakeContentStore struct {

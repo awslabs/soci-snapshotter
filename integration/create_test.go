@@ -19,6 +19,7 @@ package integration
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"path/filepath"
 	"testing"
 
@@ -200,5 +201,34 @@ func TestSociCreate(t *testing.T) {
 				t.Fatalf("failed to validate soci index: %v", err)
 			}
 		})
+	}
+}
+
+// TestSociCreateGarbageCollection ensures that SOCI index artifacts are not garbage collected after creation.
+func TestSociCreateGarbageCollection(t *testing.T) {
+	image := rabbitmqImage
+	smallImage := alpineImage
+	sh, done := newSnapshotterBaseShell(t)
+	defer done()
+
+	extraContainerdConfig := `
+[plugins."io.containerd.gc.v1.scheduler"]
+	deletion_threshold = 1`
+
+	rebootContainerd(t, sh, getContainerdConfigToml(t, false, extraContainerdConfig), getSnapshotterConfigToml(t, false, tcpMetricsConfig, GetContentStoreConfigToml(store.WithType(config.ContainerdContentStoreType))))
+
+	imgInfo := dockerhub(image)
+	sh.X("nerdctl", "pull", "-q", imgInfo.ref)
+	indexDigest := buildIndex(sh, imgInfo, withMinLayerSize(0), withContentStoreType(config.ContainerdContentStoreType))
+
+	// Pull and remove a small image to automatically trigger GC.
+	smallImageInfo := dockerhub(smallImage)
+	sh.X("nerdctl", "pull", "-q", smallImageInfo.ref)
+	sh.X("nerdctl", "rmi", smallImageInfo.ref)
+
+	sh.X(append(imagePullCmd, "--soci-index-digest", indexDigest, imgInfo.ref)...)
+	curlOutput := string(sh.O("curl", tcpMetricsAddress+metricsPath))
+	if err := checkOverlayFallbackCount(curlOutput, 0); err != nil {
+		t.Fatal(fmt.Errorf("resources unexpectedly garbage collected: %v", err))
 	}
 }

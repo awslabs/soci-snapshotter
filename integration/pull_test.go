@@ -236,7 +236,7 @@ func TestLazyPullWithSparseIndex(t *testing.T) {
 }
 
 func checkFuseMounts(t *testing.T, sh *shell.Shell, remoteSnapshotsExpectedCount int) {
-	mounts := string(sh.O("mount"))
+	mounts := string(sh.O("cat", "/proc/mounts"))
 	remoteSnapshotsActualCount := strings.Count(mounts, "fuse.rawBridge")
 	if remoteSnapshotsExpectedCount != remoteSnapshotsActualCount {
 		t.Fatalf("incorrect number of remote snapshots; expected=%d, actual=%d",
@@ -739,7 +739,7 @@ insecure = true
 		t.Fatalf("failed to write %v: %v", caCertDir, err)
 	}
 	sh.
-		X("apt-get", "--no-install-recommends", "install", "-y", "iptables").
+		X("apk", "add", "--no-cache", "iptables").
 		X("update-ca-certificates").
 		Retry(100, "nerdctl", "login", "-u", regConfig.user, "-p", regConfig.pass, regConfig.host)
 

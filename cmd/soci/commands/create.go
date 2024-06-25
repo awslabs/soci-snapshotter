@@ -122,12 +122,7 @@ var CreateCommand = cli.Command{
 				return err
 			}
 
-			sociIndexWithMetadata, err := builder.Build(ctx, srcImg)
-			if err != nil {
-				return err
-			}
-
-			err = soci.WriteSociIndex(ctx, sociIndexWithMetadata, blobStore, builder.ArtifactsDb)
+			_, err = builder.Build(ctx, srcImg)
 			if err != nil {
 				return err
 			}

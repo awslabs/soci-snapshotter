@@ -28,7 +28,6 @@ import (
 	"github.com/google/go-cmp/cmp"
 	"github.com/opencontainers/go-digest"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
-	"oras.land/oras-go/v2/content/memory"
 )
 
 func TestSkipBuildingZtoc(t *testing.T) {
@@ -136,7 +135,7 @@ func TestBuildSociIndexNotLayer(t *testing.T) {
 	spanSize := int64(65535)
 	ctx := context.Background()
 	cs := newFakeContentStore()
-	blobStore := memory.New()
+	blobStore := NewOrasMemoryStore()
 
 	artifactsDb, err := newTestableDb()
 	if err != nil {
@@ -209,7 +208,7 @@ func TestBuildSociIndexWithLimits(t *testing.T) {
 				Size:      tc.layerSize,
 			}
 			spanSize := int64(65535)
-			blobStore := memory.New()
+			blobStore := NewOrasMemoryStore()
 			artifactsDb, err := newTestableDb()
 			if err != nil {
 				t.Fatalf("can't create a test db")
@@ -305,7 +304,7 @@ func TestDisableXattrs(t *testing.T) {
 			}
 
 			cs := newFakeContentStore()
-			blobStore := memory.New()
+			blobStore := NewOrasMemoryStore()
 			artifactsDb, err := newTestableDb()
 			if err != nil {
 				t.Fatalf("can't create a test db")
