@@ -21,6 +21,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"net/http"
 	"testing"
 
 	"github.com/containerd/containerd/reference"
@@ -208,6 +209,47 @@ func TestArtifactFetcherFetchOnlyOnce(t *testing.T) {
 
 			if diff := cmp.Diff(tc.contents, readBytes); diff != "" {
 				t.Fatalf("unexpected content, diff = %v", diff)
+			}
+		})
+	}
+}
+
+func TestNewRemoteStore(t *testing.T) {
+	client := http.Client{}
+	testCases := []struct {
+		name              string
+		ref               string
+		shouldBePlainHTTP bool
+		expectedError     error
+	}{
+		{
+			name:              "ECR public is not plain http",
+			ref:               "public.ecr.aws/ref:tag",
+			shouldBePlainHTTP: false,
+		},
+		{
+			name:              "localhost is plain http",
+			ref:               "localhost:5000/ref:tag",
+			shouldBePlainHTTP: true,
+		},
+	}
+
+	for _, tc := range testCases {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			refspec, err := reference.Parse(tc.ref)
+			if err != nil {
+				t.Fatalf("unexpected failure parsing reference: %v", err)
+			}
+			r, err := newRemoteStore(refspec, &client)
+			if err != nil {
+				t.Fatalf("unexpected error, got %v", err)
+			}
+			if r.Client != &client {
+				t.Fatalf("unexpected http client, expected %v, got %v", &client, r.Client)
+			}
+			if r.PlainHTTP != tc.shouldBePlainHTTP {
+				t.Fatalf("unepected plain http, expected: %v, got %v", tc.shouldBePlainHTTP, r.PlainHTTP)
 			}
 		})
 	}
