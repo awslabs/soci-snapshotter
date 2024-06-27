@@ -19,3 +19,4 @@ set -eux -o pipefail
 
 go install github.com/kunalkushwaha/ltag@v0.2.4
 go install github.com/vbatts/git-validation@v1.2.0
+go install github.com/google/go-licenses@v1.6.0

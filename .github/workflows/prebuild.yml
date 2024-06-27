@@ -75,3 +75,11 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - run: shellcheck ./**/*.sh
+
+  licensing:
+    runs-on: ubuntu-20.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+      - run: ./scripts/install-check-tools.sh
+      - run: ./scripts/check-third-party-licenses.sh
