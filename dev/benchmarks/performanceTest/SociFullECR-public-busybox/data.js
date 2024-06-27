@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1719246381753,
+  "lastUpdate": 1719459660838,
   "repoUrl": "https://github.com/awslabs/soci-snapshotter",
   "entries": {
     "Soci Benchmark": [
@@ -7677,6 +7677,48 @@ window.BENCHMARK_DATA = {
           {
             "name": "SociFullECR-public-busybox-pullTaskDuration",
             "value": 1.1235,
+            "unit": "Seconds",
+            "extra": "P90"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "no-reply@github.com",
+            "name": "GitHub",
+            "username": "invalid-email-address"
+          },
+          "committer": {
+            "email": "55906459+austinvazquez@users.noreply.github.com",
+            "name": "Austin Vazquez",
+            "username": "austinvazquez"
+          },
+          "distinct": true,
+          "id": "a6719c59c314db23612386b28bfa8115f140ffad",
+          "message": "Bump dependencies using scripts/bump-deps.sh\n\nSigned-off-by: github-actions[bot] <41898282+github-actions[bot]@users.noreply.github.com>",
+          "timestamp": "2024-06-26T20:31:18-07:00",
+          "tree_id": "7c8cc38c7a59993c0d3a294d8988563526d96a73",
+          "url": "https://github.com/awslabs/soci-snapshotter/commit/a6719c59c314db23612386b28bfa8115f140ffad"
+        },
+        "date": 1719459658234,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "SociFullECR-public-busybox-lazyTaskDuration",
+            "value": 0.028999999999999998,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-busybox-localTaskDuration",
+            "value": 0.0055,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-busybox-pullTaskDuration",
+            "value": 1.1965,
             "unit": "Seconds",
             "extra": "P90"
           }
