@@ -146,18 +146,17 @@ func FetchSociArtifacts(ctx context.Context, refspec reference.Spec, indexDesc o
 	}
 	defer indexReader.Close()
 
-	cw := new(ioutils.CountWriter)
-	tee := io.TeeReader(indexReader, cw)
+	tr := ioutils.NewPositionTrackerReader(indexReader)
 
 	var index soci.Index
-	err = soci.DecodeIndex(tee, &index)
+	err = soci.DecodeIndex(tr, &index)
 	if err != nil {
 		return nil, fmt.Errorf("cannot deserialize byte data to index: %w", err)
 	}
 
 	desc := ocispec.Descriptor{
 		Digest: indexDesc.Digest,
-		Size:   cw.Size(),
+		Size:   tr.CurrentPos(),
 	}
 
 	// batch will prevent content from being garbage collected in the middle of the following operations
