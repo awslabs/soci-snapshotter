@@ -36,7 +36,6 @@ import (
 	"bufio"
 	"bytes"
 	"fmt"
-	"math"
 	"os"
 	"regexp"
 	"strconv"
@@ -267,6 +266,16 @@ func TestNetworkRetry(t *testing.T) {
 				expectedSuccess:    false,
 			},
 		},
+		{
+			name: "Permanent network interruption after loading content, success",
+			config: retryConfig{
+				maxRetries:         -1,
+				minWaitMsec:        0,
+				maxWaitMsec:        0,
+				networkDisableMsec: -1,
+				expectedSuccess:    true,
+			},
+		},
 	}
 
 	for _, tt := range tests {
@@ -299,13 +308,36 @@ disable = true
 			sh.X(append(imagePullCmd, "--soci-index-digest", indexDigest, regConfig.mirror(containerImage).ref)...)
 			sh.X("apk", "add", "--no-cache", "--quiet", "iptables")
 
+			containerRunCmd := append(runSociCmd, image, "cat", "/etc/hosts")
+
+			// If permanent network interruption, fetch the required spans first
+			if tt.config.networkDisableMsec < 0 {
+				sh.X(containerRunCmd...)
+			}
+
+			timeNetworkDisabled := time.Duration(tt.config.networkDisableMsec) * time.Millisecond
+
+			var once sync.Once
+			restoreNetwork := func() {
+				if tt.config.networkDisableMsec != 0 {
+					once.Do(func() {
+						sh.X("iptables", "-D", "OUTPUT", "-d", registryHostIP, "-j", "DROP")
+					})
+				}
+			}
+			defer restoreNetwork()
+
 			// Block network access to the registry
-			if tt.config.networkDisableMsec > 0 {
+			if tt.config.networkDisableMsec != 0 {
 				sh.X("iptables", "-A", "OUTPUT", "-d", registryHostIP, "-j", "DROP")
+				if tt.config.networkDisableMsec > 0 {
+					// Restore network access after set amount of time
+					time.AfterFunc(timeNetworkDisabled, restoreNetwork)
+				}
 			}
 
 			// Read a file to trigger a synchronous network request.
-			cmdStdout, cmdStderr, err := sh.R(append(runSociCmd, image, "cat", "/etc/hosts")...)
+			cmdStdout, cmdStderr, err := sh.R(containerRunCmd...)
 			if err != nil {
 				t.Fatalf("attempt to run task requiring network access failed: %s", err)
 			}
@@ -333,21 +365,6 @@ disable = true
 			stderrLogMonitor.Add("listener", listener(failureChannel))
 			defer stderrLogMonitor.Remove("listener")
 
-			// Wait with network disabled. At this point the snapshotter should be
-			// retrying.
-			time.Sleep(time.Duration(tt.config.networkDisableMsec) * time.Millisecond)
-
-			// Restore network access
-			if tt.config.networkDisableMsec > 0 {
-				// Restore access to the registry and image
-				sh.X("iptables", "-D", "OUTPUT", "-d", registryHostIP, "-j", "DROP")
-				// Wait with network enabled, so a final retry has a chance to succeed
-				time.Sleep(2 * time.Millisecond * time.Duration(math.Min(
-					float64(tt.config.maxWaitMsec),
-					math.Pow(2, float64(tt.config.maxRetries))*float64(tt.config.minWaitMsec),
-				)))
-			}
-
 			select {
 			case data := <-failureChannel:
 				if tt.config.expectedSuccess {
@@ -361,7 +378,7 @@ disable = true
 				} else if len(failureChannel) > 0 {
 					t.Fatalf("expected Read request to succeed; got data in (stdout, stderr) : (%s, %s)", data, <-failureChannel)
 				}
-			case <-time.After(15 * time.Second):
+			case <-time.After(15*time.Second + timeNetworkDisabled):
 				t.Fatal("neither stdout or stderr has been written to")
 			}
 		})
