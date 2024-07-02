@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1719960014706,
+  "lastUpdate": 1719960235487,
   "repoUrl": "https://github.com/awslabs/soci-snapshotter",
   "entries": {
     "Soci Benchmark": [
@@ -7680,6 +7680,48 @@ window.BENCHMARK_DATA = {
           {
             "name": "SociFullECR-public-tensorflow_gpu-pullTaskDuration",
             "value": 2.0695,
+            "unit": "Seconds",
+            "extra": "P90"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "walster@amazon.com",
+            "name": "Kern Walster",
+            "username": "Kern--"
+          },
+          "committer": {
+            "email": "kern.walster@gmail.com",
+            "name": "Kern Walster",
+            "username": "Kern--"
+          },
+          "distinct": true,
+          "id": "2f82461d214d2bc30843af32c52b7883b304db60",
+          "message": "Allow insecure localhost connections\n\nBefore this change, the `docker.MatchLocalhost` function was applied to\nhosts retrieved from labels on snapshots, but not in the artifact\nfetcher. This meant that data could be lazily loaded from an insecure\nlocalhost, but we couldn't fetch the SOCI index/ztocs from an insecure\nlocalhost. This change adds the matcher to the artifact fetcher so that\nimages can be lazily loaded from an insecure localhost.\n\nSigned-off-by: Kern Walster <walster@amazon.com>",
+          "timestamp": "2024-07-02T15:32:40-07:00",
+          "tree_id": "7907d519c02959f738f4bfb449a3249cc69e6075",
+          "url": "https://github.com/awslabs/soci-snapshotter/commit/2f82461d214d2bc30843af32c52b7883b304db60"
+        },
+        "date": 1719960231642,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "SociFullECR-public-tensorflow_gpu-lazyTaskDuration",
+            "value": 51.8645,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-tensorflow_gpu-localTaskDuration",
+            "value": 2.3825,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-tensorflow_gpu-pullTaskDuration",
+            "value": 3.4379999999999997,
             "unit": "Seconds",
             "extra": "P90"
           }
