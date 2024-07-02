@@ -20,11 +20,15 @@ on:
       - 'scripts/**'
 
 env:
-  GO_VERSION: '1.21.11'
+  GO_VERSION: '1.21.10'
 
 jobs:
-  test:
-    runs-on: ubuntu-20.04
+  test-on-codebuild:
+    if: github.repository == 'awslabs/soci-snapshotter'
+    runs-on: codebuild-soci-snapshotter-build-test-${{ github.run_id }}-${{ github.run_attempt }}-${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [arm-3.0-large, ubuntu-7.0-xlarge, ubuntu-7.0-small, ubuntu-7.0-medium, ubuntu-7.0-medium]
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
@@ -33,8 +37,42 @@ jobs:
           go-version: ${{ env.GO_VERSION }}
       - run: make
       - run: make test
-  integration:
-    runs-on: ubuntu-20.04
+
+  test-on-fork:
+    if: github.repository != 'awslabs/soci-snapshotter'
+    runs-on: codebuild-soci-snapshotter-build-test-${{ github.run_id }}-${{ github.run_attempt }}-${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [arm-3.0-large, ubuntu-7.0-xlarge]
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+      - run: make
+      - run: make test
+
+  integration-on-codebuild:
+    if: github.repository == 'awslabs/soci-snapshotter'
+    runs-on: codebuild-soci-snapshotter-build-test-${{ github.run_id }}-${{ github.run_attempt }}-ubuntu-7.0-xlarge
+    timeout-minutes: 40
+    strategy:
+      fail-fast: false
+      matrix:
+        containerd: ["1.6.30", "1.7.14"]
+    env:
+      DOCKER_BUILD_ARGS: "CONTAINERD_VERSION=${{ matrix.containerd }}"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+      - run: make integration
+
+  integration-on-fork:
+    if: github.repository != 'awslabs/soci-snapshotter'
+    runs-on: codebuild-soci-snapshotter-build-test-${{ github.run_id }}-${{ github.run_attempt }}-ubuntu-7.0-xlarge
     timeout-minutes: 40
     strategy:
       fail-fast: false
