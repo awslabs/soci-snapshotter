@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1719953488596,
+  "lastUpdate": 1719960016024,
   "repoUrl": "https://github.com/awslabs/soci-snapshotter",
   "entries": {
     "Soci Benchmark": [
@@ -7802,6 +7802,48 @@ window.BENCHMARK_DATA = {
           {
             "name": "SociFullECR-public-tensorflow-pullTaskDuration",
             "value": 2.089,
+            "unit": "Seconds",
+            "extra": "P90"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "walster@amazon.com",
+            "name": "Kern Walster",
+            "username": "Kern--"
+          },
+          "committer": {
+            "email": "kern.walster@gmail.com",
+            "name": "Kern Walster",
+            "username": "Kern--"
+          },
+          "distinct": true,
+          "id": "0e1e73bac251896a7658a03913771cb73b8997b4",
+          "message": "Remove ioutils.CountWriter\n\nWe had 2 implementations to keep track of how long an io.Reader is:\nioutils.CountWriter and ioutils.PositionTrackerReader.\n\nioutils.CountWriter implements io.Writer, but it just discards the bytes\nand keeps track of the number of bytes written. The caller connects it\nto an existing io.Reader by creating an io.TeeReader which writes to it\nwhenever the original reader is read.\n\nioutils.PositionTrackerReader is a simpler interface that wraps an\nexisting io.Reader and proxies Read requests while updating it's\ninternal position.\n\nThis change removes CountWriter in favor of the simpler and better\ntested PositionTrackerReader.\n\nSigned-off-by: Kern Walster <walster@amazon.com>",
+          "timestamp": "2024-07-02T15:32:27-07:00",
+          "tree_id": "eb7c01ca1df7bf5b18b45e2aa826444089ec43ef",
+          "url": "https://github.com/awslabs/soci-snapshotter/commit/0e1e73bac251896a7658a03913771cb73b8997b4"
+        },
+        "date": 1719960013089,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "SociFullECR-public-tensorflow-lazyTaskDuration",
+            "value": 13.755,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-tensorflow-localTaskDuration",
+            "value": 2.33,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-tensorflow-pullTaskDuration",
+            "value": 1.8665000000000003,
             "unit": "Seconds",
             "extra": "P90"
           }
