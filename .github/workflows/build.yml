@@ -23,8 +23,12 @@ env:
   GO_VERSION: '1.21.11'
 
 jobs:
-  test:
-    runs-on: ubuntu-20.04
+  test-on-codebuild:
+    if: github.repository == 'awslabs/soci-snapshotter'
+    runs-on: codebuild-soci-snapshotter-build-test-${{ github.run_id }}-${{ github.run_attempt }}-${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [arm-3.0-large, ubuntu-7.0-xlarge]
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
