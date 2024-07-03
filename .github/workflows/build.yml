@@ -25,10 +25,10 @@ env:
 jobs:
   test-on-codebuild:
     if: github.repository == 'awslabs/soci-snapshotter'
-    runs-on: codebuild-soci-snapshotter-build-test-${{ github.run_id }}-${{ github.run_attempt }}-${{ matrix.os }}
+    runs-on: codebuild-soci-snapshotter-instance-dev-new-${{ github.run_id }}-${{ github.run_attempt }}-${{ matrix.os }}
     strategy:
       matrix:
-        os: [arm-3.0-large, ubuntu-7.0-xlarge, ubuntu-7.0-small, ubuntu-7.0-medium, ubuntu-7.0-medium]
+        os: [arm-3.0-large]
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
@@ -40,22 +40,24 @@ jobs:
 
   test-on-fork:
     if: github.repository != 'awslabs/soci-snapshotter'
-    runs-on: codebuild-soci-snapshotter-build-test-${{ github.run_id }}-${{ github.run_attempt }}-${{ matrix.os }}
+    runs-on: codebuild-soci-snapshotter-instance-dev-new-${{ github.run_id }}-${{ github.run_attempt }}-${{ matrix.os }}
     strategy:
       matrix:
-        os: [arm-3.0-large, ubuntu-7.0-xlarge]
+        os: [arm-3.0-large]
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5
         with:
           go-version: ${{ env.GO_VERSION }}
+      - run: dnf list --installed
+      - run: dnf install zlib-static.aarch64 -y
       - run: make
       - run: make test
 
   integration-on-codebuild:
     if: github.repository == 'awslabs/soci-snapshotter'
-    runs-on: codebuild-soci-snapshotter-build-test-${{ github.run_id }}-${{ github.run_attempt }}-ubuntu-7.0-xlarge
+    runs-on: codebuild-soci-snapshotter-instance-dev-new-${{ github.run_id }}-${{ github.run_attempt }}-ubuntu-7.0-xlarge
     timeout-minutes: 40
     strategy:
       fail-fast: false
@@ -72,7 +74,7 @@ jobs:
 
   integration-on-fork:
     if: github.repository != 'awslabs/soci-snapshotter'
-    runs-on: codebuild-soci-snapshotter-build-test-${{ github.run_id }}-${{ github.run_attempt }}-ubuntu-7.0-xlarge
+    runs-on: codebuild-soci-snapshotter-instance-dev-new-${{ github.run_id }}-${{ github.run_attempt }}-ubuntu-7.0-xlarge
     timeout-minutes: 40
     strategy:
       fail-fast: false
