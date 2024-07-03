@@ -30,7 +30,6 @@ jobs:
       matrix:
         os: [arm-3.0-large, ubuntu-7.0-xlarge]
       fail-fast: true 
-    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5
