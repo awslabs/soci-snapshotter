@@ -5,7 +5,7 @@ on:
     - cron: "0 0 */2 * *" # every 2 days
 
 env:
-  GO_VERSION: '1.21.11'
+  GO_VERSION: '1.21.12'
 
 jobs:
   check:
