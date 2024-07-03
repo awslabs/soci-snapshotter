@@ -12,7 +12,7 @@ on:
       - 'Makefile'
 
 env:
-  GO_VERSION: '1.21.11'
+  GO_VERSION: '1.21.12'
 
 permissions:
   contents: write
