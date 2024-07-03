@@ -114,10 +114,36 @@ func TestOverlayFallbackMetric(t *testing.T) {
 		{
 			name:  "image with fs.Mount errors results in non-zero overlay fallback",
 			image: rabbitmqImage,
+			indexDigestFn: func(sh *shell.Shell, contentStoreType store.ContentStoreType, image imageInfo) string {
+				indexDigest := buildIndex(sh, image, withMinLayerSize(defaultSpanSize), withContentStoreType(contentStoreType))
+				contentStorePath := store.DefaultSociContentStorePath
+				if contentStoreType == "containerd" {
+					contentStorePath = store.DefaultContainerdContentStorePath
+				}
+
+				output := strings.Trim(string(sh.O("soci", "ztoc", "list")), "\n")
+				outputLines := strings.Split(output, "\n")
+				if len(outputLines) < 2 {
+					t.Fatalf("soci ztoc list output has no ztocs, actual output: %s", output)
+				}
+
+				// Choose a random ztoc to corrupt
+				ztocInfo := strings.Fields(outputLines[1])
+				corruptZtocDigest := strings.Split(ztocInfo[0], ":")[1]
+				// Do a random substitution to corrupt the specific ztoc
+				sh.X("sed", "-i", "s/a/abc/g", fmt.Sprintf("%s/blobs/sha256/%s", contentStorePath, corruptZtocDigest))
+
+				return indexDigest
+			},
+			expectedFallbackCount: 1,
+		},
+		{
+			name:  "image with no soci index results in no overlay fallback",
+			image: rabbitmqImage,
 			indexDigestFn: func(_ *shell.Shell, _ store.ContentStoreType, _ imageInfo) string {
 				return "invalid index string"
 			},
-			expectedFallbackCount: 10,
+			expectedFallbackCount: 0,
 		},
 	}
 
@@ -210,6 +236,15 @@ log_fuse_operations = true
 			expectedCount:              1,
 			expectFuseOperationFailure: true,
 		},
+		{
+			name:  "image without a ztoc doesn't cause fuse failure",
+			image: pinnedRabbitmqImage,
+			indexDigestFn: func(t *testing.T, sh *shell.Shell, image imageInfo) string {
+				return ""
+			},
+			metricToCheck:              commonmetrics.FuseFailureState,
+			expectFuseOperationFailure: false,
+		},
 	}
 
 	for _, tc := range testCases {
@@ -220,7 +255,13 @@ log_fuse_operations = true
 			sh.X("nerdctl", "pull", "-q", imgInfo.ref)
 			indexDigest := tc.indexDigestFn(t, sh, imgInfo)
 
-			sh.X(append(imagePullCmd, "--soci-index-digest", indexDigest, imgInfo.ref)...)
+			args := imagePullCmd
+			if indexDigest != "" {
+				args = append(args, "--soci-index-digest", indexDigest)
+			}
+			args = append(args, imgInfo.ref)
+
+			sh.X(args...)
 			// this command may fail due to fuse operation failure, use XLog to avoid crashing shell
 			sh.XLog(append(runSociCmd, "--name", "test", "--rm", imgInfo.ref, "echo", "hi")...)
 

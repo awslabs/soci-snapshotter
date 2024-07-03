@@ -337,7 +337,7 @@ func (c *sociContext) Init(fsCtx context.Context, ctx context.Context, imageRef,
 
 			desc, err := client.SelectReferrer(ctx, ocispec.Descriptor{Digest: imgDigest}, defaultIndexSelectionPolicy)
 			if err != nil {
-				retErr = fmt.Errorf("cannot fetch list of referrers: %w", err)
+				retErr = fmt.Errorf("%w: cannot fetch list of referrers: %w", snapshot.ErrNoIndex, err)
 				return
 			}
 			indexDesc = desc
@@ -347,7 +347,7 @@ func (c *sociContext) Init(fsCtx context.Context, ctx context.Context, imageRef,
 
 		index, err := FetchSociArtifacts(fsCtx, refspec, indexDesc, store, remoteStore)
 		if err != nil {
-			retErr = fmt.Errorf("error trying to fetch SOCI artifacts: %w", err)
+			retErr = fmt.Errorf("%w: error trying to fetch SOCI artifacts: %w", snapshot.ErrNoIndex, err)
 			return
 		}
 		c.sociIndex = index
@@ -482,7 +482,7 @@ func (fs *filesystem) Mount(ctx context.Context, mountpoint string, labels map[s
 	client := src[0].Hosts[0].Client
 	c, err := fs.getSociContext(ctx, imageRef, sociIndexDigest, imgDigest, client)
 	if err != nil {
-		return fmt.Errorf("%w: unable to fetch SOCI artifacts for image %q: %w", snapshot.ErrUnableToLazyLoadImage, imageRef, err)
+		return fmt.Errorf("unable to fetch SOCI artifacts for image %q: %w", imageRef, err)
 	}
 
 	// Resolve the target layer
