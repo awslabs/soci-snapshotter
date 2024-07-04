@@ -24,7 +24,7 @@ import (
 	"testing"
 
 	"github.com/awslabs/soci-snapshotter/ztoc"
-	"github.com/containerd/containerd/images"
+	"github.com/containerd/containerd/v2/core/images"
 	"github.com/google/go-cmp/cmp"
 	"github.com/opencontainers/go-digest"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"

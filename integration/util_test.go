@@ -57,7 +57,7 @@ import (
 	"github.com/awslabs/soci-snapshotter/util/dockershell/compose"
 	dexec "github.com/awslabs/soci-snapshotter/util/dockershell/exec"
 	"github.com/awslabs/soci-snapshotter/util/testutil"
-	"github.com/containerd/containerd/images"
+	"github.com/containerd/containerd/v2/core/images"
 	"github.com/containerd/platforms"
 	"github.com/opencontainers/go-digest"
 	spec "github.com/opencontainers/image-spec/specs-go/v1"

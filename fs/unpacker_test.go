@@ -23,8 +23,8 @@ import (
 	"io"
 	"testing"
 
-	"github.com/containerd/containerd/archive"
-	"github.com/containerd/containerd/mount"
+	"github.com/containerd/containerd/v2/core/mount"
+	"github.com/containerd/containerd/v2/pkg/archive"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 )
 

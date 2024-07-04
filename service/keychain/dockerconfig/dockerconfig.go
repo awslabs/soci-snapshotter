@@ -36,7 +36,7 @@ import (
 	"context"
 
 	"github.com/awslabs/soci-snapshotter/service/resolver"
-	"github.com/containerd/containerd/reference"
+	"github.com/containerd/containerd/v2/pkg/reference"
 	"github.com/docker/cli/cli/config"
 )
 

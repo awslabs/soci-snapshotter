@@ -51,10 +51,9 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/containerd/containerd/reference"
-	"github.com/containerd/containerd/remotes/docker"
-	dconfig "github.com/containerd/containerd/remotes/docker/config"
-	runtime_alpha "github.com/containerd/containerd/third_party/k8s.io/cri-api/pkg/apis/runtime/v1alpha2"
+	"github.com/containerd/containerd/v2/core/remotes/docker"
+	dconfig "github.com/containerd/containerd/v2/core/remotes/docker/config"
+	"github.com/containerd/containerd/v2/pkg/reference"
 	"github.com/containerd/errdefs"
 	rhttp "github.com/hashicorp/go-retryablehttp"
 	runtime "k8s.io/cri-api/pkg/apis/runtime/v1"
@@ -314,48 +313,6 @@ func registryEndpoints(config Registry, host string) ([]string, error) {
 		}
 	}
 	return append(endpoints, defaultScheme(defaultHost)+"://"+defaultHost), nil
-}
-
-// ParseAlphaAuth parses AuthConfig and returns username and password/secret required by containerd.
-// Ported from https://github.com/containerd/containerd/blob/v1.5.2/pkg/cri/server/image_pull.go#L176-L214
-// TODO: import this from CRI package once we drop support to continerd v1.4.x
-func ParseAlphaAuth(auth *runtime_alpha.AuthConfig, host string) (string, string, error) {
-	if auth == nil {
-		return "", "", nil
-	}
-	if auth.ServerAddress != "" {
-		// Do not return the auth info when server address doesn't match.
-		u, err := url.Parse(auth.ServerAddress)
-		if err != nil {
-			return "", "", fmt.Errorf("parse server address: %w", err)
-		}
-		if host != u.Host {
-			return "", "", nil
-		}
-	}
-	if auth.Username != "" {
-		return auth.Username, auth.Password, nil
-	}
-	if auth.IdentityToken != "" {
-		return "", auth.IdentityToken, nil
-	}
-	if auth.Auth != "" {
-		decLen := base64.StdEncoding.DecodedLen(len(auth.Auth))
-		decoded := make([]byte, decLen)
-		_, err := base64.StdEncoding.Decode(decoded, []byte(auth.Auth))
-		if err != nil {
-			return "", "", err
-		}
-		fields := strings.SplitN(string(decoded), ":", 2)
-		if len(fields) != 2 {
-			return "", "", fmt.Errorf("invalid decoded auth: %q", decoded)
-		}
-		user, passwd := fields[0], fields[1]
-		return user, strings.Trim(passwd, "\x00"), nil
-	}
-	// TODO(random-liu): Support RegistryToken.
-	// An empty auth config is valid for anonymous registry
-	return "", "", nil
 }
 
 // ParseAuth parses AuthConfig and returns username and password/secret required by containerd.
