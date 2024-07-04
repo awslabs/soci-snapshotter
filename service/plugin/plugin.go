@@ -47,16 +47,19 @@ import (
 	"github.com/awslabs/soci-snapshotter/service/keychain/dockerconfig"
 	"github.com/awslabs/soci-snapshotter/service/keychain/kubeconfig"
 	"github.com/awslabs/soci-snapshotter/service/resolver"
-	"github.com/containerd/containerd/defaults"
-	"github.com/containerd/containerd/pkg/dialer"
-	ctdplugin "github.com/containerd/containerd/plugin"
-	runtime_alpha "github.com/containerd/containerd/third_party/k8s.io/cri-api/pkg/apis/runtime/v1alpha2"
+	"github.com/containerd/containerd/v2/defaults"
+	"github.com/containerd/containerd/v2/pkg/dialer"
+	"github.com/containerd/containerd/v2/plugins"
+	ctdplugins "github.com/containerd/containerd/v2/plugins"
 	"github.com/containerd/log"
 	"github.com/containerd/platforms"
+	"github.com/containerd/plugin"
+	"github.com/containerd/plugin/registry"
 	grpc "google.golang.org/grpc"
 	"google.golang.org/grpc/backoff"
 	"google.golang.org/grpc/credentials/insecure"
 	runtime "k8s.io/cri-api/pkg/apis/runtime/v1"
+	runtime_alpha "k8s.io/cri-api/pkg/apis/runtime/v1"
 )
 
 // Config represents configuration for the soci snapshotter plugin.
@@ -74,11 +77,11 @@ type Config struct {
 }
 
 func init() {
-	ctdplugin.Register(&ctdplugin.Registration{
-		Type:   ctdplugin.SnapshotPlugin,
+	registry.Register(&plugin.Registration{
+		Type:   plugins.SnapshotPlugin,
 		ID:     "soci",
 		Config: &Config{},
-		InitFn: func(ic *ctdplugin.InitContext) (interface{}, error) {
+		InitFn: func(ic *plugin.InitContext) (interface{}, error) {
 			ic.Meta.Platforms = append(ic.Meta.Platforms, platforms.DefaultSpec())
 			ctx := ic.Context
 
@@ -87,7 +90,7 @@ func init() {
 				return nil, errors.New("invalid soci snapshotter configuration")
 			}
 
-			root := ic.Root
+			root := ic.Properties[ctdplugins.PropertyRootDir]
 			if config.RootPath != "" {
 				root = config.RootPath
 			}
@@ -104,7 +107,7 @@ func init() {
 			}
 			if addr := config.CRIKeychainImageServicePath; config.CRIKeychainConfig.EnableKeychain && addr != "" {
 				// connects to the backend CRI service (defaults to containerd socket)
-				criAddr := ic.Address
+				criAddr := ic.Properties[ctdplugins.PropertyGRPCAddress]
 				if cp := config.CRIKeychainConfig.ImageServicePath; cp != "" {
 					criAddr = cp
 				}

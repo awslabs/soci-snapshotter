@@ -60,11 +60,10 @@ import (
 	"github.com/awslabs/soci-snapshotter/version"
 	"github.com/awslabs/soci-snapshotter/ztoc"
 	snapshotsapi "github.com/containerd/containerd/api/services/snapshots/v1"
-	"github.com/containerd/containerd/contrib/snapshotservice"
-	"github.com/containerd/containerd/defaults"
-	"github.com/containerd/containerd/pkg/dialer"
-	"github.com/containerd/containerd/snapshots"
-	runtime_alpha "github.com/containerd/containerd/third_party/k8s.io/cri-api/pkg/apis/runtime/v1alpha2"
+	"github.com/containerd/containerd/v2/contrib/snapshotservice"
+	"github.com/containerd/containerd/v2/core/snapshots"
+	"github.com/containerd/containerd/v2/defaults"
+	"github.com/containerd/containerd/v2/pkg/dialer"
 	"github.com/containerd/log"
 	sddaemon "github.com/coreos/go-systemd/v22/daemon"
 	metrics "github.com/docker/go-metrics"
@@ -75,6 +74,7 @@ import (
 	"google.golang.org/grpc/backoff"
 	"google.golang.org/grpc/credentials/insecure"
 	runtime "k8s.io/cri-api/pkg/apis/runtime/v1"
+	runtime_alpha "k8s.io/cri-api/pkg/apis/runtime/v1"
 )
 
 const (

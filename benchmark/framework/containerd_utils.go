@@ -28,10 +28,10 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/containerd/containerd"
-	"github.com/containerd/containerd/cio"
-	"github.com/containerd/containerd/images"
-	"github.com/containerd/containerd/namespaces"
+	containerd "github.com/containerd/containerd/v2/client"
+	"github.com/containerd/containerd/v2/core/images"
+	"github.com/containerd/containerd/v2/pkg/cio"
+	"github.com/containerd/containerd/v2/pkg/namespaces"
 	"github.com/containerd/log"
 	"github.com/sirupsen/logrus"
 )
@@ -302,7 +302,7 @@ func GetTestContext(logFile io.Writer) (context.Context, context.CancelFunc) {
 }
 
 func newClient(address string) (*containerd.Client, error) {
-	opts := []containerd.ClientOpt{}
+	opts := []containerd.Opt{}
 	if rt := os.Getenv(testEnvironment); rt != "" {
 		opts = append(opts, containerd.WithDefaultRuntime(rt))
 	}

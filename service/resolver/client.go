@@ -32,7 +32,7 @@ import (
 	"github.com/awslabs/soci-snapshotter/config"
 	socihttp "github.com/awslabs/soci-snapshotter/internal/http"
 	"github.com/awslabs/soci-snapshotter/version"
-	"github.com/containerd/containerd/remotes/docker"
+	"github.com/containerd/containerd/v2/core/remotes/docker"
 	"github.com/containerd/log"
 	rhttp "github.com/hashicorp/go-retryablehttp"
 	"github.com/sirupsen/logrus"

@@ -20,11 +20,11 @@ import (
 	"context"
 	"io"
 
-	"github.com/containerd/containerd"
-	"github.com/containerd/containerd/reference"
-	"github.com/containerd/containerd/remotes"
-	"github.com/containerd/containerd/remotes/docker"
-	"github.com/containerd/containerd/remotes/docker/config"
+	containerd "github.com/containerd/containerd/v2/client"
+	"github.com/containerd/containerd/v2/core/remotes"
+	"github.com/containerd/containerd/v2/core/remotes/docker"
+	"github.com/containerd/containerd/v2/core/remotes/docker/config"
+	"github.com/containerd/containerd/v2/pkg/reference"
 	dockercliconfig "github.com/docker/cli/cli/config"
 )
 

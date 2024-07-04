@@ -40,10 +40,10 @@ import (
 	"time"
 
 	"github.com/awslabs/soci-snapshotter/service/resolver"
-	"github.com/containerd/containerd/reference"
-	runtime_alpha "github.com/containerd/containerd/third_party/k8s.io/cri-api/pkg/apis/runtime/v1alpha2"
+	"github.com/containerd/containerd/v2/pkg/reference"
 	"github.com/containerd/log"
 	distribution "github.com/distribution/reference"
+	runtime_alpha "k8s.io/cri-api/pkg/apis/runtime/v1"
 )
 
 // NewCRIAlphaKeychain provides creds passed through CRI PullImage API.
