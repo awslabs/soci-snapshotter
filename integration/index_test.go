@@ -26,7 +26,7 @@ import (
 	"github.com/awslabs/soci-snapshotter/config"
 	"github.com/awslabs/soci-snapshotter/soci/store"
 	shell "github.com/awslabs/soci-snapshotter/util/dockershell"
-	"github.com/containerd/containerd/platforms"
+	"github.com/containerd/platforms"
 )
 
 type testImageIndex struct {
