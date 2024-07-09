@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1720198176315,
+  "lastUpdate": 1720557665815,
   "repoUrl": "https://github.com/awslabs/soci-snapshotter",
   "entries": {
     "Soci Benchmark": [
@@ -7764,6 +7764,48 @@ window.BENCHMARK_DATA = {
           {
             "name": "SociFullECR-public-node-pullTaskDuration",
             "value": 1.5935000000000001,
+            "unit": "Seconds",
+            "extra": "P90"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "davbson@amazon.com",
+            "name": "David Son",
+            "username": "sondavidb"
+          },
+          "committer": {
+            "email": "55555210+sondavidb@users.noreply.github.com",
+            "name": "David Son",
+            "username": "sondavidb"
+          },
+          "distinct": true,
+          "id": "0d06c8814527d128499f08422e892e4ca0c83b24",
+          "message": "Update deprecated packages\n\ngithub.com/containerd/containerd/platforms ->\ngithub.com/containerd/platforms\n\ngithub.com/containerd/containerd/reference/docker ->\ngithub.com/distribution/reference\n\nSigned-off-by: David Son <davbson@amazon.com>",
+          "timestamp": "2024-07-09T13:32:51-07:00",
+          "tree_id": "70f6ffe8aefa1cbe89d4f6ca651875a0632ea819",
+          "url": "https://github.com/awslabs/soci-snapshotter/commit/0d06c8814527d128499f08422e892e4ca0c83b24"
+        },
+        "date": 1720557664857,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "SociFullECR-public-node-lazyTaskDuration",
+            "value": 4.54,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-node-localTaskDuration",
+            "value": 0.4465,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-node-pullTaskDuration",
+            "value": 1.5845,
             "unit": "Seconds",
             "extra": "P90"
           }
