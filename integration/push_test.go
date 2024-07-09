@@ -26,7 +26,7 @@ import (
 	"github.com/awslabs/soci-snapshotter/soci"
 	"github.com/awslabs/soci-snapshotter/soci/store"
 
-	"github.com/containerd/containerd/platforms"
+	"github.com/containerd/platforms"
 )
 
 func TestSociArtifactsPushAndPull(t *testing.T) {
