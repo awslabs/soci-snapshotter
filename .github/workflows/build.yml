@@ -23,45 +23,101 @@ env:
   GO_VERSION: '1.21.10'
 
 jobs:
-  test-on-codebuild:
-    if: github.repository == 'awslabs/soci-snapshotter'
-    runs-on: codebuild-soci-snapshotter-instance-dev-new-${{ github.run_id }}-${{ github.run_attempt }}-${{ matrix.os }}
+  setup:
+    # This job sets up the runners to be used in the matrix for the build workflow.
+    # It provides a list of available runners with stable, human-friendly names and a mapping
+    # from those names to the actual `runs-on` value for each runner type. This allows us to
+    # use codebuild-hosted runners for awslabs/soci-snapshotter without requiring forks to also
+    # have codebuild-hosted runners.
+    #
+    # If you want to use codebuild runners for your personal fork, follow the instructions to set
+    # up a codebuild project. https://docs.aws.amazon.com/codebuild/latest/userguide/action-runner.html
+    # Then, replace 'soci-snapshotter-instance' with the name of the project you created.
+    name: Setup Build Matrix
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' || github.event.pull_request.head.repo.full_name != 'awslabs/soci-snapshotter'
     strategy:
       matrix:
-        os: [arm-3.0-large]
+        # We're using a matrix with a single entry so that we can define some config as YAML rather than
+        # having to write escaped json in a string.
+        include:
+          - use-codebuild: ${{ github.repository_owner == 'coderbirju' }}
+            runs-on-names-cb: [ ubuntu-x86, al2-arm ]
+            runs-on-names: [ ubuntu ]
+            runner-labels:
+              ubuntu: ubuntu-22.04
+              ubuntu-x86: "codebuild-soci-snapshotter-instance-dev-new-${{ github.run_id }}-${{ github.run_attempt }}-ubuntu-7.0-xlarge"
+              al2-arm: "codebuild-soci-snapshotter-instance-dev-new-${{ github.run_id }}-${{ github.run_attempt }}-arm-3.0-large"
+    outputs:
+      available-runners: ${{ matrix.use-codebuild && toJSON(matrix.runs-on-names-cb) || toJSON(matrix.runs-on-names) }}
+      runner-labels: ${{ toJSON(matrix.runner-labels) }}
+    steps:
+      - name: Dump Config
+        run: echo '${{ toJSON(matrix) }}'
+
+    
+  test:
+    needs: setup
+    runs-on: ${{ fromJSON(needs.setup.outputs.runner-labels)[matrix.os] }}
+    strategy:
+      matrix:
+        os: ${{ fromJSON(needs.setup.outputs.available-runners) }}
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5
         with:
           go-version: ${{ env.GO_VERSION }}
+      - name: Install zlib static on AL2
+        if: matrix.os == 'al2-arm'
+        run: dnf install zlib-static.aarch64 -y
       - run: make
       - run: make test
 
-  test-on-fork:
-    if: github.repository != 'awslabs/soci-snapshotter'
-    runs-on: codebuild-soci-snapshotter-instance-dev-new-${{ github.run_id }}-${{ github.run_attempt }}-${{ matrix.os }}
-    strategy:
-      matrix:
-        os: [arm-3.0-large]
-    timeout-minutes: 15
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-go@v5
-        with:
-          go-version: ${{ env.GO_VERSION }}
-      - run: dnf list --installed
-      - run: dnf install zlib-static.aarch64 -y
-      - run: make
-      - run: make test
 
-  integration-on-codebuild:
-    if: github.repository == 'awslabs/soci-snapshotter'
-    runs-on: codebuild-soci-snapshotter-instance-dev-new-${{ github.run_id }}-${{ github.run_attempt }}-ubuntu-7.0-xlarge
+  # test-on-codebuild:
+  #   if: github.repository == 'awslabs/soci-snapshotter'
+  #   runs-on: codebuild-soci-snapshotter-instance-dev-new-${{ github.run_id }}-${{ github.run_attempt }}-${{ matrix.os }}
+  #   strategy:
+  #     matrix:
+  #       os: [arm-3.0-large, ubuntu-7.0-xlarge]
+  #   timeout-minutes: 15
+  #   steps:
+  #     - uses: actions/checkout@v4
+  #     - uses: actions/setup-go@v5
+  #       with:
+  #         go-version: ${{ env.GO_VERSION }}
+  #     - name: Install zlib static on AL2
+  #       if: matrix.os == 'arm-3.0-large'
+  #       run: dnf install zlib-static.aarch64 -y
+  #     - run: make
+  #     - run: make test
+
+  # test-on-fork:
+  #   if: github.repository != 'awslabs/soci-snapshotter'
+  #   runs-on: codebuild-soci-snapshotter-instance-dev-new-${{ github.run_id }}-${{ github.run_attempt }}-${{ matrix.os }}
+  #   strategy:
+  #     matrix:
+  #       os: [arm-3.0-large]
+  #   timeout-minutes: 15
+  #   steps:
+  #     - uses: actions/checkout@v4
+  #     - uses: actions/setup-go@v5
+  #       with:
+  #         go-version: ${{ env.GO_VERSION }}
+  #     - name: Install zlib static on AL2
+  #       if: matrix.os == 'arm-3.0-large'
+  #       run: dnf install zlib-static.aarch64 -y
+  #     - run: make
+  #     - run: make test
+
+  integration:
+    needs: setup
+    runs-on: ${{ fromJSON(needs.setup.outputs.runner-labels)[matrix.os] }}
     timeout-minutes: 40
     strategy:
-      fail-fast: false
       matrix:
+        os: ${{ fromJSON(needs.setup.outputs.available-runners) }}
         containerd: ["1.6.30", "1.7.14"]
     env:
       DOCKER_BUILD_ARGS: "CONTAINERD_VERSION=${{ matrix.containerd }}"
@@ -72,19 +128,19 @@ jobs:
           go-version: ${{ env.GO_VERSION }}
       - run: make integration
 
-  integration-on-fork:
-    if: github.repository != 'awslabs/soci-snapshotter'
-    runs-on: codebuild-soci-snapshotter-instance-dev-new-${{ github.run_id }}-${{ github.run_attempt }}-ubuntu-7.0-xlarge
-    timeout-minutes: 40
-    strategy:
-      fail-fast: false
-      matrix:
-        containerd: ["1.6.30", "1.7.14"]
-    env:
-      DOCKER_BUILD_ARGS: "CONTAINERD_VERSION=${{ matrix.containerd }}"
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-go@v5
-        with:
-          go-version: ${{ env.GO_VERSION }}
-      - run: make integration
+  # integration-on-fork:
+  #   if: github.repository != 'awslabs/soci-snapshotter'
+  #   runs-on: codebuild-soci-snapshotter-instance-dev-new-${{ github.run_id }}-${{ github.run_attempt }}-ubuntu-7.0-xlarge
+  #   timeout-minutes: 40
+  #   strategy:
+  #     fail-fast: false
+  #     matrix:
+  #       containerd: ["1.6.30", "1.7.14"]
+  #   env:
+  #     DOCKER_BUILD_ARGS: "CONTAINERD_VERSION=${{ matrix.containerd }}"
+  #   steps:
+  #     - uses: actions/checkout@v4
+  #     - uses: actions/setup-go@v5
+  #       with:
+  #         go-version: ${{ env.GO_VERSION }}
+  #     - run: make integration
