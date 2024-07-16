@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1720579754532,
+  "lastUpdate": 1721145871674,
   "repoUrl": "https://github.com/awslabs/soci-snapshotter",
   "entries": {
     "Soci Benchmark": [
@@ -7890,6 +7890,48 @@ window.BENCHMARK_DATA = {
           {
             "name": "SociFullECR-public-tensorflow_gpu-pullTaskDuration",
             "value": 2.3434999999999997,
+            "unit": "Seconds",
+            "extra": "P90"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "davbson@amazon.com",
+            "name": "David Son",
+            "username": "sondavidb"
+          },
+          "committer": {
+            "email": "arjunry@amazon.com",
+            "name": "Arjun",
+            "username": "coderbirju"
+          },
+          "distinct": true,
+          "id": "9eef2c0ff55f7e52d9b2f47364dce56eaef63e9e",
+          "message": "Use rabbitmqImage in FUSE failure test\n\nOn ARM instances, pinnedRabbitmqImage does not work for this test due to\nsome issues with xattr/whiteout dir detection. This is either a bug in\nthe image or our code, but to get around CI for now we will just use a\nregular rabbitmq image.\n\nSigned-off-by: David Son <davbson@amazon.com>",
+          "timestamp": "2024-07-16T08:54:51-07:00",
+          "tree_id": "17760429481a83641d9808691159a22144684d68",
+          "url": "https://github.com/awslabs/soci-snapshotter/commit/9eef2c0ff55f7e52d9b2f47364dce56eaef63e9e"
+        },
+        "date": 1721145866473,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "SociFullECR-public-tensorflow_gpu-lazyTaskDuration",
+            "value": 16.222,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-tensorflow_gpu-localTaskDuration",
+            "value": 2.6719999999999997,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-tensorflow_gpu-pullTaskDuration",
+            "value": 3.0945,
             "unit": "Seconds",
             "extra": "P90"
           }
