@@ -198,7 +198,7 @@ log_fuse_operations = true
 		},
 		{
 			name:  "image with valid-formatted but invalid-data ztocs causes a fuse failure",
-			image: pinnedRabbitmqImage,
+			image: rabbitmqImage,
 			indexDigestFn: func(t *testing.T, sh *shell.Shell, image imageInfo) string {
 				indexDigest, err := buildIndexByManipulatingZtocData(sh, buildIndex(sh, image, withMinLayerSize(0)), manipulateZtocMetadata)
 				if err != nil {
