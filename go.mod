@@ -17,7 +17,7 @@ require (
 	github.com/hanwen/go-fuse/v2 v2.5.1
 	github.com/hashicorp/go-retryablehttp v0.7.7
 	github.com/klauspost/compress v1.17.9
-	github.com/moby/sys/mountinfo v0.7.1
+	github.com/moby/sys/mountinfo v0.7.2
 	github.com/montanaflynn/stats v0.7.1
 	github.com/opencontainers/go-digest v1.0.0
 	github.com/opencontainers/image-spec v1.1.0
