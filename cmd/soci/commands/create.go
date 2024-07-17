@@ -18,6 +18,7 @@ package commands
 
 import (
 	"errors"
+	"fmt"
 	"os"
 
 	"github.com/awslabs/soci-snapshotter/cmd/soci/commands/internal"
@@ -31,7 +32,7 @@ const (
 	buildToolIdentifier = "AWS SOCI CLI v0.1"
 	spanSizeFlag        = "span-size"
 	minLayerSizeFlag    = "min-layer-size"
-	disableXAttrsFlag   = "disable-xattrs"
+	optimizationFlag    = "optimizations"
 )
 
 // CreateCommand creates SOCI index for an image
@@ -54,15 +55,24 @@ var CreateCommand = cli.Command{
 			Usage: "Minimum layer size to build zTOC for. Smaller layers won't have zTOC and not lazy pulled. Default is 10 MiB.",
 			Value: 10 << 20,
 		},
-		cli.BoolTFlag{
-			Name:  disableXAttrsFlag,
-			Usage: "When true, adds DisableXAttrs annotation to SOCI index. This annotation often helps performance at pull time. Default is true",
+		cli.StringSliceFlag{
+			Name:  optimizationFlag,
+			Usage: fmt.Sprintf("(Experimental) Enable optional optimizations. Valid values are %v", soci.Optimizations),
 		},
 	),
 	Action: func(cliContext *cli.Context) error {
 		srcRef := cliContext.Args().Get(0)
 		if srcRef == "" {
 			return errors.New("source image needs to be specified")
+		}
+
+		var optimizations []soci.Optimization
+		for _, o := range cliContext.StringSlice(optimizationFlag) {
+			optimization, err := soci.ParseOptimization(o)
+			if err != nil {
+				return err
+			}
+			optimizations = append(optimizations, optimization)
 		}
 
 		client, ctx, cancel, err := internal.NewClient(cliContext)
@@ -109,10 +119,7 @@ var CreateCommand = cli.Command{
 			soci.WithMinLayerSize(minLayerSize),
 			soci.WithSpanSize(spanSize),
 			soci.WithBuildToolIdentifier(buildToolIdentifier),
-		}
-
-		if !cliContext.Bool(disableXAttrsFlag) {
-			builderOpts = append(builderOpts, soci.WithNoDisableXAttrs())
+			soci.WithOptimizations(optimizations),
 		}
 
 		for _, plat := range ps {
