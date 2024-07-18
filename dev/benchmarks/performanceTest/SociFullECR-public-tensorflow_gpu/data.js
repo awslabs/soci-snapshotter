@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1721253619595,
+  "lastUpdate": 1721327845748,
   "repoUrl": "https://github.com/awslabs/soci-snapshotter",
   "entries": {
     "Soci Benchmark": [
@@ -8058,6 +8058,48 @@ window.BENCHMARK_DATA = {
           {
             "name": "SociFullECR-public-tensorflow_gpu-pullTaskDuration",
             "value": 1.5314999999999999,
+            "unit": "Seconds",
+            "extra": "P90"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "alvajus@amazon.com",
+            "name": "Justin Alvarez",
+            "username": "pendo324"
+          },
+          "committer": {
+            "email": "pendo324@users.noreply.github.com",
+            "name": "Justin",
+            "username": "pendo324"
+          },
+          "distinct": true,
+          "id": "914f9a03a6757210daba3add12b20b0d6c145142",
+          "message": "fix errdefs deprecation warning\n\nSigned-off-by: Justin Alvarez <alvajus@amazon.com>",
+          "timestamp": "2024-07-18T14:27:49-04:00",
+          "tree_id": "35d732a0e79fc2caabee730cc47f16cbe42c2b6d",
+          "url": "https://github.com/awslabs/soci-snapshotter/commit/914f9a03a6757210daba3add12b20b0d6c145142"
+        },
+        "date": 1721327844946,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "SociFullECR-public-tensorflow_gpu-lazyTaskDuration",
+            "value": 18.967,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-tensorflow_gpu-localTaskDuration",
+            "value": 2.686,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-tensorflow_gpu-pullTaskDuration",
+            "value": 1.8664999999999998,
             "unit": "Seconds",
             "extra": "P90"
           }
