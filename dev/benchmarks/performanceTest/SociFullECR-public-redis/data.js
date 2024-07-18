@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1721327850013,
+  "lastUpdate": 1721334784432,
   "repoUrl": "https://github.com/awslabs/soci-snapshotter",
   "entries": {
     "Soci Benchmark": [
@@ -8264,6 +8264,48 @@ window.BENCHMARK_DATA = {
           {
             "name": "SociFullECR-public-redis-pullTaskDuration",
             "value": 1.3065,
+            "unit": "Seconds",
+            "extra": "P90"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "alvajus@amazon.com",
+            "name": "Justin Alvarez",
+            "username": "pendo324"
+          },
+          "committer": {
+            "email": "pendo324@users.noreply.github.com",
+            "name": "Justin",
+            "username": "pendo324"
+          },
+          "distinct": true,
+          "id": "327fbed1a5376493080ec758e9eb83a0390225f8",
+          "message": "Bump containerd 1.6 and 1.7 versions to latest\n\nSigned-off-by: Justin Alvarez <alvajus@amazon.com>",
+          "timestamp": "2024-07-18T16:23:57-04:00",
+          "tree_id": "b8b3ec207c858cb2394c78381825dce1370636d1",
+          "url": "https://github.com/awslabs/soci-snapshotter/commit/327fbed1a5376493080ec758e9eb83a0390225f8"
+        },
+        "date": 1721334782611,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "SociFullECR-public-redis-lazyTaskDuration",
+            "value": 2.4939999999999998,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-redis-localTaskDuration",
+            "value": 0.036500000000000005,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-redis-pullTaskDuration",
+            "value": 1.436,
             "unit": "Seconds",
             "extra": "P90"
           }
