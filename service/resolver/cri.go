@@ -51,11 +51,11 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/containerd/containerd/errdefs"
 	"github.com/containerd/containerd/reference"
 	"github.com/containerd/containerd/remotes/docker"
 	dconfig "github.com/containerd/containerd/remotes/docker/config"
 	runtime_alpha "github.com/containerd/containerd/third_party/k8s.io/cri-api/pkg/apis/runtime/v1alpha2"
+	"github.com/containerd/errdefs"
 	rhttp "github.com/hashicorp/go-retryablehttp"
 	runtime "k8s.io/cri-api/pkg/apis/runtime/v1"
 )
