@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1721426838300,
+  "lastUpdate": 1721426848157,
   "repoUrl": "https://github.com/awslabs/soci-snapshotter",
   "entries": {
     "Soci Benchmark": [
@@ -8348,6 +8348,48 @@ window.BENCHMARK_DATA = {
           {
             "name": "SociFullECR-public-tensorflow-pullTaskDuration",
             "value": 1.322,
+            "unit": "Seconds",
+            "extra": "P90"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "davbson@amazon.com",
+            "name": "David Son",
+            "username": "sondavidb"
+          },
+          "committer": {
+            "email": "55555210+sondavidb@users.noreply.github.com",
+            "name": "David Son",
+            "username": "sondavidb"
+          },
+          "distinct": true,
+          "id": "846397c346c81fc03b8eab44236c0dfe7f22419b",
+          "message": "Add integration test for no image index\n\nSigned-off-by: David Son <davbson@amazon.com>",
+          "timestamp": "2024-07-19T14:59:41-07:00",
+          "tree_id": "6541eaf5b9b1dee3e1b59f711d9e9b288aa55760",
+          "url": "https://github.com/awslabs/soci-snapshotter/commit/846397c346c81fc03b8eab44236c0dfe7f22419b"
+        },
+        "date": 1721426843262,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "SociFullECR-public-tensorflow-lazyTaskDuration",
+            "value": 10.634,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-tensorflow-localTaskDuration",
+            "value": 2.5380000000000003,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-tensorflow-pullTaskDuration",
+            "value": 1.685,
             "unit": "Seconds",
             "extra": "P90"
           }
