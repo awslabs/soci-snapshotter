@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1721334782320,
+  "lastUpdate": 1721426834110,
   "repoUrl": "https://github.com/awslabs/soci-snapshotter",
   "entries": {
     "Soci Benchmark": [
@@ -8224,6 +8224,48 @@ window.BENCHMARK_DATA = {
           {
             "name": "SociFullECR-public-mongo-pullTaskDuration",
             "value": 1.4605,
+            "unit": "Seconds",
+            "extra": "P90"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "davbson@amazon.com",
+            "name": "David Son",
+            "username": "sondavidb"
+          },
+          "committer": {
+            "email": "55555210+sondavidb@users.noreply.github.com",
+            "name": "David Son",
+            "username": "sondavidb"
+          },
+          "distinct": true,
+          "id": "9b19a99205c05056a5e2e8785c8a3822f57e53e0",
+          "message": "Add integration test for offline content\n\nSigned-off-by: David Son <davbson@amazon.com>",
+          "timestamp": "2024-07-19T14:59:52-07:00",
+          "tree_id": "b48a2bdf7bf80d6d66cba4ae4dc2d2364c64e3b0",
+          "url": "https://github.com/awslabs/soci-snapshotter/commit/9b19a99205c05056a5e2e8785c8a3822f57e53e0"
+        },
+        "date": 1721426831620,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "SociFullECR-public-mongo-lazyTaskDuration",
+            "value": 1.6195,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-mongo-localTaskDuration",
+            "value": 0.313,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-mongo-pullTaskDuration",
+            "value": 0.6275,
             "unit": "Seconds",
             "extra": "P90"
           }
