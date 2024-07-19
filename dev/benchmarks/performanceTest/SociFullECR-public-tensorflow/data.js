@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1721334780390,
+  "lastUpdate": 1721426838300,
   "repoUrl": "https://github.com/awslabs/soci-snapshotter",
   "entries": {
     "Soci Benchmark": [
@@ -8306,6 +8306,48 @@ window.BENCHMARK_DATA = {
           {
             "name": "SociFullECR-public-tensorflow-pullTaskDuration",
             "value": 2.2975,
+            "unit": "Seconds",
+            "extra": "P90"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "davbson@amazon.com",
+            "name": "David Son",
+            "username": "sondavidb"
+          },
+          "committer": {
+            "email": "55555210+sondavidb@users.noreply.github.com",
+            "name": "David Son",
+            "username": "sondavidb"
+          },
+          "distinct": true,
+          "id": "9b19a99205c05056a5e2e8785c8a3822f57e53e0",
+          "message": "Add integration test for offline content\n\nSigned-off-by: David Son <davbson@amazon.com>",
+          "timestamp": "2024-07-19T14:59:52-07:00",
+          "tree_id": "b48a2bdf7bf80d6d66cba4ae4dc2d2364c64e3b0",
+          "url": "https://github.com/awslabs/soci-snapshotter/commit/9b19a99205c05056a5e2e8785c8a3822f57e53e0"
+        },
+        "date": 1721426834482,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "SociFullECR-public-tensorflow-lazyTaskDuration",
+            "value": 9,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-tensorflow-localTaskDuration",
+            "value": 2.439,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-tensorflow-pullTaskDuration",
+            "value": 1.322,
             "unit": "Seconds",
             "extra": "P90"
           }
