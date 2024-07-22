@@ -5,10 +5,11 @@ go 1.21
 require (
 	github.com/containerd/containerd v1.7.20
 	github.com/containerd/continuity v0.4.3
+	github.com/containerd/errdefs v0.1.0
 	github.com/containerd/log v0.1.0
 	github.com/containerd/platforms v0.2.1
 	github.com/distribution/reference v0.6.0
-	github.com/docker/cli v27.0.3+incompatible
+	github.com/docker/cli v27.1.0+incompatible
 	github.com/docker/go-metrics v0.0.1
 	github.com/golang/groupcache v0.0.0-20210331224755-41bb18bfe9da
 	github.com/google/flatbuffers v24.3.25+incompatible
@@ -48,7 +49,6 @@ require (
 	github.com/cespare/xxhash/v2 v2.2.0 // indirect
 	github.com/containerd/cgroups v1.1.0 // indirect
 	github.com/containerd/containerd/api v1.7.19 // indirect
-	github.com/containerd/errdefs v0.1.0 // indirect
 	github.com/containerd/fifo v1.1.0 // indirect
 	github.com/containerd/ttrpc v1.2.5 // indirect
 	github.com/containerd/typeurl/v2 v2.1.1 // indirect
