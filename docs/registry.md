@@ -69,8 +69,8 @@ Registries that are not listed have not been tested by the SOCI maintainers or r
 | Registry                                                                                  | Compatible? | Mechanism     | Notes                                                |
 | ----------------------------------------------------------------------------------------- | ----------- | ------------- | ---------------------------------------------------- |
 | [Docker Hub](https://hub.docker.com)                                                      | No          | N/A           | Does not support image manifests with subject fields |
-| [Amazon Elastic Container Registry (ECR)](https://aws.amazon.com/ecr/)                    | Yes         | Fallback      |                                                      |
-| [Amazon ECR Public Gallery](https://gallery.ecr.aws)                                      | Yes         | Fallback      |                                                      |
+| [Amazon Elastic Container Registry (ECR)](https://aws.amazon.com/ecr/)                    | Yes         | Referrers API      |                                                      |
+| [Amazon ECR Public Gallery](https://gallery.ecr.aws)                                      | Yes         | Referrers API      |                                                      |
 | [Azure Container Registry](https://azure.microsoft.com/en-us/products/container-registry) | Yes         | Referrers API |                                                      |
 | [GitHub Packages (GHCR)](https://github.com/features/packages)                            | Yes         | Fallback      |                                                      |
 | [Google Cloud Container Registry (GCR)](https://cloud.google.com/container-registry)      | Yes         | Fallback      |                                                      |
