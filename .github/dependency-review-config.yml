@@ -1,0 +1,26 @@
+# Fail third party dependency usage if not covered by the curated set of pre-approved licenses.
+#
+# List was generated from guidance set forth by Amazon open source usage policies.
+#
+# The SOCI project additionally follows the guidance set forth by the CNCF Allowlist License Policy
+# with the exception of pre-existing MPL-2.0 dependencies. (see exceptions below)
+#
+# https://github.com/cncf/foundation/blob/88f1a47550eb2df71b4b6e9c148a1c2f99a1d92e/allowed-third-party-license-policy.md
+allow-licenses:
+  - 'Apache-2.0'
+  - 'BSD-2-Clause'
+  - 'BSD-2-Clause-FreeBSD'
+  - 'BSD-3-Clause'
+  - 'MIT'
+  - 'ISC'
+  - 'Python-2.0'
+  - 'PostgreSQL'
+  - 'X11'
+  - 'Zlib'
+
+# Exception the following usages of MPL-2.0 dependencies
+allow_dependencies_licenses:
+  - pkg:golang/github.com/hashicorp/go-retryablehttp
+  - pkg:golang/github.com/hashicorp/errwrap
+  - pkg:golang/github.com/hashicorp/go-cleanhttp
+  - pkg:golang/github.com/hashicorp/go-multierror
