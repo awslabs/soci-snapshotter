@@ -26,8 +26,8 @@ import (
 	"time"
 
 	"github.com/awslabs/soci-snapshotter/benchmark/framework"
-	"github.com/containerd/containerd"
-	ctdsnapshotters "github.com/containerd/containerd/pkg/snapshotters"
+	containerd "github.com/containerd/containerd/v2/client"
+	ctdsnapshotters "github.com/containerd/containerd/v2/pkg/snapshotters"
 )
 
 type StargzProcess struct {

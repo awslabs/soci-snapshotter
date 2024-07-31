@@ -47,8 +47,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/containerd/containerd/reference"
-	"github.com/containerd/containerd/remotes/docker"
+	"github.com/containerd/containerd/v2/core/remotes/docker"
+	"github.com/containerd/containerd/v2/pkg/reference"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 )
 

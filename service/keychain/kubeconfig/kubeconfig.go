@@ -41,7 +41,7 @@ import (
 	"time"
 
 	"github.com/awslabs/soci-snapshotter/service/resolver"
-	"github.com/containerd/containerd/reference"
+	"github.com/containerd/containerd/v2/pkg/reference"
 	"github.com/containerd/log"
 	dcfile "github.com/docker/cli/cli/config/configfile"
 	corev1 "k8s.io/api/core/v1"

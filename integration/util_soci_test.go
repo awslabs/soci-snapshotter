@@ -43,7 +43,7 @@ import (
 	"github.com/awslabs/soci-snapshotter/soci/store"
 	shell "github.com/awslabs/soci-snapshotter/util/dockershell"
 	"github.com/awslabs/soci-snapshotter/util/testutil"
-	"github.com/containerd/containerd/namespaces"
+	"github.com/containerd/containerd/v2/pkg/namespaces"
 	"github.com/containerd/platforms"
 	"github.com/google/go-cmp/cmp"
 	"github.com/opencontainers/go-digest"

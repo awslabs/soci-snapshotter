@@ -40,7 +40,7 @@ import (
 	"time"
 
 	"github.com/awslabs/soci-snapshotter/service/resolver"
-	"github.com/containerd/containerd/reference"
+	"github.com/containerd/containerd/v2/pkg/reference"
 	"github.com/containerd/log"
 	distribution "github.com/distribution/reference"
 	runtime "k8s.io/cri-api/pkg/apis/runtime/v1"

@@ -36,9 +36,9 @@ import (
 	gocontext "context"
 	"strings"
 
-	"github.com/containerd/containerd"
-	"github.com/containerd/containerd/namespaces"
-	"github.com/containerd/containerd/pkg/epoch"
+	containerd "github.com/containerd/containerd/v2/client"
+	"github.com/containerd/containerd/v2/pkg/epoch"
+	"github.com/containerd/containerd/v2/pkg/namespaces"
 	"github.com/containerd/log"
 	"github.com/urfave/cli"
 )
@@ -73,7 +73,7 @@ func AppContext(context *cli.Context) (gocontext.Context, gocontext.CancelFunc) 
 }
 
 // NewClient returns a new containerd client
-func NewClient(context *cli.Context, opts ...containerd.ClientOpt) (*containerd.Client, gocontext.Context, gocontext.CancelFunc, error) {
+func NewClient(context *cli.Context, opts ...containerd.Opt) (*containerd.Client, gocontext.Context, gocontext.CancelFunc, error) {
 	opts = append(opts, containerd.WithTimeout(context.GlobalDuration("timeout")))
 	address := strings.TrimPrefix(context.GlobalString("address"), "unix://")
 	client, err := containerd.New(address, opts...)

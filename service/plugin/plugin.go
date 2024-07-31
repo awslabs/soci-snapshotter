@@ -43,16 +43,17 @@ import (
 	"github.com/awslabs/soci-snapshotter/config"
 	"github.com/awslabs/soci-snapshotter/service"
 	"github.com/awslabs/soci-snapshotter/service/keychain/cri/v1"
-	crialpha "github.com/awslabs/soci-snapshotter/service/keychain/cri/v1alpha"
 	"github.com/awslabs/soci-snapshotter/service/keychain/dockerconfig"
 	"github.com/awslabs/soci-snapshotter/service/keychain/kubeconfig"
 	"github.com/awslabs/soci-snapshotter/service/resolver"
-	"github.com/containerd/containerd/defaults"
-	"github.com/containerd/containerd/pkg/dialer"
-	ctdplugin "github.com/containerd/containerd/plugin"
-	runtime_alpha "github.com/containerd/containerd/third_party/k8s.io/cri-api/pkg/apis/runtime/v1alpha2"
+	"github.com/containerd/containerd/v2/defaults"
+	"github.com/containerd/containerd/v2/pkg/dialer"
+	"github.com/containerd/containerd/v2/plugins"
+	ctdplugins "github.com/containerd/containerd/v2/plugins"
 	"github.com/containerd/log"
 	"github.com/containerd/platforms"
+	"github.com/containerd/plugin"
+	"github.com/containerd/plugin/registry"
 	grpc "google.golang.org/grpc"
 	"google.golang.org/grpc/backoff"
 	"google.golang.org/grpc/credentials/insecure"
@@ -74,11 +75,11 @@ type Config struct {
 }
 
 func init() {
-	ctdplugin.Register(&ctdplugin.Registration{
-		Type:   ctdplugin.SnapshotPlugin,
+	registry.Register(&plugin.Registration{
+		Type:   plugins.SnapshotPlugin,
 		ID:     "soci",
 		Config: &Config{},
-		InitFn: func(ic *ctdplugin.InitContext) (interface{}, error) {
+		InitFn: func(ic *plugin.InitContext) (interface{}, error) {
 			ic.Meta.Platforms = append(ic.Meta.Platforms, platforms.DefaultSpec())
 			ctx := ic.Context
 
@@ -87,7 +88,7 @@ func init() {
 				return nil, errors.New("invalid soci snapshotter configuration")
 			}
 
-			root := ic.Root
+			root := ic.Properties[ctdplugins.PropertyRootDir]
 			if config.RootPath != "" {
 				root = config.RootPath
 			}
@@ -104,7 +105,7 @@ func init() {
 			}
 			if addr := config.CRIKeychainImageServicePath; config.CRIKeychainConfig.EnableKeychain && addr != "" {
 				// connects to the backend CRI service (defaults to containerd socket)
-				criAddr := ic.Address
+				criAddr := ic.Properties[ctdplugins.PropertyGRPCAddress]
 				if cp := config.CRIKeychainConfig.ImageServicePath; cp != "" {
 					criAddr = cp
 				}
@@ -114,14 +115,6 @@ func init() {
 				// Create a gRPC server
 				rpc := grpc.NewServer()
 
-				connectV1AlphaCRI := func() (runtime_alpha.ImageServiceClient, error) {
-					criConn, err := getCriConn(config.CRIKeychainConfig.ImageServicePath)
-					if err != nil {
-						return nil, err
-					}
-					return runtime_alpha.NewImageServiceClient(criConn), nil
-				}
-
 				connectV1CRI := func() (runtime.ImageServiceClient, error) {
 					criConn, err := getCriConn(config.CRIKeychainConfig.ImageServicePath)
 					if err != nil {
@@ -129,11 +122,6 @@ func init() {
 					}
 					return runtime.NewImageServiceClient(criConn), nil
 				}
-
-				// register v1alpha2 CRI server with the gRPC server
-				fAlpha, criServerAlpha := crialpha.NewCRIAlphaKeychain(ctx, connectV1AlphaCRI)
-				runtime_alpha.RegisterImageServiceServer(rpc, criServerAlpha)
-				credsFuncs = append(credsFuncs, fAlpha)
 
 				// register v1 CRI server with the gRPC server
 				f, criServer := cri.NewCRIKeychain(ctx, connectV1CRI)

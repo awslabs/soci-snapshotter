@@ -24,9 +24,9 @@ import (
 	"os/exec"
 	"time"
 
-	"github.com/containerd/containerd"
-	"github.com/containerd/containerd/contrib/nvidia"
-	"github.com/containerd/containerd/oci"
+	containerd "github.com/containerd/containerd/v2/client"
+	"github.com/containerd/containerd/v2/contrib/nvidia"
+	"github.com/containerd/containerd/v2/pkg/oci"
 	runtimespec "github.com/opencontainers/runtime-spec/specs-go"
 )
 

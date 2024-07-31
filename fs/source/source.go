@@ -38,11 +38,11 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/containerd/containerd/images"
-	"github.com/containerd/containerd/labels"
-	ctdsnapshotters "github.com/containerd/containerd/pkg/snapshotters"
-	"github.com/containerd/containerd/reference"
-	"github.com/containerd/containerd/remotes/docker"
+	"github.com/containerd/containerd/v2/core/images"
+	"github.com/containerd/containerd/v2/core/remotes/docker"
+	"github.com/containerd/containerd/v2/pkg/labels"
+	"github.com/containerd/containerd/v2/pkg/reference"
+	ctdsnapshotters "github.com/containerd/containerd/v2/pkg/snapshotters"
 	digest "github.com/opencontainers/go-digest"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 )

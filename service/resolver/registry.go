@@ -42,8 +42,8 @@ import (
 	"github.com/awslabs/soci-snapshotter/config"
 	rhttp "github.com/hashicorp/go-retryablehttp"
 
-	"github.com/containerd/containerd/reference"
-	"github.com/containerd/containerd/remotes/docker"
+	"github.com/containerd/containerd/v2/core/remotes/docker"
+	"github.com/containerd/containerd/v2/pkg/reference"
 )
 
 // Credential returns a set of credentials for a given image.
