@@ -5,7 +5,7 @@ on:
     tags:
       - 'v[0-9]+.[0-9]+.[0-9]+'
   pull_request:
-    branches: ['main', 'release/**']
+    branches: ['main', 'release/**', 'upgrade-containerd-v2']
     paths:
       - '.github/workflows/releases.yml'
       - 'scripts/**'

@@ -2,13 +2,13 @@ name: Build
 
 on:
   push:
-    branches: ['main', 'release/**']
+    branches: ['main', 'release/**', 'upgrade-containerd-v2']
     paths:
       - '**'
       - '!docs/**' # ignore docs changes
       - '!**.md' # ignore markdown changes
   pull_request:
-    branches: ['main', 'release/**']
+    branches: ['main', 'release/**', 'upgrade-containerd-v2']
     paths:
       - '.github/workflows/build.yml'
       - '**.go'

@@ -2,9 +2,9 @@ name: Pre-build
 
 on:
   push:
-    branches: ['main', 'release/**']
+    branches: ['main', 'release/**', 'upgrade-containerd-v2']
   pull_request:
-    branches: ['main', 'release/**']
+    branches: ['main', 'release/**', 'upgrade-containerd-v2']
 
 env:
   GO_VERSION: '1.21.12'

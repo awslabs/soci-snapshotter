@@ -4,7 +4,7 @@ on:
   release:
     types: ['released']
   pull_request:
-    branches: ['main', 'release/**']
+    branches: ['main', 'release/**', 'upgrade-containerd-v2']
     paths:
       # Run workflow on changes to the workflow definition itself to spot check
       # the core version update functionality.
