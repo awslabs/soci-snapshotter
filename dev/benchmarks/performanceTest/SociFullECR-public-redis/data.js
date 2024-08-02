@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1722404775588,
+  "lastUpdate": 1722621570072,
   "repoUrl": "https://github.com/awslabs/soci-snapshotter",
   "entries": {
     "Soci Benchmark": [
@@ -8432,6 +8432,48 @@ window.BENCHMARK_DATA = {
           {
             "name": "SociFullECR-public-redis-pullTaskDuration",
             "value": 0.9165000000000001,
+            "unit": "Seconds",
+            "extra": "P90"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "macedonv@amazon.com",
+            "name": "Austin Vazquez",
+            "username": "austinvazquez"
+          },
+          "committer": {
+            "email": "55906459+austinvazquez@users.noreply.github.com",
+            "name": "Austin Vazquez",
+            "username": "austinvazquez"
+          },
+          "distinct": true,
+          "id": "d0fc67eb4aaf7870afac4a607b053a718da8a9af",
+          "message": "Add review dependencies workflow to CI\n\nThis change adds a new CI workflow for reviewing added Go dependencies.\nThis include license and vulnerability checks.\n\nSigned-off-by: Austin Vazquez <macedonv@amazon.com>",
+          "timestamp": "2024-08-02T10:49:15-07:00",
+          "tree_id": "9a2a2437d50a3648e6c52b6c78aa0adb5be0cc7e",
+          "url": "https://github.com/awslabs/soci-snapshotter/commit/d0fc67eb4aaf7870afac4a607b053a718da8a9af"
+        },
+        "date": 1722621568143,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "SociFullECR-public-redis-lazyTaskDuration",
+            "value": 2.4215,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-redis-localTaskDuration",
+            "value": 0.026500000000000003,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-redis-pullTaskDuration",
+            "value": 1.0355,
             "unit": "Seconds",
             "extra": "P90"
           }
