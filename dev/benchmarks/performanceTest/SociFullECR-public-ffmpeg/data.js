@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1722404778620,
+  "lastUpdate": 1722621567727,
   "repoUrl": "https://github.com/awslabs/soci-snapshotter",
   "entries": {
     "Soci Benchmark": [
@@ -8391,6 +8391,48 @@ window.BENCHMARK_DATA = {
           {
             "name": "SociFullECR-public-ffmpeg-pullTaskDuration",
             "value": 1.509,
+            "unit": "Seconds",
+            "extra": "P90"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "macedonv@amazon.com",
+            "name": "Austin Vazquez",
+            "username": "austinvazquez"
+          },
+          "committer": {
+            "email": "55906459+austinvazquez@users.noreply.github.com",
+            "name": "Austin Vazquez",
+            "username": "austinvazquez"
+          },
+          "distinct": true,
+          "id": "d0fc67eb4aaf7870afac4a607b053a718da8a9af",
+          "message": "Add review dependencies workflow to CI\n\nThis change adds a new CI workflow for reviewing added Go dependencies.\nThis include license and vulnerability checks.\n\nSigned-off-by: Austin Vazquez <macedonv@amazon.com>",
+          "timestamp": "2024-08-02T10:49:15-07:00",
+          "tree_id": "9a2a2437d50a3648e6c52b6c78aa0adb5be0cc7e",
+          "url": "https://github.com/awslabs/soci-snapshotter/commit/d0fc67eb4aaf7870afac4a607b053a718da8a9af"
+        },
+        "date": 1722621566152,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "SociFullECR-public-ffmpeg-lazyTaskDuration",
+            "value": 0.434,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-ffmpeg-localTaskDuration",
+            "value": 0.013000000000000001,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-ffmpeg-pullTaskDuration",
+            "value": 1.7429999999999999,
             "unit": "Seconds",
             "extra": "P90"
           }
