@@ -50,6 +50,11 @@ for more details.
 - [Debug and Useful Commands](docs/debug.md): accessing logs/metrics and debugging common errors.
 - [Glossary](docs/glossary.md): glossary we use in the project.
 
+### Integration-specific documentation
+
+- [SOCI on Kubernetes](docs/kubernetes.md): an overview of how to use SOCI on Kubernetes in general
+- [SOCI on Amazon Elastic Kubernetes Service (EKS)](docs/eks.md): a walk through for setting up SOCI on Amazon EKS
+
 ## Project Origin
 
 There a few different lazy loading projects in the containerd snapshotter community.  This project began as a
