@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1722621574589,
+  "lastUpdate": 1722890070509,
   "repoUrl": "https://github.com/awslabs/soci-snapshotter",
   "entries": {
     "Soci Benchmark": [
@@ -8310,6 +8310,48 @@ window.BENCHMARK_DATA = {
           {
             "name": "SociFullECR-public-tensorflow_gpu-pullTaskDuration",
             "value": 3.0875000000000004,
+            "unit": "Seconds",
+            "extra": "P90"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "alvajus@amazon.com",
+            "name": "Justin Alvarez",
+            "username": "pendo324"
+          },
+          "committer": {
+            "email": "pendo324@users.noreply.github.com",
+            "name": "Justin",
+            "username": "pendo324"
+          },
+          "distinct": true,
+          "id": "49fc2dedccbc4e6fd31b325f0a49e76353a3021c",
+          "message": "fix architecture check in verify-release-artifacts\n\nSigned-off-by: Justin Alvarez <alvajus@amazon.com>",
+          "timestamp": "2024-08-05T16:22:46-04:00",
+          "tree_id": "deb5661c10e6a22421742b7bf55faedbf8ca8a15",
+          "url": "https://github.com/awslabs/soci-snapshotter/commit/49fc2dedccbc4e6fd31b325f0a49e76353a3021c"
+        },
+        "date": 1722890064484,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "SociFullECR-public-tensorflow_gpu-lazyTaskDuration",
+            "value": 45.324999999999996,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-tensorflow_gpu-localTaskDuration",
+            "value": 2.6165000000000003,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-tensorflow_gpu-pullTaskDuration",
+            "value": 3.711,
             "unit": "Seconds",
             "extra": "P90"
           }
