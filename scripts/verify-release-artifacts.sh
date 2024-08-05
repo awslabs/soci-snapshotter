@@ -30,7 +30,7 @@ if [ "${arch}" == "" ]; then
     esac
 fi
 
-if [ "${arch}" != "amd64" ] && [ "${arch}" != "amd64" ] ; then
+if [ "${arch}" != "amd64" ] && [ "${arch}" != "arm64" ] ; then
     echo "Error: unsupported arch"
     exit 1
 fi
