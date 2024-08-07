@@ -18,7 +18,7 @@ ARG NERDCTL_VERSION=1.7.1
 
 FROM public.ecr.aws/docker/library/registry:3.0.0-alpha.1 AS registry
 
-FROM public.ecr.aws/docker/library/golang:1.21.12-alpine AS containerd-snapshotter-base
+FROM public.ecr.aws/docker/library/golang:1.21.13-alpine AS containerd-snapshotter-base
 
 ARG CONTAINERD_VERSION
 ARG RUNC_VERSION
