@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1722956662387,
+  "lastUpdate": 1723127824561,
   "repoUrl": "https://github.com/awslabs/soci-snapshotter",
   "entries": {
     "Soci Benchmark": [
@@ -8353,6 +8353,48 @@ window.BENCHMARK_DATA = {
           {
             "name": "SociFullECR-public-rabbitmq-pullTaskDuration",
             "value": 1.876,
+            "unit": "Seconds",
+            "extra": "P90"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49699333+dependabot[bot]@users.noreply.github.com",
+            "name": "dependabot[bot]",
+            "username": "dependabot[bot]"
+          },
+          "committer": {
+            "email": "55906459+austinvazquez@users.noreply.github.com",
+            "name": "Austin Vazquez",
+            "username": "austinvazquez"
+          },
+          "distinct": true,
+          "id": "bae6ba541385466e3fb0de2f3117ad2585258468",
+          "message": "Bump docker/library/golang from 1.21.12-alpine to 1.21.13-alpine\n\nBumps docker/library/golang from 1.21.12-alpine to 1.21.13-alpine.\n\n---\nupdated-dependencies:\n- dependency-name: docker/library/golang\n  dependency-type: direct:production\n  update-type: version-update:semver-patch\n...\n\nSigned-off-by: dependabot[bot] <support@github.com>",
+          "timestamp": "2024-08-08T07:25:43-07:00",
+          "tree_id": "e40a508814fa04e5956cf8c5d1e080975e5cbfe0",
+          "url": "https://github.com/awslabs/soci-snapshotter/commit/bae6ba541385466e3fb0de2f3117ad2585258468"
+        },
+        "date": 1723127823373,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "SociFullECR-public-rabbitmq-lazyTaskDuration",
+            "value": 16.130000000000003,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-rabbitmq-localTaskDuration",
+            "value": 8.6645,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-rabbitmq-pullTaskDuration",
+            "value": 2.2365,
             "unit": "Seconds",
             "extra": "P90"
           }
