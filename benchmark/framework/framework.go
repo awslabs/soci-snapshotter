@@ -23,7 +23,6 @@ import (
 	"fmt"
 	"io/fs"
 	"os"
-	"strconv"
 	"testing"
 
 	"github.com/containerd/log"
@@ -78,7 +77,7 @@ func (frame *BenchmarkFramework) Run(ctx context.Context) {
 			testDriver.BeforeFunction()
 		}
 		for j := 0; j < testDriver.NumberOfTests; j++ {
-			log.G(ctx).WithField("test_name", testDriver.TestName).Infof("TestStart for " + testDriver.TestName + "_" + strconv.Itoa(j+1))
+			log.G(ctx).WithField("test_name", testDriver.TestName).Infof("TestStart for %s_%d", testDriver.TestName, j+1)
 			fmt.Printf("Running test %d of %d\n", j+1, testDriver.NumberOfTests)
 			res := testing.Benchmark(testDriver.TestFunction)
 			testDriver.FullRunStats.BenchmarkTimes = append(testDriver.FullRunStats.BenchmarkTimes, res.T.Seconds())

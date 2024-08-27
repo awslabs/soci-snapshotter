@@ -8,7 +8,7 @@ linters:
     - goimports
     - ineffassign
     - revive
-    - vet
+    - govet
     - unused
     - misspell
   disable:
@@ -22,11 +22,11 @@ issues:
       # it can make it hard to understand what the unused parameter
       # was supposed to be used for.
       text: "unused-parameter:"
-
-run:
-  deadline: 4m
-  skip-dirs:
+  exclude-dirs:
     - docs
     - images
     - out
     - script
+
+run:
+  deadline: 4m
