@@ -27,7 +27,7 @@ to install them on your machine:
 > have their own dependencies (e.g., containerd depends on runc/cni). Please refer
 > to their doc for a complete installation guide (mainly containerd).
 
-- **[go](https://go.dev/doc/install) >= 1.21** - required to build the project;
+- **[go](https://go.dev/doc/install) >= 1.22** - required to build the project;
 to confirm please check with `go version`.
 - **[containerd](https://github.com/containerd/containerd/blob/main/docs/getting-started.md) >= 1.4** -
 required to run the SOCI snapshotter; to confirm please check with `sudo containerd --version`.
