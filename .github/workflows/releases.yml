@@ -19,15 +19,13 @@ permissions:
   deployments: write
 
 jobs:
-  generate-artifacts:
-    runs-on: ubuntu-20.04
+  setup-environment:
+    runs-on: ubuntu-22.04
     env:
-      # Set during setup.
       RELEASE_TAG: ''
       DYNAMIC_BINARY_NAME: ''
       STATIC_BINARY_NAME: ''
     steps:
-      - uses: actions/checkout@v4
       - name: Export cleaned release tag
         run: |
           export release_tag=${GITHUB_REF#refs/*/} # Strip down to raw tag name
@@ -35,7 +33,6 @@ jobs:
       - name: Create dummy environment for release
         if: github.event_name == 'pull_request'
         run: |
-          touch THIRD_PARTY_LICENSES
           echo "RELEASE_TAG=v0.0.0" >> $GITHUB_ENV
       - name: Setup variables and release directories
         run: |
@@ -43,36 +40,51 @@ jobs:
           export release_version=${release_tag/v/} # Remove v from tag name
           echo "DYNAMIC_BINARY_NAME=soci-snapshotter-${release_version}-linux-amd64.tar.gz" >> $GITHUB_ENV
           echo "STATIC_BINARY_NAME=soci-snapshotter-${release_version}-linux-amd64-static.tar.gz" >> $GITHUB_ENV
+    outputs:
+      release_tag: ${{ env.RELEASE_TAG }}
+      dynamic_binary_name: ${{ env.DYNAMIC_BINARY_NAME }}
+      static_binary_name: ${{ env.STATIC_BINARY_NAME }}
 
-          mkdir release
+  generate-artifacts:
+    needs: setup-environment
+    runs-on: ubuntu-22.04
+    container:
+      image: public.ecr.aws/ubuntu/ubuntu:20.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+      - name: install build dependencies
+        run: bash scripts/install-build-dependencies.sh
+      - name: Create dummy THIRD_PARTY_LICENSES file for pull request
+        if: github.event_name == 'pull_request'
+        run: |
+          touch THIRD_PARTY_LICENSES
       - name: Create release binaries
-        run: make RELEASE_TAG=${{ env.RELEASE_TAG }} release
+        shell: bash
+        run: make RELEASE_TAG=${{ needs.setup-environment.outputs.RELEASE_TAG }} release
       - uses: actions/upload-artifact@v4
         with:
           name: artifacts
           path: release/
           if-no-files-found: error
 
-    outputs:
-      release_tag: ${{ env.RELEASE_TAG }}
-      dynamic_binary_name: ${{ env.DYNAMIC_BINARY_NAME }}
-      static_binary_name: ${{ env.STATIC_BINARY_NAME }}
-
   validate-artifacts:
-    needs: generate-artifacts
-    runs-on: ubuntu-20.04
+    needs: [setup-environment, generate-artifacts]
+    runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v4
       - uses: actions/download-artifact@v4
         with:
           name: artifacts
           path: release/
-      - run: bash scripts/verify-release-artifacts.sh ${{ needs.generate-artifacts.outputs.release_tag }}
+      - run: bash scripts/verify-release-artifacts.sh ${{ needs.setup-environment.outputs.release_tag }}
 
   create-release:
     if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
-    needs: [generate-artifacts, validate-artifacts]
-    runs-on: ubuntu-20.04
+    needs: [setup-environment, validate-artifacts]
+    runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v4
       - uses: actions/download-artifact@v4
@@ -84,7 +96,7 @@ jobs:
           prerelease: false
           generate_release_notes: false
           files: |
-            ${{ needs.generate-artifacts.outputs.dynamic_binary_name }}
-            ${{ needs.generate-artifacts.outputs.dynamic_binary_name }}.sha256sum
-            ${{ needs.generate-artifacts.outputs.static_binary_name }}
-            ${{ needs.generate-artifacts.outputs.static_binary_name }}.sha256sum
+            ${{ needs.setup-environment.outputs.dynamic_binary_name }}
+            ${{ needs.setup-environment.outputs.dynamic_binary_name }}.sha256sum
+            ${{ needs.setup-environment.outputs.static_binary_name }}
+            ${{ needs.setup-environment.outputs.static_binary_name }}.sha256sum
