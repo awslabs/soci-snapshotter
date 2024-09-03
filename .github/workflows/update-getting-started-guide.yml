@@ -56,7 +56,7 @@ jobs:
         run: bash scripts/update-getting-started-guide-version.sh --verbose ${{ github.event.release.tag_name }}
 
       - name: Create PR
-        uses: peter-evans/create-pull-request@v6
+        uses: peter-evans/create-pull-request@v7
         with:
           title: 'Update getting started to ${{ github.event.release.tag_name }}'
           commit-message: 'Update getting started to ${{ github.event.release.tag_name }}'
