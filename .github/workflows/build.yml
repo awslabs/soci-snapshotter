@@ -70,7 +70,9 @@ jobs:
         if: matrix.os == 'al2-arm'
         run: dnf install zlib-static.aarch64 -y
       - run: make
-      - run: make test
+      - run: make test-with-coverage
+      - name: Show test coverage
+        run: make show-test-coverage
 
   integration:
     needs: setup
@@ -91,4 +93,6 @@ jobs:
       - name: Install zlib static on AL2 ARM instances
         if: matrix.os == 'al2-arm'
         run: dnf install zlib-static.aarch64 -y
-      - run: make integration
+      - run: make integration-with-coverage
+      - name: Show test coverage
+        run: make show-integration-coverage

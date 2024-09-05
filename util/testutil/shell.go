@@ -367,7 +367,8 @@ func KillMatchingProcess(sh *shell.Shell, psLinePattern string) error {
 
 	var allErr error
 	for _, pid := range targets {
-		if err := sh.Command("kill", "-9", fmt.Sprintf("%d", pid)).Run(); err != nil {
+		// Send SIGTERM so the unit under test correctly writes integration coverage reports to Go coverage directory.
+		if err := sh.Command("kill", "-2", fmt.Sprintf("%d", pid)).Run(); err != nil {
 			errors.Join(allErr, fmt.Errorf("failed to kill %v: %w", pid, err))
 		}
 	}
