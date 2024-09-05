@@ -24,9 +24,11 @@ ARG CONTAINERD_VERSION
 ARG RUNC_VERSION
 ARG NERDCTL_VERSION
 ARG TARGETARCH
+ENV GOPROXY direct
+ENV GOCOVERDIR /test_coverage
+
 COPY ./integ_entrypoint.sh /integ_entrypoint.sh
 COPY . $GOPATH/src/github.com/awslabs/soci-snapshotter
-ENV GOPROXY direct
 RUN apk update && apk upgrade
 RUN apk add --no-cache \
     btrfs-progs-libs \

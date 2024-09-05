@@ -41,6 +41,7 @@ import (
 	"encoding/csv"
 	"encoding/json"
 	"encoding/pem"
+	"errors"
 	"fmt"
 	"math/big"
 	"os"
@@ -148,12 +149,14 @@ services:
    entrypoint: [ "/integ_entrypoint.sh" ]
    environment:
     - NO_PROXY=127.0.0.1,localhost
+    - GOCOVERDIR=/test_coverage
    tmpfs:
     - /tmp:exec,mode=777
     - /var/lib/containerd
     - /var/lib/soci-snapshotter-grpc
    volumes:
     - /dev/fuse:/dev/fuse
+    - {{.ImageContextDir}}/cov/integration:/test_coverage
 `
 const composeRegistryTemplate = `
 version: "3.7"
@@ -165,12 +168,14 @@ services:
   entrypoint: [ "/integ_entrypoint.sh" ]
   environment:
    - NO_PROXY=127.0.0.1,localhost,{{.RegistryHost}}:443
+   - GOCOVERDIR=/test_coverage
   tmpfs:
    - /tmp:exec,mode=777
    - /var/lib/containerd
    - /var/lib/soci-snapshotter-grpc
   volumes:
    - /dev/fuse:/dev/fuse
+   - {{.ImageContextDir}}/cov/integration:/test_coverage
  registry:
   image: {{.RegistryImageRef}}
   container_name: {{.RegistryHost}}
@@ -197,12 +202,14 @@ services:
     entrypoint: [ "/integ_entrypoint.sh" ]
     environment:
     - NO_PROXY=127.0.0.1,localhost,{{.RegistryHost}}:443
+    - GOCOVERDIR=/test_coverage
     tmpfs:
     - /tmp:exec,mode=777
     - /var/lib/containerd
     - /var/lib/soci-snapshotter-grpc
     volumes:
     - /dev/fuse:/dev/fuse
+    - {{.ImageContextDir}}/cov/integration:/test_coverage
   registry:
     image: {{.RegistryImageRef}}
     container_name: {{.RegistryHost}}
@@ -473,6 +480,11 @@ func newShellWithRegistry(t *testing.T, r registryConfig, opts ...registryOpt) (
 		serviceName = "testing"
 	)
 
+	pRoot, err := testutil.GetProjectRoot()
+	if err != nil {
+		t.Fatal(err)
+	}
+
 	// Setup dummy creds for test
 	crt, key, err := generateRegistrySelfSignedCert(r.host)
 	if err != nil {
@@ -541,6 +553,7 @@ networks:
 
 	s, err := testutil.ApplyTextTemplate(composeRegistryTemplate, dockerComposeYaml{
 		ServiceName:      serviceName,
+		ImageContextDir:  pRoot,
 		RegistryHost:     r.host,
 		RegistryImageRef: rOpts.registryImageRef,
 		HostVolumeMount:  hostVolumeMount,
@@ -567,12 +580,13 @@ networks:
 		X("update-ca-certificates").
 		Retry(100, "nerdctl", "login", "-u", r.user, "-p", r.pass, r.host)
 	return sh, func() error {
-		if err := c.Cleanup(); err != nil {
-			return err
+		killErr := testutil.KillMatchingProcess(sh, "soci-snapshotter-grpc")
+		if err = c.Cleanup(); err != nil {
+			return errors.Join(killErr, err)
 		}
 		for _, f := range cleanups {
 			if err := f(); err != nil {
-				return err
+				return errors.Join(killErr, err)
 			}
 		}
 		return nil
@@ -585,7 +599,18 @@ func newSnapshotterBaseShell(t *testing.T) (*shell.Shell, func() error) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	c, err := compose.Up(composeDefaultTemplate, compose.WithBuildArgs(buildArgs...), compose.WithStdio(testutil.TestingLogDest()))
+
+	pRoot, err := testutil.GetProjectRoot()
+	if err != nil {
+		t.Fatal(err)
+	}
+	s, err := testutil.ApplyTextTemplate(composeDefaultTemplate, dockerComposeYaml{
+		ImageContextDir: pRoot,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	c, err := compose.Up(s, compose.WithBuildArgs(buildArgs...), compose.WithStdio(testutil.TestingLogDest()))
 	if err != nil {
 		t.Fatalf("failed to prepare compose: %v", err)
 	}
@@ -599,7 +624,14 @@ func newSnapshotterBaseShell(t *testing.T) (*shell.Shell, func() error) {
 			t.Fatalf("failed to write containerd config %v: %v", defaultContainerdConfigPath, err)
 		}
 	}
-	return sh, c.Cleanup
+	cleanup := func() error {
+		err := testutil.KillMatchingProcess(sh, "soci-snapshotter-grpc")
+		if err != nil {
+			return fmt.Errorf("stop-soci-err: %v, compose-cleanup-err: %v", err, c.Cleanup())
+		}
+		return c.Cleanup()
+	}
+	return sh, cleanup
 }
 
 func generateRegistrySelfSignedCert(registryHost string) (crt, key []byte, _ error) {
