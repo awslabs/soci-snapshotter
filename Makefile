@@ -19,8 +19,8 @@ GO111MODULE_VALUE=auto
 OUTDIR ?= $(CURDIR)/out
 COVDIR ?= $(CURDIR)/cov
 PKG=github.com/awslabs/soci-snapshotter
-VERSION=$(shell git describe --match 'v[0-9]*' --dirty='.m' --always --tags)
-REVISION=$(shell git rev-parse HEAD)$(shell if ! git diff --no-ext-diff --quiet --exit-code; then echo .m; fi)
+VERSION ?= $(shell git describe --match 'v[0-9]*' --dirty='.m' --always --tags)
+REVISION ?= $(shell git rev-parse HEAD)$(shell if ! git diff --no-ext-diff --quiet --exit-code; then echo .m; fi)
 
 GO_BUILDTAGS ?=
 ifneq ($(STATIC),)
