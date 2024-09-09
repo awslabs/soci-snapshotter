@@ -139,7 +139,6 @@ disable_verification = {{.DisableVerification}}
 {{.AdditionalConfig}}
 `
 const composeDefaultTemplate = `
-version: "3.7"
 services:
   testing:
    image: soci_base:soci_test
@@ -156,7 +155,6 @@ services:
     - /dev/fuse:/dev/fuse
 `
 const composeRegistryTemplate = `
-version: "3.7"
 services:
  {{.ServiceName}}:
   image: soci_base:soci_test
@@ -188,7 +186,6 @@ services:
 {{.NetworkConfig}}
 `
 const composeRegistryAltTemplate = `
-version: "3.7"
 services:
   {{.ServiceName}}:
     image: soci_base:soci_test
@@ -222,7 +219,6 @@ services:
 `
 
 const composeBuildTemplate = `
-version: "3.7"
 services:
  {{.ServiceName}}:
   image: soci_base:soci_test
