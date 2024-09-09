@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1725503538730,
+  "lastUpdate": 1725897696797,
   "repoUrl": "https://github.com/awslabs/soci-snapshotter",
   "entries": {
     "Soci Benchmark": [
@@ -8811,6 +8811,48 @@ window.BENCHMARK_DATA = {
           {
             "name": "SociFullECR-public-ffmpeg-pullTaskDuration",
             "value": 3.6559999999999997,
+            "unit": "Seconds",
+            "extra": "P90"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49699333+dependabot[bot]@users.noreply.github.com",
+            "name": "dependabot[bot]",
+            "username": "dependabot[bot]"
+          },
+          "committer": {
+            "email": "55906459+austinvazquez@users.noreply.github.com",
+            "name": "Austin Vazquez",
+            "username": "austinvazquez"
+          },
+          "distinct": true,
+          "id": "51f88f689c9c3ca5e1ad208282dcfec1ca3d2085",
+          "message": "Bump docker/library/golang from 1.22.6-alpine to 1.22.7-alpine\n\nBumps docker/library/golang from 1.22.6-alpine to 1.22.7-alpine.\n\n---\nupdated-dependencies:\n- dependency-name: docker/library/golang\n  dependency-type: direct:production\n  update-type: version-update:semver-patch\n...\n\nSigned-off-by: dependabot[bot] <support@github.com>",
+          "timestamp": "2024-09-09T08:52:23-07:00",
+          "tree_id": "e2ba8e27afc8d7a3326c41396d28fe8643ce76f9",
+          "url": "https://github.com/awslabs/soci-snapshotter/commit/51f88f689c9c3ca5e1ad208282dcfec1ca3d2085"
+        },
+        "date": 1725897690918,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "SociFullECR-public-ffmpeg-lazyTaskDuration",
+            "value": 0.131,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-ffmpeg-localTaskDuration",
+            "value": 0.012,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-ffmpeg-pullTaskDuration",
+            "value": 1.217,
             "unit": "Seconds",
             "extra": "P90"
           }
