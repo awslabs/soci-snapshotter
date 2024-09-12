@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1725897693815,
+  "lastUpdate": 1726109916917,
   "repoUrl": "https://github.com/awslabs/soci-snapshotter",
   "entries": {
     "Soci Benchmark": [
@@ -8894,6 +8894,48 @@ window.BENCHMARK_DATA = {
           {
             "name": "SociFullECR-public-redis-pullTaskDuration",
             "value": 1.025,
+            "unit": "Seconds",
+            "extra": "P90"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "davbson@amazon.com",
+            "name": "David Son",
+            "username": "sondavidb"
+          },
+          "committer": {
+            "email": "55555210+sondavidb@users.noreply.github.com",
+            "name": "David Son",
+            "username": "sondavidb"
+          },
+          "distinct": true,
+          "id": "871bec22b92b8f343d3546f76c76826fa526aab1",
+          "message": "Add test coverage to workflows\n\nThis change adds code coverage to our workflows and the necessary\nMakefile targets to support this.\n\nSigned-off-by: David Son <davbson@amazon.com>",
+          "timestamp": "2024-09-11T19:49:27-07:00",
+          "tree_id": "e46d04ff2bba5287f537efe72aabaa078d9b6d50",
+          "url": "https://github.com/awslabs/soci-snapshotter/commit/871bec22b92b8f343d3546f76c76826fa526aab1"
+        },
+        "date": 1726109913179,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "SociFullECR-public-redis-lazyTaskDuration",
+            "value": 2.491,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-redis-localTaskDuration",
+            "value": 0.025,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-redis-pullTaskDuration",
+            "value": 1.7174999999999998,
             "unit": "Seconds",
             "extra": "P90"
           }
