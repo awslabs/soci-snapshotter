@@ -36,6 +36,7 @@ RUN dnf update && dnf upgrade && dnf install -y \
     iptables \
     pigz \
     procps \
+    systemd \
     tar \
     util-linux-core
 RUN cp $GOPATH/src/github.com/awslabs/soci-snapshotter/out/soci /usr/local/bin/ && \
@@ -43,7 +44,9 @@ RUN cp $GOPATH/src/github.com/awslabs/soci-snapshotter/out/soci /usr/local/bin/ 
     mkdir /etc/soci-snapshotter-grpc && \
     mkdir /etc/containerd/ && \
     cp $GOPATH/src/github.com/awslabs/soci-snapshotter/integration/config/etc/soci-snapshotter-grpc/config.toml /etc/soci-snapshotter-grpc/ && \
-    cp $GOPATH/src/github.com/awslabs/soci-snapshotter/integration/config/etc/containerd/config.toml /etc/containerd/ 
+    cp $GOPATH/src/github.com/awslabs/soci-snapshotter/integration/config/etc/containerd/config.toml /etc/containerd/ && \
+    cp $GOPATH/src/github.com/awslabs/soci-snapshotter/soci-snapshotter.service /etc/systemd/system && \
+    cp $GOPATH/src/github.com/awslabs/soci-snapshotter/soci-snapshotter.socket /etc/systemd/system
 RUN curl -sSL --output /tmp/containerd.tgz https://github.com/containerd/containerd/releases/download/v${CONTAINERD_VERSION}/containerd-${CONTAINERD_VERSION}-linux-${TARGETARCH:-amd64}.tar.gz && \
     tar zxvf /tmp/containerd.tgz -C /usr/local/ && \
     rm -f /tmp/containerd.tgz

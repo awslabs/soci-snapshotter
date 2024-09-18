@@ -342,6 +342,26 @@ func (s *Shell) OLog(args ...string) ([]byte, error) {
 	return out, nil
 }
 
+// CombinedOLog executes a command and return the stdout and stderr as a combined stream. When the command fails,
+// the error is reported via Reporter.Logf and this Shell still *accepts* further command execution.
+func (s *Shell) CombinedOLog(args ...string) ([]byte, error) {
+	if s.IsInvalid() {
+		return nil, fmt.Errorf("invalid shell")
+	}
+	if len(args) < 1 {
+		s.Fatal("no command to run")
+		return nil, fmt.Errorf("no command to run")
+	}
+	s.r.Logf(">>> Getting output of: %v\n", args)
+	cmd := s.Command(args[0], args[1:]...)
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		s.r.Logf("failed to run for getting output from %v: %v", args, err)
+		return out, err
+	}
+	return out, nil
+}
+
 // R executes a command. Stdio is returned as io.Reader. streamed to Reporter.
 func (s *Shell) R(args ...string) (stdout, stderr io.Reader, err error) {
 	if s.IsInvalid() {

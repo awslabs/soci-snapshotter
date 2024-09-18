@@ -1,0 +1,93 @@
+/*
+   Copyright The Soci Snapshotter Authors.
+
+   Licensed under the Apache License, Version 2.0 (the "License");
+   you may not use this file except in compliance with the License.
+   You may obtain a copy of the License at
+
+       http://www.apache.org/licenses/LICENSE-2.0
+
+   Unless required by applicable law or agreed to in writing, software
+   distributed under the License is distributed on an "AS IS" BASIS,
+   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+   See the License for the specific language governing permissions and
+   limitations under the License.
+*/
+
+package integration
+
+import (
+	"regexp"
+	"testing"
+
+	shell "github.com/awslabs/soci-snapshotter/util/dockershell"
+)
+
+// TestSnapshotterSystemdStartup tests that SOCI interacts with systemd socket activation correctly.
+// It verifies that SOCI works when using socket activation and that SOCI starts up correctly when
+// it is configured for socket activation, but it launches directly.
+func TestSnapshotterSystemdStartup(t *testing.T) {
+	tests := []struct {
+		name                 string
+		init                 func(*shell.Shell)
+		expectedErrorMatcher *regexp.Regexp
+	}{
+		{
+			name: "fails when soci is not started at all",
+			init: func(s *shell.Shell) {
+				// SOCI is not started at all. We expect a timeout
+				// when preparing a snapshot
+			},
+			expectedErrorMatcher: regexp.MustCompile("timeout"),
+		},
+		{
+			name: "succeeds when soci is started by systemd socket activation",
+			init: func(s *shell.Shell) {
+				// systemd listens on the soci socket, but the snapshotter doesn't start immediately.
+				// When containerd first opens the soci socket, systemd forks the snapshotter process
+				// with the socket fd open which the snapshotter then uses to listen for snapshot requests.
+				// We expect the snapshotter to launch and work when we make the prepare request
+				s.X("systemctl", "start", "soci-snapshotter.socket")
+			},
+			expectedErrorMatcher: nil,
+		},
+		{
+			name: "succeeds when soci is started manually when expecting socket activation",
+			init: func(s *shell.Shell) {
+				// The snapshotter is started directly, but it's expecting an open file and info
+				// from systemd. This tests that SOCI will correctly fallback to the default socket address
+				// if the SOCI systemd unit says to use systemd socket activation, but the snapshotter is
+				// started directly instead.
+				// We expect the snapshotter to launch during this init and be available when we make the prepare request.
+				s.X("systemctl", "start", "soci-snapshotter")
+			},
+			expectedErrorMatcher: nil,
+		},
+	}
+
+	var isExpectedError = func(output []byte, err error, matcher *regexp.Regexp) bool {
+		if err == nil {
+			return matcher == nil
+		}
+		if matcher == nil {
+			return false
+		}
+		return matcher.Match(output)
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(tt *testing.T) {
+			sh, cleanup := newSnapshotterBaseShell(tt, withEntrypoint("/usr/lib/systemd/systemd"))
+			defer cleanup()
+			// We're not using `rebootContainerd` here because that also restarts the soci-snapshotter
+			sh.Gox("containerd", "--log-level", containerdLogLevel)
+			tc.init(sh)
+			// 1s timeout is arbitrary so that the negative test doesn't take too long. It does mean that
+			// the snapshotter has to start up and prepare a snapshot within 1s in the socket activation case.
+			output, err := sh.CombinedOLog("ctr", "--timeout", "1s", "snapshot", "--snapshotter", "soci", "prepare", "test")
+			if !isExpectedError(output, err, tc.expectedErrorMatcher) {
+				tt.Fatalf("unexpected error preparing snapshot: %v", output)
+			}
+		})
+	}
+}
