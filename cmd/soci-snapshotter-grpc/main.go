@@ -34,6 +34,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"flag"
 	"fmt"
 	"io"
@@ -43,6 +44,7 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
+	"strings"
 	"time"
 
 	_ "net/http/pprof"
@@ -66,6 +68,7 @@ import (
 	"github.com/containerd/containerd/snapshots"
 	runtime_alpha "github.com/containerd/containerd/third_party/k8s.io/cri-api/pkg/apis/runtime/v1alpha2"
 	"github.com/containerd/log"
+	"github.com/coreos/go-systemd/v22/activation"
 	sddaemon "github.com/coreos/go-systemd/v22/daemon"
 	metrics "github.com/docker/go-metrics"
 	"github.com/sirupsen/logrus"
@@ -207,16 +210,6 @@ func serve(ctx context.Context, rpc *grpc.Server, addr string, rs snapshots.Snap
 	// Register the service with the gRPC server
 	snapshotsapi.RegisterSnapshotsServer(rpc, snsvc)
 
-	// Prepare the directory for the socket
-	if err := os.MkdirAll(filepath.Dir(addr), 0700); err != nil {
-		return false, fmt.Errorf("failed to create directory %q: %w", filepath.Dir(addr), err)
-	}
-
-	// Try to remove the socket file to avoid EADDRINUSE
-	if err := os.RemoveAll(addr); err != nil {
-		return false, fmt.Errorf("failed to remove %q: %w", addr, err)
-	}
-
 	errCh := make(chan error, 1)
 
 	var cleanupFns []func() error
@@ -252,7 +245,7 @@ func serve(ctx context.Context, rpc *grpc.Server, addr string, rs snapshots.Snap
 	}
 
 	// Listen and serve
-	l, err := net.Listen("unix", addr)
+	l, err := listen(ctx, addr)
 	if err != nil {
 		return false, fmt.Errorf("error on listen socket %q: %w", addr, err)
 	}
@@ -336,4 +329,53 @@ func getCriConn(criAddr string) (*grpc.ClientConn, error) {
 		grpc.WithDefaultCallOptions(grpc.MaxCallSendMsgSize(defaults.DefaultMaxSendMsgSize)),
 	}
 	return grpc.Dial(dialer.DialAddress(criAddr), gopts...)
+}
+
+func listen(ctx context.Context, address string) (net.Listener, error) {
+	protocol, addr, found := strings.Cut(address, "://")
+	if !found {
+		// The address doesn't start with a protocol, assume it's a path to a unix socket
+		protocol = "unix"
+		addr = address
+	}
+	switch protocol {
+	case "unix":
+		return listenUnix(addr)
+	case "fd":
+		return listenFd(ctx)
+	default:
+		return nil, fmt.Errorf("unknown protocol for address %s", address)
+	}
+}
+
+func listenUnix(addr string) (net.Listener, error) {
+	// Prepare the directory for the socket
+	if err := os.MkdirAll(filepath.Dir(addr), 0700); err != nil {
+		return nil, fmt.Errorf("failed to create directory %q: %w", filepath.Dir(addr), err)
+	}
+
+	// Try to remove the socket file to avoid EADDRINUSE
+	if err := os.RemoveAll(addr); err != nil {
+		return nil, fmt.Errorf("failed to remove %q: %w", addr, err)
+	}
+	return net.Listen("unix", addr)
+}
+
+func listenFd(ctx context.Context) (net.Listener, error) {
+	listeners, err := activation.Listeners()
+	if err != nil {
+		return nil, err
+	}
+	if len(listeners) == 0 {
+		log.G(ctx).Info("Address was set to listen on a file descriptor, but no file descriptors were passed. Perhaps soci was launched directly without using systemd socket activation?")
+		log.G(ctx).Info("Listening on the default socket address")
+		return listenUnix(defaultAddress)
+	}
+	if len(listeners) > 1 {
+		for _, socket := range listeners {
+			socket.Close()
+		}
+		return nil, errors.New("soci only supports a single systemd socket on activation")
+	}
+	return listeners[0], nil
 }

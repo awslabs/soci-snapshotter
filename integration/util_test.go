@@ -139,13 +139,26 @@ disable_verification = {{.DisableVerification}}
 
 {{.AdditionalConfig}}
 `
+
+type composeDefaultTemplateArgs struct {
+	Entrypoint      string
+	ImageContextDir string
+}
+
+type composeDefaultTemplateOpt func(*composeDefaultTemplateArgs)
+
+func withEntrypoint(entrypoint string) composeDefaultTemplateOpt {
+	return func(args *composeDefaultTemplateArgs) {
+		args.Entrypoint = entrypoint
+	}
+}
+
 const composeDefaultTemplate = `
 services:
   testing:
    image: soci_base:soci_test
    privileged: true
-   init: true
-   entrypoint: [ "/integ_entrypoint.sh" ]
+   entrypoint: {{.Entrypoint}}
    environment:
     - NO_PROXY=127.0.0.1,localhost
     - GOCOVERDIR=/test_coverage
@@ -590,7 +603,8 @@ networks:
 	}
 }
 
-func newSnapshotterBaseShell(t *testing.T) (*shell.Shell, func() error) {
+func newSnapshotterBaseShell(t *testing.T, opts ...composeDefaultTemplateOpt) (*shell.Shell, func() error) {
+
 	serviceName := "testing"
 	buildArgs, err := getBuildArgsFromEnv()
 	if err != nil {
@@ -601,9 +615,16 @@ func newSnapshotterBaseShell(t *testing.T) (*shell.Shell, func() error) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	s, err := testutil.ApplyTextTemplate(composeDefaultTemplate, dockerComposeYaml{
+
+	args := composeDefaultTemplateArgs{
+		Entrypoint:      `[ "/integ_entrypoint.sh" ]`,
 		ImageContextDir: pRoot,
-	})
+	}
+	for _, opt := range opts {
+		opt(&args)
+	}
+
+	s, err := testutil.ApplyTextTemplate(composeDefaultTemplate, args)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -621,14 +642,7 @@ func newSnapshotterBaseShell(t *testing.T) (*shell.Shell, func() error) {
 			t.Fatalf("failed to write containerd config %v: %v", defaultContainerdConfigPath, err)
 		}
 	}
-	cleanup := func() error {
-		err := testutil.KillMatchingProcess(sh, "soci-snapshotter-grpc")
-		if err != nil {
-			return fmt.Errorf("stop-soci-err: %v, compose-cleanup-err: %v", err, c.Cleanup())
-		}
-		return c.Cleanup()
-	}
-	return sh, cleanup
+	return sh, c.Cleanup
 }
 
 func generateRegistrySelfSignedCert(registryHost string) (crt, key []byte, _ error) {
