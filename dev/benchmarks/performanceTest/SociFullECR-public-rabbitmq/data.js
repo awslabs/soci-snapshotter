@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1726251967373,
+  "lastUpdate": 1727819411018,
   "repoUrl": "https://github.com/awslabs/soci-snapshotter",
   "entries": {
     "Soci Benchmark": [
@@ -8773,6 +8773,48 @@ window.BENCHMARK_DATA = {
           {
             "name": "SociFullECR-public-rabbitmq-pullTaskDuration",
             "value": 1.8595,
+            "unit": "Seconds",
+            "extra": "P90"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "davbson@amazon.com",
+            "name": "David Son",
+            "username": "sondavidb"
+          },
+          "committer": {
+            "email": "kern.walster@gmail.com",
+            "name": "Kern Walster",
+            "username": "Kern--"
+          },
+          "distinct": true,
+          "id": "0a3b4b452b1a9536b05d29d8e87f15125c999b75",
+          "message": "Remove obsolete \"version\" definition in tests\n\nPer warning messages, the \"version\" definition in Docker compose files\nis obsolete, so removing it.\n\nSigned-off-by: David Son <davbson@amazon.com>",
+          "timestamp": "2024-10-01T14:41:00-07:00",
+          "tree_id": "03d38b4ea519cf3738e54f35c540dc9acaf2b73e",
+          "url": "https://github.com/awslabs/soci-snapshotter/commit/0a3b4b452b1a9536b05d29d8e87f15125c999b75"
+        },
+        "date": 1727819408344,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "SociFullECR-public-rabbitmq-lazyTaskDuration",
+            "value": 12.8855,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-rabbitmq-localTaskDuration",
+            "value": 8.6345,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-rabbitmq-pullTaskDuration",
+            "value": 1.099,
             "unit": "Seconds",
             "extra": "P90"
           }
