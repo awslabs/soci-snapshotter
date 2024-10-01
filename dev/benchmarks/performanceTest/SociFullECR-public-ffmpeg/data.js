@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1726251965958,
+  "lastUpdate": 1727819412832,
   "repoUrl": "https://github.com/awslabs/soci-snapshotter",
   "entries": {
     "Soci Benchmark": [
@@ -8937,6 +8937,48 @@ window.BENCHMARK_DATA = {
           {
             "name": "SociFullECR-public-ffmpeg-pullTaskDuration",
             "value": 1.6805,
+            "unit": "Seconds",
+            "extra": "P90"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "davbson@amazon.com",
+            "name": "David Son",
+            "username": "sondavidb"
+          },
+          "committer": {
+            "email": "kern.walster@gmail.com",
+            "name": "Kern Walster",
+            "username": "Kern--"
+          },
+          "distinct": true,
+          "id": "0a3b4b452b1a9536b05d29d8e87f15125c999b75",
+          "message": "Remove obsolete \"version\" definition in tests\n\nPer warning messages, the \"version\" definition in Docker compose files\nis obsolete, so removing it.\n\nSigned-off-by: David Son <davbson@amazon.com>",
+          "timestamp": "2024-10-01T14:41:00-07:00",
+          "tree_id": "03d38b4ea519cf3738e54f35c540dc9acaf2b73e",
+          "url": "https://github.com/awslabs/soci-snapshotter/commit/0a3b4b452b1a9536b05d29d8e87f15125c999b75"
+        },
+        "date": 1727819408159,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "SociFullECR-public-ffmpeg-lazyTaskDuration",
+            "value": 0.123,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-ffmpeg-localTaskDuration",
+            "value": 0.0135,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-ffmpeg-pullTaskDuration",
+            "value": 1.3175,
             "unit": "Seconds",
             "extra": "P90"
           }
