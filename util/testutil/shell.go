@@ -340,9 +340,9 @@ func CopyInDir(sh *shell.Shell, from, to string) error {
 // KillMatchingProcess kills processes that "ps" line matches the specified pattern in the
 // specified execution environment.
 func KillMatchingProcess(sh *shell.Shell, psLinePattern string) error {
-	data, err := sh.Command("ps", "auxww").Output()
+	data, err := sh.Command("ps", "axo", "pid,command").Output()
 	if err != nil {
-		return fmt.Errorf("failed to run ps command : %v", err)
+		return fmt.Errorf("failed to run ps command: %v", err)
 	}
 	var targets []int
 	scanner := bufio.NewScanner(bytes.NewReader(data))
@@ -367,12 +367,22 @@ func KillMatchingProcess(sh *shell.Shell, psLinePattern string) error {
 
 	var allErr error
 	for _, pid := range targets {
-		// Send SIGTERM so the unit under test correctly writes integration coverage reports to Go coverage directory.
-		if err := sh.Command("kill", "-2", fmt.Sprintf("%d", pid)).Run(); err != nil {
-			errors.Join(allErr, fmt.Errorf("failed to kill %v: %w", pid, err))
-		}
+		allErr = errors.Join(allErr, killProcess(sh, pid))
+
 	}
 	return allErr
+}
+
+func killProcess(sh *shell.Shell, pid int) error {
+	// Send SIGTERM so the unit under test correctly writes integration coverage reports to Go coverage directory.
+	ex := sh.Command("kill", "-2", fmt.Sprintf("%d", pid))
+	if out, err := ex.CombinedOutput(); err != nil {
+		// If the process disappeared between the ps and the kill, don't treat it as an error
+		if !strings.Contains(string(out), "No such process") {
+			return err
+		}
+	}
+	return nil
 }
 
 func RemoveContentStoreContent(sh *shell.Shell, contentStoreType store.ContentStoreType, contentDigest string) error {

@@ -734,13 +734,13 @@ host = "%s"
 insecure = true
 `, regConfig.host, regAltConfig.hostWithPort())
 
+	crtPath := filepath.Join(caCertDir, "domain.crt")
 	// Setup environment
-	if err := testutil.WriteFileContents(sh, filepath.Join(caCertDir, "domain.crt"), crt, 0600); err != nil {
+	if err := testutil.WriteFileContents(sh, crtPath, crt, 0600); err != nil {
 		t.Fatalf("failed to write %v: %v", caCertDir, err)
 	}
 	sh.
-		X("apk", "add", "--no-cache", "iptables").
-		X("update-ca-certificates").
+		X("trust", "anchor", crtPath).
 		Retry(100, "nerdctl", "login", "-u", regConfig.user, "-p", regConfig.pass, regConfig.host)
 
 	imageName := rabbitmqImage

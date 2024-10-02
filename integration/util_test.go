@@ -569,11 +569,12 @@ networks:
 	sh = shell.New(de, testutil.NewTestingReporter(t))
 
 	// Install cert and login to the registry
-	if err := testutil.WriteFileContents(sh, filepath.Join(caCertDir, "domain.crt"), crt, 0600); err != nil {
+	crtPath := filepath.Join(caCertDir, "domain.crt")
+	if err := testutil.WriteFileContents(sh, crtPath, crt, 0600); err != nil {
 		t.Fatalf("failed to write cert at %v: %v", caCertDir, err)
 	}
 	sh.
-		X("update-ca-certificates").
+		X("trust", "anchor", crtPath).
 		Retry(100, "nerdctl", "login", "-u", r.user, "-p", r.pass, r.host)
 	return sh, func() error {
 		killErr := testutil.KillMatchingProcess(sh, "soci-snapshotter-grpc")
@@ -585,7 +586,7 @@ networks:
 				return errors.Join(killErr, err)
 			}
 		}
-		return nil
+		return killErr
 	}
 }
 
@@ -722,8 +723,14 @@ func rebootContainerd(t *testing.T, sh *shell.Shell, customContainerdConfig, cus
 	)
 
 	// cleanup directories
-	testutil.KillMatchingProcess(sh, "containerd")
-	testutil.KillMatchingProcess(sh, "soci-snapshotter-grpc")
+	err := testutil.KillMatchingProcess(sh, "containerd")
+	if err != nil {
+		sh.Fatal("failed to kill containerd: %v", err)
+	}
+	err = testutil.KillMatchingProcess(sh, "soci-snapshotter-grpc")
+	if err != nil {
+		sh.Fatal("failed to kill soci: %v", err)
+	}
 	removeDirContents(sh, containerdRoot)
 	if isDirExists(sh, containerdStatus) {
 		removeDirContents(sh, containerdStatus)
