@@ -18,7 +18,7 @@ ARG NERDCTL_VERSION=1.7.1
 
 FROM public.ecr.aws/docker/library/registry:3.0.0-alpha.1 AS registry
 
-FROM public.ecr.aws/docker/library/golang:1.22.7-alpine AS containerd-snapshotter-base
+FROM public.ecr.aws/amazonlinux/amazonlinux:2023 AS containerd-snapshotter-base
 
 ARG CONTAINERD_VERSION
 ARG RUNC_VERSION
@@ -29,16 +29,15 @@ ENV GOCOVERDIR /test_coverage
 
 COPY ./integ_entrypoint.sh /integ_entrypoint.sh
 COPY . $GOPATH/src/github.com/awslabs/soci-snapshotter
-RUN apk update && apk upgrade
-RUN apk add --no-cache \
-    btrfs-progs-libs \
-    curl \
-    fuse \
-    gcc \
-    libc6-compat \
-    libseccomp-dev \
+RUN dnf update && dnf upgrade && dnf install -y \
+    diffutils \
+    findutils \
+    gzip \
+    iptables \
     pigz \
-    zlib-dev
+    procps \
+    tar \
+    util-linux-core
 RUN cp $GOPATH/src/github.com/awslabs/soci-snapshotter/out/soci /usr/local/bin/ && \
     cp $GOPATH/src/github.com/awslabs/soci-snapshotter/out/soci-snapshotter-grpc /usr/local/bin/ && \
     mkdir /etc/soci-snapshotter-grpc && \

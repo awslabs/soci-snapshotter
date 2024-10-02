@@ -306,7 +306,6 @@ disable = true
 			rebootContainerd(t, sh, getContainerdConfigToml(t, false), getSnapshotterConfigToml(t, false, config))
 			// Re-pull image from our local registry mirror
 			sh.X(append(imagePullCmd, "--soci-index-digest", indexDigest, regConfig.mirror(containerImage).ref)...)
-			sh.X("apk", "add", "--no-cache", "--quiet", "iptables")
 
 			containerRunCmd := append(runSociCmd, image, "cat", "/etc/hosts")
 

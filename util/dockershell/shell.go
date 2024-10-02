@@ -125,7 +125,7 @@ func New(de *dexec.Exec, r Reporter) *Shell {
 	}
 }
 
-func (s *Shell) fatal(format string, v ...interface{}) *Shell {
+func (s *Shell) Fatal(format string, v ...interface{}) *Shell {
 	s.r.Errorf(format, v...)
 	s.err = fmt.Errorf(format, v...)
 	s.invalidMu.Lock()
@@ -161,14 +161,14 @@ func (s *Shell) X(args ...string) *Shell {
 		return s
 	}
 	if len(args) < 1 {
-		return s.fatal("no command to run")
+		return s.Fatal("no command to run")
 	}
 	s.r.Logf(">>> Running: %v\n", args)
 	cmd := s.Command(args[0], args[1:]...)
 	cmd.Stdout = s.r.Stdout()
 	cmd.Stderr = s.r.Stderr()
 	if err := cmd.Run(); err != nil {
-		return s.fatal("failed to run %v: %v", args, err)
+		return s.Fatal("failed to run %v: %v", args, err)
 	}
 	return s
 }
@@ -180,7 +180,7 @@ func (s *Shell) XLog(args ...string) *Shell {
 		return s
 	}
 	if len(args) < 1 {
-		return s.fatal("no command to run")
+		return s.Fatal("no command to run")
 	}
 	s.r.Logf(">>> Running: %v\n", args)
 	cmd := s.Command(args[0], args[1:]...)
@@ -200,7 +200,7 @@ func (s *Shell) Gox(args ...string) *Shell {
 		return s
 	}
 	if len(args) < 1 {
-		return s.fatal("no command to run")
+		return s.Fatal("no command to run")
 	}
 	go func() {
 		s.r.Logf(">>> Running: %v\n", args)
@@ -234,7 +234,7 @@ func (s *Shell) Pipe(out io.Writer, commands ...[]string) *Shell {
 	for i, args := range commands {
 		i, args := i, args
 		if len(args) < 1 {
-			return s.fatal("no command to run")
+			return s.Fatal("no command to run")
 		}
 		s.r.Logf(">>> Running: %v\n", args)
 		cmd := s.Command(args[0], args[1:]...)
@@ -271,7 +271,7 @@ func (s *Shell) Pipe(out io.Writer, commands ...[]string) *Shell {
 		}
 	}
 	if !ok {
-		return s.fatal("could not run %v", commands)
+		return s.Fatal("could not run %v", commands)
 	}
 
 	return s
@@ -296,7 +296,7 @@ func (s *Shell) Retry(num int, args ...string) *Shell {
 		s.r.Logf("failed to run (%d/%d) %v: %v", i, num, args, err)
 		time.Sleep(time.Second)
 	}
-	return s.fatal("failed to run %v", args)
+	return s.Fatal("failed to run %v", args)
 }
 
 // O executes a command and return the stdout. Stderr is streamed to Reporter. When the command fails,
@@ -307,7 +307,7 @@ func (s *Shell) O(args ...string) []byte {
 		return nil
 	}
 	if len(args) < 1 {
-		s.fatal("no command to run")
+		s.Fatal("no command to run")
 		return nil
 	}
 	s.r.Logf(">>> Getting output of: %v\n", args)
@@ -315,7 +315,7 @@ func (s *Shell) O(args ...string) []byte {
 	cmd.Stderr = s.r.Stderr()
 	out, err := cmd.Output()
 	if err != nil {
-		s.fatal("failed to run for getting output from %v: %v", args, err)
+		s.Fatal("failed to run for getting output from %v: %v", args, err)
 		return nil
 	}
 	return out
@@ -328,7 +328,7 @@ func (s *Shell) OLog(args ...string) ([]byte, error) {
 		return nil, fmt.Errorf("invalid shell")
 	}
 	if len(args) < 1 {
-		s.fatal("no command to run")
+		s.Fatal("no command to run")
 		return nil, fmt.Errorf("no command to run")
 	}
 	s.r.Logf(">>> Getting output of: %v\n", args)
