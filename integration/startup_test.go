@@ -18,10 +18,35 @@ package integration
 
 import (
 	"regexp"
+	"strings"
 	"testing"
 
 	shell "github.com/awslabs/soci-snapshotter/util/dockershell"
 )
+
+// TestSnapshotterStartup tests to run containerd + snapshotter and check plugin is
+// recognized by containerd
+func TestSnapshotterStartup(t *testing.T) {
+	t.Parallel()
+	sh, done := newSnapshotterBaseShell(t)
+	defer done()
+	rebootContainerd(t, sh, "", "")
+	found := false
+	err := sh.ForEach(shell.C("ctr", "plugin", "ls"), func(l string) bool {
+		info := strings.Fields(l)
+		if len(info) < 4 {
+			t.Fatalf("malformed plugin info: %v", info)
+		}
+		if info[0] == "io.containerd.snapshotter.v1" && info[1] == "soci" && info[3] == "ok" {
+			found = true
+			return false
+		}
+		return true
+	})
+	if err != nil || !found {
+		t.Fatalf("failed to get soci snapshotter status using ctr plugin ls: %v", err)
+	}
+}
 
 // TestSnapshotterSystemdStartup tests that SOCI interacts with systemd socket activation correctly.
 // It verifies that SOCI works when using socket activation and that SOCI starts up correctly when
