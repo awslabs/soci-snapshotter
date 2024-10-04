@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1727929450775,
+  "lastUpdate": 1728073839251,
   "repoUrl": "https://github.com/awslabs/soci-snapshotter",
   "entries": {
     "Soci Benchmark": [
@@ -8857,6 +8857,48 @@ window.BENCHMARK_DATA = {
           {
             "name": "SociFullECR-public-rabbitmq-pullTaskDuration",
             "value": 1.1925,
+            "unit": "Seconds",
+            "extra": "P90"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "walster@amazon.com",
+            "name": "Kern Walster",
+            "username": "Kern--"
+          },
+          "committer": {
+            "email": "kern.walster@gmail.com",
+            "name": "Kern Walster",
+            "username": "Kern--"
+          },
+          "distinct": true,
+          "id": "212fe220f061413eb9f1a86556057128b25f4cab",
+          "message": "Use AL2023 for integ test container\n\nThis change moves our integ test container from Alpine to AL2023. The\nmotivation is to be able to test features of a bigger OS, such as\ntesting systemd socket activation.\n\nSigned-off-by: Kern Walster <walster@amazon.com>",
+          "timestamp": "2024-10-04T13:20:50-07:00",
+          "tree_id": "0965d1a8323185f82fc32c731d4ae10b8c28d302",
+          "url": "https://github.com/awslabs/soci-snapshotter/commit/212fe220f061413eb9f1a86556057128b25f4cab"
+        },
+        "date": 1728073838321,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "SociFullECR-public-rabbitmq-lazyTaskDuration",
+            "value": 13.768500000000001,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-rabbitmq-localTaskDuration",
+            "value": 8.593499999999999,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-rabbitmq-pullTaskDuration",
+            "value": 1.4929999999999999,
             "unit": "Seconds",
             "extra": "P90"
           }
