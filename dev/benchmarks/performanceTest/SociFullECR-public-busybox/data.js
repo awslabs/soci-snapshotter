@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1727929451988,
+  "lastUpdate": 1728073842134,
   "repoUrl": "https://github.com/awslabs/soci-snapshotter",
   "entries": {
     "Soci Benchmark": [
@@ -9021,6 +9021,48 @@ window.BENCHMARK_DATA = {
           {
             "name": "SociFullECR-public-busybox-pullTaskDuration",
             "value": 0.8375,
+            "unit": "Seconds",
+            "extra": "P90"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "walster@amazon.com",
+            "name": "Kern Walster",
+            "username": "Kern--"
+          },
+          "committer": {
+            "email": "kern.walster@gmail.com",
+            "name": "Kern Walster",
+            "username": "Kern--"
+          },
+          "distinct": true,
+          "id": "212fe220f061413eb9f1a86556057128b25f4cab",
+          "message": "Use AL2023 for integ test container\n\nThis change moves our integ test container from Alpine to AL2023. The\nmotivation is to be able to test features of a bigger OS, such as\ntesting systemd socket activation.\n\nSigned-off-by: Kern Walster <walster@amazon.com>",
+          "timestamp": "2024-10-04T13:20:50-07:00",
+          "tree_id": "0965d1a8323185f82fc32c731d4ae10b8c28d302",
+          "url": "https://github.com/awslabs/soci-snapshotter/commit/212fe220f061413eb9f1a86556057128b25f4cab"
+        },
+        "date": 1728073838670,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "SociFullECR-public-busybox-lazyTaskDuration",
+            "value": 0.03,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-busybox-localTaskDuration",
+            "value": 0.009,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-busybox-pullTaskDuration",
+            "value": 1.2035,
             "unit": "Seconds",
             "extra": "P90"
           }
