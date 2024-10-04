@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1727929449462,
+  "lastUpdate": 1728073844950,
   "repoUrl": "https://github.com/awslabs/soci-snapshotter",
   "entries": {
     "Soci Benchmark": [
@@ -8980,6 +8980,48 @@ window.BENCHMARK_DATA = {
           {
             "name": "SociFullECR-public-mongo-pullTaskDuration",
             "value": 0.978,
+            "unit": "Seconds",
+            "extra": "P90"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "walster@amazon.com",
+            "name": "Kern Walster",
+            "username": "Kern--"
+          },
+          "committer": {
+            "email": "kern.walster@gmail.com",
+            "name": "Kern Walster",
+            "username": "Kern--"
+          },
+          "distinct": true,
+          "id": "212fe220f061413eb9f1a86556057128b25f4cab",
+          "message": "Use AL2023 for integ test container\n\nThis change moves our integ test container from Alpine to AL2023. The\nmotivation is to be able to test features of a bigger OS, such as\ntesting systemd socket activation.\n\nSigned-off-by: Kern Walster <walster@amazon.com>",
+          "timestamp": "2024-10-04T13:20:50-07:00",
+          "tree_id": "0965d1a8323185f82fc32c731d4ae10b8c28d302",
+          "url": "https://github.com/awslabs/soci-snapshotter/commit/212fe220f061413eb9f1a86556057128b25f4cab"
+        },
+        "date": 1728073841258,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "SociFullECR-public-mongo-lazyTaskDuration",
+            "value": 3.3415,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-mongo-localTaskDuration",
+            "value": 0.315,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-mongo-pullTaskDuration",
+            "value": 1.361,
             "unit": "Seconds",
             "extra": "P90"
           }
