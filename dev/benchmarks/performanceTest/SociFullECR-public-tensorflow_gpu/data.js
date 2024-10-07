@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1728073844007,
+  "lastUpdate": 1728330755477,
   "repoUrl": "https://github.com/awslabs/soci-snapshotter",
   "entries": {
     "Soci Benchmark": [
@@ -8940,6 +8940,48 @@ window.BENCHMARK_DATA = {
           {
             "name": "SociFullECR-public-tensorflow_gpu-pullTaskDuration",
             "value": 2.1695,
+            "unit": "Seconds",
+            "extra": "P90"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "walster@amazon.com",
+            "name": "Kern Walster",
+            "username": "Kern--"
+          },
+          "committer": {
+            "email": "kern.walster@gmail.com",
+            "name": "Kern Walster",
+            "username": "Kern--"
+          },
+          "distinct": true,
+          "id": "97bb872478e308e22f93c01c7a77befa29a2dd6e",
+          "message": "Move TestSnapshotterStartup to startup_test.go\n\nThis change consolidates snapshotter startup tests into a single file\ninstead of putting it in pull_test.go\n\nSigned-off-by: Kern Walster <walster@amazon.com>",
+          "timestamp": "2024-10-07T12:43:29-07:00",
+          "tree_id": "6c2508d1ccb170f4ec45e089ff7a79e1f12c0a5b",
+          "url": "https://github.com/awslabs/soci-snapshotter/commit/97bb872478e308e22f93c01c7a77befa29a2dd6e"
+        },
+        "date": 1728330752365,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "SociFullECR-public-tensorflow_gpu-lazyTaskDuration",
+            "value": 31.859,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-tensorflow_gpu-localTaskDuration",
+            "value": 2.6574999999999998,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-tensorflow_gpu-pullTaskDuration",
+            "value": 2.8495,
             "unit": "Seconds",
             "extra": "P90"
           }
