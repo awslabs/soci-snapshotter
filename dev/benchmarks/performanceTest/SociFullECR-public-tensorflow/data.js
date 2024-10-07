@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1728073840218,
+  "lastUpdate": 1728330750252,
   "repoUrl": "https://github.com/awslabs/soci-snapshotter",
   "entries": {
     "Soci Benchmark": [
@@ -9104,6 +9104,48 @@ window.BENCHMARK_DATA = {
           {
             "name": "SociFullECR-public-tensorflow-pullTaskDuration",
             "value": 2.1799999999999997,
+            "unit": "Seconds",
+            "extra": "P90"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "walster@amazon.com",
+            "name": "Kern Walster",
+            "username": "Kern--"
+          },
+          "committer": {
+            "email": "kern.walster@gmail.com",
+            "name": "Kern Walster",
+            "username": "Kern--"
+          },
+          "distinct": true,
+          "id": "97bb872478e308e22f93c01c7a77befa29a2dd6e",
+          "message": "Move TestSnapshotterStartup to startup_test.go\n\nThis change consolidates snapshotter startup tests into a single file\ninstead of putting it in pull_test.go\n\nSigned-off-by: Kern Walster <walster@amazon.com>",
+          "timestamp": "2024-10-07T12:43:29-07:00",
+          "tree_id": "6c2508d1ccb170f4ec45e089ff7a79e1f12c0a5b",
+          "url": "https://github.com/awslabs/soci-snapshotter/commit/97bb872478e308e22f93c01c7a77befa29a2dd6e"
+        },
+        "date": 1728330749370,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "SociFullECR-public-tensorflow-lazyTaskDuration",
+            "value": 24.2315,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-tensorflow-localTaskDuration",
+            "value": 2.6079999999999997,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-tensorflow-pullTaskDuration",
+            "value": 2.02,
             "unit": "Seconds",
             "extra": "P90"
           }
