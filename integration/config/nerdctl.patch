@@ -1,0 +1,1200 @@
+diff --git a/cmd/nerdctl/container_create.go b/cmd/nerdctl/container_create.go
+index 60b7de34..cca5aaf4 100644
+--- a/cmd/nerdctl/container_create.go
++++ b/cmd/nerdctl/container_create.go
+@@ -390,6 +390,10 @@ func processContainerCreateOptions(cmd *cobra.Command) (opt types.ContainerCreat
+ 	}
+ 	// #endregion
+ 
++	opt.Userns, err = cmd.Flags().GetString("userns")
++	if err != nil {
++		return
++	}
+ 	// #region for image pull and verify options
+ 	imageVerifyOpt, err := processImageVerifyOptions(cmd)
+ 	if err != nil {
+diff --git a/cmd/nerdctl/container_run.go b/cmd/nerdctl/container_run.go
+index 5eff72b3..82c60910 100644
+--- a/cmd/nerdctl/container_run.go
++++ b/cmd/nerdctl/container_run.go
+@@ -269,6 +269,8 @@ func setCreateFlags(cmd *cobra.Command) {
+ 	cmd.Flags().String("ipfs-address", "", "multiaddr of IPFS API (default uses $IPFS_PATH env variable if defined or local directory ~/.ipfs)")
+ 
+ 	cmd.Flags().String("isolation", "default", "Specify isolation technology for container. On Linux the only valid value is default. Windows options are host, process and hyperv with process isolation as the default")
++	cmd.Flags().String("userns", "", "Support idmapping of containers")
++	cmd.Flags().Lookup("userns").Hidden = true
+ 	cmd.RegisterFlagCompletionFunc("isolation", func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+ 		if runtime.GOOS == "windows" {
+ 			return []string{"default", "host", "process", "hyperv"}, cobra.ShellCompDirectiveNoFileComp
+diff --git a/cmd/nerdctl/container_run_linux_test.go b/cmd/nerdctl/container_run_linux_test.go
+index 0900489f..d3dd5700 100644
+--- a/cmd/nerdctl/container_run_linux_test.go
++++ b/cmd/nerdctl/container_run_linux_test.go
+@@ -25,6 +25,7 @@ import (
+ 	"io"
+ 	"net/http"
+ 	"os"
++	"os/exec"
+ 	"path/filepath"
+ 	"strconv"
+ 	"strings"
+@@ -35,6 +36,7 @@ import (
+ 	"github.com/containerd/nerdctl/pkg/rootlessutil"
+ 	"github.com/containerd/nerdctl/pkg/strutil"
+ 	"github.com/containerd/nerdctl/pkg/testutil"
++	"github.com/sirupsen/logrus"
+ 	"gotest.tools/v3/assert"
+ 	"gotest.tools/v3/icmd"
+ )
+@@ -327,6 +329,158 @@ func TestRunSigProxy(t *testing.T) {
+ 	}
+ }
+ 
++func TestUsernsMapping(t *testing.T) {
++	t.Parallel()
++
++	image := testutil.CommonImage
++	processCmd := "sleep 30"
++	validUserns := "nerdctltestuser"
++	invalidUserns := "nonexistentuser"
++	expectedHostUID := 123456789 //setting an arbitary number to reduce collision
++
++	defer removeUsernsConfig(validUserns, expectedHostUID)
++
++	t.Run("validUserns", func(t *testing.T) {
++		if err := appendUsernsConfig(validUserns, expectedHostUID); err != nil {
++			t.Fatalf("Failed to append userns config: %v", err)
++		}
++
++		containerName := testutil.Identifier(t)
++		defer removeContainer(t, containerName)
++
++		result := runUsernsContainer(t, containerName, validUserns, image, processCmd)
++		fmt.Printf(result.Combined())
++		assert.Assert(t, result.ExitCode == 0)
++
++		actualHostUID, err := getContainerHostUID(t, containerName)
++		if err != nil {
++			t.Fatalf("Failed to get container host UID: %v", err)
++		}
++
++		if actualHostUID != expectedHostUID {
++			t.Fatalf("Expected host UID %d, got %d", expectedHostUID, actualHostUID)
++		}
++
++		t.Logf("Valid userns test passed: container mapped to host UID %d", actualHostUID)
++	})
++
++	t.Run("invalidUserns", func(t *testing.T) {
++		containerName := testutil.Identifier(t)
++
++		result := runUsernsContainer(t, containerName, invalidUserns, image, processCmd)
++		assert.Assert(t, result.ExitCode != 0)
++
++	})
++}
++
++func runUsernsContainer(t *testing.T, name, userns, image, cmd string) *icmd.Result {
++	base := testutil.NewBase(t)
++	removeContainerArgs := []string{
++		"rm", "-f", name,
++	}
++	base.Cmd(removeContainerArgs...).Run()
++
++	args := []string{
++		"run", "-d", "--userns", userns, "--name", name, image, "sh", "-c", cmd,
++	}
++	return base.Cmd(args...).Run()
++}
++
++func getContainerHostUID(t *testing.T, containerName string) (int, error) {
++	base := testutil.NewBase(t)
++	result := base.Cmd("inspect", "--format", "{{.State.Pid}}", containerName).Run()
++	if result.Error != nil {
++		return 0, fmt.Errorf("failed to get container PID: %v", result.Error)
++	}
++
++	pidStr := strings.TrimSpace(result.Stdout())
++	pid, err := strconv.Atoi(pidStr)
++	if err != nil {
++		return 0, fmt.Errorf("invalid PID: %v", err)
++	}
++
++	stat, err := os.Stat(fmt.Sprintf("/proc/%d", pid))
++	if err != nil {
++		return 0, fmt.Errorf("failed to stat process: %v", err)
++	}
++
++	uid := int(stat.Sys().(*syscall.Stat_t).Uid)
++	return uid, nil
++}
++
++func appendUsernsConfig(userns string, hostUid int) error {
++	if err := addUser(userns, hostUid); err != nil {
++		return fmt.Errorf("failed to add user %s: %w", userns, err)
++	}
++
++	entry := fmt.Sprintf("%s:%d:65536\n", userns, hostUid)
++
++	files := []string{"/etc/subuid", "/etc/subgid"}
++	for _, file := range files {
++		f, err := os.OpenFile(file, os.O_APPEND|os.O_WRONLY, 0644)
++		if err != nil {
++			return fmt.Errorf("failed to open %s: %w", file, err)
++		}
++		defer f.Close()
++
++		if _, err := f.WriteString(entry); err != nil {
++			return fmt.Errorf("failed to write to %s: %w", file, err)
++		}
++	}
++	return nil
++}
++
++func addUser(username string, hostId int) error {
++	cmd := exec.Command("sudo", "groupadd", "-g", strconv.Itoa(hostId), username)
++	output, err := cmd.CombinedOutput()
++	if err != nil {
++		return fmt.Errorf("groupadd failed: %s, %w", string(output), err)
++	}
++	cmd = exec.Command("sudo", "useradd", "-u", strconv.Itoa(hostId), "-g", strconv.Itoa(hostId), "-s", "/bin/false", username)
++	output, err = cmd.CombinedOutput()
++	if err != nil {
++		return fmt.Errorf("useradd failed: %s, %w", string(output), err)
++	}
++	return nil
++}
++
++func removeUsernsConfig(userns string, hostUid int) {
++	if err := delUser(userns); err != nil {
++		logrus.Errorf("failed to del user %s", userns)
++		return
++	}
++
++	entry := fmt.Sprintf("%s:%d:65536\n", userns, hostUid)
++
++	files := []string{"/etc/subuid", "/etc/subgid"}
++	for _, file := range files {
++		content, err := os.ReadFile(file)
++		if err != nil {
++			logrus.Errorf("Failed to read %s: %v", file, err)
++			continue
++		}
++
++		newContent := strings.ReplaceAll(string(content), entry, "")
++		if err := os.WriteFile(file, []byte(newContent), 0644); err != nil {
++			logrus.Errorf("Failed to write to %s: %v", file, err)
++		}
++	}
++}
++
++func delUser(username string) error {
++	cmd := exec.Command("sudo", "userdel", username)
++	output, err := cmd.CombinedOutput()
++	if err != nil {
++		return fmt.Errorf("userdel failed: %s, %w", string(output), err)
++	}
++	return nil
++}
++
++func removeContainer(t *testing.T, name string) {
++	base := testutil.NewBase(t)
++	base.Cmd("rm", "-f", name).Run()
++}
++
+ func TestRunWithFluentdLogDriver(t *testing.T) {
+ 	base := testutil.NewBase(t)
+ 	tempDirectory := t.TempDir()
+diff --git a/go.mod b/go.mod
+index e43c1699..c2c92cea 100644
+--- a/go.mod
++++ b/go.mod
+@@ -38,6 +38,7 @@ require (
+ 	github.com/ipfs/go-cid v0.4.1
+ 	github.com/mattn/go-isatty v0.0.20
+ 	github.com/mitchellh/mapstructure v1.5.0
++	github.com/moby/moby v27.3.1+incompatible
+ 	github.com/moby/sys/mount v0.3.3
+ 	github.com/moby/sys/signal v0.7.0
+ 	github.com/moby/term v0.5.0
+@@ -50,6 +51,7 @@ require (
+ 	github.com/rootless-containers/rootlesskit v1.1.1
+ 	github.com/spf13/cobra v1.8.0
+ 	github.com/spf13/pflag v1.0.5
++	github.com/stretchr/testify v1.8.4
+ 	github.com/tidwall/gjson v1.17.0
+ 	github.com/vishvananda/netlink v1.2.1-beta.2
+ 	github.com/vishvananda/netns v0.0.4
+@@ -65,6 +67,11 @@ require (
+ 	gotest.tools/v3 v3.5.1
+ )
+ 
++require (
++	github.com/davecgh/go-spew v1.1.1 // indirect
++	github.com/pmezard/go-difflib v1.0.0 // indirect
++)
++
+ require (
+ 	github.com/AdaLogics/go-fuzz-headers v0.0.0-20230811130428-ced1acdcaa24 // indirect
+ 	github.com/AdamKorcz/go-118-fuzz-build v0.0.0-20230306123547-8075edf89bb0 // indirect
+diff --git a/go.sum b/go.sum
+index 723f2a36..de61f612 100644
+--- a/go.sum
++++ b/go.sum
+@@ -212,6 +212,8 @@ github.com/mitchellh/mapstructure v1.5.0 h1:jeMsZIYE/09sWLaz43PL7Gy6RuMjD2eJVyua
+ github.com/mitchellh/mapstructure v1.5.0/go.mod h1:bFUtVrKA4DC2yAKiSyO/QUcy7e+RRV2QTWOzhPopBRo=
+ github.com/moby/locker v1.0.1 h1:fOXqR41zeveg4fFODix+1Ch4mj/gT0NE1XJbp/epuBg=
+ github.com/moby/locker v1.0.1/go.mod h1:S7SDdo5zpBK84bzzVlKr2V0hz+7x9hWbYC/kq7oQppc=
++github.com/moby/moby v27.3.1+incompatible h1:KQbXBjo7PavKpzIl7UkHT31y9lw/e71Uvrqhr4X+zMA=
++github.com/moby/moby v27.3.1+incompatible/go.mod h1:fDXVQ6+S340veQPv35CzDahGBmHsiclFwfEygB/TWMc=
+ github.com/moby/sys/mount v0.3.3 h1:fX1SVkXFJ47XWDoeFW4Sq7PdQJnV2QIDZAqjNqgEjUs=
+ github.com/moby/sys/mount v0.3.3/go.mod h1:PBaEorSNTLG5t/+4EgukEQVlAvVEc6ZjTySwKdqp5K0=
+ github.com/moby/sys/mountinfo v0.6.2 h1:BzJjoreD5BMFNmD9Rus6gdd1pLuecOFPt8wC+Vygl78=
+diff --git a/pkg/api/types/container_types.go b/pkg/api/types/container_types.go
+index b9e64757..fc11e7e0 100644
+--- a/pkg/api/types/container_types.go
++++ b/pkg/api/types/container_types.go
+@@ -259,6 +259,9 @@ type ContainerCreateOptions struct {
+ 
+ 	// ImagePullOpt specifies image pull options which holds the ImageVerifyOptions for verifying the image.
+ 	ImagePullOpt ImagePullOptions
++
++	// Userns name for user namespace mapping of container
++	Userns string
+ }
+ 
+ // ContainerStopOptions specifies options for `nerdctl (container) stop`.
+diff --git a/pkg/cmd/container/create.go b/pkg/cmd/container/create.go
+index 43f5e682..953c07b1 100644
+--- a/pkg/cmd/container/create.go
++++ b/pkg/cmd/container/create.go
+@@ -128,6 +128,26 @@ func Create(ctx context.Context, client *containerd.Client, args []string, netMa
+ 	opts = append(opts, rootfsOpts...)
+ 	cOpts = append(cOpts, rootfsCOpts...)
+ 
++	if options.Userns != "" {
++		userNameSpaceOpts, userNameSpaceCOpts, err := getUserNamespaceOpts(ctx, client, &options, *ensuredImage, id)
++		if err != nil {
++			return nil, nil, err
++		}
++		opts = append(opts, userNameSpaceOpts...)
++		cOpts = append(cOpts, userNameSpaceCOpts...)
++
++		userNsOpts, err := getContainerUserNamespaceNetOpts(ctx, client, netManager)
++		if err != nil {
++			return nil, nil, err
++		}
++		if userNsOpts != nil {
++			opts = append(opts, userNsOpts...)
++		}
++
++	} else {
++		cOpts = append(cOpts, containerd.WithNewSnapshot(id, ensuredImage.Image))
++	}
++
+ 	if options.Workdir != "" {
+ 		opts = append(opts, oci.WithProcessCwd(options.Workdir))
+ 	}
+@@ -316,7 +336,6 @@ func generateRootfsOpts(args []string, id string, ensured *imgutil.EnsuredImage,
+ 		cOpts = append(cOpts,
+ 			containerd.WithImage(ensured.Image),
+ 			containerd.WithSnapshotter(ensured.Snapshotter),
+-			containerd.WithNewSnapshot(id, ensured.Image),
+ 			containerd.WithImageStopSignal(ensured.Image, "SIGTERM"),
+ 		)
+ 
+diff --git a/pkg/cmd/container/create_userns_opts_linux.go b/pkg/cmd/container/create_userns_opts_linux.go
+new file mode 100644
+index 00000000..d9e903ce
+--- /dev/null
++++ b/pkg/cmd/container/create_userns_opts_linux.go
+@@ -0,0 +1,305 @@
++/*
++   Copyright The containerd Authors.
++
++   Licensed under the Apache License, Version 2.0 (the "License");
++   you may not use this file except in compliance with the License.
++   You may obtain a copy of the License at
++
++       http://www.apache.org/licenses/LICENSE-2.0
++
++   Unless required by applicable law or agreed to in writing, software
++   distributed under the License is distributed on an "AS IS" BASIS,
++   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++   See the License for the specific language governing permissions and
++   limitations under the License.
++*/
++
++package container
++
++import (
++	"context"
++	"errors"
++	"fmt"
++	"strings"
++
++	"github.com/containerd/containerd"
++	"github.com/containerd/containerd/oci"
++	"github.com/containerd/containerd/snapshots"
++	"github.com/containerd/nerdctl/pkg/api/types"
++	"github.com/containerd/nerdctl/pkg/containerutil"
++	"github.com/containerd/nerdctl/pkg/idutil/containerwalker"
++	"github.com/containerd/nerdctl/pkg/imgutil"
++	"github.com/containerd/nerdctl/pkg/netutil/nettype"
++	nerdctlUserns "github.com/containerd/nerdctl/pkg/userns"
++	"github.com/moby/moby/pkg/idtools"
++	"github.com/opencontainers/runtime-spec/specs-go"
++)
++
++const (
++	capabMultiRemapIDs = "multi-remap-ids"
++)
++
++// getUserNamespaceOpts generates spec opts and container opts for usernamespace
++func getUserNamespaceOpts(
++	ctx context.Context,
++	client *containerd.Client,
++	options *types.ContainerCreateOptions,
++	ensuredImage imgutil.EnsuredImage,
++	id string,
++) ([]oci.SpecOpts, []containerd.NewContainerOpts, error) {
++
++	idMapping, err := loadAndValidateIDMapping(options.Userns)
++	if err != nil {
++		return nil, nil, err
++	}
++
++	supportsMultiRemap, err := checkSnapshotterSupport(ctx, client, ensuredImage.Snapshotter)
++	if err != nil {
++		return nil, nil, err
++	}
++
++	uidMaps, gidMaps := convertMappings(idMapping)
++	specOpts := []oci.SpecOpts{oci.WithUserNamespace(uidMaps, gidMaps)}
++
++	snapshotOpts, err := createSnapshotOpts(id, ensuredImage, uidMaps, gidMaps, supportsMultiRemap)
++	if err != nil {
++		return nil, nil, err
++	}
++
++	return specOpts, snapshotOpts, nil
++}
++
++// getContainerUserNamespaceNetOpts retrieves the user namespace opts for the specified network container.
++func getContainerUserNamespaceNetOpts(
++	ctx context.Context,
++	client *containerd.Client,
++	netManager containerutil.NetworkOptionsManager,
++) ([]oci.SpecOpts, error) {
++	netOpts, err := netManager.InternalNetworkingOptionLabels(ctx)
++	netType, err := nettype.Detect(netOpts.NetworkSlice)
++	if err != nil {
++		return nil, err
++	} else if netType != nettype.Host {
++		return []oci.SpecOpts{}, nil
++
++	}
++
++	containerName, err := getContainerNameFromNetworkSlice(netOpts)
++	if err != nil {
++		return nil, err
++	}
++
++	container, err := findContainer(ctx, client, containerName)
++	if err != nil {
++		return nil, err
++	}
++
++	if err := validateContainerStatus(ctx, container); err != nil {
++		return nil, err
++	}
++
++	userNsPath, err := getUserNamespacePath(ctx, container)
++	if err != nil {
++		return nil, err
++	}
++
++	var userNameSpaceSpecOpts []oci.SpecOpts
++	userNameSpaceSpecOpts = append(userNameSpaceSpecOpts, oci.WithLinuxNamespace(specs.LinuxNamespace{
++		Type: specs.UserNamespace,
++		Path: userNsPath,
++	}))
++	return userNameSpaceSpecOpts, nil
++}
++
++func convertIDMapToLinuxIDMapping(idMaps []idtools.IDMap) []specs.LinuxIDMapping {
++	linuxIDMappings := make([]specs.LinuxIDMapping, len(idMaps))
++
++	for i, idMap := range idMaps {
++		linuxIDMappings[i] = specs.LinuxIDMapping{
++			ContainerID: uint32(idMap.ContainerID),
++			HostID:      uint32(idMap.HostID),
++			Size:        uint32(idMap.Size),
++		}
++	}
++
++	return linuxIDMappings
++}
++
++// withMultiRemapperLabels creates the labels used by any supporting snapshotter
++// to shift the filesystem ownership with multiple ranges of maps
++func withMultiRemapperLabels(uidmaps, gidmaps []specs.LinuxIDMapping) snapshots.Opt {
++	idMap := nerdctlUserns.IDMap{
++		UidMap: uidmaps,
++		GidMap: gidmaps,
++	}
++	uidmapLabel, gidmapLabel := idMap.Marshal()
++	return snapshots.WithLabels(map[string]string{
++		snapshots.LabelSnapshotUIDMapping: uidmapLabel,
++		snapshots.LabelSnapshotGIDMapping: gidmapLabel,
++	})
++}
++
++// findContainer searches for a container by name and returns it if found.
++func findContainer(
++	ctx context.Context,
++	client *containerd.Client,
++	containerName string,
++) (containerd.Container, error) {
++	var container containerd.Container
++
++	walker := &containerwalker.ContainerWalker{
++		Client: client,
++		OnFound: func(_ context.Context, found containerwalker.Found) error {
++			if found.MatchCount > 1 {
++				return fmt.Errorf("multiple containers found with prefix: %s", containerName)
++			}
++			container = found.Container
++			return nil
++		},
++	}
++
++	if n, err := walker.Walk(ctx, containerName); err != nil {
++		return container, err
++	} else if n == 0 {
++		return container, fmt.Errorf("container not found: %s", containerName)
++	}
++
++	return container, nil
++}
++
++// validateContainerStatus checks if the container is running.
++func validateContainerStatus(ctx context.Context, container containerd.Container) error {
++	task, err := container.Task(ctx, nil)
++	if err != nil {
++		return err
++	}
++
++	status, err := task.Status(ctx)
++	if err != nil {
++		return err
++	}
++
++	if status.Status != containerd.Running {
++		return fmt.Errorf("container %s is not running", container.ID())
++	}
++
++	return nil
++}
++
++// getUserNamespacePath returns the path to the container's user namespace.
++func getUserNamespacePath(ctx context.Context, container containerd.Container) (string, error) {
++	task, err := container.Task(ctx, nil)
++	if err != nil {
++		return "", err
++	}
++
++	return fmt.Sprintf("/proc/%d/ns/user", task.Pid()), nil
++}
++
++// Creates default snapshot options.
++func createDefaultSnapshotOpts(id string, image imgutil.EnsuredImage) []containerd.NewContainerOpts {
++	return []containerd.NewContainerOpts{
++		containerd.WithNewSnapshot(id, image.Image),
++	}
++}
++
++// Loads and validates the ID mapping from the given Userns.
++func loadAndValidateIDMapping(userns string) (idtools.IdentityMapping, error) {
++	idMapping, err := idtools.LoadIdentityMapping(userns)
++	if err != nil {
++		return idtools.IdentityMapping{}, err
++	}
++	if !validIDMapping(idMapping) {
++		return idtools.IdentityMapping{}, errors.New("no valid UID/GID mappings found")
++	}
++	return idMapping, nil
++}
++
++// Checks if the snapshotter supports multi-remap IDs.
++func checkSnapshotterSupport(
++	ctx context.Context,
++	client *containerd.Client,
++	snapshotter string,
++) (bool, error) {
++	return snapshotterSupportsMultiRemap(ctx, client, snapshotter)
++}
++
++// Validates that both UID and GID mappings are available.
++func validIDMapping(mapping idtools.IdentityMapping) bool {
++	return len(mapping.UIDMaps) > 0 && len(mapping.GIDMaps) > 0
++}
++
++// Converts IDMapping into LinuxIDMapping structures.
++func convertMappings(mapping idtools.IdentityMapping) ([]specs.LinuxIDMapping, []specs.LinuxIDMapping) {
++	return convertIDMapToLinuxIDMapping(mapping.UIDMaps),
++		convertIDMapToLinuxIDMapping(mapping.GIDMaps)
++}
++
++// Creates snapshot options based on ID mappings and snapshotter capabilities.
++func createSnapshotOpts(
++	id string,
++	image imgutil.EnsuredImage,
++	uidMaps, gidMaps []specs.LinuxIDMapping,
++	supportsMultiRemap bool,
++) ([]containerd.NewContainerOpts, error) {
++	if !isValidMapping(uidMaps, gidMaps) {
++		return nil, errors.New("snapshotter uidmap gidmap config invalid")
++	}
++	if isMultiMapping(uidMaps, gidMaps) {
++		if supportsMultiRemap {
++			return []containerd.NewContainerOpts{
++				containerd.WithNewSnapshot(id, image.Image, withMultiRemapperLabels(uidMaps, gidMaps)),
++			}, nil
++		}
++		return nil, errors.New("snapshotter doesn't support multiple UID/GID remapping")
++	}
++	return []containerd.NewContainerOpts{
++		containerd.WithNewSnapshot(id, image.Image,
++			containerd.WithRemapperLabels(0, uidMaps[0].HostID, 0, gidMaps[0].HostID, uidMaps[0].Size)),
++	}, nil
++}
++
++// Checks if there are multiple mappings available.
++func isMultiMapping(uidMaps, gidMaps []specs.LinuxIDMapping) bool {
++	return len(uidMaps) > 1 || len(gidMaps) > 1
++}
++
++func isValidMapping(uidMaps, gidMaps []specs.LinuxIDMapping) bool {
++	return len(uidMaps) > 0 && len(gidMaps) > 0
++}
++
++// Helper function to check if the snapshotter supports multi-remap IDs.
++func snapshotterSupportsMultiRemap(
++	ctx context.Context,
++	client *containerd.Client,
++	snapshotterName string,
++) (bool, error) {
++	caps, err := client.GetSnapshotterCapabilities(ctx, snapshotterName)
++	if err != nil {
++		return false, err
++	}
++	return hasCapability(caps, capabMultiRemapIDs), nil
++}
++
++// Checks if the given capability exists in the list.
++func hasCapability(caps []string, capability string) bool {
++	for _, cap := range caps {
++		if cap == capability {
++			return true
++		}
++	}
++	return false
++}
++
++func getContainerNameFromNetworkSlice(netOpts types.NetworkOptions) (string, error) {
++
++	netItems := strings.Split(netOpts.NetworkSlice[0], ":")
++	if len(netItems) < 2 {
++		return "", fmt.Errorf("container networking argument format must be 'container:<id|name>', got: %q", netOpts.NetworkSlice[0])
++	} else if len(netItems[1]) == 0 {
++		return "", fmt.Errorf("container name length invald, got length: 0")
++	}
++	containerName := netItems[1]
++
++	return containerName, nil
++}
+diff --git a/pkg/cmd/container/create_userns_opts_linux_test.go b/pkg/cmd/container/create_userns_opts_linux_test.go
+new file mode 100644
+index 00000000..913eb4a9
+--- /dev/null
++++ b/pkg/cmd/container/create_userns_opts_linux_test.go
+@@ -0,0 +1,143 @@
++package container
++
++import (
++	"testing"
++
++	"github.com/containerd/nerdctl/pkg/api/types"
++	"github.com/containerd/nerdctl/pkg/imgutil"
++	"github.com/opencontainers/runtime-spec/specs-go"
++	"github.com/stretchr/testify/assert"
++)
++
++// TestCreateSnapshotOpts tests the createSnapshotOpts function.
++func TestCreateSnapshotOpts(t *testing.T) {
++	tests := []struct {
++		name               string
++		id                 string
++		image              imgutil.EnsuredImage
++		uidMaps            []specs.LinuxIDMapping
++		gidMaps            []specs.LinuxIDMapping
++		supportsMultiRemap bool
++		expectError        bool
++	}{
++		{
++			name:  "Single remapping",
++			id:    "container1",
++			image: imgutil.EnsuredImage{},
++			uidMaps: []specs.LinuxIDMapping{
++				{HostID: 1000, Size: 1},
++			},
++			gidMaps: []specs.LinuxIDMapping{
++				{HostID: 1000, Size: 1},
++			},
++			supportsMultiRemap: false,
++			expectError:        false,
++		},
++		{
++			name:  "Multi remapping with support",
++			id:    "container2",
++			image: imgutil.EnsuredImage{},
++			uidMaps: []specs.LinuxIDMapping{
++				{HostID: 1000, Size: 1},
++				{HostID: 2000, Size: 1},
++			},
++			gidMaps: []specs.LinuxIDMapping{
++				{HostID: 3000, Size: 1},
++			},
++			supportsMultiRemap: true,
++			expectError:        false,
++		},
++		{
++			name:  "Multi remapping without support",
++			id:    "container3",
++			image: imgutil.EnsuredImage{},
++			uidMaps: []specs.LinuxIDMapping{
++				{HostID: 1000, Size: 1},
++				{HostID: 2000, Size: 1},
++			},
++			gidMaps: []specs.LinuxIDMapping{
++				{HostID: 3000, Size: 1},
++			},
++			supportsMultiRemap: false,
++			expectError:        true,
++		},
++		{
++			name:               "Empty UID/GID maps",
++			id:                 "container4",
++			image:              imgutil.EnsuredImage{},
++			uidMaps:            []specs.LinuxIDMapping{},
++			gidMaps:            []specs.LinuxIDMapping{},
++			supportsMultiRemap: false,
++			expectError:        true,
++		},
++	}
++
++	for _, tt := range tests {
++		t.Run(tt.name, func(t *testing.T) {
++			opts, err := createSnapshotOpts(tt.id, tt.image, tt.uidMaps, tt.gidMaps, tt.supportsMultiRemap)
++
++			if tt.expectError {
++				assert.Error(t, err)
++			} else {
++				assert.NoError(t, err)
++				assert.NotNil(t, opts)
++			}
++		})
++	}
++}
++
++// TestGetContainerNameFromNetworkSlice tests the getContainerNameFromNetworkSlice function.
++func TestGetContainerNameFromNetworkSlice(t *testing.T) {
++	tests := []struct {
++		name        string
++		netOpts     types.NetworkOptions
++		expected    string
++		expectError bool
++	}{
++		{
++			name: "Valid input with container name",
++			netOpts: types.NetworkOptions{
++				NetworkSlice: []string{"container:mycontainer"},
++			},
++			expected:    "mycontainer",
++			expectError: false,
++		},
++		{
++			name: "Invalid input with no colon separator",
++			netOpts: types.NetworkOptions{
++				NetworkSlice: []string{"container-mycontainer"},
++			},
++			expected:    "",
++			expectError: true,
++		},
++		{
++			name: "Empty NetworkSlice",
++			netOpts: types.NetworkOptions{
++				NetworkSlice: []string{""},
++			},
++			expected:    "",
++			expectError: true,
++		},
++		{
++			name: "Missing container name",
++			netOpts: types.NetworkOptions{
++				NetworkSlice: []string{"container:"},
++			},
++			expected:    "",
++			expectError: true,
++		},
++	}
++
++	for _, tt := range tests {
++		t.Run(tt.name, func(t *testing.T) {
++			containerName, err := getContainerNameFromNetworkSlice(tt.netOpts)
++
++			if tt.expectError {
++				assert.Error(t, err)
++			} else {
++				assert.NoError(t, err)
++				assert.Equal(t, tt.expected, containerName)
++			}
++		})
++	}
++}
+diff --git a/pkg/userns/idmap.go b/pkg/userns/idmap.go
+new file mode 100644
+index 00000000..caa3c311
+--- /dev/null
++++ b/pkg/userns/idmap.go
+@@ -0,0 +1,171 @@
++/*
++   Copyright The containerd Authors.
++
++   Licensed under the Apache License, Version 2.0 (the "License");
++   you may not use this file except in compliance with the License.
++   You may obtain a copy of the License at
++
++       http://www.apache.org/licenses/LICENSE-2.0
++
++   Unless required by applicable law or agreed to in writing, software
++   distributed under the License is distributed on an "AS IS" BASIS,
++   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++   See the License for the specific language governing permissions and
++   limitations under the License.
++*/
++
++/*
++   This file is copied and customized based on
++   https://github.com/moby/moby/blob/master/pkg/idtools/idtools.go
++*/
++
++package userns
++
++import (
++	"errors"
++	"fmt"
++	"strings"
++
++	"github.com/opencontainers/runtime-spec/specs-go"
++)
++
++const invalidID = 1<<32 - 1
++
++var invalidUser = User{Uid: invalidID, Gid: invalidID}
++
++// User is a Uid and Gid pair of a user
++//
++//nolint:revive
++type User struct {
++	Uid uint32
++	Gid uint32
++}
++
++// IDMap contains the mappings of Uids and Gids.
++//
++//nolint:revive
++type IDMap struct {
++	UidMap []specs.LinuxIDMapping `json:"UidMap"`
++	GidMap []specs.LinuxIDMapping `json:"GidMap"`
++}
++
++// RootPair returns the ID pair for the root user
++func (i *IDMap) RootPair() (User, error) {
++	uid, err := toHost(0, i.UidMap)
++	if err != nil {
++		return invalidUser, err
++	}
++	gid, err := toHost(0, i.GidMap)
++	if err != nil {
++		return invalidUser, err
++	}
++	return User{Uid: uid, Gid: gid}, nil
++}
++
++// ToHost returns the host user ID pair for the container ID pair.
++func (i IDMap) ToHost(pair User) (User, error) {
++	var (
++		target User
++		err    error
++	)
++	target.Uid, err = toHost(pair.Uid, i.UidMap)
++	if err != nil {
++		return invalidUser, err
++	}
++	target.Gid, err = toHost(pair.Gid, i.GidMap)
++	if err != nil {
++		return invalidUser, err
++	}
++	return target, nil
++}
++
++// toHost takes an id mapping and a remapped ID, and translates the
++// ID to the mapped host ID. If no map is provided, then the translation
++// assumes a 1-to-1 mapping and returns the passed in id #
++func toHost(contID uint32, idMap []specs.LinuxIDMapping) (uint32, error) {
++	if idMap == nil {
++		return contID, nil
++	}
++	for _, m := range idMap {
++		high, err := safeSum(m.ContainerID, m.Size)
++		if err != nil {
++			break
++		}
++		if contID >= m.ContainerID && contID < high {
++			hostID, err := safeSum(m.HostID, contID-m.ContainerID)
++			if err != nil || hostID == invalidID {
++				break
++			}
++			return hostID, nil
++		}
++	}
++	return invalidID, fmt.Errorf("container ID %d cannot be mapped to a host ID", contID)
++}
++
++// safeSum returns the sum of x and y. or an error if the result overflows
++func safeSum(x, y uint32) (uint32, error) {
++	z := x + y
++	if z < x || z < y {
++		return invalidID, errors.New("ID overflow")
++	}
++	return z, nil
++}
++
++func (i *IDMap) Marshal() (string, string) {
++	marshal := func(mappings []specs.LinuxIDMapping) string {
++		var arr []string
++		for _, m := range mappings {
++			arr = append(arr, serializeLinuxIDMapping(m))
++		}
++		return strings.Join(arr, ",")
++	}
++	return marshal(i.UidMap), marshal(i.GidMap)
++}
++
++func (i *IDMap) Unmarshal(uidMap, gidMap string) error {
++	unmarshal := func(str string, fn func(m specs.LinuxIDMapping)) error {
++		if len(str) == 0 {
++			return nil
++		}
++		for _, mapping := range strings.Split(str, ",") {
++			m, err := deserializeLinuxIDMapping(mapping)
++			if err != nil {
++				return err
++			}
++			fn(m)
++		}
++		return nil
++	}
++	if err := unmarshal(uidMap, func(m specs.LinuxIDMapping) {
++		i.UidMap = append(i.UidMap, m)
++	}); err != nil {
++		return err
++	}
++	return unmarshal(gidMap, func(m specs.LinuxIDMapping) {
++		i.GidMap = append(i.GidMap, m)
++	})
++}
++
++// serializeLinuxIDMapping marshals a LinuxIDMapping object to string
++func serializeLinuxIDMapping(m specs.LinuxIDMapping) string {
++	return fmt.Sprintf("%d:%d:%d", m.ContainerID, m.HostID, m.Size)
++}
++
++// deserializeLinuxIDMapping unmarshals a string to a LinuxIDMapping object
++func deserializeLinuxIDMapping(str string) (specs.LinuxIDMapping, error) {
++	var (
++		hostID, ctrID, length int64
++	)
++	_, err := fmt.Sscanf(str, "%d:%d:%d", &ctrID, &hostID, &length)
++	if err != nil {
++		return specs.LinuxIDMapping{}, fmt.Errorf("input value %s unparsable: %w", str, err)
++	}
++	if ctrID < 0 || ctrID >= invalidID || hostID < 0 || hostID >= invalidID || length < 0 || length >= invalidID {
++		return specs.LinuxIDMapping{}, fmt.Errorf("invalid mapping \"%s\"", str)
++	}
++	return specs.LinuxIDMapping{
++		ContainerID: uint32(ctrID),
++		HostID:      uint32(hostID),
++		Size:        uint32(length),
++	}, nil
++}
+diff --git a/pkg/userns/idmap_test.go b/pkg/userns/idmap_test.go
+new file mode 100644
+index 00000000..30375ad6
+--- /dev/null
++++ b/pkg/userns/idmap_test.go
+@@ -0,0 +1,252 @@
++/*
++   Copyright The containerd Authors.
++
++   Licensed under the Apache License, Version 2.0 (the "License");
++   you may not use this file except in compliance with the License.
++   You may obtain a copy of the License at
++
++       http://www.apache.org/licenses/LICENSE-2.0
++
++   Unless required by applicable law or agreed to in writing, software
++   distributed under the License is distributed on an "AS IS" BASIS,
++   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++   See the License for the specific language governing permissions and
++   limitations under the License.
++*/
++
++package userns
++
++import (
++	"testing"
++
++	"github.com/opencontainers/runtime-spec/specs-go"
++	"github.com/stretchr/testify/assert"
++)
++
++func TestToHost(t *testing.T) {
++	idmap := IDMap{
++		UidMap: []specs.LinuxIDMapping{
++			{
++				ContainerID: 0,
++				HostID:      1,
++				Size:        2,
++			},
++			{
++				ContainerID: 2,
++				HostID:      4,
++				Size:        1000,
++			},
++		},
++		GidMap: []specs.LinuxIDMapping{
++			{
++				ContainerID: 0,
++				HostID:      2,
++				Size:        4,
++			},
++			{
++				ContainerID: 4,
++				HostID:      8,
++				Size:        1000,
++			},
++		},
++	}
++	for _, test := range []struct {
++		container User
++		host      User
++	}{
++		{
++			container: User{
++				Uid: 0,
++				Gid: 0,
++			},
++			host: User{
++				Uid: 1,
++				Gid: 2,
++			},
++		},
++		{
++			container: User{
++				Uid: 1,
++				Gid: 1,
++			},
++			host: User{
++				Uid: 2,
++				Gid: 3,
++			},
++		},
++		{
++			container: User{
++				Uid: 2,
++				Gid: 4,
++			},
++			host: User{
++				Uid: 4,
++				Gid: 8,
++			},
++		},
++		{
++			container: User{
++				Uid: 100,
++				Gid: 200,
++			},
++			host: User{
++				Uid: 102,
++				Gid: 204,
++			},
++		},
++		{
++			container: User{
++				Uid: 1001,
++				Gid: 1003,
++			},
++			host: User{
++				Uid: 1003,
++				Gid: 1007,
++			},
++		},
++		{
++			container: User{
++				Uid: 1004,
++				Gid: 1008,
++			},
++			host: invalidUser,
++		},
++		{
++			container: User{
++				Uid: 2000,
++				Gid: 2000,
++			},
++			host: invalidUser,
++		},
++	} {
++		r, err := idmap.ToHost(test.container)
++		assert.Equal(t, test.host, r)
++		if r == invalidUser {
++			assert.Error(t, err)
++		} else {
++			assert.NoError(t, err)
++		}
++	}
++}
++
++func TestToHostOverflow(t *testing.T) {
++	for _, test := range []struct {
++		idmap IDMap
++		user  User
++	}{
++		{
++			idmap: IDMap{
++				UidMap: []specs.LinuxIDMapping{
++					{
++						ContainerID: 1<<32 - 1000,
++						HostID:      1000,
++						Size:        10000,
++					},
++				},
++				GidMap: []specs.LinuxIDMapping{
++					{
++						ContainerID: 0,
++						HostID:      1000,
++						Size:        10000,
++					},
++				},
++			},
++			user: User{
++				Uid: 1<<32 - 100,
++				Gid: 0,
++			},
++		},
++		{
++			idmap: IDMap{
++				UidMap: []specs.LinuxIDMapping{
++					{
++						ContainerID: 0,
++						HostID:      1000,
++						Size:        10000,
++					},
++				},
++				GidMap: []specs.LinuxIDMapping{
++					{
++						ContainerID: 1<<32 - 1000,
++						HostID:      1000,
++						Size:        10000,
++					},
++				},
++			},
++			user: User{
++				Uid: 0,
++				Gid: 1<<32 - 100,
++			},
++		},
++		{
++			idmap: IDMap{
++				UidMap: []specs.LinuxIDMapping{
++					{
++						ContainerID: 0,
++						HostID:      1000,
++						Size:        1<<32 - 1,
++					},
++				},
++				GidMap: []specs.LinuxIDMapping{
++					{
++						ContainerID: 0,
++						HostID:      1000,
++						Size:        1<<32 - 1,
++					},
++				},
++			},
++			user: User{
++				Uid: 1<<32 - 2,
++				Gid: 0,
++			},
++		},
++		{
++			idmap: IDMap{
++				UidMap: []specs.LinuxIDMapping{
++					{
++						ContainerID: 0,
++						HostID:      1000,
++						Size:        1<<32 - 1,
++					},
++				},
++				GidMap: []specs.LinuxIDMapping{
++					{
++						ContainerID: 0,
++						HostID:      1000,
++						Size:        1<<32 - 1,
++					},
++				},
++			},
++			user: User{
++				Uid: 0,
++				Gid: 1<<32 - 2,
++			},
++		},
++		{
++			idmap: IDMap{
++				UidMap: []specs.LinuxIDMapping{
++					{
++						ContainerID: 0,
++						HostID:      1,
++						Size:        1<<32 - 1,
++					},
++				},
++				GidMap: []specs.LinuxIDMapping{
++					{
++						ContainerID: 0,
++						HostID:      1,
++						Size:        1<<32 - 1,
++					},
++				},
++			},
++			user: User{
++				Uid: 1<<32 - 2,
++				Gid: 1<<32 - 2,
++			},
++		},
++	} {
++		r, err := test.idmap.ToHost(test.user)
++		assert.Error(t, err)
++		assert.Equal(t, r, invalidUser)
++	}
++}
