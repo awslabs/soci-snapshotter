@@ -65,7 +65,7 @@ SOCI_GRPC_PACKAGE_LIST=$(shell echo $(SOCI_LIBRARY_PACKAGE_LIST),$(shell cd $(SO
 GO_BENCHMARK_TESTS?=.
 
 .PHONY: all build check flatc add-ltag install uninstall tidy vendor clean clean-coverage \
-	clean-integration test test-with-coverage show-test-coverage show-test-coverage-html \
+	clean-integration test test-with-coverage show-test-coverage show-test-coverage-html ctr-with-idmapping \
 	integration integration-with-coverage show-integration-coverage show-integration-coverage-html \
 	release benchmarks build-benchmarks benchmarks-perf-test benchmarks-comparison-test
 
@@ -162,7 +162,7 @@ $(COVDIR)/unit: $(COVDIR)
 	GO_BUILD_FLAGS="$(GO_BUILD_FLAGS) -coverpkg=$(SOCI_LIBRARY_PACKAGE_LIST)"\
 		$(MAKE) test
 
-integration: build
+integration: build ctr-with-idmapping
 	@echo "$@"
 	@echo "SOCI_SNAPSHOTTER_PROJECT_ROOT=$(SOCI_SNAPSHOTTER_PROJECT_ROOT)"
 	@GO111MODULE=$(GO111MODULE_VALUE) SOCI_SNAPSHOTTER_PROJECT_ROOT=$(SOCI_SNAPSHOTTER_PROJECT_ROOT) ENABLE_INTEGRATION_TEST=true go test $(GO_TEST_FLAGS) -v -timeout=0 ./integration
@@ -181,6 +181,19 @@ $(COVDIR)/integration: $(COVDIR)
 	GO_TEST_FLAGS="$(GO_TEST_FLAGS)" \
 	GO_BUILD_FLAGS="$(GO_BUILD_FLAGS) -coverpkg=$(SOCI_CLI_PACKAGE_LIST),$(SOCI_GRPC_PACKAGE_LIST)" \
 		$(MAKE) integration
+
+ctr-with-idmapping: $(OUTDIR)/ctr-with-idmapping
+
+$(OUTDIR)/ctr-with-idmapping:
+    # Use a custom fork for testing ID-mapping as containerd doesn't fully support this yet.
+	git clone https://github.com/containerd/containerd.git tempfolder
+	cd tempfolder && \
+	git checkout v1.7.22 && \
+	git apply $(SOCI_SNAPSHOTTER_PROJECT_ROOT)/integration/config/ctr.patch && \
+	make bin/ctr && \
+	cp bin/ctr $(OUTDIR)/ctr-with-idmapping && \
+	cd ../
+	rm -rf tempfolder
 
 release:
 	@echo "$@"

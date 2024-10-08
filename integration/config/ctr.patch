@@ -1,0 +1,1114 @@
+diff --git a/cmd/ctr/commands/run/run_unix.go b/cmd/ctr/commands/run/run_unix.go
+index b3e5d0e2d..a69eb9343 100644
+--- a/cmd/ctr/commands/run/run_unix.go
++++ b/cmd/ctr/commands/run/run_unix.go
+@@ -34,6 +34,7 @@ import (
+ 	"github.com/containerd/containerd/contrib/nvidia"
+ 	"github.com/containerd/containerd/contrib/seccomp"
+ 	"github.com/containerd/containerd/oci"
++	"github.com/containerd/containerd/pkg/idtools"
+ 	runtimeoptions "github.com/containerd/containerd/pkg/runtimeoptions/v1"
+ 	"github.com/containerd/containerd/runtime/v2/runc/options"
+ 	"github.com/containerd/containerd/snapshots"
+@@ -56,13 +57,9 @@ var platformRunFlags = []cli.Flag{
+ 		Name:  "runc-systemd-cgroup",
+ 		Usage: "Start runc with systemd cgroup manager",
+ 	},
+-	cli.StringFlag{
+-		Name:  "uidmap",
+-		Usage: "Run inside a user namespace with the specified UID mapping range; specified with the format `container-uid:host-uid:length`",
+-	},
+-	cli.StringFlag{
+-		Name:  "gidmap",
+-		Usage: "Run inside a user namespace with the specified GID mapping range; specified with the format `container-gid:host-gid:length`",
++	&cli.StringFlag{
++		Name:  "userns-remap",
++		Usage: "Run inside a user namespace with the specified user",
+ 	},
+ 	cli.BoolFlag{
+ 		Name:  "remap-labels",
+@@ -162,25 +159,22 @@ func NewContainer(ctx gocontext.Context, client *containerd.Client, context *cli
+ 				containerd.WithImageConfigLabels(image),
+ 				containerd.WithAdditionalContainerLabels(labels),
+ 				containerd.WithSnapshotter(snapshotter))
+-			if uidmap, gidmap := context.String("uidmap"), context.String("gidmap"); uidmap != "" && gidmap != "" {
+-				uidMap, err := parseIDMapping(uidmap)
+-				if err != nil {
+-					return nil, err
+-				}
+-				gidMap, err := parseIDMapping(gidmap)
++
++			userns := context.String("userns-remap")
++			if userns != "" {
++				idmap, err := idtools.LoadIdentityMapping(userns)
+ 				if err != nil {
+ 					return nil, err
+ 				}
+-				opts = append(opts,
+-					oci.WithUserNamespace([]specs.LinuxIDMapping{uidMap}, []specs.LinuxIDMapping{gidMap}))
++				uidSpecs, gidSpecs := idmap.ToSpec()
++				opts = append(opts, oci.WithUserNamespace(uidSpecs, gidSpecs))
+ 				// use snapshotter opts or the remapped snapshot support to shift the filesystem
+ 				// currently the only snapshotter known to support the labels is fuse-overlayfs:
+ 				// https://github.com/AkihiroSuda/containerd-fuse-overlayfs
+ 				if context.Bool("remap-labels") {
+-					cOpts = append(cOpts, containerd.WithNewSnapshot(id, image,
+-						containerd.WithRemapperLabels(0, uidMap.HostID, 0, gidMap.HostID, uidMap.Size)))
++					cOpts = append(cOpts, containerd.WithNewSnapshot(id, image, containerd.WithMultiRemapperLabels(idmap)))
+ 				} else {
+-					cOpts = append(cOpts, containerd.WithRemappedSnapshot(id, image, uidMap.HostID, gidMap.HostID))
++					cOpts = append(cOpts, containerd.WithMultiRemappedSnapshot(id, image, idmap))
+ 				}
+ 			} else {
+ 				// Even when "read-only" is set, we don't use KindView snapshot here. (#1495)
+@@ -434,6 +428,7 @@ func getRuntimeOptions(context *cli.Context) (interface{}, error) {
+ 	return nil, nil
+ }
+ 
++//lint:ignore U1000 Ignore unused function
+ func parseIDMapping(mapping string) (specs.LinuxIDMapping, error) {
+ 	// We expect 3 parts, but limit to 4 to allow detection of invalid values.
+ 	parts := strings.SplitN(mapping, ":", 4)
+diff --git a/container_opts_unix.go b/container_opts_unix.go
+index e0e8bad88..68c471b89 100644
+--- a/container_opts_unix.go
++++ b/container_opts_unix.go
+@@ -27,6 +27,7 @@ import (
+ 
+ 	"github.com/containerd/containerd/containers"
+ 	"github.com/containerd/containerd/mount"
++	"github.com/containerd/containerd/pkg/idtools"
+ 	"github.com/containerd/errdefs"
+ 	"github.com/opencontainers/image-spec/identity"
+ )
+@@ -34,25 +35,63 @@ import (
+ // WithRemappedSnapshot creates a new snapshot and remaps the uid/gid for the
+ // filesystem to be used by a container with user namespaces
+ func WithRemappedSnapshot(id string, i Image, uid, gid uint32) NewContainerOpts {
+-	return withRemappedSnapshotBase(id, i, uid, gid, false)
++	idmap := idtools.IdentityMapping{
++		UIDMaps: []idtools.IDMap{
++			{
++				ContainerID: 0,
++				HostID:      int(uid),
++				Size:        1,
++			},
++		},
++		GIDMaps: []idtools.IDMap{
++			{
++				ContainerID: 0,
++				HostID:      int(gid),
++				Size:        1,
++			},
++		},
++	}
++	return withRemappedSnapshotBase(id, i, idmap, false)
++}
++func WithMultiRemappedSnapshot(id string, i Image, idmap idtools.IdentityMapping) NewContainerOpts {
++	return withRemappedSnapshotBase(id, i, idmap, false)
+ }
+ 
+ // WithRemappedSnapshotView is similar to WithRemappedSnapshot but rootfs is mounted as read-only.
+ func WithRemappedSnapshotView(id string, i Image, uid, gid uint32) NewContainerOpts {
+-	return withRemappedSnapshotBase(id, i, uid, gid, true)
++	idmap := idtools.IdentityMapping{
++		UIDMaps: []idtools.IDMap{
++			{
++				ContainerID: 0,
++				HostID:      int(uid),
++				Size:        1,
++			},
++		},
++		GIDMaps: []idtools.IDMap{
++			{
++				ContainerID: 0,
++				HostID:      int(gid),
++				Size:        1,
++			},
++		},
++	}
++	return withRemappedSnapshotBase(id, i, idmap, true)
++}
++func WithMultiRemappedSnapshotView(id string, i Image, idmap idtools.IdentityMapping) NewContainerOpts {
++	return withRemappedSnapshotBase(id, i, idmap, true)
+ }
+ 
+-func withRemappedSnapshotBase(id string, i Image, uid, gid uint32, readonly bool) NewContainerOpts {
++func withRemappedSnapshotBase(id string, i Image, idmap idtools.IdentityMapping, readonly bool) NewContainerOpts {
+ 	return func(ctx context.Context, client *Client, c *containers.Container) error {
+ 		diffIDs, err := i.(*image).i.RootFS(ctx, client.ContentStore(), client.platform)
+ 		if err != nil {
+ 			return err
+ 		}
+ 
+-		var (
+-			parent   = identity.ChainID(diffIDs).String()
+-			usernsID = fmt.Sprintf("%s-%d-%d", parent, uid, gid)
+-		)
++		parent := identity.ChainID(diffIDs).String()
++		rootMap := idmap.RootPair()
++		usernsID := fmt.Sprintf("%s-%d-%d", parent, rootMap.UID, rootMap.GID)
++
+ 		c.Snapshotter, err = client.resolveSnapshotterName(ctx, c.Snapshotter)
+ 		if err != nil {
+ 			return err
+@@ -74,7 +113,7 @@ func withRemappedSnapshotBase(id string, i Image, uid, gid uint32, readonly bool
+ 		if err != nil {
+ 			return err
+ 		}
+-		if err := remapRootFS(ctx, mounts, uid, gid); err != nil {
++		if err := remapRootFS(ctx, mounts, idmap); err != nil {
+ 			snapshotter.Remove(ctx, usernsID)
+ 			return err
+ 		}
+@@ -95,22 +134,23 @@ func withRemappedSnapshotBase(id string, i Image, uid, gid uint32, readonly bool
+ 	}
+ }
+ 
+-func remapRootFS(ctx context.Context, mounts []mount.Mount, uid, gid uint32) error {
++func remapRootFS(ctx context.Context, mounts []mount.Mount, idmap idtools.IdentityMapping) error {
+ 	return mount.WithTempMount(ctx, mounts, func(root string) error {
+-		return filepath.Walk(root, incrementFS(root, uid, gid))
++		return filepath.Walk(root, chown(root, idmap))
+ 	})
+ }
+ 
+-func incrementFS(root string, uidInc, gidInc uint32) filepath.WalkFunc {
++func chown(root string, idmap idtools.IdentityMapping) filepath.WalkFunc {
+ 	return func(path string, info os.FileInfo, err error) error {
+ 		if err != nil {
+ 			return err
+ 		}
+-		var (
+-			stat = info.Sys().(*syscall.Stat_t)
+-			u, g = int(stat.Uid + uidInc), int(stat.Gid + gidInc)
+-		)
++		stat := info.Sys().(*syscall.Stat_t)
++		h, cerr := idmap.ToHost(idtools.Identity{UID: int(stat.Uid), GID: int(stat.Gid)})
++		if cerr != nil {
++			return cerr
++		}
+ 		// be sure the lchown the path as to not de-reference the symlink to a host file
+-		return os.Lchown(path, u, g)
++		return os.Lchown(path, h.UID, h.GID)
+ 	}
+ }
+diff --git a/pkg/idtools/idtools.go b/pkg/idtools/idtools.go
+new file mode 100644
+index 000000000..79d9d0957
+--- /dev/null
++++ b/pkg/idtools/idtools.go
+@@ -0,0 +1,254 @@
++//nolint:unused
++package idtools
++
++import (
++	"bufio"
++	"fmt"
++	"os"
++	"strconv"
++	"strings"
++
++	"github.com/opencontainers/runtime-spec/specs-go"
++)
++
++// IDMap contains a single entry for user namespace range remapping. An array
++// of IDMap entries represents the structure that will be provided to the Linux
++// kernel for creating a user namespace.
++type IDMap struct {
++	ContainerID int `json:"containerID"`
++	HostID      int `json:"hostID"`
++	Size        int `json:"size"`
++}
++
++type subIDRange struct {
++	Start  int
++	Length int
++}
++
++type ranges []subIDRange
++
++func (e ranges) Len() int           { return len(e) }
++func (e ranges) Swap(i, j int)      { e[i], e[j] = e[j], e[i] }
++func (e ranges) Less(i, j int) bool { return e[i].Start < e[j].Start }
++
++const (
++	subuidFileName = "/etc/subuid"
++	subgidFileName = "/etc/subgid"
++)
++
++// MkdirAllAndChown creates a directory (include any along the path) and then modifies
++// ownership to the requested uid/gid.  If the directory already exists, this
++// function will still change ownership and permissions.
++func MkdirAllAndChown(path string, mode os.FileMode, owner Identity) error {
++	return mkdirAs(path, mode, owner, true, true)
++}
++
++// MkdirAndChown creates a directory and then modifies ownership to the requested uid/gid.
++// If the directory already exists, this function still changes ownership and permissions.
++// Note that unlike os.Mkdir(), this function does not return IsExist error
++// in case path already exists.
++func MkdirAndChown(path string, mode os.FileMode, owner Identity) error {
++	return mkdirAs(path, mode, owner, false, true)
++}
++
++// MkdirAllAndChownNew creates a directory (include any along the path) and then modifies
++// ownership ONLY of newly created directories to the requested uid/gid. If the
++// directories along the path exist, no change of ownership or permissions will be performed
++func MkdirAllAndChownNew(path string, mode os.FileMode, owner Identity) error {
++	return mkdirAs(path, mode, owner, true, false)
++}
++
++// GetRootUIDGID retrieves the remapped root uid/gid pair from the set of maps.
++// If the maps are empty, then the root uid/gid will default to "real" 0/0
++func GetRootUIDGID(uidMap, gidMap []IDMap) (int, int, error) {
++	uid, err := toHost(0, uidMap)
++	if err != nil {
++		return -1, -1, err
++	}
++	gid, err := toHost(0, gidMap)
++	if err != nil {
++		return -1, -1, err
++	}
++	return uid, gid, nil
++}
++
++// toContainer takes an id mapping, and uses it to translate a
++// host ID to the remapped ID. If no map is provided, then the translation
++// assumes a 1-to-1 mapping and returns the passed in id
++func toContainer(hostID int, idMap []IDMap) (int, error) {
++	if idMap == nil {
++		return hostID, nil
++	}
++	for _, m := range idMap {
++		if (hostID >= m.HostID) && (hostID <= (m.HostID + m.Size - 1)) {
++			contID := m.ContainerID + (hostID - m.HostID)
++			return contID, nil
++		}
++	}
++	return -1, fmt.Errorf("Host ID %d cannot be mapped to a container ID", hostID)
++}
++
++// toHost takes an id mapping and a remapped ID, and translates the
++// ID to the mapped host ID. If no map is provided, then the translation
++// assumes a 1-to-1 mapping and returns the passed in id #
++func toHost(contID int, idMap []IDMap) (int, error) {
++	if idMap == nil {
++		return contID, nil
++	}
++	for _, m := range idMap {
++		if (contID >= m.ContainerID) && (contID <= (m.ContainerID + m.Size - 1)) {
++			hostID := m.HostID + (contID - m.ContainerID)
++			return hostID, nil
++		}
++	}
++	return -1, fmt.Errorf("Container ID %d cannot be mapped to a host ID", contID)
++}
++
++// Identity is either a UID and GID pair or a SID (but not both)
++type Identity struct {
++	UID int
++	GID int
++	SID string
++}
++
++// Chown changes the numeric uid and gid of the named file to id.UID and id.GID.
++func (id Identity) Chown(name string) error {
++	return os.Chown(name, id.UID, id.GID)
++}
++
++// IdentityMapping contains a mappings of UIDs and GIDs.
++// The zero value represents an empty mapping.
++type IdentityMapping struct {
++	UIDMaps []IDMap `json:"UIDMaps"`
++	GIDMaps []IDMap `json:"GIDMaps"`
++}
++
++// RootPair returns a uid and gid pair for the root user. The error is ignored
++// because a root user always exists, and the defaults are correct when the uid
++// and gid maps are empty.
++func (i IdentityMapping) RootPair() Identity {
++	uid, gid, _ := GetRootUIDGID(i.UIDMaps, i.GIDMaps)
++	return Identity{UID: uid, GID: gid}
++}
++
++// ToHost returns the host UID and GID for the container uid, gid.
++// Remapping is only performed if the ids aren't already the remapped root ids
++func (i IdentityMapping) ToHost(pair Identity) (Identity, error) {
++	var err error
++	target := i.RootPair()
++
++	if pair.UID != target.UID {
++		target.UID, err = toHost(pair.UID, i.UIDMaps)
++		if err != nil {
++			return target, err
++		}
++	}
++
++	if pair.GID != target.GID {
++		target.GID, err = toHost(pair.GID, i.GIDMaps)
++	}
++	return target, err
++}
++
++// ToContainer returns the container UID and GID for the host uid and gid
++func (i IdentityMapping) ToContainer(pair Identity) (int, int, error) {
++	uid, err := toContainer(pair.UID, i.UIDMaps)
++	if err != nil {
++		return -1, -1, err
++	}
++	gid, err := toContainer(pair.GID, i.GIDMaps)
++	return uid, gid, err
++}
++
++// Empty returns true if there are no id mappings
++func (i IdentityMapping) Empty() bool {
++	return len(i.UIDMaps) == 0 && len(i.GIDMaps) == 0
++}
++
++func (i IdentityMapping) ToSpec() (uidSpecs []specs.LinuxIDMapping, gidSpecs []specs.LinuxIDMapping) {
++	for _, m := range i.UIDMaps {
++		uidSpecs = append(uidSpecs,
++			specs.LinuxIDMapping{
++				ContainerID: uint32(m.ContainerID),
++				HostID:      uint32(m.HostID),
++				Size:        uint32(m.Size),
++			},
++		)
++	}
++	for _, m := range i.GIDMaps {
++		gidSpecs = append(gidSpecs,
++			specs.LinuxIDMapping{
++				ContainerID: uint32(m.ContainerID),
++				HostID:      uint32(m.HostID),
++				Size:        uint32(m.Size),
++			},
++		)
++	}
++	return
++}
++
++func createIDMap(subidRanges ranges) []IDMap {
++	idMap := []IDMap{}
++
++	containerID := 0
++	for _, idrange := range subidRanges {
++		idMap = append(idMap, IDMap{
++			ContainerID: containerID,
++			HostID:      idrange.Start,
++			Size:        idrange.Length,
++		})
++		containerID = containerID + idrange.Length
++	}
++	return idMap
++}
++
++func parseSubuid(username string) (ranges, error) {
++	return parseSubidFile(subuidFileName, username)
++}
++
++func parseSubgid(username string) (ranges, error) {
++	return parseSubidFile(subgidFileName, username)
++}
++
++// parseSubidFile will read the appropriate file (/etc/subuid or /etc/subgid)
++// and return all found ranges for a specified username. If the special value
++// "ALL" is supplied for username, then all ranges in the file will be returned
++func parseSubidFile(path, username string) (ranges, error) {
++	var rangeList ranges
++
++	subidFile, err := os.Open(path)
++	if err != nil {
++		return rangeList, err
++	}
++	defer subidFile.Close()
++
++	s := bufio.NewScanner(subidFile)
++	for s.Scan() {
++		text := strings.TrimSpace(s.Text())
++		if text == "" || strings.HasPrefix(text, "#") {
++			continue
++		}
++		parts := strings.Split(text, ":")
++		if len(parts) != 3 {
++			return rangeList, fmt.Errorf("Cannot parse subuid/gid information: Format not correct for %s file", path)
++		}
++		if parts[0] == username || username == "ALL" {
++			startid, err := strconv.Atoi(parts[1])
++			if err != nil {
++				return rangeList, fmt.Errorf("String to int conversion failed during subuid/gid parsing of %s: %v", path, err)
++			}
++			length, err := strconv.Atoi(parts[2])
++			if err != nil {
++				return rangeList, fmt.Errorf("String to int conversion failed during subuid/gid parsing of %s: %v", path, err)
++			}
++			rangeList = append(rangeList, subIDRange{startid, length})
++		}
++	}
++
++	return rangeList, s.Err()
++}
++
++// CurrentIdentity returns the identity of the current process
++func CurrentIdentity() Identity {
++	return Identity{UID: os.Getuid(), GID: os.Getegid()}
++}
+diff --git a/pkg/idtools/idtools_unix.go b/pkg/idtools/idtools_unix.go
+new file mode 100644
+index 000000000..794bf7119
+--- /dev/null
++++ b/pkg/idtools/idtools_unix.go
+@@ -0,0 +1,285 @@
++//go:build !windows
++// +build !windows
++
++package idtools
++
++import (
++	"bytes"
++	"fmt"
++	"io"
++	"os"
++	"os/exec"
++	"path/filepath"
++	"strconv"
++	"sync"
++	"syscall"
++
++	"github.com/moby/sys/user"
++)
++
++var (
++	entOnce   sync.Once
++	getentCmd string
++)
++
++func mkdirAs(path string, mode os.FileMode, owner Identity, mkAll, chownExisting bool) error {
++	path, err := filepath.Abs(path)
++	if err != nil {
++		return err
++	}
++
++	stat, err := os.Stat(path)
++	if err == nil {
++		if !stat.IsDir() {
++			return &os.PathError{Op: "mkdir", Path: path, Err: syscall.ENOTDIR}
++		}
++		if !chownExisting {
++			return nil
++		}
++
++		// short-circuit -- we were called with an existing directory and chown was requested
++		return setPermissions(path, mode, owner, stat)
++	}
++
++	// make an array containing the original path asked for, plus (for mkAll == true)
++	// all path components leading up to the complete path that don't exist before we MkdirAll
++	// so that we can chown all of them properly at the end.  If chownExisting is false, we won't
++	// chown the full directory path if it exists
++	var paths []string
++	if os.IsNotExist(err) {
++		paths = []string{path}
++	}
++
++	if mkAll {
++		// walk back to "/" looking for directories which do not exist
++		// and add them to the paths array for chown after creation
++		dirPath := path
++		for {
++			dirPath = filepath.Dir(dirPath)
++			if dirPath == "/" {
++				break
++			}
++			if _, err = os.Stat(dirPath); err != nil && os.IsNotExist(err) {
++				paths = append(paths, dirPath)
++			}
++		}
++		if err = os.MkdirAll(path, mode); err != nil {
++			return err
++		}
++	} else if err = os.Mkdir(path, mode); err != nil {
++		return err
++	}
++	// even if it existed, we will chown the requested path + any subpaths that
++	// didn't exist when we called MkdirAll
++	for _, pathComponent := range paths {
++		if err = setPermissions(pathComponent, mode, owner, nil); err != nil {
++			return err
++		}
++	}
++	return nil
++}
++
++// LookupUser uses traditional local system files lookup (from libcontainer/user) on a username,
++// followed by a call to `getent` for supporting host configured non-files passwd and group dbs
++func LookupUser(name string) (user.User, error) {
++	// first try a local system files lookup using existing capabilities
++	usr, err := user.LookupUser(name)
++	if err == nil {
++		return usr, nil
++	}
++	// local files lookup failed; attempt to call `getent` to query configured passwd dbs
++	usr, err = getentUser(name)
++	if err != nil {
++		return user.User{}, err
++	}
++	return usr, nil
++}
++
++// LookupUID uses traditional local system files lookup (from libcontainer/user) on a uid,
++// followed by a call to `getent` for supporting host configured non-files passwd and group dbs
++func LookupUID(uid int) (user.User, error) {
++	// first try a local system files lookup using existing capabilities
++	usr, err := user.LookupUid(uid)
++	if err == nil {
++		return usr, nil
++	}
++	// local files lookup failed; attempt to call `getent` to query configured passwd dbs
++	return getentUser(strconv.Itoa(uid))
++}
++
++func getentUser(name string) (user.User, error) {
++	reader, err := callGetent("passwd", name)
++	if err != nil {
++		return user.User{}, err
++	}
++	users, err := user.ParsePasswd(reader)
++	if err != nil {
++		return user.User{}, err
++	}
++	if len(users) == 0 {
++		return user.User{}, fmt.Errorf("getent failed to find passwd entry for %q", name)
++	}
++	return users[0], nil
++}
++
++// LookupGroup uses traditional local system files lookup (from libcontainer/user) on a group name,
++// followed by a call to `getent` for supporting host configured non-files passwd and group dbs
++func LookupGroup(name string) (user.Group, error) {
++	// first try a local system files lookup using existing capabilities
++	group, err := user.LookupGroup(name)
++	if err == nil {
++		return group, nil
++	}
++	// local files lookup failed; attempt to call `getent` to query configured group dbs
++	return getentGroup(name)
++}
++
++// LookupGID uses traditional local system files lookup (from libcontainer/user) on a group ID,
++// followed by a call to `getent` for supporting host configured non-files passwd and group dbs
++func LookupGID(gid int) (user.Group, error) {
++	// first try a local system files lookup using existing capabilities
++	group, err := user.LookupGid(gid)
++	if err == nil {
++		return group, nil
++	}
++	// local files lookup failed; attempt to call `getent` to query configured group dbs
++	return getentGroup(strconv.Itoa(gid))
++}
++
++func getentGroup(name string) (user.Group, error) {
++	reader, err := callGetent("group", name)
++	if err != nil {
++		return user.Group{}, err
++	}
++	groups, err := user.ParseGroup(reader)
++	if err != nil {
++		return user.Group{}, err
++	}
++	if len(groups) == 0 {
++		return user.Group{}, fmt.Errorf("getent failed to find groups entry for %q", name)
++	}
++	return groups[0], nil
++}
++
++func callGetent(database, key string) (io.Reader, error) {
++	entOnce.Do(func() { getentCmd, _ = resolveBinary("getent") })
++	// if no `getent` command on host, can't do anything else
++	if getentCmd == "" {
++		return nil, fmt.Errorf("unable to find getent command")
++	}
++	command := exec.Command(getentCmd, database, key)
++	// we run getent within container filesystem, but without /dev so /dev/null is not available for exec to mock stdin
++	command.Stdin = io.NopCloser(bytes.NewReader(nil))
++	out, err := command.CombinedOutput()
++	if err != nil {
++		exitCode, errC := getExitCode(err)
++		if errC != nil {
++			return nil, err
++		}
++		switch exitCode {
++		case 1:
++			return nil, fmt.Errorf("getent reported invalid parameters/database unknown")
++		case 2:
++			return nil, fmt.Errorf("getent unable to find entry %q in %s database", key, database)
++		case 3:
++			return nil, fmt.Errorf("getent database doesn't support enumeration")
++		default:
++			return nil, err
++		}
++	}
++	return bytes.NewReader(out), nil
++}
++
++// getExitCode returns the ExitStatus of the specified error if its type is
++// exec.ExitError, returns 0 and an error otherwise.
++func getExitCode(err error) (int, error) {
++	exitCode := 0
++	if exiterr, ok := err.(*exec.ExitError); ok {
++		if procExit, ok := exiterr.Sys().(syscall.WaitStatus); ok {
++			return procExit.ExitStatus(), nil
++		}
++	}
++	return exitCode, fmt.Errorf("failed to get exit code")
++}
++
++// setPermissions performs a chown/chmod only if the uid/gid don't match what's requested
++// Normally a Chown is a no-op if uid/gid match, but in some cases this can still cause an error, e.g. if the
++// dir is on an NFS share, so don't call chown unless we absolutely must.
++// Likewise for setting permissions.
++func setPermissions(p string, mode os.FileMode, owner Identity, stat os.FileInfo) error {
++	if stat == nil {
++		var err error
++		stat, err = os.Stat(p)
++		if err != nil {
++			return err
++		}
++	}
++	if stat.Mode().Perm() != mode.Perm() {
++		if err := os.Chmod(p, mode.Perm()); err != nil {
++			return err
++		}
++	}
++	ssi := stat.Sys().(*syscall.Stat_t)
++	if ssi.Uid == uint32(owner.UID) && ssi.Gid == uint32(owner.GID) {
++		return nil
++	}
++	return os.Chown(p, owner.UID, owner.GID)
++}
++
++// LoadIdentityMapping takes a requested username and
++// using the data from /etc/sub{uid,gid} ranges, creates the
++// proper uid and gid remapping ranges for that user/group pair
++func LoadIdentityMapping(name string) (IdentityMapping, error) {
++	usr, err := LookupUser(name)
++	if err != nil {
++		return IdentityMapping{}, fmt.Errorf("could not get user for username %s: %v", name, err)
++	}
++
++	subuidRanges, err := lookupSubUIDRanges(usr)
++	if err != nil {
++		return IdentityMapping{}, err
++	}
++	subgidRanges, err := lookupSubGIDRanges(usr)
++	if err != nil {
++		return IdentityMapping{}, err
++	}
++
++	return IdentityMapping{
++		UIDMaps: subuidRanges,
++		GIDMaps: subgidRanges,
++	}, nil
++}
++
++func lookupSubUIDRanges(usr user.User) ([]IDMap, error) {
++	rangeList, err := parseSubuid(strconv.Itoa(usr.Uid))
++	if err != nil {
++		return nil, err
++	}
++	if len(rangeList) == 0 {
++		rangeList, err = parseSubuid(usr.Name)
++		if err != nil {
++			return nil, err
++		}
++	}
++	if len(rangeList) == 0 {
++		return nil, fmt.Errorf("no subuid ranges found for user %q", usr.Name)
++	}
++	return createIDMap(rangeList), nil
++}
++
++func lookupSubGIDRanges(usr user.User) ([]IDMap, error) {
++	rangeList, err := parseSubgid(strconv.Itoa(usr.Uid))
++	if err != nil {
++		return nil, err
++	}
++	if len(rangeList) == 0 {
++		rangeList, err = parseSubgid(usr.Name)
++		if err != nil {
++			return nil, err
++		}
++	}
++	if len(rangeList) == 0 {
++		return nil, fmt.Errorf("no subgid ranges found for user %q", usr.Name)
++	}
++	return createIDMap(rangeList), nil
++}
+diff --git a/pkg/idtools/idtools_windows.go b/pkg/idtools/idtools_windows.go
+new file mode 100644
+index 000000000..5cf69deba
+--- /dev/null
++++ b/pkg/idtools/idtools_windows.go
+@@ -0,0 +1,23 @@
++package idtools
++
++import (
++	"errors"
++	"os"
++)
++
++const (
++	SeTakeOwnershipPrivilege = "SeTakeOwnershipPrivilege"
++)
++
++const (
++	ContainerAdministratorSidString = "S-1-5-93-2-1"
++	ContainerUserSidString          = "S-1-5-93-2-2"
++)
++
++// This is currently a wrapper around MkdirAll, however, since currently
++// permissions aren't set through this path, the identity isn't utilized.
++// Ownership is handled elsewhere, but in the future could be support here
++// too.
++func mkdirAs(_ string, _ os.FileMode, _ Identity, _, _ bool) error {
++	return errors.New("Not implemented")
++}
+diff --git a/pkg/idtools/usergroupadd_linux.go b/pkg/idtools/usergroupadd_linux.go
+new file mode 100644
+index 000000000..36647563e
+--- /dev/null
++++ b/pkg/idtools/usergroupadd_linux.go
+@@ -0,0 +1,166 @@
++package idtools
++
++import (
++	"fmt"
++	"os/exec"
++	"regexp"
++	"sort"
++	"strconv"
++	"strings"
++	"sync"
++)
++
++// add a user and/or group to Linux /etc/passwd, /etc/group using standard
++// Linux distribution commands:
++// adduser --system --shell /bin/false --disabled-login --disabled-password --no-create-home --group <username>
++// useradd -r -s /bin/false <username>
++
++var (
++	once        sync.Once
++	userCommand string
++	idOutRegexp = regexp.MustCompile(`uid=([0-9]+).*gid=([0-9]+)`)
++)
++
++const (
++	// default length for a UID/GID subordinate range
++	defaultRangeLen   = 65536
++	defaultRangeStart = 100000
++)
++
++// AddNamespaceRangesUser takes a username and uses the standard system
++// utility to create a system user/group pair used to hold the
++// /etc/sub{uid,gid} ranges which will be used for user namespace
++// mapping ranges in containers.
++func AddNamespaceRangesUser(name string) (int, int, error) {
++	if err := addUser(name); err != nil {
++		return -1, -1, fmt.Errorf("error adding user %q: %v", name, err)
++	}
++
++	// Query the system for the created uid and gid pair
++	out, err := exec.Command("id", name).CombinedOutput()
++	if err != nil {
++		return -1, -1, fmt.Errorf("error trying to find uid/gid for new user %q: %v", name, err)
++	}
++	matches := idOutRegexp.FindStringSubmatch(strings.TrimSpace(string(out)))
++	if len(matches) != 3 {
++		return -1, -1, fmt.Errorf("can't find uid, gid from `id` output: %q", string(out))
++	}
++	uid, err := strconv.Atoi(matches[1])
++	if err != nil {
++		return -1, -1, fmt.Errorf("can't convert found uid (%s) to int: %v", matches[1], err)
++	}
++	gid, err := strconv.Atoi(matches[2])
++	if err != nil {
++		return -1, -1, fmt.Errorf("Can't convert found gid (%s) to int: %v", matches[2], err)
++	}
++
++	// Now we need to create the subuid/subgid ranges for our new user/group (system users
++	// do not get auto-created ranges in subuid/subgid)
++
++	if err := createSubordinateRanges(name); err != nil {
++		return -1, -1, fmt.Errorf("couldn't create subordinate ID ranges: %v", err)
++	}
++	return uid, gid, nil
++}
++
++func addUser(name string) error {
++	once.Do(func() {
++		// set up which commands are used for adding users/groups dependent on distro
++		if _, err := resolveBinary("adduser"); err == nil {
++			userCommand = "adduser"
++		} else if _, err := resolveBinary("useradd"); err == nil {
++			userCommand = "useradd"
++		}
++	})
++	var args []string
++	switch userCommand {
++	case "adduser":
++		args = []string{"--system", "--shell", "/bin/false", "--no-create-home", "--disabled-login", "--disabled-password", "--group", name}
++	case "useradd":
++		args = []string{"-r", "-s", "/bin/false", name}
++	default:
++		return fmt.Errorf("cannot add user; no useradd/adduser binary found")
++	}
++
++	if out, err := exec.Command(userCommand, args...).CombinedOutput(); err != nil {
++		return fmt.Errorf("failed to add user with error: %v; output: %q", err, string(out))
++	}
++	return nil
++}
++
++func createSubordinateRanges(name string) error {
++	// first, we should verify that ranges weren't automatically created
++	// by the distro tooling
++	ranges, err := parseSubuid(name)
++	if err != nil {
++		return fmt.Errorf("error while looking for subuid ranges for user %q: %v", name, err)
++	}
++	if len(ranges) == 0 {
++		// no UID ranges; let's create one
++		startID, err := findNextUIDRange()
++		if err != nil {
++			return fmt.Errorf("can't find available subuid range: %v", err)
++		}
++		idRange := fmt.Sprintf("%d-%d", startID, startID+defaultRangeLen-1)
++		out, err := exec.Command("usermod", "-v", idRange, name).CombinedOutput()
++		if err != nil {
++			return fmt.Errorf("unable to add subuid range to user: %q; output: %s, err: %v", name, out, err)
++		}
++	}
++
++	ranges, err = parseSubgid(name)
++	if err != nil {
++		return fmt.Errorf("error while looking for subgid ranges for user %q: %v", name, err)
++	}
++	if len(ranges) == 0 {
++		// no GID ranges; let's create one
++		startID, err := findNextGIDRange()
++		if err != nil {
++			return fmt.Errorf("can't find available subgid range: %v", err)
++		}
++		idRange := fmt.Sprintf("%d-%d", startID, startID+defaultRangeLen-1)
++		out, err := exec.Command("usermod", "-w", idRange, name).CombinedOutput()
++		if err != nil {
++			return fmt.Errorf("unable to add subgid range to user: %q; output: %s, err: %v", name, out, err)
++		}
++	}
++	return nil
++}
++
++func findNextUIDRange() (int, error) {
++	ranges, err := parseSubuid("ALL")
++	if err != nil {
++		return -1, fmt.Errorf("couldn't parse all ranges in /etc/subuid file: %v", err)
++	}
++	sort.Sort(ranges)
++	return findNextRangeStart(ranges)
++}
++
++func findNextGIDRange() (int, error) {
++	ranges, err := parseSubgid("ALL")
++	if err != nil {
++		return -1, fmt.Errorf("couldn't parse all ranges in /etc/subgid file: %v", err)
++	}
++	sort.Sort(ranges)
++	return findNextRangeStart(ranges)
++}
++
++func findNextRangeStart(rangeList ranges) (int, error) {
++	startID := defaultRangeStart
++	for _, arange := range rangeList {
++		if wouldOverlap(arange, startID) {
++			startID = arange.Start + arange.Length
++		}
++	}
++	return startID, nil
++}
++
++func wouldOverlap(arange subIDRange, ID int) bool {
++	low := ID
++	high := ID + defaultRangeLen
++	if (low >= arange.Start && low <= arange.Start+arange.Length) ||
++		(high <= arange.Start+arange.Length && high >= arange.Start) {
++		return true
++	}
++	return false
++}
+diff --git a/pkg/idtools/usergroupadd_unsupported.go b/pkg/idtools/usergroupadd_unsupported.go
+new file mode 100644
+index 000000000..6b3c5fce3
+--- /dev/null
++++ b/pkg/idtools/usergroupadd_unsupported.go
+@@ -0,0 +1,13 @@
++//go:build !linux
++// +build !linux
++
++package idtools
++
++import "fmt"
++
++// AddNamespaceRangesUser takes a name and finds an unused uid, gid pair
++// and calls the appropriate helper function to add the group and then
++// the user to the group in /etc/group and /etc/passwd respectively.
++func AddNamespaceRangesUser(name string) (int, int, error) {
++	return -1, -1, fmt.Errorf("No support for adding users or groups on this OS")
++}
+diff --git a/pkg/idtools/utils_unix.go b/pkg/idtools/utils_unix.go
+new file mode 100644
+index 000000000..744079501
+--- /dev/null
++++ b/pkg/idtools/utils_unix.go
+@@ -0,0 +1,27 @@
++//go:build !windows
++// +build !windows
++
++package idtools
++
++import (
++	"fmt"
++	"os/exec"
++	"path/filepath"
++)
++
++func resolveBinary(binname string) (string, error) {
++	binaryPath, err := exec.LookPath(binname)
++	if err != nil {
++		return "", err
++	}
++	resolvedPath, err := filepath.EvalSymlinks(binaryPath)
++	if err != nil {
++		return "", err
++	}
++	// only return no error if the final resolved binary basename
++	// matches what was searched for
++	if filepath.Base(resolvedPath) == binname {
++		return resolvedPath, nil
++	}
++	return "", fmt.Errorf("Binary %q does not resolve to a binary of that name in $PATH (%q)", binname, resolvedPath)
++}
+diff --git a/snapshots/snapshotter.go b/snapshots/snapshotter.go
+index 5fa5aa530..b8fd5d81b 100644
+--- a/snapshots/snapshotter.go
++++ b/snapshots/snapshotter.go
+@@ -38,6 +38,8 @@ const (
+ 	LabelSnapshotUIDMapping = "containerd.io/snapshot/uidmapping"
+ 	// LabelSnapshotGIDMapping is the label used for GID mappings
+ 	LabelSnapshotGIDMapping = "containerd.io/snapshot/gidmapping"
++	// LabelSnapshotUserNSMapping is the label used for user ns mappings
++	LabelSnapshotUserNSMapping = "containerd.io/snapshot/usernsmapping"
+ )
+ 
+ // Kind identifies the kind of snapshot.
+diff --git a/snapshotter_opts_unix.go b/snapshotter_opts_unix.go
+index 4739e192f..a98359e64 100644
+--- a/snapshotter_opts_unix.go
++++ b/snapshotter_opts_unix.go
+@@ -20,8 +20,10 @@ package containerd
+ 
+ import (
+ 	"context"
++	"encoding/json"
+ 	"fmt"
+ 
++	"github.com/containerd/containerd/pkg/idtools"
+ 	"github.com/containerd/containerd/snapshots"
+ )
+ 
+@@ -38,73 +40,25 @@ func WithRemapperLabels(ctrUID, hostUID, ctrGID, hostGID, length uint32) snapsho
+ 		snapshots.LabelSnapshotGIDMapping: fmt.Sprintf("%d:%d:%d", ctrGID, hostGID, length)})
+ }
+ 
+-func resolveSnapshotOptions(ctx context.Context, client *Client, snapshotterName string, snapshotter snapshots.Snapshotter, parent string, opts ...snapshots.Opt) (string, error) {
+-	capabs, err := client.GetSnapshotterCapabilities(ctx, snapshotterName)
++func WithMultiRemapperLabels(idmap idtools.IdentityMapping) snapshots.Opt {
++	uidMap, err := json.Marshal(idmap.UIDMaps)
+ 	if err != nil {
+-		return "", err
+-	}
+-
+-	for _, capab := range capabs {
+-		if capab == capabRemapIDs {
+-			// Snapshotter supports ID remapping, we don't need to do anything.
+-			return parent, nil
+-		}
+-	}
+-
+-	var local snapshots.Info
+-	for _, opt := range opts {
+-		opt(&local)
+-	}
+-
+-	needsRemap := false
+-	var uidMap, gidMap string
+-
+-	if value, ok := local.Labels[snapshots.LabelSnapshotUIDMapping]; ok {
+-		needsRemap = true
+-		uidMap = value
+-	}
+-	if value, ok := local.Labels[snapshots.LabelSnapshotGIDMapping]; ok {
+-		needsRemap = true
+-		gidMap = value
++		return snapshots.WithLabels(map[string]string{})
+ 	}
+ 
+-	if !needsRemap {
+-		return parent, nil
+-	}
+-
+-	var ctrUID, hostUID, length uint32
+-	_, err = fmt.Sscanf(uidMap, "%d:%d:%d", &ctrUID, &hostUID, &length)
++	gidMap, err := json.Marshal(idmap.GIDMaps)
+ 	if err != nil {
+-		return "", fmt.Errorf("uidMap unparsable: %w", err)
++		return snapshots.WithLabels(map[string]string{})
+ 	}
+ 
+-	var ctrGID, hostGID, lengthGID uint32
+-	_, err = fmt.Sscanf(gidMap, "%d:%d:%d", &ctrGID, &hostGID, &lengthGID)
+-	if err != nil {
+-		return "", fmt.Errorf("gidMap unparsable: %w", err)
+-	}
+-
+-	if ctrUID != 0 || ctrGID != 0 {
+-		return "", fmt.Errorf("Container UID/GID of 0 only supported currently (%d/%d)", ctrUID, ctrGID)
+-	}
++	return snapshots.WithLabels(map[string]string{
++		snapshots.LabelSnapshotUIDMapping: string(uidMap),
++		snapshots.LabelSnapshotGIDMapping: string(gidMap),
++	})
+ 
+-	// TODO(dgl): length isn't taken into account for the intermediate snapshot id.
+-	usernsID := fmt.Sprintf("%s-%d-%d", parent, hostUID, hostGID)
+-	if _, err := snapshotter.Stat(ctx, usernsID); err == nil {
+-		return usernsID, nil
+-	}
+-	mounts, err := snapshotter.Prepare(ctx, usernsID+"-remap", parent)
+-	if err != nil {
+-		return "", err
+-	}
+-	// TODO(dgl): length isn't taken into account here yet either.
+-	if err := remapRootFS(ctx, mounts, hostUID, hostGID); err != nil {
+-		snapshotter.Remove(ctx, usernsID+"-remap")
+-		return "", err
+-	}
+-	if err := snapshotter.Commit(ctx, usernsID, usernsID+"-remap"); err != nil {
+-		return "", err
+-	}
++}
+ 
+-	return usernsID, nil
++func resolveSnapshotOptions(ctx context.Context, client *Client, snapshotterName string, snapshotter snapshots.Snapshotter, parent string, opts ...snapshots.Opt) (string, error) {
++	// Snapshotter supports ID remapping, we don't need to do anything.
++	return parent, nil
+ }
