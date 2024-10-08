@@ -49,7 +49,9 @@ RUN cp $GOPATH/src/github.com/awslabs/soci-snapshotter/out/soci /usr/local/bin/ 
     cp $GOPATH/src/github.com/awslabs/soci-snapshotter/soci-snapshotter.socket /etc/systemd/system
 RUN curl -sSL --output /tmp/containerd.tgz https://github.com/containerd/containerd/releases/download/v${CONTAINERD_VERSION}/containerd-${CONTAINERD_VERSION}-linux-${TARGETARCH:-amd64}.tar.gz && \
     tar zxvf /tmp/containerd.tgz -C /usr/local/ && \
-    rm -f /tmp/containerd.tgz
+    rm -f /tmp/containerd.tgz && \
+    cp $GOPATH/src/github.com/awslabs/soci-snapshotter/out/nerdctl-with-idmapping /usr/local/bin && \
+    chmod +x /usr/local/bin/nerdctl-with-idmapping
 RUN curl -sSL --output /tmp/runc https://github.com/opencontainers/runc/releases/download/v${RUNC_VERSION}/runc.${TARGETARCH:-amd64} && \
     cp /tmp/runc /usr/local/bin/ && \
     chmod +x /usr/local/bin/runc && \
