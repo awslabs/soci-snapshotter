@@ -47,7 +47,9 @@ import (
 	"fmt"
 	golog "log"
 	"net/http"
+	"os"
 	"os/exec"
+	"path/filepath"
 	"sync"
 	"syscall"
 	"time"
@@ -59,6 +61,7 @@ import (
 	layermetrics "github.com/awslabs/soci-snapshotter/fs/metrics/layer"
 	"github.com/awslabs/soci-snapshotter/fs/remote"
 	"github.com/awslabs/soci-snapshotter/fs/source"
+	"github.com/awslabs/soci-snapshotter/idtools"
 	"github.com/awslabs/soci-snapshotter/metadata"
 	"github.com/awslabs/soci-snapshotter/snapshot"
 	"github.com/awslabs/soci-snapshotter/soci"
@@ -67,6 +70,7 @@ import (
 	ctdsnapshotters "github.com/containerd/containerd/pkg/snapshotters"
 	"github.com/containerd/containerd/reference"
 	"github.com/containerd/containerd/remotes/docker"
+	"github.com/containerd/errdefs"
 	"github.com/containerd/log"
 	metrics "github.com/docker/go-metrics"
 	fusefs "github.com/hanwen/go-fuse/v2/fs"
@@ -455,6 +459,79 @@ func (fs *filesystem) getSociContext(ctx context.Context, imageRef, indexDigest,
 	return c, err
 }
 
+func (fs *filesystem) getIDMappedMountpoint(mountpoint, activeLayerKey string) string {
+	d := filepath.Dir(mountpoint)
+	return filepath.Join(fmt.Sprintf("%s_%s", d, activeLayerKey), "fs")
+}
+
+func (fs *filesystem) IDMapMount(ctx context.Context, mountpoint, activeLayerKey string, idmapper idtools.IDMap) (string, error) {
+	newMountpoint := fs.getIDMappedMountpoint(mountpoint, activeLayerKey)
+	log.G(ctx).WithField("mountpoint", newMountpoint).Info("creating remote id-mapped mount")
+	if err := os.Mkdir(filepath.Dir(newMountpoint), 0700); err != nil {
+		return "", err
+	}
+	if err := os.Mkdir(newMountpoint, 0755); err != nil {
+		return "", err
+	}
+
+	fs.layerMu.Lock()
+	l := fs.layer[mountpoint]
+	if l == nil {
+		fs.layerMu.Unlock()
+		log.G(ctx).WithField("mountpoint", newMountpoint).Info("failed to create remote id-mapped mount")
+		return "", errdefs.ErrNotFound
+	}
+	fs.layer[newMountpoint] = l
+	fs.layerMu.Unlock()
+	node, err := l.RootNode(0, idmapper)
+	if err != nil {
+		return "", err
+	}
+
+	rawFS := fusefs.NewNodeFS(node, &fusefs.Options{
+		AttrTimeout:     &fs.attrTimeout,
+		EntryTimeout:    &fs.entryTimeout,
+		NegativeTimeout: &fs.negativeTimeout,
+		NullPermissions: true,
+	})
+	mountOpts := &fuse.MountOptions{
+		AllowOther:    true,   // allow users other than root&mounter to access fs
+		FsName:        "soci", // name this filesystem as "soci"
+		Debug:         fs.debug,
+		DisableXAttrs: l.DisableXAttrs(),
+		Options:       []string{"default_permissions", "ro"},
+	}
+	if _, err := exec.LookPath(fusermountBin); err == nil {
+		mountOpts.Options = []string{"suid"} // option for fusermount; allow setuid inside container
+	} else {
+		log.G(ctx).WithError(err).Infof("%s not installed; trying direct mount", fusermountBin)
+		mountOpts.DirectMount = true
+	}
+	server, err := fuse.NewServer(rawFS, newMountpoint, mountOpts)
+	if err != nil {
+		log.G(ctx).WithError(err).Debug("failed to make filesystem server")
+		return "", err
+	}
+
+	go server.Serve()
+
+	log.G(ctx).WithField("mountpoint", newMountpoint).Info("successfully created remote mountpoint")
+	return newMountpoint, server.WaitMount()
+}
+
+func (fs *filesystem) IDMapMountLocal(ctx context.Context, mountpoint, activeLayerKey string, idmapper idtools.IDMap) (string, error) {
+	newMountpoint := fs.getIDMappedMountpoint(mountpoint, activeLayerKey)
+	log.G(ctx).WithField("mountpoint", newMountpoint).Info("creating local id-mapped mount")
+
+	if err := idtools.RemapDir(ctx, mountpoint, newMountpoint, idmapper); err != nil {
+		log.G(ctx).WithField("mountpoint", newMountpoint).Errorf("failed to create local mount: %v", err)
+		return "", err
+	}
+
+	log.G(ctx).WithField("mountpoint", newMountpoint).Info("successfully created local mountpoint")
+	return newMountpoint, nil
+}
+
 func (fs *filesystem) Mount(ctx context.Context, mountpoint string, labels map[string]string) (retErr error) {
 	// Setting the start time to measure the Mount operation duration.
 	start := time.Now()
@@ -566,7 +643,7 @@ func (fs *filesystem) Mount(ctx context.Context, mountpoint string, labels map[s
 	// Maybe we should reword the log here or remove it entirely,
 	// since the old Verify() function no longer serves any purpose.
 
-	node, err := l.RootNode(0)
+	node, err := l.RootNode(0, idtools.IDMap{})
 	if err != nil {
 		log.G(ctx).WithError(err).Warnf("Failed to get root node")
 		retErr = fmt.Errorf("failed to get root node: %w", err)
@@ -602,6 +679,7 @@ func (fs *filesystem) Mount(ctx context.Context, mountpoint string, labels map[s
 		Debug:         fs.debug,
 		Logger:        golog.New(logger, "", 0),
 		DisableXAttrs: l.DisableXAttrs(),
+		Options:       []string{"default_permissions", "ro"},
 	}
 	if _, err := exec.LookPath(fusermountBin); err == nil {
 		mountOpts.Options = []string{"suid"} // option for fusermount; allow setuid inside container
@@ -692,7 +770,8 @@ func (fs *filesystem) Unmount(ctx context.Context, mountpoint string) error {
 	l, ok := fs.layer[mountpoint]
 	if !ok {
 		fs.layerMu.Unlock()
-		return fmt.Errorf("specified path %q isn't a mountpoint", mountpoint)
+		log.G(ctx).Errorf("specified path %q isn't a remote mount", mountpoint)
+		return errdefs.ErrNotFound
 	}
 	delete(fs.layer, mountpoint) // unregisters the corresponding layer
 	l.Done()
@@ -703,6 +782,10 @@ func (fs *filesystem) Unmount(ctx context.Context, mountpoint string) error {
 	// In the future, we might be able to consider to kill that specific hanging
 	// goroutine using channel, etc.
 	// See also: https://www.kernel.org/doc/html/latest/filesystems/fuse.html#aborting-a-filesystem-connection
+	return syscall.Unmount(mountpoint, syscall.MNT_FORCE)
+}
+
+func (fs *filesystem) UnmountLocal(ctx context.Context, mountpoint string) error {
 	return syscall.Unmount(mountpoint, syscall.MNT_FORCE)
 }
 
