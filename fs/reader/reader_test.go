@@ -162,28 +162,27 @@ func makeFile(t *testing.T, contents []byte, prefix string, factory metadata.Sto
 		t.Fatalf("failed to create reader: %v", err)
 	}
 	spanManager := spanmanager.New(ztoc, sr, cache.NewMemoryCache(), 0)
-	vr, err := NewReader(mr, digest.FromString(""), spanManager, false)
+	r, err := NewReader(mr, digest.FromString(""), spanManager, false)
 	if err != nil {
 		mr.Close()
 		t.Fatalf("failed to make new reader: %v", err)
 	}
-	r := vr.GetReader()
 	tid, _, err := mr.GetChild(mr.RootID(), testName)
 	if err != nil {
-		vr.Close()
+		r.Close()
 		t.Fatalf("failed to get %q: %v", testName, err)
 	}
 	ra, err := r.OpenFile(tid)
 	if err != nil {
-		vr.Close()
+		r.Close()
 		t.Fatalf("Failed to open testing file: %v", err)
 	}
 	f, ok := ra.(*file)
 	if !ok {
-		vr.Close()
+		r.Close()
 		t.Fatalf("invalid type of file %q", tid)
 	}
-	return f, vr.Close
+	return f, r.Close
 }
 
 func testFailReader(t *testing.T, factory metadata.Store) {
@@ -218,12 +217,11 @@ func testFailReader(t *testing.T, factory metadata.Store) {
 				t.Fatalf("free ID not found")
 			}
 			spanManager := spanmanager.New(ztoc, sr, cache.NewMemoryCache(), 0)
-			vr, err := NewReader(mr, digest.FromString(""), spanManager, false)
+			r, err := NewReader(mr, digest.FromString(""), spanManager, false)
 			if err != nil {
 				mr.Close()
 				t.Fatalf("failed to make new reader: %v", err)
 			}
-			r := vr.GetReader()
 
 			_, err = r.OpenFile(notexist)
 			if err == nil {

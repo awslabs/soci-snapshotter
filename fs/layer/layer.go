@@ -94,15 +94,6 @@ type Layer interface {
 	// Refresh refreshes the layer connection.
 	Refresh(ctx context.Context, hosts []docker.RegistryHost, refspec reference.Spec, desc ocispec.Descriptor) error
 
-	// Verify verifies this layer using the passed TOC Digest.
-	// Nop if Verify() or SkipVerify() was already called.
-	// NOTE: Legacy stargz code, this is never called.
-	Verify(tocDigest digest.Digest) (err error)
-
-	// SkipVerify skips verification for this layer.
-	// Nop if Verify() or SkipVerify() was already called.
-	SkipVerify()
-
 	// ReadAt reads this layer.
 	ReadAt([]byte, int64, ...remote.Option) (int, error)
 
@@ -406,7 +397,7 @@ func newLayer(
 	resolver *Resolver,
 	desc ocispec.Descriptor,
 	blob *blobRef,
-	vr *reader.VerifiableReader,
+	r reader.Reader,
 	bgResolver backgroundfetcher.Resolver,
 	opCounter *FuseOperationCounter,
 	disableXAttrs bool,
@@ -415,7 +406,7 @@ func newLayer(
 		resolver:             resolver,
 		desc:                 desc,
 		blob:                 blob,
-		verifiableReader:     vr,
+		r:                    r,
 		bgResolver:           bgResolver,
 		fuseOperationCounter: opCounter,
 		disableXAttrs:        disableXAttrs,
@@ -423,10 +414,9 @@ func newLayer(
 }
 
 type layer struct {
-	resolver         *Resolver
-	desc             ocispec.Descriptor
-	blob             *blobRef
-	verifiableReader *reader.VerifiableReader
+	resolver *Resolver
+	desc     ocispec.Descriptor
+	blob     *blobRef
 
 	bgResolver backgroundfetcher.Resolver
 
@@ -440,15 +430,11 @@ type layer struct {
 }
 
 func (l *layer) Info() Info {
-	var readTime time.Time
-	if l.r != nil {
-		readTime = l.r.LastOnDemandReadTime()
-	}
 	return Info{
 		Digest:      l.desc.Digest,
 		Size:        l.blob.Size(),
 		FetchedSize: l.blob.FetchedSize(),
-		ReadTime:    readTime,
+		ReadTime:    l.r.LastOnDemandReadTime(),
 	}
 }
 
@@ -466,25 +452,6 @@ func (l *layer) Refresh(ctx context.Context, hosts []docker.RegistryHost, refspe
 	return l.blob.Refresh(ctx, hosts, refspec, desc)
 }
 
-// Never used, should probably just have it return nil.
-func (l *layer) Verify(tocDigest digest.Digest) (err error) {
-	if l.isClosed() {
-		return fmt.Errorf("layer is already closed")
-	}
-	if l.r != nil {
-		return nil
-	}
-	l.r, err = l.verifiableReader.VerifyTOC(tocDigest)
-	return
-}
-
-func (l *layer) SkipVerify() {
-	if l.r != nil {
-		return
-	}
-	l.r = l.verifiableReader.SkipVerify()
-}
-
 func (l *layerRef) Done() {
 	l.done()
 }
@@ -492,9 +459,6 @@ func (l *layerRef) Done() {
 func (l *layer) RootNode(baseInode uint32) (fusefs.InodeEmbedder, error) {
 	if l.isClosed() {
 		return nil, fmt.Errorf("layer is already closed")
-	}
-	if l.r == nil {
-		return nil, fmt.Errorf("layer hasn't been verified yet")
 	}
 	return newNode(l.desc.Digest, l.r, l.blob, baseInode, l.resolver.overlayOpaqueType, l.resolver.config.LogFuseOperations, l.fuseOperationCounter)
 }
@@ -518,11 +482,7 @@ func (l *layer) close() error {
 		l.bgResolver.Close()
 	}
 	defer l.blob.done() // Close reader first, then close the blob
-	l.verifiableReader.Close()
-	if l.r != nil {
-		return l.r.Close()
-	}
-	return nil
+	return l.r.Close()
 }
 
 func (l *layer) isClosed() bool {

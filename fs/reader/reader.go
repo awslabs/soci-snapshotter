@@ -64,76 +64,14 @@ type Reader interface {
 	LastOnDemandReadTime() time.Time
 }
 
-// VerifiableReader produces a Reader with a given verifier.
-type VerifiableReader struct {
-	r *reader
-
-	lastVerifyErr           atomic.Value
-	prohibitVerifyFailure   bool
-	prohibitVerifyFailureMu sync.RWMutex
-
-	closed   bool
-	closedMu sync.Mutex
-
-	verifier func(uint32, string) (digest.Verifier, error)
-}
-
-func (vr *VerifiableReader) SkipVerify() Reader {
-	return vr.r
-}
-
-func (vr *VerifiableReader) VerifyTOC(tocDigest digest.Digest) (Reader, error) {
-	if vr.isClosed() {
-		return nil, fmt.Errorf("reader is already closed")
-	}
-	vr.prohibitVerifyFailureMu.Lock()
-	vr.prohibitVerifyFailure = true
-	lastVerifyErr := vr.lastVerifyErr.Load()
-	vr.prohibitVerifyFailureMu.Unlock()
-	if err := lastVerifyErr; err != nil {
-		return nil, fmt.Errorf("content error occures during caching contents: %w", err.(error))
-	}
-	vr.r.verify = true
-	return vr.r, nil
-}
-
-// nolint:revive
-func (vr *VerifiableReader) GetReader() *reader {
-	return vr.r
-}
-
-func (vr *VerifiableReader) Metadata() metadata.Reader {
-	// TODO: this shouldn't be called before verified
-	return vr.r.r
-}
-
-func (vr *VerifiableReader) Close() error {
-	vr.closedMu.Lock()
-	defer vr.closedMu.Unlock()
-	if vr.closed {
-		return nil
-	}
-	vr.closed = true
-	return vr.r.Close()
-}
-
-func (vr *VerifiableReader) isClosed() bool {
-	vr.closedMu.Lock()
-	closed := vr.closed
-	vr.closedMu.Unlock()
-	return closed
-}
-
 // NewReader creates a Reader based on the given soci blob and Span Manager.
-func NewReader(r metadata.Reader, layerSha digest.Digest, spanManager *spanmanager.SpanManager, disableVerification bool) (*VerifiableReader, error) {
-	vr := &reader{
+func NewReader(r metadata.Reader, layerSha digest.Digest, spanManager *spanmanager.SpanManager, disableVerification bool) (Reader, error) {
+	return &reader{
 		spanManager:         spanManager,
 		r:                   r,
 		layerSha:            layerSha,
-		verifier:            digestVerifier,
 		disableVerification: disableVerification,
-	}
-	return &VerifiableReader{r: vr, verifier: digestVerifier}, nil
+	}, nil
 }
 
 type reader struct {
@@ -147,8 +85,6 @@ type reader struct {
 	closed   bool
 	closedMu sync.Mutex
 
-	verify              bool
-	verifier            func(uint32, string) (digest.Verifier, error)
 	disableVerification bool
 }
 
@@ -359,12 +295,4 @@ func WithReader(sr *io.SectionReader) CacheOption {
 	return func(opts *cacheOptions) {
 		opts.reader = sr
 	}
-}
-
-func digestVerifier(id uint32, digestStr string) (digest.Verifier, error) {
-	digest, err := digest.Parse(digestStr)
-	if err != nil {
-		return nil, fmt.Errorf("no digset is recorded: %w", err)
-	}
-	return digest.Verifier(), nil
 }
