@@ -168,25 +168,24 @@ func makeNodeReader(t *testing.T, contents []byte, spanSize int64, factory metad
 		t.Fatalf("failed to create reader: %v", err)
 	}
 	spanManager := spanmanager.New(ztoc, sr, cache.NewMemoryCache(), 0)
-	vr, err := reader.NewReader(mr, digest.FromString(""), spanManager, false)
+	r, err := reader.NewReader(mr, digest.FromString(""), spanManager, false)
 	if err != nil {
 		mr.Close()
 		t.Fatalf("failed to make new reader: %v", err)
 	}
-	r := vr.GetReader()
 	rootNode := getRootNode(t, r, OverlayOpaqueAll)
 	var eo fuse.EntryOut
 	inode, errno := rootNode.Lookup(context.Background(), testName, &eo)
 	if errno != 0 {
-		vr.Close()
+		r.Close()
 		t.Fatalf("failed to lookup test node; errno: %v", errno)
 	}
 	f, _, errno := inode.Operations().(fusefs.NodeOpener).Open(context.Background(), 0)
 	if errno != 0 {
-		vr.Close()
+		r.Close()
 		t.Fatalf("failed to open test file; errno: %v", errno)
 	}
-	return f.(*file), vr.Close
+	return f.(*file), r.Close
 }
 
 func testExistence(t *testing.T, factory metadata.Store) {
@@ -330,11 +329,10 @@ func testExistenceWithOpaque(t *testing.T, factory metadata.Store, opaque Overla
 				}
 				defer mr.Close()
 				spanManager := spanmanager.New(ztoc, sr, cache.NewMemoryCache(), 0)
-				vr, err := reader.NewReader(mr, digest.FromString(""), spanManager, false)
+				r, err := reader.NewReader(mr, digest.FromString(""), spanManager, false)
 				if err != nil {
 					t.Fatalf("failed to make new reader: %v", err)
 				}
-				r := vr.GetReader()
 				defer r.Close()
 				rootNode := getRootNode(t, r, opaque)
 				for _, want := range tt.want {
