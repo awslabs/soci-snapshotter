@@ -37,6 +37,7 @@ import (
 	"bytes"
 	"fmt"
 	"os"
+	"path/filepath"
 	"regexp"
 	"strconv"
 	"strings"
@@ -518,5 +519,134 @@ func TestRunInNamespace(t *testing.T) {
 				})
 			}
 		}
+	}
+}
+
+func TestRunWithIdMap(t *testing.T) {
+	tests := []struct {
+		name           string
+		imageName      string
+		indexBuilderFn func(sh *shell.Shell, src imageInfo, opts ...indexBuildOption) string
+		remapUser      string
+		remapGroup     string
+		remapUID       string
+		remapGid       string
+		checkLocation  string
+		expectedOwner  string
+	}{
+		{
+			name:      "with only FUSE layers",
+			imageName: rabbitmqImage,
+			indexBuilderFn: func(sh *shell.Shell, src imageInfo, opts ...indexBuildOption) string {
+				opts = append(opts, withMinLayerSize(0))
+				return buildIndex(sh, src, opts...)
+			},
+			remapUser:     "dummy-user",
+			remapGroup:    "dummy-group",
+			remapUID:      "123456",
+			remapGid:      "123456",
+			checkLocation: "usr",
+			expectedOwner: "123456",
+		},
+		{
+			name:      "with mixed layers",
+			imageName: rabbitmqImage,
+			indexBuilderFn: func(sh *shell.Shell, src imageInfo, opts ...indexBuildOption) string {
+				return buildIndex(sh, src, opts...)
+			},
+			remapUser:     "dummy-user",
+			remapGroup:    "dummy-group",
+			remapUID:      "123456",
+			remapGid:      "123456",
+			checkLocation: "usr",
+			expectedOwner: "123456",
+		},
+		{
+			name:      "with no SOCI index",
+			imageName: rabbitmqImage,
+			indexBuilderFn: func(sh *shell.Shell, src imageInfo, opts ...indexBuildOption) string {
+				return ""
+			},
+			remapUser:     "dummy-user",
+			remapGroup:    "dummy-group",
+			remapUID:      "123456",
+			remapGid:      "123456",
+			checkLocation: "usr",
+			expectedOwner: "123456",
+		},
+	}
+
+	baseSnapshotDir := "/var/lib/soci-snapshotter-grpc/snapshotter/snapshots"
+	baseRuntimeDir := "/run/containerd/io.containerd.runtime.v2.task/default"
+	testContainerName := "testidmap"
+	uidPath := "/etc/subuid"
+	gidPath := "/etc/subgid"
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			regConfig := newRegistryConfig()
+			sh, done := newShellWithRegistry(t, regConfig)
+			defer done()
+
+			sh.X("groupadd", "-g", tt.remapGid, tt.remapGroup)
+			sh.X("useradd", "-u", tt.remapUID, "-g", tt.remapGid, "-m", tt.remapUser)
+
+			subUIDFile := fmt.Sprintf("%s:%s:%s", tt.remapUser, tt.remapUID, "1000")
+			subGidFile := fmt.Sprintf("%s:%s:%s", tt.remapUser, tt.remapGid, "1000")
+			sh.Pipe(nil, shell.C("echo", subUIDFile), shell.C("tee", uidPath))
+			sh.Pipe(nil, shell.C("echo", subGidFile), shell.C("tee", gidPath))
+
+			rebootContainerd(t, sh, "", getSnapshotterConfigToml(t, false))
+			imageInfo := dockerhub(tt.imageName)
+			sh.X("nerdctl", "pull", "-q", tt.imageName)
+
+			filenames, err := sh.OLog("ls", baseSnapshotDir)
+			if err != nil {
+				t.Fatalf("error listing files in %s", baseSnapshotDir)
+			}
+
+			// Copy image, remove blobs, and re-pull with SOCI
+			copyImage(sh, dockerhub(tt.imageName), regConfig.mirror(tt.imageName))
+			indexDigest := tt.indexBuilderFn(sh, regConfig.mirror(tt.imageName))
+			if indexDigest != "" {
+				sh.X("soci", "push", "--user", regConfig.creds(), regConfig.mirror(tt.imageName).ref)
+			}
+			sh.X("rm", "-rf", filepath.Join(store.DefaultSociContentStorePath, "blobs", "sha256"))
+
+			pullCmd := imagePullCmd
+			if indexDigest != "" {
+				pullCmd = append(pullCmd, "--soci-index-digest", indexDigest)
+			}
+			sh.X(append(pullCmd, regConfig.mirror(tt.imageName).ref)...)
+			// time.Sleep(999999999999999999)
+			sh.X("ctr-with-idmapping", "run", "-d",
+				"--remap-labels",
+				"--userns-remap", tt.remapUser,
+				"--snapshotter", "soci",
+				imageInfo.ref, testContainerName, "sleep", "infinity",
+			)
+
+			newFilenames, err := sh.OLog("ls", baseSnapshotDir)
+			if err != nil {
+				t.Fatalf("error listing files in %s", baseSnapshotDir)
+			}
+
+			if len(filenames) == len(newFilenames) {
+				t.Fatalf("error: id-mapping failed")
+			}
+
+			fullCheckPath := filepath.Join(baseRuntimeDir, testContainerName, "rootfs", tt.checkLocation)
+			stat, err := sh.OLog("stat", fullCheckPath)
+			if err != nil {
+				t.Fatalf("error stat files in %s", fullCheckPath)
+			}
+
+			strStat := string(stat)
+			t.Log(strStat)
+			matchUID := fmt.Sprintf("Uid: (%s", tt.expectedOwner)
+			if !strings.Contains(strStat, matchUID) {
+				t.Fatalf("error: file %s did not have uid %s", tt.checkLocation, tt.expectedOwner)
+			}
+		})
 	}
 }
