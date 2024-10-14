@@ -14,7 +14,7 @@ require (
 	github.com/opencontainers/go-digest v1.0.0
 	github.com/opencontainers/image-spec v1.1.0
 	github.com/sirupsen/logrus v1.9.3
-	github.com/urfave/cli v1.22.15
+	github.com/urfave/cli v1.22.16
 	go.etcd.io/bbolt v1.3.11
 	golang.org/x/sys v0.25.0
 	google.golang.org/grpc v1.59.0
@@ -35,7 +35,7 @@ require (
 	github.com/containerd/fifo v1.1.0 // indirect
 	github.com/containerd/ttrpc v1.2.5 // indirect
 	github.com/containerd/typeurl/v2 v2.1.1 // indirect
-	github.com/cpuguy83/go-md2man/v2 v2.0.4 // indirect
+	github.com/cpuguy83/go-md2man/v2 v2.0.5 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/distribution/reference v0.6.0 // indirect
 	github.com/docker/docker-credential-helpers v0.7.0 // indirect
