@@ -34,7 +34,7 @@ jobs:
     # up a codebuild project. https://docs.aws.amazon.com/codebuild/latest/userguide/action-runner.html
     # Then, replace 'soci-snapshotter-instance' with the name of the project you created.
     name: Setup Build Matrix
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     strategy:
       matrix:
         # We're using a matrix with a single entry so that we can define some config as YAML rather than
