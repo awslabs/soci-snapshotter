@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1728945934196,
+  "lastUpdate": 1729274400619,
   "repoUrl": "https://github.com/awslabs/soci-snapshotter",
   "entries": {
     "Soci Benchmark": [
@@ -8983,6 +8983,48 @@ window.BENCHMARK_DATA = {
           {
             "name": "SociFullECR-public-rabbitmq-pullTaskDuration",
             "value": 1.3535,
+            "unit": "Seconds",
+            "extra": "P90"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "walster@amazon.com",
+            "name": "Kern Walster",
+            "username": "Kern--"
+          },
+          "committer": {
+            "email": "kern.walster@gmail.com",
+            "name": "Kern Walster",
+            "username": "Kern--"
+          },
+          "distinct": true,
+          "id": "eb67eda19ed156fea94286f1bf970c26c0172d1a",
+          "message": "Remove VerifiableReader\n\nVerifiableReader was code that SOCI inherited from Stargz, but didn't\nuse. With estargz images, the TOC is embedded in the layer in the remote\nstore. When setting up a reader, you can optionally pass a digest of the\nTOC which the stargz-snaphostter will verify against the actual TOC in\nthe remote registry.\n\nSOCI stores TOCs in zTOCs which have integrity rooted in the SOCI index.\nTherefore, you get equivalent verification by specifing a SOCI index\ndigest when pulling an image. By the time we're setting up a reader,\nwe've already verified the ztocs and their layer mapping which means\nthere is nothing to verify here.\n\nInitially we initially just made Verify a no-op and bypassed it.\nThis change cleans up that unneeded code entirely.\n\nSigned-off-by: Kern Walster <walster@amazon.com>",
+          "timestamp": "2024-10-18T10:51:54-07:00",
+          "tree_id": "89fa3583353a3ddabd9e6f944d72354f4d21c889",
+          "url": "https://github.com/awslabs/soci-snapshotter/commit/eb67eda19ed156fea94286f1bf970c26c0172d1a"
+        },
+        "date": 1729274398789,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "SociFullECR-public-rabbitmq-lazyTaskDuration",
+            "value": 10.8405,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-rabbitmq-localTaskDuration",
+            "value": 8.7745,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-rabbitmq-pullTaskDuration",
+            "value": 0.974,
             "unit": "Seconds",
             "extra": "P90"
           }
