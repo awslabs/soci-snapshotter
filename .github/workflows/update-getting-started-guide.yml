@@ -4,7 +4,7 @@ on:
   release:
     types: ['released']
   pull_request:
-    branches: ['main', 'release/**']
+    branches: ['main']
     paths:
       # Run workflow on changes to the workflow definition itself to spot check
       # the core version update functionality.
@@ -39,8 +39,8 @@ jobs:
 
     permissions:
       # Write permissions needed to create pull request.
-      # Risk is mitigated by seperating jobs such that workflows
-      # running with write permissions only use code from main.
+      # Risk for pwn requests is mitigated by seperating jobs such that
+      # workflows running with write permissions only use code from main.
       contents: write
       pull-requests: write
 
