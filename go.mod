@@ -4,7 +4,7 @@ go 1.22
 
 require (
 	github.com/containerd/containerd v1.7.23
-	github.com/containerd/continuity v0.4.3
+	github.com/containerd/continuity v0.4.4
 	github.com/containerd/errdefs v0.3.0
 	github.com/containerd/log v0.1.0
 	github.com/containerd/platforms v0.2.1
@@ -102,7 +102,7 @@ require (
 	golang.org/x/text v0.19.0 // indirect
 	google.golang.org/genproto v0.0.0-20231211222908-989df2bf70f3 // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20231212172506-995d672761c0 // indirect
-	google.golang.org/protobuf v1.34.2 // indirect
+	google.golang.org/protobuf v1.35.1 // indirect
 	gopkg.in/inf.v0 v0.9.1 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
