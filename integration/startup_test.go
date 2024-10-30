@@ -104,12 +104,14 @@ func TestSnapshotterSystemdStartup(t *testing.T) {
 		t.Run(tc.name, func(tt *testing.T) {
 			sh, cleanup := newSnapshotterBaseShell(tt, withEntrypoint("/usr/lib/systemd/systemd"))
 			defer cleanup()
+
+			sh.X("containerd", "--version")
 			// We're not using `rebootContainerd` here because that also restarts the soci-snapshotter
 			sh.Gox("containerd", "--log-level", containerdLogLevel)
 			tc.init(sh)
-			// 1s timeout is arbitrary so that the negative test doesn't take too long. It does mean that
-			// the snapshotter has to start up and prepare a snapshot within 1s in the socket activation case.
-			output, err := sh.CombinedOLog("ctr", "--timeout", "1s", "snapshot", "--snapshotter", "soci", "prepare", "test")
+			// 2s timeout is arbitrary so that the negative test doesn't take too long. It does mean that
+			// the snapshotter has to start up and prepare a snapshot within 2s in the socket activation case.
+			output, err := sh.CombinedOLog("ctr", "--timeout", "2s", "snapshot", "--snapshotter", "soci", "prepare", "test")
 			if !isExpectedError(output, err, tc.expectedErrorMatcher) {
 				tt.Fatalf("unexpected error preparing snapshot: %v", output)
 			}
