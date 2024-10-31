@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1730397078526,
+  "lastUpdate": 1730397143801,
   "repoUrl": "https://github.com/awslabs/soci-snapshotter",
   "entries": {
     "Soci Benchmark": [
@@ -9109,6 +9109,48 @@ window.BENCHMARK_DATA = {
           {
             "name": "SociFullECR-public-rabbitmq-pullTaskDuration",
             "value": 1.026,
+            "unit": "Seconds",
+            "extra": "P90"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "davbson@amazon.com",
+            "name": "David Son",
+            "username": "sondavidb"
+          },
+          "committer": {
+            "email": "55555210+sondavidb@users.noreply.github.com",
+            "name": "David Son",
+            "username": "sondavidb"
+          },
+          "distinct": true,
+          "id": "c3c64a20d57b90567774a257221cffeaab19b332",
+          "message": "Update to Go 1.22.8 in CI\n\nSigned-off-by: David Son <davbson@amazon.com>",
+          "timestamp": "2024-10-31T10:43:35-07:00",
+          "tree_id": "524399b7fc4b9be9f30264a1e9c1217d7beb1f3b",
+          "url": "https://github.com/awslabs/soci-snapshotter/commit/c3c64a20d57b90567774a257221cffeaab19b332"
+        },
+        "date": 1730397138984,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "SociFullECR-public-rabbitmq-lazyTaskDuration",
+            "value": 10.6665,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-rabbitmq-localTaskDuration",
+            "value": 8.942499999999999,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-rabbitmq-pullTaskDuration",
+            "value": 0.9189999999999999,
             "unit": "Seconds",
             "extra": "P90"
           }
