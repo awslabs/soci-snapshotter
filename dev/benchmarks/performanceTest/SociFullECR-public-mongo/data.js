@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1730076114509,
+  "lastUpdate": 1730397079615,
   "repoUrl": "https://github.com/awslabs/soci-snapshotter",
   "entries": {
     "Soci Benchmark": [
@@ -9190,6 +9190,48 @@ window.BENCHMARK_DATA = {
           {
             "name": "SociFullECR-public-mongo-pullTaskDuration",
             "value": 0.5885,
+            "unit": "Seconds",
+            "extra": "P90"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "davbson@amazon.com",
+            "name": "David Son",
+            "username": "sondavidb"
+          },
+          "committer": {
+            "email": "55555210+sondavidb@users.noreply.github.com",
+            "name": "David Son",
+            "username": "sondavidb"
+          },
+          "distinct": true,
+          "id": "cd0bd7c4c4baa26534ddab623b41225cb6eba53b",
+          "message": "Update containerd version in workflows\n\nSigned-off-by: David Son <davbson@amazon.com>",
+          "timestamp": "2024-10-31T10:42:54-07:00",
+          "tree_id": "3c96434625107a7826b77f939b31d06c866875e3",
+          "url": "https://github.com/awslabs/soci-snapshotter/commit/cd0bd7c4c4baa26534ddab623b41225cb6eba53b"
+        },
+        "date": 1730397075393,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "SociFullECR-public-mongo-lazyTaskDuration",
+            "value": 2.0534999999999997,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-mongo-localTaskDuration",
+            "value": 0.3235,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-mongo-pullTaskDuration",
+            "value": 0.837,
             "unit": "Seconds",
             "extra": "P90"
           }
