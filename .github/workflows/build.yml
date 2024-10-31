@@ -20,7 +20,7 @@ on:
       - 'scripts/**'
 
 env:
-  GO_VERSION: '1.22.6'
+  GO_VERSION: '1.22.8'
 
 jobs:
   setup:
