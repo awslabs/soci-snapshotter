@@ -67,7 +67,7 @@ assert_diff() {
   }
 }
 
-sed -i -E "s/version=\"([0-9]+\.){2}[0-9]+\"/version=\"${VERSION}\"/" docs/getting-started.md
+sed -i -E "s/version=\"([0-9]+\.){2}[0-9]+\"/version=\"${VERSION}\"/" docs/getting-started.md docs/eks.md
 
 if [ $VERBOSE = true ]; then
   git --no-pager diff

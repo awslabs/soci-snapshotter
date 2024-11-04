@@ -27,6 +27,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           sparse-checkout: |
+            docs/eks.md
             docs/getting-started.md
             scripts/update-getting-started-guide-version.sh
 
@@ -49,6 +50,7 @@ jobs:
         with:
           ref: main
           sparse-checkout: |
+            docs/eks.md
             docs/getting-started.md
             scripts/update-getting-started-guide-version.sh
 
