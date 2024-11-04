@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1730737907451,
+  "lastUpdate": 1730745520225,
   "repoUrl": "https://github.com/awslabs/soci-snapshotter",
   "entries": {
     "Soci Benchmark": [
@@ -9234,6 +9234,48 @@ window.BENCHMARK_DATA = {
           {
             "name": "SociFullECR-public-tensorflow_gpu-pullTaskDuration",
             "value": 2.933,
+            "unit": "Seconds",
+            "extra": "P90"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "davbson@amazon.com",
+            "name": "David Son",
+            "username": "sondavidb"
+          },
+          "committer": {
+            "email": "55555210+sondavidb@users.noreply.github.com",
+            "name": "David Son",
+            "username": "sondavidb"
+          },
+          "distinct": true,
+          "id": "92910f8efc392b777c32bc9ea9832ab4e037e826",
+          "message": "Add EKS docs to automated version updating\n\nSigned-off-by: David Son <davbson@amazon.com>",
+          "timestamp": "2024-11-04T10:27:41-08:00",
+          "tree_id": "5575e6ecacbdba54727485ad64ba70874c292381",
+          "url": "https://github.com/awslabs/soci-snapshotter/commit/92910f8efc392b777c32bc9ea9832ab4e037e826"
+        },
+        "date": 1730745518341,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "SociFullECR-public-tensorflow_gpu-lazyTaskDuration",
+            "value": 47.9135,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-tensorflow_gpu-localTaskDuration",
+            "value": 2.677,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-tensorflow_gpu-pullTaskDuration",
+            "value": 3.912,
             "unit": "Seconds",
             "extra": "P90"
           }
