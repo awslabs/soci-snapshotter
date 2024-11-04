@@ -132,7 +132,7 @@ cat <<'EOF_SCRIPT' >install_soci.sh
 #!/bin/bash
 # Set environment variables
 ARCH=$(uname -m | sed s/aarch64/arm64/ | sed s/x86_64/amd64/)
-version="0.7.0"
+version="0.8.0"
 ARCHIVE=soci-snapshotter-$version-linux-$ARCH.tar.gz
 
 pushd /tmp
