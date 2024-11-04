@@ -132,13 +132,13 @@ cat <<'EOF_SCRIPT' >install_soci.sh
 #!/bin/bash
 # Set environment variables
 ARCH=$(uname -m | sed s/aarch64/arm64/ | sed s/x86_64/amd64/)
-VERSION=0.7.0
-ARCHIVE=soci-snapshotter-$VERSION-linux-$ARCH.tar.gz
+version="0.7.0"
+ARCHIVE=soci-snapshotter-$version-linux-$ARCH.tar.gz
 
 pushd /tmp
 # Download, verify, and install the soci-snapshotter
-curl --silent --location --fail --output $ARCHIVE https://github.com/awslabs/soci-snapshotter/releases/download/v$VERSION/$ARCHIVE
-curl --silent --location --fail --output $ARCHIVE.sha256sum https://github.com/awslabs/soci-snapshotter/releases/download/v$VERSION/$ARCHIVE.sha256sum
+curl --silent --location --fail --output $ARCHIVE https://github.com/awslabs/soci-snapshotter/releases/download/v$version/$ARCHIVE
+curl --silent --location --fail --output $ARCHIVE.sha256sum https://github.com/awslabs/soci-snapshotter/releases/download/v$version/$ARCHIVE.sha256sum
 sha256sum ./$ARCHIVE.sha256sum
 tar xzvf ./$ARCHIVE -C /usr/local/bin soci-snapshotter-grpc
 rm ./$ARCHIVE
@@ -156,7 +156,7 @@ image_service_path = "/run/containerd/containerd.sock"
 EOF
 
 # Start the soci-snapshotter
-curl --silent --location --fail --output /etc/systemd/system/soci-snapshotter.service https://raw.githubusercontent.com/awslabs/soci-snapshotter/v$VERSION/soci-snapshotter.service
+curl --silent --location --fail --output /etc/systemd/system/soci-snapshotter.service https://raw.githubusercontent.com/awslabs/soci-snapshotter/v$version/soci-snapshotter.service
 systemctl daemon-reload
 systemctl enable --now soci-snapshotter
 
