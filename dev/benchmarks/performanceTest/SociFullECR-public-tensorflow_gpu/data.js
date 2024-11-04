@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1730397138912,
+  "lastUpdate": 1730737907451,
   "repoUrl": "https://github.com/awslabs/soci-snapshotter",
   "entries": {
     "Soci Benchmark": [
@@ -9192,6 +9192,48 @@ window.BENCHMARK_DATA = {
           {
             "name": "SociFullECR-public-tensorflow_gpu-pullTaskDuration",
             "value": 2.0255,
+            "unit": "Seconds",
+            "extra": "P90"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "davbson@amazon.com",
+            "name": "David Son",
+            "username": "sondavidb"
+          },
+          "committer": {
+            "email": "55555210+sondavidb@users.noreply.github.com",
+            "name": "David Son",
+            "username": "sondavidb"
+          },
+          "distinct": true,
+          "id": "f8309afec3c56f7b3e58d283730b2c95cf5032b8",
+          "message": "Add support for idmapped layers\n\nThis commit adds ID mapping functionality in SOCI. ID mapping is enabled\nif the correct labels are passed through.\n\nTo avoid having containerd handle the ID mapping, we must declare in the\ncontainerd config file that the snapshotter supports ID mapping.\n\nNote that usage of this feature requires proxy plugins to have\ncapabilities, which is only supported in containerd v1.7.23 onwards.\n\nSigned-off-by: David Son <davbson@amazon.com>",
+          "timestamp": "2024-11-04T08:22:35-08:00",
+          "tree_id": "6fc5e3be05a54d830ef34ae684246f058b942a6f",
+          "url": "https://github.com/awslabs/soci-snapshotter/commit/f8309afec3c56f7b3e58d283730b2c95cf5032b8"
+        },
+        "date": 1730737906469,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "SociFullECR-public-tensorflow_gpu-lazyTaskDuration",
+            "value": 31.707500000000003,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-tensorflow_gpu-localTaskDuration",
+            "value": 2.5415,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-tensorflow_gpu-pullTaskDuration",
+            "value": 2.933,
             "unit": "Seconds",
             "extra": "P90"
           }
