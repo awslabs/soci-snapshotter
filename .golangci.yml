@@ -8,13 +8,18 @@ linters:
     - goimports
     - ineffassign
     - revive
-    - vet
+    - govet
     - unused
     - misspell
   disable:
     - errcheck
 
 issues:
+  exclude-dirs:
+    - docs
+    - images
+    - out
+    - script
   exclude-rules:
     - linters:
         - revive
@@ -24,9 +29,4 @@ issues:
       text: "unused-parameter:"
 
 run:
-  deadline: 4m
-  skip-dirs:
-    - docs
-    - images
-    - out
-    - script
+  timeout: 3m
