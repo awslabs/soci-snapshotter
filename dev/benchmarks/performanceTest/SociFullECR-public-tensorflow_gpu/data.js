@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1730745520225,
+  "lastUpdate": 1731013705239,
   "repoUrl": "https://github.com/awslabs/soci-snapshotter",
   "entries": {
     "Soci Benchmark": [
@@ -9276,6 +9276,48 @@ window.BENCHMARK_DATA = {
           {
             "name": "SociFullECR-public-tensorflow_gpu-pullTaskDuration",
             "value": 3.912,
+            "unit": "Seconds",
+            "extra": "P90"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "davbson@amazon.com",
+            "name": "David Son",
+            "username": "sondavidb"
+          },
+          "committer": {
+            "email": "55555210+sondavidb@users.noreply.github.com",
+            "name": "David Son",
+            "username": "sondavidb"
+          },
+          "distinct": true,
+          "id": "4aeb0c1235dd0c3bcdfd16e84266c4f0adabed7b",
+          "message": "Update golangci-lint to 1.61.0\n\nSigned-off-by: David Son <davbson@amazon.com>",
+          "timestamp": "2024-11-07T12:59:08-08:00",
+          "tree_id": "b0898ddb54fdea0cf400ed70b20b8f8bd584f810",
+          "url": "https://github.com/awslabs/soci-snapshotter/commit/4aeb0c1235dd0c3bcdfd16e84266c4f0adabed7b"
+        },
+        "date": 1731013704283,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "SociFullECR-public-tensorflow_gpu-lazyTaskDuration",
+            "value": 29.4055,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-tensorflow_gpu-localTaskDuration",
+            "value": 2.7199999999999998,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-tensorflow_gpu-pullTaskDuration",
+            "value": 3.048,
             "unit": "Seconds",
             "extra": "P90"
           }
