@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1731013705239,
+  "lastUpdate": 1731015504015,
   "repoUrl": "https://github.com/awslabs/soci-snapshotter",
   "entries": {
     "Soci Benchmark": [
@@ -9318,6 +9318,48 @@ window.BENCHMARK_DATA = {
           {
             "name": "SociFullECR-public-tensorflow_gpu-pullTaskDuration",
             "value": 3.048,
+            "unit": "Seconds",
+            "extra": "P90"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "davbson@amazon.com",
+            "name": "David Son",
+            "username": "sondavidb"
+          },
+          "committer": {
+            "email": "55555210+sondavidb@users.noreply.github.com",
+            "name": "David Son",
+            "username": "sondavidb"
+          },
+          "distinct": true,
+          "id": "09b075f6ffb89e367ce08e1b88a3518c7fceeab5",
+          "message": "Ignore benchmark dir for unit/integration tests\n\nSigned-off-by: David Son <davbson@amazon.com>",
+          "timestamp": "2024-11-07T13:30:15-08:00",
+          "tree_id": "b343b8524703a7a6ddb11bf9ac563f2bf16d48d6",
+          "url": "https://github.com/awslabs/soci-snapshotter/commit/09b075f6ffb89e367ce08e1b88a3518c7fceeab5"
+        },
+        "date": 1731015502946,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "SociFullECR-public-tensorflow_gpu-lazyTaskDuration",
+            "value": 11.8585,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-tensorflow_gpu-localTaskDuration",
+            "value": 2.5709999999999997,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-tensorflow_gpu-pullTaskDuration",
+            "value": 2.0425,
             "unit": "Seconds",
             "extra": "P90"
           }
