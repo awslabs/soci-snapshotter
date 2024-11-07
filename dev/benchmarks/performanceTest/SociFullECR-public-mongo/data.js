@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1730745525185,
+  "lastUpdate": 1731013708476,
   "repoUrl": "https://github.com/awslabs/soci-snapshotter",
   "entries": {
     "Soci Benchmark": [
@@ -9358,6 +9358,48 @@ window.BENCHMARK_DATA = {
           {
             "name": "SociFullECR-public-mongo-pullTaskDuration",
             "value": 1.5130000000000001,
+            "unit": "Seconds",
+            "extra": "P90"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "davbson@amazon.com",
+            "name": "David Son",
+            "username": "sondavidb"
+          },
+          "committer": {
+            "email": "55555210+sondavidb@users.noreply.github.com",
+            "name": "David Son",
+            "username": "sondavidb"
+          },
+          "distinct": true,
+          "id": "4aeb0c1235dd0c3bcdfd16e84266c4f0adabed7b",
+          "message": "Update golangci-lint to 1.61.0\n\nSigned-off-by: David Son <davbson@amazon.com>",
+          "timestamp": "2024-11-07T12:59:08-08:00",
+          "tree_id": "b0898ddb54fdea0cf400ed70b20b8f8bd584f810",
+          "url": "https://github.com/awslabs/soci-snapshotter/commit/4aeb0c1235dd0c3bcdfd16e84266c4f0adabed7b"
+        },
+        "date": 1731013706669,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "SociFullECR-public-mongo-lazyTaskDuration",
+            "value": 9.8405,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-mongo-localTaskDuration",
+            "value": 0.311,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-mongo-pullTaskDuration",
+            "value": 0.9775,
             "unit": "Seconds",
             "extra": "P90"
           }
