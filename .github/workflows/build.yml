@@ -83,7 +83,7 @@ jobs:
       fail-fast: false
       matrix:
         os: ${{ fromJSON(needs.setup.outputs.available-runners) }}
-        containerd: ["1.6.36", "1.7.23", "2.0.0-rc.6"]
+        containerd: ["1.6.36", "1.7.23", "2.0.0"]
     env:
       DOCKER_BUILD_ARGS: "CONTAINERD_VERSION=${{ matrix.containerd }}"
     steps:
