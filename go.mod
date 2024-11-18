@@ -3,7 +3,7 @@ module github.com/awslabs/soci-snapshotter
 go 1.22
 
 require (
-	github.com/containerd/containerd v1.7.23
+	github.com/containerd/containerd v1.7.24-0.20241112045055-4a8b07907920
 	github.com/containerd/continuity v0.4.3
 	github.com/containerd/errdefs v1.0.0
 	github.com/containerd/log v0.1.0
