@@ -15,7 +15,7 @@ require (
 	github.com/google/flatbuffers v24.3.25+incompatible
 	github.com/google/go-cmp v0.6.0
 	github.com/google/uuid v1.6.0
-	github.com/hanwen/go-fuse/v2 v2.7.0
+	github.com/hanwen/go-fuse/v2 v2.7.1
 	github.com/hashicorp/go-retryablehttp v0.7.7
 	github.com/klauspost/compress v1.17.11
 	github.com/moby/sys/mountinfo v0.7.2
@@ -27,7 +27,7 @@ require (
 	github.com/prometheus/client_golang v1.20.5
 	github.com/rs/xid v1.6.0
 	github.com/sirupsen/logrus v1.9.3
-	github.com/stretchr/testify v1.9.0
+	github.com/stretchr/testify v1.10.0
 	go.etcd.io/bbolt v1.3.11
 	golang.org/x/crypto v0.29.0
 	golang.org/x/sync v0.9.0
