@@ -11,11 +11,11 @@ require (
 	github.com/distribution/reference v0.6.0
 	github.com/docker/cli v27.3.1+incompatible
 	github.com/docker/go-metrics v0.0.1
-	github.com/golang/groupcache v0.0.0-20210331224755-41bb18bfe9da
+	github.com/golang/groupcache v0.0.0-20241129210726-2c02b8208cf8
 	github.com/google/flatbuffers v24.3.25+incompatible
 	github.com/google/go-cmp v0.6.0
 	github.com/google/uuid v1.6.0
-	github.com/hanwen/go-fuse/v2 v2.7.1
+	github.com/hanwen/go-fuse/v2 v2.7.2
 	github.com/hashicorp/go-retryablehttp v0.7.7
 	github.com/klauspost/compress v1.17.11
 	github.com/moby/sys/mountinfo v0.7.2
