@@ -83,7 +83,7 @@ func main() {
 		panic(err)
 	}
 
-	logFile, err := os.OpenFile(outputDir+"/benchmark_log", os.O_RDWR|os.O_CREATE, 0664)
+	logFile, err := os.OpenFile(outputDir+"/benchmark_log", os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0664)
 	if err != nil {
 		panic(err)
 	}
