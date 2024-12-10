@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1732772030082,
+  "lastUpdate": 1733852978016,
   "repoUrl": "https://github.com/awslabs/soci-snapshotter",
   "entries": {
     "Soci Benchmark": [
@@ -9652,6 +9652,48 @@ window.BENCHMARK_DATA = {
           {
             "name": "SociFullECR-public-mongo-pullTaskDuration",
             "value": 1.0859999999999999,
+            "unit": "Seconds",
+            "extra": "P90"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "walster@amazon.com",
+            "name": "Kern Walster",
+            "username": "Kern--"
+          },
+          "committer": {
+            "email": "kern.walster@gmail.com",
+            "name": "Kern Walster",
+            "username": "Kern--"
+          },
+          "distinct": true,
+          "id": "3b10bf683e4ba09633c86c4256b3ce4da117382e",
+          "message": "Truncate benchmark logs on re-run\n\nRerunning benchmarks did not truncate the benchmark log file before this\nchange. New line would overwrite old lines, but you had to scan\ntimestamps to figure out where exactly the new run was at. It also\nprevented `tail -f` to get real-time updates.\n\nThis change truncates the benchmark file on each execution.\n\nSigned-off-by: Kern Walster <walster@amazon.com>",
+          "timestamp": "2024-12-10T09:40:07-08:00",
+          "tree_id": "4ee23512f39676552a7d94e9aa8ab6c0d6983655",
+          "url": "https://github.com/awslabs/soci-snapshotter/commit/3b10bf683e4ba09633c86c4256b3ce4da117382e"
+        },
+        "date": 1733852976159,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "SociFullECR-public-mongo-lazyTaskDuration",
+            "value": 9.1305,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-mongo-localTaskDuration",
+            "value": 0.3215,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-mongo-pullTaskDuration",
+            "value": 1.4205,
             "unit": "Seconds",
             "extra": "P90"
           }
