@@ -221,7 +221,13 @@ func serve(ctx context.Context, rpc *grpc.Server, addr string, rs snapshots.Snap
 
 	// We need to consider both the existence of MetricsAddress as well as NoPrometheus flag not set
 	if cfg.MetricsAddress != "" && !cfg.NoPrometheus {
-		l, err := net.Listen(cfg.MetricsNetwork, cfg.MetricsAddress)
+		var l net.Listener
+		var err error
+		if cfg.MetricsNetwork == "unix" {
+			l, err = listenUnix(cfg.MetricsAddress)
+		} else {
+			l, err = net.Listen(cfg.MetricsNetwork, cfg.MetricsAddress)
+		}
 		if err != nil {
 			return false, fmt.Errorf("failed to get listener for metrics endpoint: %w", err)
 		}

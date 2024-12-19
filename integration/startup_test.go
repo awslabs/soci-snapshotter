@@ -24,13 +24,23 @@ import (
 	shell "github.com/awslabs/soci-snapshotter/util/dockershell"
 )
 
+// Use a custom metrics config to test that the snapshotter
+// correctly starts up when the metrics address is next to the socket address.
+// This tests a regression with the first implementation of systemd socket activation
+// where we moved creation of the directory later which caused the metrics address
+// bind to fail. This verifies that the directory gets created before binding the metrics socket.
+const metricsConfig = `
+metrics_address="/run/soci-snapshotter-grpc/metrics.sock"
+metrics_network="unix"
+`
+
 // TestSnapshotterStartup tests to run containerd + snapshotter and check plugin is
 // recognized by containerd
 func TestSnapshotterStartup(t *testing.T) {
 	t.Parallel()
 	sh, done := newSnapshotterBaseShell(t)
 	defer done()
-	rebootContainerd(t, sh, "", "")
+	rebootContainerd(t, sh, "", getSnapshotterConfigToml(t, false, metricsConfig))
 	found := false
 	err := sh.ForEach(shell.C("ctr", "plugin", "ls"), func(l string) bool {
 		info := strings.Fields(l)
