@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1734723246319,
+  "lastUpdate": 1734731851262,
   "repoUrl": "https://github.com/awslabs/soci-snapshotter",
   "entries": {
     "Soci Benchmark": [
@@ -9738,6 +9738,48 @@ window.BENCHMARK_DATA = {
           {
             "name": "SociFullECR-public-node-pullTaskDuration",
             "value": 2.0524999999999998,
+            "unit": "Seconds",
+            "extra": "P90"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "walster@amazon.com",
+            "name": "Kern Walster",
+            "username": "Kern--"
+          },
+          "committer": {
+            "email": "kern.walster@gmail.com",
+            "name": "Kern Walster",
+            "username": "Kern--"
+          },
+          "distinct": true,
+          "id": "aa306e4bf5657ce4a0aca4e0c64ff6828523d362",
+          "message": "Create metrics socket dir\n\nBefore this change, if the metrics socket was a unix socket, SOCI would\nnot create the parent dir before trying to bind. This exposed an\nimplicit dependency on bind order if you tried to put the metrics\naddress next to the main socket which we broke when we introduced\nsystemd socket activation.\n\nThis change ensures that we create the parent dir before binding the\nmetrics socket.\n\nSigned-off-by: Kern Walster <walster@amazon.com>",
+          "timestamp": "2024-12-20T13:48:59-08:00",
+          "tree_id": "3f3fdf0c018de5d17b0da0cc1e4955a27c712566",
+          "url": "https://github.com/awslabs/soci-snapshotter/commit/aa306e4bf5657ce4a0aca4e0c64ff6828523d362"
+        },
+        "date": 1734731848730,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "SociFullECR-public-node-lazyTaskDuration",
+            "value": 1.6065,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-node-localTaskDuration",
+            "value": 0.451,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-node-pullTaskDuration",
+            "value": 1.6475,
             "unit": "Seconds",
             "extra": "P90"
           }
