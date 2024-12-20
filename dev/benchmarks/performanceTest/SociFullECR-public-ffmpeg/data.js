@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1734579402113,
+  "lastUpdate": 1734723232558,
   "repoUrl": "https://github.com/awslabs/soci-snapshotter",
   "entries": {
     "Soci Benchmark": [
@@ -9819,6 +9819,48 @@ window.BENCHMARK_DATA = {
           {
             "name": "SociFullECR-public-ffmpeg-pullTaskDuration",
             "value": 1.6315,
+            "unit": "Seconds",
+            "extra": "P90"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "no-reply@github.com",
+            "name": "GitHub",
+            "username": "invalid-email-address"
+          },
+          "committer": {
+            "email": "arjunry@amazon.com",
+            "name": "Arjun",
+            "username": "coderbirju"
+          },
+          "distinct": true,
+          "id": "ac157d85f29f5fa81b8cd9a44d018db6ccd8f849",
+          "message": "Bump dependencies using scripts/bump-deps.sh\n\nSigned-off-by: github-actions[bot] <41898282+github-actions[bot]@users.noreply.github.com>",
+          "timestamp": "2024-12-20T11:25:22-08:00",
+          "tree_id": "e01fc213e6da5a98175d3246b90b3d7e3a5024af",
+          "url": "https://github.com/awslabs/soci-snapshotter/commit/ac157d85f29f5fa81b8cd9a44d018db6ccd8f849"
+        },
+        "date": 1734723230993,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "SociFullECR-public-ffmpeg-lazyTaskDuration",
+            "value": 0.124,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-ffmpeg-localTaskDuration",
+            "value": 0.013,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-ffmpeg-pullTaskDuration",
+            "value": 1.575,
             "unit": "Seconds",
             "extra": "P90"
           }
