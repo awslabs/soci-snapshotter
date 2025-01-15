@@ -463,17 +463,17 @@ func multiRoundTripper(t *testing.T, contents []byte, opts ...interface{}) Round
 		})
 		var sparse bool
 		if sorted[0].b == 0 {
-			var max int64
+			var maxRegionEnd int64
 			for _, reg := range sorted {
-				if reg.e > max {
-					if max < reg.b-1 {
+				if reg.e > maxRegionEnd {
+					if maxRegionEnd < reg.b-1 {
 						sparse = true
 						break
 					}
-					max = reg.e
+					maxRegionEnd = reg.e
 				}
 			}
-			if max >= int64(len(contents)-1) && !sparse {
+			if maxRegionEnd >= int64(len(contents)-1) && !sparse {
 				t.Logf("serving whole range %q = %d", ranges, len(contents))
 				header := make(http.Header)
 				header.Add("Content-Length", fmt.Sprintf("%d", len(contents)))
