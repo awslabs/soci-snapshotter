@@ -205,8 +205,8 @@ func (kc *keychain) startSyncSecrets(ctx context.Context, client kubernetes.Inte
 				queue.Add(key)
 			}
 		},
-		UpdateFunc: func(old, new interface{}) {
-			key, err := cache.MetaNamespaceKeyFunc(new)
+		UpdateFunc: func(oldObj, newObj interface{}) {
+			key, err := cache.MetaNamespaceKeyFunc(newObj)
 			if err == nil {
 				queue.Add(key)
 			}
