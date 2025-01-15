@@ -362,13 +362,6 @@ func TestSpanManagerRetries(t *testing.T) {
 					t.Fatalf("unexpected err; expected %v, got %v", tc.expectedErr, err)
 				}
 
-				min := func(x, y int) int {
-					if x < y {
-						return x
-					}
-					return y
-				}
-
 				if rdr.errCount != min(tc.spanManagerRetries+1, tc.readerErrors) {
 					t.Fatalf("retry count is unexpected; expected %d, got %d", min(tc.spanManagerRetries+1, tc.readerErrors), rdr.errCount)
 				}

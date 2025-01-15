@@ -123,8 +123,8 @@ func jitter(duration time.Duration, divisor int64) time.Duration {
 // overwhelming the repository when it comes back online
 // DefaultBackoff either tries to parse the 'Retry-After' header of the response; or, it uses an
 // exponential backoff 2 ^ numAttempts, limited by max
-func backoffStrategy(min, max time.Duration, attemptNum int, resp *http.Response) time.Duration {
-	delayTime := rhttp.DefaultBackoff(min, max, attemptNum, resp)
+func backoffStrategy(minDuration, maxDuration time.Duration, attemptNum int, resp *http.Response) time.Duration {
+	delayTime := rhttp.DefaultBackoff(minDuration, maxDuration, attemptNum, resp)
 	return jitter(delayTime, 8)
 }
 
