@@ -348,7 +348,7 @@ func hasDirChildren(name string, children ...string) check {
 	}
 }
 
-func hasChardev(name string, maj, min int) check {
+func hasChardev(name string, major, minor int) check {
 	return func(t *testing.T, r testableReader) {
 		id, err := lookup(r, name)
 		if err != nil {
@@ -364,14 +364,14 @@ func hasChardev(name string, maj, min int) check {
 			t.Errorf("file %q is not a chardev: %v", name, attr.Mode)
 			return
 		}
-		if attr.DevMajor != maj || attr.DevMinor != min {
-			t.Errorf("unexpected major/minor of chardev %q: %d/%d want %d/%d", name, attr.DevMajor, attr.DevMinor, maj, min)
+		if attr.DevMajor != major || attr.DevMinor != minor {
+			t.Errorf("unexpected major/minor of chardev %q: %d/%d want %d/%d", name, attr.DevMajor, attr.DevMinor, major, minor)
 			return
 		}
 	}
 }
 
-func hasBlockdev(name string, maj, min int) check {
+func hasBlockdev(name string, major, minor int) check {
 	return func(t *testing.T, r testableReader) {
 		id, err := lookup(r, name)
 		if err != nil {
@@ -387,8 +387,8 @@ func hasBlockdev(name string, maj, min int) check {
 			t.Errorf("file %q is not a blockdev: %v", name, attr.Mode)
 			return
 		}
-		if attr.DevMajor != maj || attr.DevMinor != min {
-			t.Errorf("unexpected major/minor of blockdev %q: %d/%d want %d/%d", name, attr.DevMajor, attr.DevMinor, maj, min)
+		if attr.DevMajor != major || attr.DevMinor != minor {
+			t.Errorf("unexpected major/minor of blockdev %q: %d/%d want %d/%d", name, attr.DevMajor, attr.DevMinor, major, minor)
 			return
 		}
 	}
