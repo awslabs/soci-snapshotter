@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1736961716999,
+  "lastUpdate": 1736982405089,
   "repoUrl": "https://github.com/awslabs/soci-snapshotter",
   "entries": {
     "Soci Benchmark": [
@@ -10070,6 +10070,48 @@ window.BENCHMARK_DATA = {
           {
             "name": "SociFullECR-public-redis-pullTaskDuration",
             "value": 1.3599999999999999,
+            "unit": "Seconds",
+            "extra": "P90"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "alvajus@amazon.com",
+            "name": "Justin Alvarez",
+            "username": "pendo324"
+          },
+          "committer": {
+            "email": "kern.walster@gmail.com",
+            "name": "Kern Walster",
+            "username": "Kern--"
+          },
+          "distinct": true,
+          "id": "5f3847cb9ae490478b2ee05ef14af73d48d896c5",
+          "message": "Allow setting version and revision\n\nSigned-off-by: Justin Alvarez <alvajus@amazon.com>",
+          "timestamp": "2025-01-15T14:58:16-08:00",
+          "tree_id": "7cce33c3aaf5e3a0876284cf113a632c7b56001c",
+          "url": "https://github.com/awslabs/soci-snapshotter/commit/5f3847cb9ae490478b2ee05ef14af73d48d896c5"
+        },
+        "date": 1736982404066,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "SociFullECR-public-redis-lazyTaskDuration",
+            "value": 1.5645000000000002,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-redis-localTaskDuration",
+            "value": 0.0205,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-redis-pullTaskDuration",
+            "value": 1.565,
             "unit": "Seconds",
             "extra": "P90"
           }
