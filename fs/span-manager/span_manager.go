@@ -23,6 +23,7 @@ import (
 	"fmt"
 	"io"
 	"runtime"
+	"sync"
 
 	"github.com/awslabs/soci-snapshotter/cache"
 	"github.com/awslabs/soci-snapshotter/ztoc"
@@ -72,6 +73,9 @@ type SpanManager struct {
 	spans                             []*span
 	ztoc                              *ztoc.Ztoc
 	maxSpanVerificationFailureRetries int
+	downloaded                        bool
+	downloadedMu                      sync.Mutex
+	DownloadedC                       chan struct{}
 }
 
 type spanInfo struct {
@@ -117,6 +121,7 @@ func New(ztoc *ztoc.Ztoc, r *io.SectionReader, cache cache.BlobCache, retries in
 		spans:                             spans,
 		ztoc:                              ztoc,
 		maxSpanVerificationFailureRetries: retries,
+		DownloadedC:                       make(chan struct{}),
 	}
 	if m.maxSpanVerificationFailureRetries < 0 {
 		m.maxSpanVerificationFailureRetries = defaultSpanVerificationFailureRetries
@@ -312,6 +317,15 @@ func (m *SpanManager) getSpanContent(spanID compression.SpanID, offsetStart, off
 	}
 	buf := bytes.NewBuffer(uncompBuf[offsetStart : offsetStart+size])
 	return io.NopCloser(buf), nil
+}
+
+func (m *SpanManager) MarkDownloaded() {
+	m.downloadedMu.Lock()
+	if !m.downloaded {
+		m.downloaded = true
+		close(m.DownloadedC)
+	}
+	m.downloadedMu.Unlock()
 }
 
 // fetchAndCacheSpan fetches a span, uncompresses the span if `uncompress == true`,

@@ -617,10 +617,6 @@ func (r *reader) OpenFile(id uint32) (File, error) {
 			return fmt.Errorf("failed to get file bucket %d: %w", id, err)
 		}
 		size, _ = binary.Varint(b.Get(bucketKeySize))
-		m, _ := binary.Uvarint(b.Get(bucketKeyMode))
-		if !os.FileMode(uint32(m)).IsRegular() {
-			return fmt.Errorf("%q is not a regular file", id)
-		}
 		metadataEntries, err := getMetadataBucket(tx, r.fsID)
 		if err != nil {
 			return fmt.Errorf("metadata bucket of %q not found for opening %d: %w", r.fsID, id, err)

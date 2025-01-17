@@ -97,10 +97,12 @@ func (lr *sequentialLayerResolver) Resolve(ctx context.Context) (bool, error) {
 	}
 	if errors.Is(err, sm.ErrExceedMaxSpan) {
 		commonmetrics.MeasureLatencyInMilliseconds(commonmetrics.BackgroundFetch, lr.layerDigest, lr.base.start)
+		lr.SpanManager.MarkDownloaded()
 		return false, nil
 	}
 
 	commonmetrics.IncOperationCount(commonmetrics.BackgroundSpanFetchFailureCount, lr.layerDigest)
+	lr.SpanManager.MarkDownloaded()
 	return false, fmt.Errorf("error trying to fetch span with spanId = %d from layerDigest = %s: %w",
 		lr.nextSpanFetchID, lr.layerDigest.String(), err)
 }

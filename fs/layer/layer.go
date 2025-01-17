@@ -128,11 +128,12 @@ type Resolver struct {
 	artifactStore     content.Storage
 	overlayOpaqueType OverlayOpaqueType
 	bgFetcher         *backgroundfetcher.BackgroundFetcher
+	readerVerifier    *reader.Verifier
 }
 
 // NewResolver returns a new layer resolver.
 func NewResolver(root string, cfg config.FSConfig, resolveHandlers map[string]remote.Handler,
-	metadataStore metadata.Store, artifactStore content.Storage, overlayOpaqueType OverlayOpaqueType, bgFetcher *backgroundfetcher.BackgroundFetcher) (*Resolver, error) {
+	metadataStore metadata.Store, artifactStore content.Storage, overlayOpaqueType OverlayOpaqueType, bgFetcher *backgroundfetcher.BackgroundFetcher, readerVerifier *reader.Verifier) (*Resolver, error) {
 	resolveResultEntry := cfg.ResolveResultEntry
 	if resolveResultEntry == 0 {
 		resolveResultEntry = defaultResolveResultEntry
@@ -175,6 +176,7 @@ func NewResolver(root string, cfg config.FSConfig, resolveHandlers map[string]re
 		artifactStore:     artifactStore,
 		overlayOpaqueType: overlayOpaqueType,
 		bgFetcher:         bgFetcher,
+		readerVerifier:    readerVerifier,
 	}, nil
 }
 
@@ -334,6 +336,12 @@ func (r *Resolver) Resolve(ctx context.Context, hosts []docker.RegistryHost, ref
 		r.bgFetcher.Add(bgLayerResolver)
 	}
 	vr, err := reader.NewReader(meta, desc.Digest, spanManager, disableVerification)
+	if r.readerVerifier != nil {
+		err := r.readerVerifier.Add(vr)
+		if err != nil {
+			return nil, err
+		}
+	}
 	if err != nil {
 		return nil, fmt.Errorf("failed to read layer: %w", err)
 	}

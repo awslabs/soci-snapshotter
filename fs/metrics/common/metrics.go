@@ -103,6 +103,8 @@ const (
 	FuseWhiteoutGetattrFailureCount = "fuse_whiteout_getattr_failure_count"
 	FuseUnknownFailureCount         = "fuse_unknown_operation_failure_count"
 
+	FileVerificationFailureCount = "file_verification_failure_count"
+
 	// TODO this metric is not available now. This needs to go down to BlobReader where the actuall http call is issued
 	SynchronousBytesFetched = "synchronous_bytes_fetched"
 
