@@ -25,6 +25,7 @@ import (
 	"runtime"
 
 	"github.com/awslabs/soci-snapshotter/cache"
+	"github.com/awslabs/soci-snapshotter/util/ioutils"
 	"github.com/awslabs/soci-snapshotter/ztoc"
 	"github.com/awslabs/soci-snapshotter/ztoc/compression"
 	"github.com/containerd/log"
@@ -38,30 +39,6 @@ var (
 	ErrIncorrectSpanDigest = errors.New("span digests do not match")
 	ErrExceedMaxSpan       = errors.New("span id larger than max span id")
 )
-
-type MultiReaderCloser struct {
-	c []io.Closer
-	io.Reader
-}
-
-func (mrc *MultiReaderCloser) Close() error {
-	errs := []error{}
-	for _, c := range mrc.c {
-		if err := c.Close(); err != nil {
-			errs = append(errs, err)
-		}
-	}
-	return errors.Join(errs...)
-}
-
-type SectionReaderCloser struct {
-	c io.Closer
-	*io.SectionReader
-}
-
-func (src *SectionReaderCloser) Close() error {
-	return src.c.Close()
-}
 
 // SpanManager fetches and caches spans of a given layer.
 type SpanManager struct {
@@ -187,8 +164,7 @@ func (m *SpanManager) resolveSpan(spanID compression.SpanID) error {
 func (m *SpanManager) GetContents(startUncompOffset, endUncompOffset compression.Offset) (io.ReadCloser, error) {
 	si := m.getSpanInfo(startUncompOffset, endUncompOffset)
 	numSpans := si.spanEnd - si.spanStart + 1
-	spanReaders := make([]io.Reader, numSpans)
-	spanClosers := make([]io.Closer, numSpans)
+	spanReaders := make([]io.ReadCloser, numSpans)
 
 	eg, _ := errgroup.WithContext(context.Background())
 	var i compression.SpanID
@@ -201,14 +177,13 @@ func (m *SpanManager) GetContents(startUncompOffset, endUncompOffset compression
 				return err
 			}
 			spanReaders[j] = r
-			spanClosers[j] = r
 			return nil
 		})
 	}
 	if err := eg.Wait(); err != nil {
 		return nil, err
 	}
-	return &MultiReaderCloser{spanClosers, io.MultiReader(spanReaders...)}, nil
+	return ioutils.NewMultiReadCloser(spanReaders), nil
 }
 
 // getSpanInfo returns spanInfo from the offsets of the requested file
@@ -435,11 +410,11 @@ func (m *SpanManager) addSpanToCache(spanID compression.SpanID, contents []byte,
 // `offset` is the offset of the requested contents within the span.
 // `size` is the size of the requested contents.
 func (m *SpanManager) getSpanFromCache(spanID compression.SpanID, offset, size compression.Offset) (io.ReadCloser, error) {
-	r, err := m.cache.Get(fmt.Sprintf("%d", spanID))
+	rc, err := m.cache.Get(fmt.Sprintf("%d", spanID))
 	if err != nil {
 		return nil, fmt.Errorf("%w: %w", ErrSpanNotAvailable, err)
 	}
-	return &SectionReaderCloser{r, io.NewSectionReader(r, int64(offset), int64(size))}, nil
+	return ioutils.NewSectionReadCloser(io.NewSectionReader(rc, int64(offset), int64(size)), rc), nil
 }
 
 // verifySpanContents calculates span digest from its compressed bytes, and compare
