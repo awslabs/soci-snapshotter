@@ -282,7 +282,6 @@ func NewFilesystem(ctx context.Context, root string, cfg config.FSConfig, opts .
 		getSources:                  getSources,
 		debug:                       cfg.Debug,
 		layer:                       make(map[string]layer.Layer),
-		allowNoVerification:         cfg.AllowNoVerification,
 		disableVerification:         cfg.DisableVerification,
 		metricsController:           c,
 		attrTimeout:                 attrTimeout,
@@ -384,7 +383,6 @@ type filesystem struct {
 	debug                       bool
 	layer                       map[string]layer.Layer
 	layerMu                     sync.Mutex
-	allowNoVerification         bool
 	disableVerification         bool
 	getSources                  source.GetSources
 	metricsController           *layermetrics.Controller
