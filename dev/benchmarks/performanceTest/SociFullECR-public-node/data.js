@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1737569773525,
+  "lastUpdate": 1737739800187,
   "repoUrl": "https://github.com/awslabs/soci-snapshotter",
   "entries": {
     "Soci Benchmark": [
@@ -10074,6 +10074,48 @@ window.BENCHMARK_DATA = {
           {
             "name": "SociFullECR-public-node-pullTaskDuration",
             "value": 1.8695,
+            "unit": "Seconds",
+            "extra": "P90"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "walster@amazon.com",
+            "name": "Kern Walster",
+            "username": "Kern--"
+          },
+          "committer": {
+            "email": "55906459+austinvazquez@users.noreply.github.com",
+            "name": "Austin Vazquez",
+            "username": "austinvazquez"
+          },
+          "distinct": true,
+          "id": "986864c6532b8b391ac64c9cef029a6c1a78dd58",
+          "message": "Move io abstractions to ioutils\n\nSOCI has a couple of extensions to combine various `io` interfaces. This\nPR moves these under `ioutils` instead of defining them in the packages\nwhere they were first needed to encourage reuse.\n\nSigned-off-by: Kern Walster <walster@amazon.com>",
+          "timestamp": "2025-01-24T11:21:29-06:00",
+          "tree_id": "073280ae78771d5c5cea0d798348cdded3b05ca7",
+          "url": "https://github.com/awslabs/soci-snapshotter/commit/986864c6532b8b391ac64c9cef029a6c1a78dd58"
+        },
+        "date": 1737739794175,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "SociFullECR-public-node-lazyTaskDuration",
+            "value": 2.13,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-node-localTaskDuration",
+            "value": 0.4665,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-node-pullTaskDuration",
+            "value": 2.0084999999999997,
             "unit": "Seconds",
             "extra": "P90"
           }
