@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1737739801453,
+  "lastUpdate": 1737739860765,
   "repoUrl": "https://github.com/awslabs/soci-snapshotter",
   "entries": {
     "Soci Benchmark": [
@@ -10280,6 +10280,48 @@ window.BENCHMARK_DATA = {
           {
             "name": "SociFullECR-public-redis-pullTaskDuration",
             "value": 1.4235,
+            "unit": "Seconds",
+            "extra": "P90"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "walster@amazon.com",
+            "name": "Kern Walster",
+            "username": "Kern--"
+          },
+          "committer": {
+            "email": "55906459+austinvazquez@users.noreply.github.com",
+            "name": "Austin Vazquez",
+            "username": "austinvazquez"
+          },
+          "distinct": true,
+          "id": "3b846abeb4da3cf417227041f8bf0ffc9e06a3f7",
+          "message": "Remove allow_no_verification option\n\nallow_no_verification was an option that SOCI inherited from Stargz that\nis not used by SOCI. It wasn't well documented and was not connected to\nanything.\n\nSigned-off-by: Kern Walster <walster@amazon.com>",
+          "timestamp": "2025-01-24T11:22:04-06:00",
+          "tree_id": "a560fb987b66203b7a944bbda97fedc09dc99504",
+          "url": "https://github.com/awslabs/soci-snapshotter/commit/3b846abeb4da3cf417227041f8bf0ffc9e06a3f7"
+        },
+        "date": 1737739856376,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "SociFullECR-public-redis-lazyTaskDuration",
+            "value": 1.1745,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-redis-localTaskDuration",
+            "value": 0.025500000000000002,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-redis-pullTaskDuration",
+            "value": 1.5825,
             "unit": "Seconds",
             "extra": "P90"
           }
