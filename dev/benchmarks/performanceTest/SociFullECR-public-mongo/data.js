@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1737739795585,
+  "lastUpdate": 1737739867831,
   "repoUrl": "https://github.com/awslabs/soci-snapshotter",
   "entries": {
     "Soci Benchmark": [
@@ -10198,6 +10198,48 @@ window.BENCHMARK_DATA = {
           {
             "name": "SociFullECR-public-mongo-pullTaskDuration",
             "value": 1.433,
+            "unit": "Seconds",
+            "extra": "P90"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "walster@amazon.com",
+            "name": "Kern Walster",
+            "username": "Kern--"
+          },
+          "committer": {
+            "email": "55906459+austinvazquez@users.noreply.github.com",
+            "name": "Austin Vazquez",
+            "username": "austinvazquez"
+          },
+          "distinct": true,
+          "id": "3b846abeb4da3cf417227041f8bf0ffc9e06a3f7",
+          "message": "Remove allow_no_verification option\n\nallow_no_verification was an option that SOCI inherited from Stargz that\nis not used by SOCI. It wasn't well documented and was not connected to\nanything.\n\nSigned-off-by: Kern Walster <walster@amazon.com>",
+          "timestamp": "2025-01-24T11:22:04-06:00",
+          "tree_id": "a560fb987b66203b7a944bbda97fedc09dc99504",
+          "url": "https://github.com/awslabs/soci-snapshotter/commit/3b846abeb4da3cf417227041f8bf0ffc9e06a3f7"
+        },
+        "date": 1737739859992,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "SociFullECR-public-mongo-lazyTaskDuration",
+            "value": 8.584,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-mongo-localTaskDuration",
+            "value": 0.3195,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-mongo-pullTaskDuration",
+            "value": 1.905,
             "unit": "Seconds",
             "extra": "P90"
           }
