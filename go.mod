@@ -12,7 +12,7 @@ require (
 	github.com/docker/cli v27.5.0+incompatible
 	github.com/docker/go-metrics v0.0.1
 	github.com/golang/groupcache v0.0.0-20241129210726-2c02b8208cf8
-	github.com/google/flatbuffers v24.12.23+incompatible
+	github.com/google/flatbuffers v25.1.24+incompatible
 	github.com/google/go-cmp v0.6.0
 	github.com/google/uuid v1.6.0
 	github.com/hanwen/go-fuse/v2 v2.7.2
