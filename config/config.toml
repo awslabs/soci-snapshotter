@@ -22,6 +22,7 @@ max_concurrency=0  # Actually zero
 no_prometheus=false
 mount_timeout_sec=0
 fuse_metrics_emit_wait_duration_sec=0
+verify_local_mounts=true
 
 ## config/config.go Config
 
