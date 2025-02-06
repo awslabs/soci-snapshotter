@@ -25,35 +25,7 @@ env:
 
 jobs:
   setup:
-    # This job sets up the runners to be used in the matrix for the build workflow.
-    # It provides a list of available runners with stable, human-friendly names and a mapping
-    # from those names to the actual `runs-on` value for each runner type. This allows us to
-    # use codebuild-hosted runners for awslabs/soci-snapshotter without requiring forks to also
-    # have codebuild-hosted runners.
-    #
-    # If you want to use codebuild runners for your personal fork, follow the instructions to set
-    # up a codebuild project. https://docs.aws.amazon.com/codebuild/latest/userguide/action-runner.html
-    # Then, replace 'soci-snapshotter-instance' with the name of the project you created.
-    name: Setup Build Matrix
-    runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        # We're using a matrix with a single entry so that we can define some config as YAML rather than
-        # having to write escaped json in a string.
-        include:
-          - use-codebuild: ${{ github.repository_owner == 'awslabs' }}
-            runs-on-names-cb: [ubuntu-x86, al2-arm]
-            runs-on-names-gh: [ubuntu]
-            runner-labels:
-              ubuntu: ubuntu-22.04
-              ubuntu-x86: "codebuild-soci-snapshotter-instance-${{ github.run_id }}-${{ github.run_attempt }}-ubuntu-7.0-large"
-              al2-arm: "codebuild-soci-snapshotter-instance-${{ github.run_id }}-${{ github.run_attempt }}-arm-3.0-large"
-    outputs:
-      available-runners: ${{ matrix.use-codebuild && toJSON(matrix.runs-on-names-cb) || toJSON(matrix.runs-on-names-gh) }}
-      runner-labels: ${{ toJSON(matrix.runner-labels) }}
-    steps:
-      - name: Dump Config
-        run: echo '${{ toJSON(matrix) }}'
+    uses: ./.github/workflows/setup.yml
 
   test:
     needs: setup
