@@ -19,8 +19,15 @@ permissions:
   deployments: write
 
 jobs:
+  setup:
+    uses: ./.github/workflows/setup.yml
+
   generate-artifacts:
-    runs-on: ubuntu-22.04
+    needs: setup
+    runs-on: ${{ fromJSON(needs.setup.outputs.runner-labels)[matrix.os] }}
+    strategy:
+      matrix:
+        os: ${{ fromJSON(needs.setup.outputs.available-runners) }}
     env:
       # Set during setup.
       RELEASE_TAG: ''
@@ -28,6 +35,12 @@ jobs:
       STATIC_BINARY_NAME: ''
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+      - name: Install static libraries on AL2 ARM instances
+        if: matrix.os == 'al2-arm'
+        run: dnf install glibc-static.aarch64 zlib-static.aarch64 -y
       - name: Export cleaned release tag
         run: |
           export release_tag=${GITHUB_REF#refs/*/} # Strip down to raw tag name
@@ -44,12 +57,12 @@ jobs:
           echo "DYNAMIC_BINARY_NAME=soci-snapshotter-${release_version}-linux-amd64.tar.gz" >> $GITHUB_ENV
           echo "STATIC_BINARY_NAME=soci-snapshotter-${release_version}-linux-amd64-static.tar.gz" >> $GITHUB_ENV
 
-          mkdir release
+          mkdir release-${{ matrix.os }}
       - name: Create release binaries
         run: make RELEASE_TAG=${{ env.RELEASE_TAG }} release
       - uses: actions/upload-artifact@v4
         with:
-          name: artifacts
+          name: artifacts-${{ matrix.os }}
           path: release/
           if-no-files-found: error
 
@@ -59,32 +72,33 @@ jobs:
       static_binary_name: ${{ env.STATIC_BINARY_NAME }}
 
   validate-artifacts:
-    needs: generate-artifacts
-    runs-on: ubuntu-22.04
+    needs: [setup, generate-artifacts]
+    runs-on: ${{ fromJSON(needs.setup.outputs.runner-labels)[matrix.os] }}
+    strategy:
+      matrix:
+        os: ${{ fromJSON(needs.setup.outputs.available-runners) }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/download-artifact@v4
         with:
-          name: artifacts
+          name: artifacts-${{ matrix.os }}
           path: release/
       - run: bash scripts/verify-release-artifacts.sh ${{ needs.generate-artifacts.outputs.release_tag }}
 
   create-release:
     if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
-    needs: [generate-artifacts, validate-artifacts]
+    needs: validate-artifacts
     runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v4
       - uses: actions/download-artifact@v4
         with:
-          name: artifacts
+          path: assets/
+          pattern: artifacts-*
+          merge-multiple: true
       - uses: softprops/action-gh-release@v2
         with:
           draft: true
           prerelease: false
           generate_release_notes: false
-          files: |
-            ${{ needs.generate-artifacts.outputs.dynamic_binary_name }}
-            ${{ needs.generate-artifacts.outputs.dynamic_binary_name }}.sha256sum
-            ${{ needs.generate-artifacts.outputs.static_binary_name }}
-            ${{ needs.generate-artifacts.outputs.static_binary_name }}.sha256sum
+          files: assets/*
