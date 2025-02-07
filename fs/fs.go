@@ -44,6 +44,7 @@ package fs
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"io"
 	golog "log"
@@ -257,6 +258,11 @@ func NewFilesystem(ctx context.Context, root string, cfg config.FSConfig, opts .
 	pr := newPreresolver(fsOpts.maxConcurrency)
 	pr.Start(ctx)
 
+	var manifests *manifestMap
+	if cfg.VerifyLocalMounts {
+		manifests = new(manifestMap)
+	}
+
 	var ns *metrics.Namespace
 	if !cfg.NoPrometheus {
 		ns = metrics.NewNamespace("soci", "fs", nil)
@@ -292,6 +298,7 @@ func NewFilesystem(ctx context.Context, root string, cfg config.FSConfig, opts .
 		mountTimeout:                mountTimeout,
 		fuseMetricsEmitWaitDuration: fuseMetricsEmitWaitDuration,
 		pr:                          pr,
+		manifests:                   manifests,
 	}, nil
 }
 
@@ -377,6 +384,30 @@ func (c *sociContext) populateImageLayerToSociMapping(sociIndex *soci.Index) {
 	}
 }
 
+// manifestMap is a wrapper for an atomic map
+// of a manifest digest to its appropriate list of diffIDs.
+//
+// key: manifest digest
+// val: map where
+//
+//	key: compressed layer digest string
+//	val: uncompressed layer digest.Digest
+type manifestMap struct {
+	m sync.Map
+}
+
+func (m *manifestMap) Store(key string, val map[string]digest.Digest) {
+	m.m.Store(key, val)
+}
+
+func (m *manifestMap) Load(key string) (map[string]digest.Digest, bool) {
+	val, ok := m.m.Load(key)
+	if ok {
+		return val.(map[string]digest.Digest), ok
+	}
+	return map[string]digest.Digest{}, false
+}
+
 type filesystem struct {
 	ctx                         context.Context
 	resolver                    *layer.Resolver
@@ -395,6 +426,7 @@ type filesystem struct {
 	mountTimeout                time.Duration
 	fuseMetricsEmitWaitDuration time.Duration
 	pr                          *preresolver
+	manifests                   *manifestMap
 }
 
 func (fs *filesystem) MountLocal(ctx context.Context, mountpoint string, labels map[string]string, mounts []mount.Mount) error {
@@ -425,7 +457,12 @@ func (fs *filesystem) MountLocal(ctx context.Context, mountpoint string, labels 
 	if err != nil {
 		return fmt.Errorf("cannot create fetcher: %w", err)
 	}
-	unpacker := NewLayerUnpacker(fetcher, archive)
+	diffIDMap, err := fs.getLayerDiffMap(ctx, labels, remoteStore)
+	if err != nil {
+		return fmt.Errorf("error getting layer diff IDs: %v", err)
+	}
+
+	unpacker := NewLayerUnpacker(fetcher, archive, diffIDMap)
 	desc := s.Target
 
 	// If no descriptor size is given, resolve the layer
@@ -447,6 +484,63 @@ func (fs *filesystem) MountLocal(ctx context.Context, mountpoint string, labels 
 	}
 
 	return nil
+}
+
+// getLayerDiffMap will return the map of a compressed layer shasum to its uncompressed shasum.
+// If VerifyLocalMounts is disabled, this will return nil with no error.
+func (fs *filesystem) getLayerDiffMap(ctx context.Context, labels map[string]string, remoteStore resolverStorage) (map[string]digest.Digest, error) {
+	if fs.manifests == nil {
+		return nil, nil
+	}
+
+	manifestDigest, ok := labels[ctdsnapshotters.TargetManifestDigestLabel]
+	if !ok {
+		return nil, fmt.Errorf("no manifest label attached to image")
+	}
+
+	diffIDMap, ok := fs.manifests.Load(manifestDigest)
+	if !ok {
+		manifestReq, err := remoteStore.Resolve(ctx, manifestDigest)
+		if err != nil {
+			return nil, fmt.Errorf("error resolving manifest: %v", err)
+		}
+		rc, err := remoteStore.Fetch(ctx, manifestReq)
+		if err != nil {
+			return nil, fmt.Errorf("error fetching manifest from upstream: %v", err)
+		}
+
+		b, _ := io.ReadAll(rc)
+		manifest := ocispec.Manifest{}
+		err = json.Unmarshal(b, &manifest)
+		if err != nil {
+			return nil, fmt.Errorf("error unmarshalling manifest JSON: %v", err)
+		}
+		rc, err = remoteStore.Fetch(ctx, manifest.Config)
+		if err != nil {
+			return nil, fmt.Errorf("error fetching manifest config from upstream: %v", err)
+		}
+
+		b, _ = io.ReadAll(rc)
+		imgConfig := ocispec.Image{}
+		err = json.Unmarshal(b, &imgConfig)
+		if err != nil {
+			return nil, fmt.Errorf("error unmarshalling image config JSON: %v", err)
+		}
+
+		uncompressedShas := imgConfig.RootFS.DiffIDs
+		compressedShas := manifest.Layers
+		if len(uncompressedShas) != len(compressedShas) {
+			return nil, fmt.Errorf("mismatch between manifest layers and diff IDs")
+		}
+
+		for i := range len(uncompressedShas) {
+			diffIDMap[compressedShas[i].Digest.String()] = uncompressedShas[i]
+		}
+
+		fs.manifests.Store(manifestDigest, diffIDMap)
+	}
+
+	return diffIDMap, nil
 }
 
 func (fs *filesystem) getSociContext(ctx context.Context, imageRef, indexDigest, imageManifestDigest string, client *http.Client) (*sociContext, error) {

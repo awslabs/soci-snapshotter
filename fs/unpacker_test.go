@@ -19,14 +19,18 @@ package fs
 import (
 	"bytes"
 	"context"
+	"crypto/sha256"
 	"fmt"
 	"io"
 	"testing"
 
 	"github.com/containerd/containerd/archive"
 	"github.com/containerd/containerd/mount"
+	"github.com/opencontainers/go-digest"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 )
+
+const testString string = "test"
 
 func TestFailureModes(t *testing.T) {
 	testCases := []struct {
@@ -68,7 +72,7 @@ func TestFailureModes(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			fetcher := newFakeFetcher(false, tc.storeFails, tc.fetchFails)
 			archive := newFakeArchive(tc.unpackedSize, tc.applyFails)
-			unpacker := NewLayerUnpacker(fetcher, archive)
+			unpacker := NewLayerUnpacker(fetcher, archive, nil)
 			mounts := getFakeMounts()
 			err := unpacker.Unpack(context.Background(), tc.desc, tc.mountpoint, mounts)
 			if err == nil {
@@ -115,7 +119,7 @@ func TestUnpackHappyPath(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			fetcher := newFakeFetcher(tc.hasLocal, false, false)
 			archive := newFakeArchive(tc.unpackedSize, false)
-			unpacker := NewLayerUnpacker(fetcher, archive)
+			unpacker := NewLayerUnpacker(fetcher, archive, nil)
 			mounts := getFakeMounts()
 			err := unpacker.Unpack(context.Background(), tc.desc, tc.mountpoint, mounts)
 			if err != nil {
@@ -143,6 +147,60 @@ func TestUnpackHappyPath(t *testing.T) {
 	}
 }
 
+func TestUnpackVerifier(t *testing.T) {
+	dummyMountpoint := "dummy/path/to/file"
+	dummySize := int64(12345)
+
+	hasher := sha256.New()
+	hasher.Write([]byte(testString))
+	goodDigest := digest.NewDigest(digest.SHA256, hasher)
+	badDigest := ocispec.DescriptorEmptyJSON.Digest
+
+	testDesc := ocispec.Descriptor{
+		Digest: goodDigest,
+		Size:   dummySize,
+	}
+
+	testCases := []struct {
+		name      string
+		digestMap map[string]digest.Digest
+		expectErr bool
+	}{
+		{
+			name: "verification enabled, valid digest is given",
+			digestMap: map[string]digest.Digest{
+				testDesc.Digest.String(): goodDigest,
+			},
+		},
+		{
+			name: "verification enabled, invalid digest is given",
+			digestMap: map[string]digest.Digest{
+				testDesc.Digest.String(): badDigest,
+			},
+			expectErr: true,
+		},
+		{
+			name: "verification disabled",
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			fetcher := newFakeFetcher(false, false, false)
+			archive := newFakeArchive(dummySize, false)
+			unpacker := NewLayerUnpacker(fetcher, archive, tc.digestMap)
+			mounts := getFakeMounts()
+			err := unpacker.Unpack(context.Background(), testDesc, dummyMountpoint, mounts)
+			if err != nil && !tc.expectErr {
+				t.Fatalf("verification failed: %v", err)
+			}
+			if err == nil && tc.expectErr {
+				t.Fatal("verification incorrectly passed")
+			}
+		})
+	}
+}
+
 type fakeArtifactFetcher struct {
 	storeFails bool
 	fetchFails bool
@@ -164,7 +222,7 @@ func (f *fakeArtifactFetcher) Fetch(ctx context.Context, desc ocispec.Descriptor
 	if f.fetchFails {
 		return nil, false, fmt.Errorf("dummy error on Fetch()")
 	}
-	return io.NopCloser(bytes.NewBuffer([]byte("test"))), f.hasLocal, nil
+	return io.NopCloser(bytes.NewBuffer([]byte(testString))), f.hasLocal, nil
 }
 
 func (f *fakeArtifactFetcher) Store(ctx context.Context, desc ocispec.Descriptor, reader io.Reader) error {
@@ -189,10 +247,19 @@ func newFakeArchive(unpackedSize int64, applyFails bool) *fakeArchive {
 	}
 }
 
-func (a *fakeArchive) Apply(ctx context.Context, root string, r io.Reader, opts ...archive.ApplyOpt) (int64, error) {
+func (a *fakeArchive) Apply(ctx context.Context, root string, r io.Reader, verifier *layerVerifier, opts ...archive.ApplyOpt) (int64, error) {
 	a.applyCount++
 	if a.applyFails {
 		return 0, fmt.Errorf("dummy error on Apply()")
+	}
+	if verifier != nil {
+		r = wrapReader(r, verifier, false)
+		io.ReadAll(r)
+		// Only check uncompressed since this is
+		// easier to control in testing scenarios
+		if !verifier.uncompressed.Verified() {
+			return 0, fmt.Errorf("dummy error on verify")
+		}
 	}
 	return a.unpackedSize, nil
 }
