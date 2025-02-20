@@ -220,8 +220,10 @@ func testPullModes(t *testing.T, imgName string) {
 			sh.X(args...)
 			if test.expectedDigest != "" {
 				rsm.CheckAllRemoteSnapshots(t)
-			} else {
+			} else if test.pullModes.ParallelPullUnpack.Enable {
 				rsm.CheckAllLocalSnapshots(t)
+			} else {
+				rsm.CheckAllDeferredSnapshots(t)
 			}
 			if indexDigestUsed != test.expectedDigest {
 				t.Fatalf("expected digest %s, got %s", test.expectedDigest, indexDigestUsed)
@@ -265,7 +267,7 @@ func testV1IsNotUsedWhenDisabled(t *testing.T, imgName string) {
 	idm := testutil.NewIndexDigestMonitor(m)
 	defer idm.Close()
 	sh.X("nerdctl", "pull", "--snapshotter", "soci", dstInfo.ref)
-	rsm.CheckAllLocalSnapshots(t)
+	rsm.CheckAllDeferredSnapshots(t)
 	if idm.IndexDigest != "" {
 		t.Fatalf("expected no digest, got %s", idm.IndexDigest)
 	}
@@ -355,7 +357,7 @@ func testDanglingV2Annotation(t *testing.T, imgName string) {
 		}
 	})
 	sh.X("nerdctl", "pull", "--snapshotter", "soci", danglingRef.String())
-	rsm.CheckAllLocalSnapshots(t)
+	rsm.CheckAllDeferredSnapshots(t)
 	if !foundNoIndexMessage {
 		t.Fatalf("did not find the message that no index was found")
 	}

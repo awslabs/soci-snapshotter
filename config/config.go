@@ -76,7 +76,7 @@ type Config struct {
 }
 type configParser func(*Config) error
 
-var parsers = []configParser{parseRootConfig, parseServiceConfig, parseFSConfig}
+var parsers = []configParser{parseRootConfig, parseServiceConfig, parseFSConfig, parseImagePullConfig}
 
 // NewConfig returns an initialized Config with default values set.
 func NewConfig() *Config {
