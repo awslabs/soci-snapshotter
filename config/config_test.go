@@ -17,6 +17,9 @@
 package config
 
 import (
+	"os"
+	"path/filepath"
+	"reflect"
 	"testing"
 )
 
@@ -165,6 +168,126 @@ func TestConfigDefaults(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			if tc.expected != tc.actual {
 				t.Fatalf("invalid default value. expected: %v. actual: %v", tc.expected, tc.actual)
+			}
+		})
+	}
+}
+
+// TestNewConfigFromToml asserts snapshotter configuration is parsed correctly.
+func TestNewConfigFromToml(t *testing.T) {
+	tests := []struct {
+		name   string
+		config []byte
+		assert func(t *testing.T, actual *Config, err error)
+	}{
+		{
+			name:   "DefaultConfig",
+			config: []byte(``),
+			assert: func(t *testing.T, actual *Config, err error) {
+				if err != nil {
+					t.Errorf("Expected no error, got %v", err)
+				}
+				cfg := NewConfig()
+				if !reflect.DeepEqual(cfg, actual) {
+					t.Errorf("Expected config %+v, got %+v", cfg, actual)
+				}
+			},
+		},
+		{
+			name: "DecompressionConfig",
+			config: []byte(`
+[pull_modes.parallel_pull_unpack.decompress_streams."gzip"]
+path = "/usr/bin/gzip"
+args = ["-d", "-c"]
+
+[pull_modes.parallel_pull_unpack.decompress_streams."zstd"]
+path = "/usr/bin/zstd"
+args = ["-d", "-c"]
+`),
+			assert: func(t *testing.T, actual *Config, err error) {
+				if err != nil {
+					t.Errorf("Expected no error, got %v", err)
+				}
+				if len(actual.PullModes.ParallelPullUnpack.DecompressStreams) != 2 {
+					t.Errorf("Expected 2 decompression streams, got %d", len(actual.PullModes.ParallelPullUnpack.DecompressStreams))
+				}
+				if actual.PullModes.ParallelPullUnpack.DecompressStreams["gzip"].Path != "/usr/bin/gzip" {
+					t.Errorf("Expected gzip path to be /usr/bin/gzip, got %s", actual.PullModes.ParallelPullUnpack.DecompressStreams["gzip"].Path)
+				}
+				if len(actual.PullModes.ParallelPullUnpack.DecompressStreams["gzip"].Args) != 2 {
+					t.Errorf("Expected two args, got %d", len(actual.PullModes.ParallelPullUnpack.DecompressStreams["gzip"].Args))
+				}
+				if actual.PullModes.ParallelPullUnpack.DecompressStreams["zstd"].Path != "/usr/bin/zstd" {
+					t.Errorf("Expected zstd path to be /usr/bin/zstd, got %s", actual.PullModes.ParallelPullUnpack.DecompressStreams["zstd"].Path)
+				}
+				if len(actual.PullModes.ParallelPullUnpack.DecompressStreams["zstd"].Args) != 2 {
+					t.Errorf("Expected two args, got %d", len(actual.PullModes.ParallelPullUnpack.DecompressStreams["zstd"].Args))
+				}
+			},
+		},
+		{
+			name: "ConcurrentChunkSizes",
+			config: []byte(`
+[pull_modes.parallel_pull_unpack]
+concurrent_download_chunk_size = "1MB"
+`),
+			assert: func(t *testing.T, actual *Config, err error) {
+				if err != nil {
+					t.Errorf("Expected no error, got %v", err)
+				}
+				if actual.PullModes.ParallelPullUnpack.ConcurrentDownloadChunkSize != 1*1024*1024 {
+					t.Errorf("Expected concurrent_download_chunk_size to be %d, got %d", 1*1024*1024, actual.PullModes.ParallelPullUnpack.ConcurrentDownloadChunkSize)
+				}
+			},
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			path := filepath.Join(t.TempDir(), "config.toml")
+			err := os.WriteFile(path, test.config, 0644)
+			if err != nil {
+				t.Fatalf("Failed to write config file: %v", err)
+			}
+
+			actual, err := NewConfigFromToml(path)
+			test.assert(t, actual, err)
+		})
+	}
+}
+
+func TestSizeParser(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		expected int64
+		experror bool
+	}{
+		{"Empty", "", -1, false},
+		{"Bytes", "100B", 100, false},
+		{"Kilobytes", "1KB", 1024, false},
+		{"Megabytes", "1MB", 1024 * 1024, false},
+		{"Gigabytes", "1GB", 1024 * 1024 * 1024, false},
+		{"WithDecimal", "1.5MB", int64(1.5 * 1024 * 1024), false},
+		{"MixedCase", "1Kb", 1024, false},
+		{"WithSpaces", "  1 MB  ", 1024 * 1024, false},
+		{"Zero", "0", -1, false},
+		{"Negative", "-100B", -100, true},
+		{"Invalid", "invalid", -1, true},
+		{"WithUnit", "1000m", -1, true},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			actual, err := parseSize(test.input)
+			if err != nil {
+				if !test.experror {
+					t.Errorf("Unexpected error: %v", err)
+				}
+			} else if test.experror {
+				t.Errorf("Expected error for input %q, but got none", test.input)
+			} else if actual != test.expected {
+				t.Errorf("Expected %d, got %d for input %q", test.expected, actual, test.input)
 			}
 		})
 	}

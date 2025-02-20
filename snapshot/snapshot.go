@@ -74,9 +74,11 @@ const (
 	// - "false" : indicates the snapshot failed to be prepared as a remote
 	//             snapshot
 	// - null    : undetermined
-	remoteSnapshotLogKey = "remote-snapshot-prepared"
-	prepareSucceeded     = "true"
-	prepareFailed        = "false"
+	remoteSnapshotLogKey   = "remote-snapshot-prepared"
+	localSnapshotLogKey    = "local-snapshot-prepared"
+	deferredSnapshotLogKey = "defer-snapshot-runtime"
+	prepareSucceeded       = "true"
+	prepareFailed          = "false"
 )
 
 var (
@@ -432,7 +434,7 @@ func (o *snapshotter) Prepare(ctx context.Context, key, parent string, opts ...s
 	// The exception is if we are using parallel pull and unpack,
 	// in which case we want to handle all snapshots ourselves.
 	if deferToContainerRuntime {
-		log.G(lCtx).WithError(err).Warnf("%v; %v", ErrNoIndex, ErrDeferToContainerRuntime)
+		log.G(lCtx).WithField(deferredSnapshotLogKey, prepareSucceeded).WithError(err).Warnf("%v; %v", ErrNoIndex, ErrDeferToContainerRuntime)
 		return mounts, nil
 	}
 
@@ -445,10 +447,10 @@ func (o *snapshotter) Prepare(ctx context.Context, key, parent string, opts ...s
 			// count also AlreadyExists as "success"
 			// there's no need to provide any details on []mount.Mount because mounting is already taken care of
 			// by snapshotter
-			log.G(lCtx).Info("local snapshot successfully prepared")
+			log.G(lCtx).WithField(localSnapshotLogKey, prepareSucceeded).Info("local snapshot successfully prepared")
 			return nil, fmt.Errorf("target snapshot %q: %w", target, errdefs.ErrAlreadyExists)
 		}
-		log.G(lCtx).WithError(err).Warn("failed to internally commit local snapshot")
+		log.G(lCtx).WithField(localSnapshotLogKey, prepareFailed).WithError(err).Warn("failed to internally commit local snapshot")
 		// Don't fallback here (= prohibit to use this key again) because the FileSystem
 		// possible has done some work on this "upper" directory.
 		return nil, err
@@ -456,7 +458,8 @@ func (o *snapshotter) Prepare(ctx context.Context, key, parent string, opts ...s
 	log.G(lCtx).WithField(remoteSnapshotLogKey, prepareFailed).WithError(err).Debug("skipped preparing remote snapshot")
 
 	// Local snapshot setup failed. Generally means something critical has gone wrong.
-	log.G(lCtx).WithError(err).Warnf("failed to prepare local snapshot; %v", ErrDeferToContainerRuntime)
+	log.G(lCtx).WithField(deferredSnapshotLogKey, prepareSucceeded).
+		WithError(err).Warnf("failed to prepare local snapshot; %v", ErrDeferToContainerRuntime)
 	commonmetrics.IncOperationCount(commonmetrics.LocalMountFailureCount, digest.Digest(""))
 	return mounts, nil
 }

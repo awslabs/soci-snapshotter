@@ -151,8 +151,9 @@ func (m *LogMonitor) scanLog(inputR io.Reader) {
 // RemoteSnapshotMonitor scans log of soci snapshotter and provides the way to check
 // if all snapshots are prepared as remote snpashots.
 type RemoteSnapshotMonitor struct {
-	remote uint64
-	local  uint64
+	remote   uint64
+	local    uint64
+	deferred uint64
 }
 
 // NewRemoteSnapshotMonitor creates a new instance of RemoteSnapshotMonitor and registers it
@@ -163,24 +164,31 @@ func NewRemoteSnapshotMonitor(m *LogMonitor) (*RemoteSnapshotMonitor, func()) {
 	return rsm, func() { m.Remove("remote snapshot") }
 }
 
-type RemoteSnapshotPreparedLogLine struct {
-	RemoteSnapshotPrepared string `json:"remote-snapshot-prepared"`
+type SnapshotPreparedLogLine struct {
+	RemoteSnapshotPrepared    string `json:"remote-snapshot-prepared"`
+	LocalSnapshotPrepared     string `json:"local-snapshot-prepared"`
+	SnapshotDeferredToRuntime string `json:"defer-snapshot-runtime"`
 }
 
 // MonitorFunc counts remote/local snapshot preparation totals
 func (m *RemoteSnapshotMonitor) MonitorFunc(rawL string) {
-	var logline RemoteSnapshotPreparedLogLine
+	var logline SnapshotPreparedLogLine
 	if i := strings.Index(rawL, "{"); i > 0 {
 		rawL = rawL[i:] // trim garbage chars; expects "{...}"-styled JSON log
 	}
 	if err := json.Unmarshal([]byte(rawL), &logline); err == nil {
-		switch logline.RemoteSnapshotPrepared {
-		case "true":
+		if logline.RemoteSnapshotPrepared == "true" {
 			atomic.AddUint64(&m.remote, 1)
-		case "false":
+		} else if logline.LocalSnapshotPrepared == "true" {
 			atomic.AddUint64(&m.local, 1)
+		} else if logline.SnapshotDeferredToRuntime == "true" {
+			atomic.AddUint64(&m.deferred, 1)
 		}
 	}
+}
+
+func getMonitorStr(remote, local, deferred uint64) string {
+	return fmt.Sprintf("(remote:%d,local:%d,deferred:%d)", remote, local, deferred)
 }
 
 // CheckAllRemoteSnapshots checks if the scanned log reports that all snapshots are prepared
@@ -188,19 +196,35 @@ func (m *RemoteSnapshotMonitor) MonitorFunc(rawL string) {
 func (m *RemoteSnapshotMonitor) CheckAllRemoteSnapshots(t *testing.T) {
 	remote := atomic.LoadUint64(&m.remote)
 	local := atomic.LoadUint64(&m.local)
-	result := fmt.Sprintf("(local:%d,remote:%d)", local, remote)
+	deferred := atomic.LoadUint64(&m.deferred)
+	result := getMonitorStr(remote, local, deferred)
 	m.checkExpectedMounts(t, result, remote, "remote")
 	m.checkUnexpectedMounts(t, result, local, "local")
+	m.checkUnexpectedMounts(t, result, deferred, "deferred")
 }
 
-// CheckAllRemoteSnapshots checks if the scanned log reports that all snapshots are prepared
-// as remote snapshots.
+// CheckAllLocalSnapshots checks if the scanned log reports that all snapshots are prepared
+// as local snapshots.
 func (m *RemoteSnapshotMonitor) CheckAllLocalSnapshots(t *testing.T) {
 	remote := atomic.LoadUint64(&m.remote)
 	local := atomic.LoadUint64(&m.local)
-	result := fmt.Sprintf("(local:%d,remote:%d)", local, remote)
-	m.checkExpectedMounts(t, result, local, "local")
+	deferred := atomic.LoadUint64(&m.deferred)
+	result := getMonitorStr(remote, local, deferred)
 	m.checkUnexpectedMounts(t, result, remote, "remote")
+	m.checkExpectedMounts(t, result, local, "local")
+	m.checkUnexpectedMounts(t, result, deferred, "deferred")
+}
+
+// CheckAllDeferredSnapshots checks if the scanned log reports that all snapshots are
+// deferred to container runtime
+func (m *RemoteSnapshotMonitor) CheckAllDeferredSnapshots(t *testing.T) {
+	remote := atomic.LoadUint64(&m.remote)
+	local := atomic.LoadUint64(&m.local)
+	deferred := atomic.LoadUint64(&m.deferred)
+	result := getMonitorStr(remote, local, deferred)
+	m.checkUnexpectedMounts(t, result, remote, "remote")
+	m.checkUnexpectedMounts(t, result, local, "local")
+	m.checkExpectedMounts(t, result, deferred, "deferred")
 }
 
 func (m *RemoteSnapshotMonitor) checkUnexpectedMounts(t *testing.T, result string, count uint64, name string) {
