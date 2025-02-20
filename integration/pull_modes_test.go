@@ -22,6 +22,7 @@ import (
 	"testing"
 
 	"github.com/awslabs/soci-snapshotter/config"
+	"github.com/awslabs/soci-snapshotter/soci/store"
 	"github.com/awslabs/soci-snapshotter/util/dockershell"
 	"github.com/awslabs/soci-snapshotter/util/testutil"
 	"github.com/containerd/containerd/reference"
@@ -87,10 +88,11 @@ func testPullModes(t *testing.T, imgName string) {
 	v1IndexDigest := createAndPushV1Index(sh, dstInfo)
 
 	tests := []struct {
-		name           string
-		pullModes      config.PullModes
-		pullDigest     string
-		expectedDigest string
+		name             string
+		pullModes        config.PullModes
+		contentStoreType store.ContentStoreType
+		pullDigest       string
+		expectedDigest   string
 	}{
 		{
 			name: "lazy pulling doesn't happen if both v1 and v2 are disabled",
@@ -155,6 +157,22 @@ func testPullModes(t *testing.T, imgName string) {
 			expectedDigest: v2IndexDigest,
 		},
 		{
+			name: "parallel pull unpack works",
+			pullModes: config.PullModes{
+				SOCIv1: config.V1{
+					Enable: false,
+				},
+				SOCIv2: config.V2{
+					Enable: false,
+				},
+				ParallelPullUnpack: config.ParallelPullUnpack{
+					Enable: true,
+				},
+			},
+			contentStoreType: store.ContainerdContentStoreType,
+			expectedDigest:   "",
+		},
+		{
 			name: "v2 is preferred over v1",
 			pullModes: config.PullModes{
 				SOCIv1: config.V1{
@@ -175,7 +193,12 @@ func testPullModes(t *testing.T, imgName string) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			m := rebootContainerd(t, sh, "", getSnapshotterConfigToml(t, withPullModes(test.pullModes)))
+			opts := []snapshotterConfigOpt{withPullModes(test.pullModes)}
+			// parallel pull/unpack requires containerd content store
+			if test.contentStoreType == store.ContainerdContentStoreType {
+				opts = append(opts, withContainerdContentStore())
+			}
+			m := rebootContainerd(t, sh, "", getSnapshotterConfigToml(t, opts...))
 			rsm, done := testutil.NewRemoteSnapshotMonitor(m)
 			defer done()
 			var indexDigestUsed string

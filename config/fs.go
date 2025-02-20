@@ -90,8 +90,9 @@ type DirectoryCacheConfig struct {
 	Direct           bool `toml:"direct"`
 }
 
-func defaultDirectoryCacheConfig(cfg *Config) {
+func defaultDirectoryCacheConfig(cfg *Config) error {
 	cfg.FSConfig.DirectoryCacheConfig.Direct = true
+	return nil
 }
 
 type FuseConfig struct {
@@ -179,7 +180,7 @@ type ContentStoreConfig struct {
 	ContainerdAddress string `toml:"containerd_address"`
 }
 
-func parseFSConfig(cfg *Config) {
+func parseFSConfig(cfg *Config) error {
 	// Parse top level fs config
 	if cfg.MountTimeoutSec == 0 {
 		cfg.MountTimeoutSec = defaultMountTimeoutSec
@@ -197,11 +198,14 @@ func parseFSConfig(cfg *Config) {
 	// Parse nested fs configs
 	parsers := []configParser{parseFuseConfig, parseBackgroundFetchConfig, parseRetryableHTTPClientConfig, parseBlobConfig, parseContentStoreConfig}
 	for _, p := range parsers {
-		p(cfg)
+		if err := p(cfg); err != nil {
+			return err
+		}
 	}
+	return nil
 }
 
-func parseFuseConfig(cfg *Config) {
+func parseFuseConfig(cfg *Config) error {
 	if cfg.FuseConfig.AttrTimeout == 0 {
 		cfg.FuseConfig.AttrTimeout = defaultFuseTimeoutSec
 	}
@@ -213,9 +217,10 @@ func parseFuseConfig(cfg *Config) {
 	if cfg.FuseConfig.NegativeTimeout == 0 {
 		cfg.FuseConfig.NegativeTimeout = defaultFuseTimeoutSec
 	}
+	return nil
 }
 
-func parseBackgroundFetchConfig(cfg *Config) {
+func parseBackgroundFetchConfig(cfg *Config) error {
 	if cfg.BackgroundFetchConfig.FetchPeriodMsec == 0 {
 		cfg.BackgroundFetchConfig.FetchPeriodMsec = defaultBgFetchPeriodMsec
 	}
@@ -230,9 +235,10 @@ func parseBackgroundFetchConfig(cfg *Config) {
 	if cfg.BackgroundFetchConfig.EmitMetricPeriodSec == 0 {
 		cfg.BackgroundFetchConfig.EmitMetricPeriodSec = defaultBgMetricEmitPeriodSec
 	}
+	return nil
 }
 
-func parseRetryableHTTPClientConfig(cfg *Config) {
+func parseRetryableHTTPClientConfig(cfg *Config) error {
 	if cfg.RetryableHTTPClientConfig.TimeoutConfig.DialTimeoutMsec == 0 {
 		cfg.RetryableHTTPClientConfig.TimeoutConfig.DialTimeoutMsec = defaultDialTimeoutMsec
 	}
@@ -256,9 +262,10 @@ func parseRetryableHTTPClientConfig(cfg *Config) {
 	if cfg.RetryableHTTPClientConfig.RetryConfig.MaxWaitMsec == 0 {
 		cfg.RetryableHTTPClientConfig.RetryConfig.MaxWaitMsec = defaultMaxWaitMsec
 	}
+	return nil
 }
 
-func parseBlobConfig(cfg *Config) {
+func parseBlobConfig(cfg *Config) error {
 	if cfg.BlobConfig.ValidInterval == 0 {
 		cfg.BlobConfig.ValidInterval = defaultValidIntervalSec
 	}
@@ -277,9 +284,10 @@ func parseBlobConfig(cfg *Config) {
 	if cfg.BlobConfig.MaxWaitMsec == 0 {
 		cfg.BlobConfig.MaxWaitMsec = cfg.RetryableHTTPClientConfig.RetryConfig.MaxWaitMsec
 	}
+	return nil
 }
 
-func parseContentStoreConfig(cfg *Config) {
+func parseContentStoreConfig(cfg *Config) error {
 	if cfg.ContentStoreConfig.Type == "" {
 		// The snapshotter's default content store is soci until we're confident in the containerd integration
 		cfg.ContentStoreConfig.Type = SociContentStoreType
@@ -288,4 +296,5 @@ func parseContentStoreConfig(cfg *Config) {
 	} else if cfg.ContentStoreConfig.Type == ContainerdContentStoreType {
 		cfg.ContentStoreConfig.ContainerdAddress = strings.TrimPrefix(cfg.ContentStoreConfig.ContainerdAddress, "unix://")
 	}
+	return nil
 }

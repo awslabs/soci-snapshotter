@@ -74,7 +74,7 @@ type Config struct {
 	// SkipCheckSnapshotterSupported is a flag to skip check for overlayfs support needed to confirm if SOCI can work
 	SkipCheckSnapshotterSupported bool `toml:"skip_check_snapshotter_supported"`
 }
-type configParser func(*Config)
+type configParser func(*Config) error
 
 var parsers = []configParser{parseRootConfig, parseServiceConfig, parseFSConfig}
 
@@ -113,11 +113,12 @@ func parseConfig(cfg *Config) {
 	}
 }
 
-func parseRootConfig(cfg *Config) {
+func parseRootConfig(cfg *Config) error {
 	if cfg.MetricsNetwork == "" {
 		cfg.MetricsNetwork = defaultMetricsNetwork
 	}
 	if cfg.MetadataStore == "" {
 		cfg.MetadataStore = defaultMetadataStore
 	}
+	return nil
 }

@@ -120,6 +120,7 @@ type SnapshotterConfig struct {
 	// minLayerSize skips remote mounting of smaller layers
 	minLayerSize                int64
 	allowInvalidMountsOnRestart bool
+	parallelPullUnpack          bool
 }
 
 // Opt is an option to configure the remote snapshotter
@@ -147,6 +148,11 @@ func AllowInvalidMountsOnRestart(config *SnapshotterConfig) error {
 	return nil
 }
 
+func ParallelPullUnpack(config *SnapshotterConfig) error {
+	config.parallelPullUnpack = true
+	return nil
+}
+
 type snapshotter struct {
 	root        string
 	ms          *storage.MetaStore
@@ -157,6 +163,7 @@ type snapshotter struct {
 	userxattr                   bool  // whether to enable "userxattr" mount option
 	minLayerSize                int64 // minimum layer size for remote mounting
 	allowInvalidMountsOnRestart bool
+	parallelPullUnpack          bool
 	idmapped                    *sync.Map
 }
 
@@ -211,6 +218,7 @@ func NewSnapshotter(ctx context.Context, root string, targetFs FileSystem, opts 
 		minLayerSize:                config.minLayerSize,
 		allowInvalidMountsOnRestart: config.allowInvalidMountsOnRestart,
 		idmapped:                    idMap,
+		parallelPullUnpack:          config.parallelPullUnpack,
 	}
 
 	if err := o.restoreRemoteSnapshot(ctx); err != nil {
@@ -379,9 +387,10 @@ func (o *snapshotter) Prepare(ctx context.Context, key, parent string, opts ...s
 	lCtx := log.WithLogger(ctx, log.G(ctx).WithField("key", key).WithField("parent", parent))
 	log.G(lCtx).Debug("preparing snapshot")
 
-	var skipLazyLoadingImage bool
+	var deferToContainerRuntime bool
 
 	// remote snapshot prepare
+	// skip if parallel pull is enabled
 	if !o.skipRemoteSnapshotPrepare(lCtx, base.Labels) {
 		err := o.prepareRemoteSnapshot(lCtx, key, base.Labels)
 		if err == nil {
@@ -404,7 +413,7 @@ func (o *snapshotter) Prepare(ctx context.Context, key, parent string, opts ...s
 		case errors.Is(err, ErrNoZtoc):
 			// no-op
 		case errors.Is(err, ErrNoIndex):
-			skipLazyLoadingImage = true
+			deferToContainerRuntime = true
 		default:
 			commonmetrics.IncOperationCount(commonmetrics.FuseMountFailureCount, digest.Digest(""))
 		}
@@ -420,7 +429,9 @@ func (o *snapshotter) Prepare(ctx context.Context, key, parent string, opts ...s
 	// If the underlying FileSystem deems that the image is unable to be lazy loaded,
 	// then we should completely fallback to the container runtime to handle
 	// pulling and unpacking all the layers in the image.
-	if skipLazyLoadingImage {
+	// The exception is if we are using parallel pull and unpack,
+	// in which case we want to handle all snapshots ourselves.
+	if deferToContainerRuntime {
 		log.G(lCtx).WithError(err).Warnf("%v; %v", ErrNoIndex, ErrDeferToContainerRuntime)
 		return mounts, nil
 	}
@@ -442,6 +453,7 @@ func (o *snapshotter) Prepare(ctx context.Context, key, parent string, opts ...s
 		// possible has done some work on this "upper" directory.
 		return nil, err
 	}
+	log.G(lCtx).WithField(remoteSnapshotLogKey, prepareFailed).WithError(err).Debug("skipped preparing remote snapshot")
 
 	// Local snapshot setup failed. Generally means something critical has gone wrong.
 	log.G(lCtx).WithError(err).Warnf("failed to prepare local snapshot; %v", ErrDeferToContainerRuntime)
@@ -450,6 +462,10 @@ func (o *snapshotter) Prepare(ctx context.Context, key, parent string, opts ...s
 }
 
 func (o *snapshotter) skipRemoteSnapshotPrepare(ctx context.Context, labels map[string]string) bool {
+	if o.parallelPullUnpack {
+		return true
+	}
+
 	if o.minLayerSize > 0 {
 		if strVal, ok := labels[source.TargetSizeLabel]; ok {
 			if intVal, err := strconv.ParseInt(strVal, 10, 64); err == nil {
