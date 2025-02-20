@@ -30,6 +30,23 @@ debug_address=""
 metadata_store="db"
 skip_check_snapshotter_supported=false
 
+[pull_modes.parallel_pull_unpack]
+enable=false
+max_concurrent_downloads=-1
+max_concurrent_downloads_per_image=3
+concurrent_download_chunk_size=""
+max_concurrent_unpacks=-1
+max_concurrent_unpacks_per_image=1
+discard_unpacked_layers=false
+
+[pull_modes.parallel_pull_unpack.decompress_streams."gzip"]
+path = "/usr/bin/gzip"
+args = ["-d", "-c"]
+
+[pull_modes.parallel_pull_unpack.decompress_streams."zstd"]
+path = "/usr/bin/zstd"
+args = ["-d", "-c"]
+
 [http]
 MaxRetries=0
 MinWaitMsec=0

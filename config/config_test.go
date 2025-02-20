@@ -39,6 +39,11 @@ func TestConfigDefaults(t *testing.T) {
 			actual:   cfg.PullModes.SOCIv2.Enable,
 		},
 		{
+			name:     "parallel pull enabled",
+			expected: DefaultParallelPullUnpackEnable,
+			actual:   cfg.PullModes.ParallelPullUnpack.Enable,
+		},
+		{
 			name:     "metrics network",
 			expected: defaultMetricsNetwork,
 			actual:   cfg.MetricsNetwork,

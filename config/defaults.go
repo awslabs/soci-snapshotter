@@ -49,6 +49,11 @@ const (
 	DefaultImageServiceAddress = "/run/containerd/containerd.sock"
 )
 
+// ParallelPullUnpack defaults
+const (
+	Unbounded = -1
+)
+
 // FSConfig defaults
 const (
 	defaultFuseTimeoutSec = 1
@@ -106,4 +111,26 @@ const (
 
 	// DefaultSOCIV2Enable is the default value for whether SOCI v2 is enabled
 	DefaultSOCIV2Enable = true
+
+	// DefaultParallelPullEnable is the default value for whether parallel pull and unpack is enabled
+	DefaultParallelPullUnpackEnable = false
+
+	// Defaults for ParallelPullUnpack.
+	// The default values should mirror default containerd values.
+
+	// defaultMaxConcurrentDownloads sets the default value for how many reads can be done over the network at a time.
+	defaultMaxConcurrentDownloads = Unbounded
+	// defaultMaxConcurrentDownloadsPerImage sets the default value for how many reads a single image can do over the network at a time.
+	// This must be less than or equal to MaxConcurrentDownloads.
+	defaultMaxConcurrentDownloadsPerImage = 3
+
+	// defaultConcurrentDownloadChunkSize sets the default value for the max size, in bytes, of downloaded content per network read.
+	// When unbounded, full layer is downloaded in one request
+	defaultConcurrentDownloadChunkSize = Unbounded
+
+	// defaultMaxConcurrentUnpacks sets the default value for the max number of layers that will be unpacked at once.
+	defaultMaxConcurrentUnpacks = Unbounded
+	// defaultMaxConcurrentUnpacks sets the default value for the max number of layers per image that will be unpacked at once.
+	// This must be less than or equal to MaxConcurrentUnpacks.
+	defaultMaxConcurrentUnpacksPerImage = 1
 )

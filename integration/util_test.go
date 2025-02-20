@@ -353,6 +353,12 @@ func withPullModes(pullModes config.PullModes) snapshotterConfigOpt {
 	}
 }
 
+func withContainerdContentStore() snapshotterConfigOpt {
+	return func(c *config.Config) {
+		c.ContentStoreConfig.Type = store.ContainerdContentStoreType
+	}
+}
+
 func getSnapshotterConfigToml(t *testing.T, opts ...snapshotterConfigOpt) string {
 	// For integ tests, we intentionally don't initialize the config to simulate
 	// a partially filled config like you might find in a real /etc/soci-snapshotter-grpc/config.toml
