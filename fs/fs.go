@@ -70,6 +70,7 @@ import (
 	"github.com/awslabs/soci-snapshotter/snapshot"
 	"github.com/awslabs/soci-snapshotter/soci"
 	"github.com/awslabs/soci-snapshotter/soci/store"
+	"github.com/containerd/containerd"
 	"github.com/containerd/containerd/mount"
 	"github.com/containerd/containerd/namespaces"
 	ctdsnapshotters "github.com/containerd/containerd/pkg/snapshotters"
@@ -230,9 +231,15 @@ func NewFilesystem(ctx context.Context, root string, cfg config.FSConfig, opts .
 			return docker.ConfigureDefaultRegistries(docker.WithPlainHTTP(docker.MatchLocalhost))(imgRefSpec.Hostname())
 		})
 	}
+
+	client, err := containerd.New(cfg.ContentStoreConfig.ContainerdAddress)
+	if err != nil {
+		return nil, store.ErrCouldNotCreateClient(cfg.ContentStoreConfig.ContainerdAddress)
+	}
 	store, err := store.NewContentStore(
 		store.WithType(cfg.ContentStoreConfig.Type),
 		store.WithContainerdAddress(cfg.ContentStoreConfig.ContainerdAddress),
+		store.WithClient(client),
 	)
 	if err != nil {
 		return nil, fmt.Errorf("cannot create content store: %w", err)
@@ -305,6 +312,7 @@ func NewFilesystem(ctx context.Context, root string, cfg config.FSConfig, opts .
 		fuseMetricsEmitWaitDuration: fuseMetricsEmitWaitDuration,
 		pr:                          pr,
 		pullModes:                   fsOpts.pullModes,
+		client:                      client,
 	}, nil
 }
 
@@ -362,6 +370,7 @@ type filesystem struct {
 	fuseMetricsEmitWaitDuration time.Duration
 	pr                          *preresolver
 	pullModes                   config.PullModes
+	client                      *containerd.Client
 }
 
 func (fs *filesystem) MountParallel(ctx context.Context, mountpoint string, labels map[string]string, mounts []mount.Mount) error {

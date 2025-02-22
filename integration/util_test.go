@@ -981,6 +981,6 @@ func FetchContentByDigest(sh *shell.Shell, contentStoreType store.ContentStoreTy
 
 func withContentStoreConfig(opts ...store.Option) snapshotterConfigOpt {
 	return func(c *config.Config) {
-		c.ServiceConfig.FSConfig.ContentStoreConfig = store.NewStoreConfig(opts...)
+		c.ServiceConfig.FSConfig.ContentStoreConfig = store.NewStoreConfig(opts...).ContentStoreConfig
 	}
 }

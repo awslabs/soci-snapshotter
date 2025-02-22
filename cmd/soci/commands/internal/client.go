@@ -34,8 +34,8 @@ package internal
 
 import (
 	gocontext "context"
-	"strings"
 
+	"github.com/awslabs/soci-snapshotter/config"
 	"github.com/containerd/containerd"
 	"github.com/containerd/containerd/namespaces"
 	"github.com/containerd/containerd/pkg/epoch"
@@ -78,7 +78,7 @@ func AppContext(context *cli.Context) (gocontext.Context, gocontext.CancelFunc) 
 // NewClient returns a new containerd client
 func NewClient(context *cli.Context, opts ...containerd.ClientOpt) (*containerd.Client, gocontext.Context, gocontext.CancelFunc, error) {
 	opts = append(opts, containerd.WithTimeout(context.GlobalDuration("timeout")))
-	address := strings.TrimPrefix(context.GlobalString("address"), "unix://")
+	address := config.TrimSocketAddress(context.GlobalString("address"))
 	client, err := containerd.New(address, opts...)
 	if err != nil {
 		return nil, nil, nil, err

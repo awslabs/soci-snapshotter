@@ -17,8 +17,6 @@
 package internal
 
 import (
-	"strings"
-
 	"github.com/awslabs/soci-snapshotter/soci/store"
 	"github.com/urfave/cli"
 )
@@ -27,6 +25,6 @@ import (
 func ContentStoreOptions(context *cli.Context) []store.Option {
 	return []store.Option{
 		store.WithType(store.ContentStoreType(context.GlobalString("content-store"))),
-		store.WithContainerdAddress(strings.TrimPrefix(context.GlobalString("address"), "unix://")),
+		store.WithContainerdAddress(context.GlobalString("address")),
 	}
 }

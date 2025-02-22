@@ -171,6 +171,10 @@ const (
 	SociContentStoreType       ContentStoreType = "soci"
 )
 
+func TrimSocketAddress(address string) string {
+	return strings.TrimPrefix(address, "unix://")
+}
+
 // ContentStoreConfig chooses and configures the content store
 type ContentStoreConfig struct {
 	Type ContentStoreType `toml:"type"`
@@ -289,12 +293,14 @@ func parseBlobConfig(cfg *Config) error {
 
 func parseContentStoreConfig(cfg *Config) error {
 	if cfg.ContentStoreConfig.Type == "" {
-		// The snapshotter's default content store is soci until we're confident in the containerd integration
+		// We are intentionally not using containerd as the default content store until we do more testing.
+		// Until we are confident, use the SOCI store instead.
 		cfg.ContentStoreConfig.Type = SociContentStoreType
-	} else if cfg.ContentStoreConfig.Type == ContainerdContentStoreType && cfg.ContentStoreConfig.ContainerdAddress == "" {
+	}
+	if cfg.ContentStoreConfig.ContainerdAddress == "" {
 		cfg.ContentStoreConfig.ContainerdAddress = defaults.DefaultAddress
-	} else if cfg.ContentStoreConfig.Type == ContainerdContentStoreType {
-		cfg.ContentStoreConfig.ContainerdAddress = strings.TrimPrefix(cfg.ContentStoreConfig.ContainerdAddress, "unix://")
+	} else {
+		cfg.ContentStoreConfig.ContainerdAddress = TrimSocketAddress(cfg.ContentStoreConfig.ContainerdAddress)
 	}
 	return nil
 }
