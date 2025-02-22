@@ -73,10 +73,26 @@ const (
 	DefaultSociContentStorePath = "/var/lib/soci-snapshotter-grpc/content"
 )
 
-func NewStoreConfig(opts ...Option) config.ContentStoreConfig {
-	storeConfig := config.ContentStoreConfig{
-		Type:              config.DefaultContentStoreType,
-		ContainerdAddress: defaults.DefaultAddress,
+func ErrUnknownContentStoreType(contentStoreType ContentStoreType) error {
+	return fmt.Errorf("unknown content store type: %s; must be one of %v",
+		contentStoreType, ContentStoreTypes())
+}
+
+func ErrCouldNotCreateClient(address string) error {
+	return fmt.Errorf("could not create containerd client at %s", address)
+}
+
+type ContentStoreConfig struct {
+	config.ContentStoreConfig
+	Client *containerd.Client
+}
+
+func NewStoreConfig(opts ...Option) ContentStoreConfig {
+	storeConfig := ContentStoreConfig{
+		ContentStoreConfig: config.ContentStoreConfig{
+			Type:              config.DefaultContentStoreType,
+			ContainerdAddress: defaults.DefaultAddress,
+		},
 	}
 	for _, o := range opts {
 		o(&storeConfig)
@@ -84,23 +100,25 @@ func NewStoreConfig(opts ...Option) config.ContentStoreConfig {
 	return storeConfig
 }
 
-type Option func(*config.ContentStoreConfig)
+type Option func(*ContentStoreConfig)
 
 func WithType(contentStoreType ContentStoreType) Option {
-	return func(sc *config.ContentStoreConfig) {
+	return func(sc *ContentStoreConfig) {
 		sc.Type = contentStoreType
 	}
 }
 
+// This func will trim the leading 'unix://' if it is provided
 func WithContainerdAddress(address string) Option {
-	return func(sc *config.ContentStoreConfig) {
-		sc.ContainerdAddress = address
+	return func(sc *ContentStoreConfig) {
+		sc.ContainerdAddress = config.TrimSocketAddress(address)
 	}
 }
 
-func ErrUnknownContentStoreType(contentStoreType ContentStoreType) error {
-	return fmt.Errorf("unknown content store type: %s; must be one of %s or %s",
-		contentStoreType, ContainerdContentStoreType, SociContentStoreType)
+func WithClient(client *containerd.Client) Option {
+	return func(sc *ContentStoreConfig) {
+		sc.Client = client
+	}
 }
 
 // CanonicalizeContentStoreType resolves the empty string to DefaultContentStoreType,
@@ -181,31 +199,31 @@ func (s *SociStore) BatchOpen(ctx context.Context) (context.Context, CleanupFunc
 }
 
 type ContainerdStore struct {
-	config.ContentStoreConfig
-	client *containerd.Client
+	ContentStoreConfig
 }
 
 // assert that ContainerdStore implements Store
 var _ Store = (*ContainerdStore)(nil)
 
-func NewContainerdStore(storeConfig config.ContentStoreConfig) (*ContainerdStore, error) {
-	client, err := containerd.New(storeConfig.ContainerdAddress)
-	if err != nil {
-		return nil, fmt.Errorf("could not connect to containerd socket for content store access: %w", err)
-	}
-
+func NewContainerdStore(storeConfig ContentStoreConfig) (*ContainerdStore, error) {
 	containerdStore := ContainerdStore{
-		client: client,
+		ContentStoreConfig: storeConfig,
 	}
 
-	containerdStore.ContentStoreConfig = storeConfig
+	if storeConfig.Client == nil {
+		client, err := containerd.New(storeConfig.ContainerdAddress)
+		if err != nil {
+			return nil, ErrCouldNotCreateClient(storeConfig.ContainerdAddress)
+		}
+		containerdStore.Client = client
+	}
 
 	return &containerdStore, nil
 }
 
 // Exists returns true iff the described content exists.
 func (s *ContainerdStore) Exists(ctx context.Context, target ocispec.Descriptor) (bool, error) {
-	cs := s.client.ContentStore()
+	cs := s.Client.ContentStore()
 	_, err := cs.Info(ctx, target.Digest)
 	if errors.Is(err, errdefs.ErrNotFound) {
 		return false, nil
@@ -223,7 +241,7 @@ type sectionReaderAt struct {
 
 // Fetch fetches the content identified by the descriptor.
 func (s *ContainerdStore) Fetch(ctx context.Context, target ocispec.Descriptor) (io.ReadCloser, error) {
-	cs := s.client.ContentStore()
+	cs := s.Client.ContentStore()
 	ra, err := cs.ReaderAt(ctx, target)
 	if err != nil {
 		return nil, err
@@ -243,7 +261,7 @@ func (s *ContainerdStore) Push(ctx context.Context, expected ocispec.Descriptor,
 		return fmt.Errorf("%s: %s: %w", expected.Digest, expected.MediaType, errdef.ErrAlreadyExists)
 	}
 
-	cs := s.client.ContentStore()
+	cs := s.Client.ContentStore()
 
 	// gRPC message size limit includes some overhead that cannot be calculated from here
 	buf := make([]byte, defaults.DefaultMaxRecvMsgSize/2)
@@ -297,7 +315,7 @@ func LabelGCRefContent(ctx context.Context, store Store, target ocispec.Descript
 
 // Label creates or updates the named label with the given value.
 func (s *ContainerdStore) Label(ctx context.Context, target ocispec.Descriptor, name string, value string) error {
-	cs := s.client.ContentStore()
+	cs := s.Client.ContentStore()
 	info := content.Info{
 		Digest: target.Digest,
 		Labels: map[string]string{name: value},
@@ -312,14 +330,14 @@ func (s *ContainerdStore) Label(ctx context.Context, target ocispec.Descriptor, 
 
 // Delete removes the described content.
 func (s *ContainerdStore) Delete(ctx context.Context, dgst digest.Digest) error {
-	cs := s.client.ContentStore()
+	cs := s.Client.ContentStore()
 	return cs.Delete(ctx, dgst)
 }
 
 // BatchOpen creates a lease, ensuring that no content created within the batch will be garbage collected.
 // It returns a cleanup function that ends the lease, which should be called after content is created and labeled.
 func (s *ContainerdStore) BatchOpen(ctx context.Context) (context.Context, CleanupFunc, error) {
-	ctx, leaseDone, err := s.client.WithLease(ctx)
+	ctx, leaseDone, err := s.Client.WithLease(ctx)
 	if err != nil {
 		return ctx, NopCleanup, fmt.Errorf("unable to open batch: %w", err)
 	}

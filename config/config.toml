@@ -100,7 +100,7 @@ emit_metric_period_sec=0
 
 [content_store]
 type="" # will set to 'soci' by default
-# Socket address for containerd. Only applicable using containerd content store.
+# Socket address for containerd.
 # Defaults to '/run/containerd/containerd.sock'
 containerd_address=""
 namespace="" # will set to 'default' by default
