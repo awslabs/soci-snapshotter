@@ -1,6 +1,8 @@
 module github.com/awslabs/soci-snapshotter
 
-go 1.22
+go 1.23.0
+
+toolchain go1.23.6
 
 require (
 	github.com/containerd/containerd v1.7.25
