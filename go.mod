@@ -1,6 +1,8 @@
 module github.com/awslabs/soci-snapshotter
 
-go 1.22
+go 1.23.0
+
+toolchain go1.23.6
 
 require (
 	github.com/containerd/containerd v1.7.25
@@ -97,7 +99,7 @@ require (
 	go.opentelemetry.io/otel/metric v1.21.0 // indirect
 	go.opentelemetry.io/otel/trace v1.21.0 // indirect
 	golang.org/x/net v0.33.0 // indirect
-	golang.org/x/oauth2 v0.21.0 // indirect
+	golang.org/x/oauth2 v0.27.0 // indirect
 	golang.org/x/term v0.28.0 // indirect
 	golang.org/x/text v0.21.0 // indirect
 	google.golang.org/genproto v0.0.0-20231211222908-989df2bf70f3 // indirect
