@@ -13,7 +13,7 @@
 #   limitations under the License.
 
 ARG CONTAINERD_VERSION=1.6.36
-ARG RUNC_VERSION=1.2.1
+ARG RUNC_VERSION=1.2.5
 ARG NERDCTL_VERSION=1.7.1
 
 FROM public.ecr.aws/docker/library/registry:3.0.0-alpha.1 AS registry
