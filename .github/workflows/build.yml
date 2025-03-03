@@ -2,13 +2,13 @@ name: Build
 
 on:
   push:
-    branches: ['main', 'release/**']
+    branches: ['main', 'release/**', 'go-1.23.x']
     paths:
       - '**'
       - '!docs/**' # ignore docs changes
       - '!**.md' # ignore markdown changes
   pull_request:
-    branches: ['main', 'release/**']
+    branches: ['main', 'release/**', 'go-1.23.x']
     paths:
       - '.github/workflows/build.yml'
       - '**.go'
