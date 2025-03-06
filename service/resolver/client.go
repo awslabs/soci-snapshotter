@@ -188,19 +188,7 @@ func newDockerAuthHandler(authorizer docker.Authorizer) socihttp.AuthHandler {
 func (d *dockerAuthHandler) HandleChallenge(ctx context.Context, resp *http.Response) error {
 	log.G(ctx).Infof("Received status code: %v. Authorizing...", resp.Status)
 	// Prepare authorization for the target host using docker.Authorizer.
-	// The docker authorizer only refreshes OAuth tokens after two
-	// successive 401 errors for the same URL. Rather than issue the same
-	// request multiple times to tickle the token-refreshing logic, just
-	// provide the same response twice to trick it into refreshing the
-	// cached OAuth token. Call AddResponses() twice, first to invalidate
-	// the existing token (with two responses), second to fetch a new one
-	// (with one response).
-	// TODO: fix after one of these two PRs are merged and available:
-	//     https://github.com/containerd/containerd/pull/8735
-	//     https://github.com/containerd/containerd/pull/8388
-	if err := d.authorizer.AddResponses(ctx, []*http.Response{resp, resp}); err != nil {
-		return err
-	}
+	// The authorizer should auto-refresh any expired tokens.
 	return d.authorizer.AddResponses(ctx, []*http.Response{resp})
 
 }
