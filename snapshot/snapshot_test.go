@@ -431,6 +431,10 @@ func (fs *bindFs) IDMapMountLocal(ctx context.Context, mountpoint, activeLayerID
 	return mountpoint, nil
 }
 
+func (fs *bindFs) CleanImage(ctx context.Context, digest string) error {
+	return nil
+}
+
 func dummyFileSystem() FileSystem { return &dummyFs{} }
 
 type dummyFs struct{}
@@ -461,6 +465,10 @@ func (fs *dummyFs) IDMapMount(ctx context.Context, mountpoint, activeLayerID str
 
 func (fs *dummyFs) IDMapMountLocal(ctx context.Context, mountpoint, activeLayerID string, idmap idtools.IDMap) (string, error) {
 	return "", fmt.Errorf("dummy")
+}
+
+func (fs *dummyFs) CleanImage(ctx context.Context, digest string) error {
+	return nil
 }
 
 // =============================================================================

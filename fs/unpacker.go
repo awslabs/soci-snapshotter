@@ -90,15 +90,14 @@ func (lu *layerUnpacker) Unpack(ctx context.Context, desc ocispec.Descriptor, mo
 		}
 	}
 	defer rc.Close()
-	parents, err := getLayerParents(mounts[0].Options)
-	if err != nil {
-		return fmt.Errorf("cannot get layer parents: %w", err)
-	}
+
 	opts := []archive.ApplyOpt{
 		archive.WithConvertWhiteout(archive.OverlayConvertWhiteout),
 	}
-	if len(parents) > 0 {
-		opts = append(opts, archive.WithParents(parents))
+	if len(mounts) > 0 {
+		if parents := getLayerParents(mounts[0].Options); len(parents) > 0 {
+			opts = append(opts, archive.WithParents(parents))
+		}
 	}
 	_, err = lu.archive.Apply(ctx, mountpoint, rc, opts...)
 	if err != nil {
@@ -108,7 +107,7 @@ func (lu *layerUnpacker) Unpack(ctx context.Context, desc ocispec.Descriptor, mo
 	return nil
 }
 
-func getLayerParents(options []string) (lower []string, err error) {
+func getLayerParents(options []string) (lower []string) {
 	const lowerdirPrefix = "lowerdir="
 
 	for _, o := range options {

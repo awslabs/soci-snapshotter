@@ -115,6 +115,7 @@ type FileSystem interface {
 	MountParallel(ctx context.Context, mountpoint string, labels map[string]string, mounts []mount.Mount) error
 	IDMapMount(ctx context.Context, mountpoint, activeLayerID string, idmap idtools.IDMap) (string, error)
 	IDMapMountLocal(ctx context.Context, mountpoint, activeLayerID string, idmap idtools.IDMap) (string, error)
+	CleanImage(ctx context.Context, digest string) error
 }
 
 // SnapshotterConfig is used to configure the remote snapshotter instance
@@ -576,6 +577,10 @@ func (o *snapshotter) Remove(ctx context.Context, key string) (err error) {
 		}
 	}()
 
+	_, sn, _, err := storage.GetInfo(ctx, key)
+	if err != nil {
+		return fmt.Errorf("failed to get info when removing: %w", err)
+	}
 	_, _, err = storage.Remove(ctx, key)
 	if err != nil {
 		return fmt.Errorf("failed to remove: %w", err)
@@ -604,7 +609,34 @@ func (o *snapshotter) Remove(ctx context.Context, key string) (err error) {
 
 	}
 
-	return t.Commit()
+	err = t.Commit()
+	if err == nil {
+		// If image is successfully removed, we also want to cancel
+		// any in-flight operations associated with the image.
+		// If a snapshot is being removed for a particular image,
+		// the image pull has already failed (either before this Remove call
+		// or afterwards, as it will not run without this layer), so we
+		// can stop all in-flight operations for that particular image.
+		// If a layer is shared by multiple images, Remove will fail anyway,
+		// so we should only do it when an image is successfully removed.
+		// Thus, this is a safe operation, as it ensures we do not leak jobs
+		// unexpectedly, as any image associated with this layer will
+		// fail regardless.
+		//
+		// This also mitigates a ParallelPull edge case where an image pull operation
+		// is in flight, a Prepare call for one layer finishes, an image pull request
+		// gets cancelled before the next layer starts its own Prepare call, and
+		// the requestor removes all successfully pulled layers on cancellation.
+		// In this case, in-flight operations will not get cancelled, so removing
+		// just the layer will not allow it to be requeued. So, we cancel all
+		// in-flight operations for an image when a layer is being removed.
+		dgst := sn.Labels[ctdsnapshotters.TargetManifestDigestLabel]
+		err = o.fs.CleanImage(ctx, dgst)
+		if err != nil {
+			err = fmt.Errorf("error cleaning image operations: %w", err)
+		}
+	}
+	return err
 }
 
 // Walk the snapshots.
