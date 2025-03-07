@@ -31,7 +31,6 @@ import (
 	"github.com/opencontainers/go-digest"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"oras.land/oras-go/v2/content/oci"
-	"oras.land/oras-go/v2/errdef"
 )
 
 // BasicStore describes the functionality common to oras-go oci.Store, oras-go memory.Store, and containerd ContentStore.
@@ -257,20 +256,19 @@ func (s *ContainerdStore) Push(ctx context.Context, expected ocispec.Descriptor,
 		return err
 	}
 	if exists {
-		// error format based on oras.land/oras-go/v2/content/oci.Storage.Push()
-		return fmt.Errorf("%s: %s: %w", expected.Digest, expected.MediaType, errdef.ErrAlreadyExists)
+		// To be consistent with content.Copy, return nil if content already exists.
+		return nil
 	}
 
-	cs := s.Client.ContentStore()
-
-	// gRPC message size limit includes some overhead that cannot be calculated from here
-	buf := make([]byte, defaults.DefaultMaxRecvMsgSize/2)
-	totalWritten := 0
-	writer, err := cs.Writer(ctx, content.WithRef(expected.Digest.String()))
+	writer, err := content.OpenWriter(ctx, s.Client.ContentStore(), content.WithRef(expected.Digest.String()))
 	if err != nil {
 		return err
 	}
 	defer writer.Close()
+
+	// gRPC message size limit includes some overhead that cannot be calculated from here
+	buf := make([]byte, defaults.DefaultMaxRecvMsgSize/2)
+	totalWritten := 0
 
 	for {
 		n, err := reader.Read(buf)

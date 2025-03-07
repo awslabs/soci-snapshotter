@@ -30,6 +30,7 @@ import (
 	"github.com/awslabs/soci-snapshotter/soci"
 	"github.com/awslabs/soci-snapshotter/soci/store"
 	"github.com/awslabs/soci-snapshotter/util/ioutils"
+	"github.com/containerd/containerd/errdefs"
 	"github.com/containerd/containerd/reference"
 	"github.com/containerd/containerd/remotes/docker"
 	"github.com/containerd/log"
@@ -202,7 +203,7 @@ func (f *artifactFetcher) resolve(ctx context.Context, desc ocispec.Descriptor) 
 // Store takes in an descriptor and io.Reader and stores it in the local store.
 func (f *artifactFetcher) Store(ctx context.Context, desc ocispec.Descriptor, reader io.Reader) error {
 	err := f.localStore.Push(ctx, desc, reader)
-	if err != nil {
+	if err != nil && !errdefs.IsAlreadyExists(err) && !errors.Is(err, errdef.ErrAlreadyExists) {
 		return fmt.Errorf("unable to push to local store: %w", err)
 	}
 	return nil
