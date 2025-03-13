@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1741899009439,
+  "lastUpdate": 1741899085229,
   "repoUrl": "https://github.com/awslabs/soci-snapshotter",
   "entries": {
     "Soci Benchmark": [
@@ -10410,6 +10410,48 @@ window.BENCHMARK_DATA = {
           {
             "name": "SociFullECR-public-node-pullTaskDuration",
             "value": 1.8835,
+            "unit": "Seconds",
+            "extra": "P90"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "shubhum@amazon.com",
+            "name": "Shubharanshu Mahapatra",
+            "username": "Shubhranshu153"
+          },
+          "committer": {
+            "email": "47723536+Shubhranshu153@users.noreply.github.com",
+            "name": "Subhransu",
+            "username": "Shubhranshu153"
+          },
+          "distinct": true,
+          "id": "71581c2687880181a5de40fdaae9bcc3f6a6e244",
+          "message": "fix: fuse file seek\n\nFind file for some containers were failing while launching containers with SOCI\n\nWe checked this was introduced via the go-fuse update to remove seek in dirstreams from 2.5.1 to 2.7.2\nin the commit hanwen/go-fuse@e885cea,\n\nThis was subsequently fixed via re-introducing the seek functionality in the pr: hanwen/go-fuse@d6170d0\n\nSigned-off-by: Shubharanshu Mahapatra <shubhum@amazon.com>",
+          "timestamp": "2025-03-13T13:43:26-07:00",
+          "tree_id": "e1cb87797312d0e7ad44875206560f3ed9a6c547",
+          "url": "https://github.com/awslabs/soci-snapshotter/commit/71581c2687880181a5de40fdaae9bcc3f6a6e244"
+        },
+        "date": 1741899082128,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "SociFullECR-public-node-lazyTaskDuration",
+            "value": 1.4245,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-node-localTaskDuration",
+            "value": 0.4535,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-node-pullTaskDuration",
+            "value": 1.415,
             "unit": "Seconds",
             "extra": "P90"
           }
