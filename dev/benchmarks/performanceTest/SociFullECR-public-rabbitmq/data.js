@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1741837233135,
+  "lastUpdate": 1741837309769,
   "repoUrl": "https://github.com/awslabs/soci-snapshotter",
   "entries": {
     "Soci Benchmark": [
@@ -10201,6 +10201,48 @@ window.BENCHMARK_DATA = {
           {
             "name": "SociFullECR-public-rabbitmq-pullTaskDuration",
             "value": 1.158,
+            "unit": "Seconds",
+            "extra": "P90"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "davbson@amazon.com",
+            "name": "David Son",
+            "username": "sondavidb"
+          },
+          "committer": {
+            "email": "55906459+austinvazquez@users.noreply.github.com",
+            "name": "Austin Vazquez",
+            "username": "austinvazquez"
+          },
+          "distinct": true,
+          "id": "f397d107aeb778b9bfdb7def5dfdd1c47609c59d",
+          "message": "Properly refresh expired tokens\n\nAs issue 8735 in containerd has been fixed, we can remove this\nworkaround to force credential refresh.\n\nFunnily enough, this logic was actually broken by another bugfix in\ncontainerd (issue 9274), so we're conveniently killing two birds with\none stone here :)\n\nSigned-off-by: David Son <davbson@amazon.com>",
+          "timestamp": "2025-03-12T22:34:13-05:00",
+          "tree_id": "e2e5cd1b23a4ce2114f8d24c5a8e16aceccaff80",
+          "url": "https://github.com/awslabs/soci-snapshotter/commit/f397d107aeb778b9bfdb7def5dfdd1c47609c59d"
+        },
+        "date": 1741837305982,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "SociFullECR-public-rabbitmq-lazyTaskDuration",
+            "value": 10.027000000000001,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-rabbitmq-localTaskDuration",
+            "value": 8.5835,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-rabbitmq-pullTaskDuration",
+            "value": 0.978,
             "unit": "Seconds",
             "extra": "P90"
           }
