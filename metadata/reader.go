@@ -50,6 +50,7 @@ import (
 	"github.com/awslabs/soci-snapshotter/ztoc/compression"
 	"github.com/rs/xid"
 	bolt "go.etcd.io/bbolt"
+	errbbolt "go.etcd.io/bbolt/errors"
 	"golang.org/x/sync/errgroup"
 )
 
@@ -111,7 +112,7 @@ func (r *reader) init(toc ztoc.TOC, rOpts Options) (retErr error) {
 	for i := 0; i < 100; i++ {
 		fsID := xid.New().String()
 		if err := r.initRootNode(fsID); err != nil {
-			if errors.Is(err, bolt.ErrBucketExists) {
+			if errors.Is(err, errbbolt.ErrBucketExists) {
 				continue // try with another id
 			}
 			return fmt.Errorf("failed to initialize root node %q: %w", fsID, err)
