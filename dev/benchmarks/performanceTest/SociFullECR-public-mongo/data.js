@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1738628539866,
+  "lastUpdate": 1741837233872,
   "repoUrl": "https://github.com/awslabs/soci-snapshotter",
   "entries": {
     "Soci Benchmark": [
@@ -10282,6 +10282,48 @@ window.BENCHMARK_DATA = {
           {
             "name": "SociFullECR-public-mongo-pullTaskDuration",
             "value": 1.717,
+            "unit": "Seconds",
+            "extra": "P90"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "macedonv@amazon.com",
+            "name": "Austin Vazquez",
+            "username": "austinvazquez"
+          },
+          "committer": {
+            "email": "55906459+austinvazquez@users.noreply.github.com",
+            "name": "Austin Vazquez",
+            "username": "austinvazquez"
+          },
+          "distinct": true,
+          "id": "033739819b123aaec1761c793aa8f71a4e9b5ff7",
+          "message": "Update runc 1.2.5 in CI\n\nSigned-off-by: Austin Vazquez <macedonv@amazon.com>",
+          "timestamp": "2025-03-12T22:32:10-05:00",
+          "tree_id": "d8dd83646f49f2e7c4d4aadb54ff57d7387f6654",
+          "url": "https://github.com/awslabs/soci-snapshotter/commit/033739819b123aaec1761c793aa8f71a4e9b5ff7"
+        },
+        "date": 1741837232540,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "SociFullECR-public-mongo-lazyTaskDuration",
+            "value": 2.0515,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-mongo-localTaskDuration",
+            "value": 0.3175,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-mongo-pullTaskDuration",
+            "value": 1.0305,
             "unit": "Seconds",
             "extra": "P90"
           }
