@@ -1,6 +1,6 @@
 module github.com/awslabs/soci-snapshotter/cmd
 
-go 1.22
+go 1.23.0
 
 require (
 	github.com/awslabs/soci-snapshotter v0.0.0-local
