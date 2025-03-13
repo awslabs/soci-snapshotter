@@ -15,7 +15,7 @@ require (
 	github.com/google/flatbuffers v25.1.24+incompatible
 	github.com/google/go-cmp v0.6.0
 	github.com/google/uuid v1.6.0
-	github.com/hanwen/go-fuse/v2 v2.7.2
+	github.com/hanwen/go-fuse/v2 v2.7.3-0.20250115180623-d6170d09d743
 	github.com/hashicorp/go-retryablehttp v0.7.7
 	github.com/klauspost/compress v1.17.11
 	github.com/moby/sys/mountinfo v0.7.2
