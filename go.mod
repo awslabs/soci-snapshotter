@@ -2,6 +2,8 @@ module github.com/awslabs/soci-snapshotter
 
 go 1.23.0
 
+toolchain go1.24.1
+
 require (
 	github.com/containerd/containerd v1.7.26
 	github.com/containerd/continuity v0.4.5
@@ -32,7 +34,7 @@ require (
 	golang.org/x/crypto v0.36.0
 	golang.org/x/sync v0.12.0
 	golang.org/x/sys v0.31.0
-	golang.org/x/time v0.9.0
+	golang.org/x/time v0.11.0
 	google.golang.org/grpc v1.59.0
 	k8s.io/api v0.26.3
 	k8s.io/apimachinery v0.26.3
