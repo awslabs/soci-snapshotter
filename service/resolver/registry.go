@@ -121,7 +121,7 @@ func (rm *RegistryManager) AsRegistryHosts() RegistryHosts {
 				if err != nil {
 					return nil, err
 				}
-				scheme := defaultScheme(host)
+				scheme := DefaultScheme(host)
 				if mirror.Insecure {
 					scheme = "http"
 				}
@@ -162,7 +162,7 @@ func (rm *RegistryManager) AsRegistryHosts() RegistryHosts {
 		if err != nil {
 			return nil, err
 		}
-		scheme := defaultScheme(host)
+		scheme := DefaultScheme(host)
 		registryHosts = append(registryHosts, docker.RegistryHost{
 			Client:       authClient.StandardClient(),
 			Host:         host,
@@ -195,11 +195,11 @@ func multiCredsFuncs(imgRefSpec reference.Spec, credsFuncs ...Credential) func(s
 	}
 }
 
-// defaultScheme returns the default scheme for a registry host.
+// DefaultScheme returns the default scheme for a registry host.
 //
 // Copied over from: https://github.com/containerd/containerd/blob/a901236bf00a6d0ef1fe299c9e5ae72a1dd67869/pkg/cri/server/images/image_pull.go#L474
 // Original Copyright the containerd Authors. Licensed under the Apache License, Version 2.0 (the "License").
-func defaultScheme(host string) string {
+func DefaultScheme(host string) string {
 	if docker.IsLocalhost(host) {
 		return "http"
 	}
