@@ -22,9 +22,11 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"mime"
 	"net/http"
 	"strconv"
 
+	sociremote "github.com/awslabs/soci-snapshotter/fs/remote"
 	"github.com/awslabs/soci-snapshotter/soci"
 	"github.com/awslabs/soci-snapshotter/soci/store"
 	"github.com/awslabs/soci-snapshotter/util/ioutils"
@@ -35,6 +37,7 @@ import (
 	"golang.org/x/sync/errgroup"
 	"oras.land/oras-go/v2/content"
 	"oras.land/oras-go/v2/errdef"
+	"oras.land/oras-go/v2/registry"
 	"oras.land/oras-go/v2/registry/remote"
 )
 
@@ -66,6 +69,70 @@ func newArtifactFetcher(refspec reference.Spec, localStore store.BasicStore, rem
 		remoteStore: remoteStore,
 		refspec:     refspec,
 	}, nil
+}
+
+// This is a wrapper for the ORAS remote repository.
+// We only need this to overwrite the Resolve call.
+// By default ORAS will attempt to resolve manifests,
+// so this allows us to resolve layers instead.
+// However, ORAS uses a HEAD request to get layer info,
+// which is not allowed in some repos, so we also
+// add a manual retry with a GET call should we
+// get a 401 or 403 error.
+type orasBlobStore struct {
+	*remote.Repository
+}
+
+func newRemoteBlobStore(r *remote.Repository) *orasBlobStore {
+	return &orasBlobStore{r}
+}
+
+// Logic mostly taken from oras-go. Try to resolve with a HEAD, then a GET request.
+// https://github.com/oras-project/oras-go/blob/d51a392ff5432a9090c64ffec6ca6a8690b55e18/registry/remote/repository.go#L944
+func (r *orasBlobStore) Resolve(ctx context.Context, reference string) (ocispec.Descriptor, error) {
+	ref, err := registry.ParseReference(reference)
+	if err != nil {
+		return ocispec.Descriptor{}, err
+	}
+	refDigest, err := ref.Digest()
+	if err != nil {
+		return ocispec.Descriptor{}, err
+	}
+
+	tr := &clientWrapper{r.Client}
+	buildScheme := "https"
+	url := fmt.Sprintf("%s://%s/v2/%s/blobs/%s", buildScheme, ref.Host(), ref.Repository, ref.Reference)
+	resp, err := sociremote.DoHeadRequest(ctx, url, tr)
+	if err != nil {
+		return ocispec.Descriptor{}, err
+	}
+
+	// Construct the descriptor
+	mediaType, _, _ := mime.ParseMediaType(resp.Header.Get("Content-Type"))
+	if mediaType == "" {
+		mediaType = "application/octet-stream"
+	}
+
+	size, err := sociremote.ParseSize(resp)
+	if err != nil {
+		return ocispec.Descriptor{}, nil
+	}
+
+	return ocispec.Descriptor{
+		MediaType: mediaType,
+		Digest:    refDigest,
+		Size:      size,
+	}, nil
+}
+
+// This wrapper is to allow a Client to implement the http.RounTripper interface
+// by calling Client.Do() in place of RoundTrip.
+type clientWrapper struct {
+	remote.Client
+}
+
+func (c *clientWrapper) RoundTrip(req *http.Request) (*http.Response, error) {
+	return c.Client.Do(req)
 }
 
 func newRemoteStore(refspec reference.Spec, client *http.Client) (*remote.Repository, error) {
