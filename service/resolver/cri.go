@@ -276,7 +276,7 @@ func addDefaultScheme(endpoint string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	return fmt.Sprintf("%s://%s", defaultScheme(u.Host), endpoint), nil
+	return fmt.Sprintf("%s://%s", DefaultScheme(u.Host), endpoint), nil
 }
 
 // registryEndpoints returns endpoints for a given host.
@@ -313,7 +313,7 @@ func registryEndpoints(config Registry, host string) ([]string, error) {
 			return endpoints, nil
 		}
 	}
-	return append(endpoints, defaultScheme(defaultHost)+"://"+defaultHost), nil
+	return append(endpoints, DefaultScheme(defaultHost)+"://"+defaultHost), nil
 }
 
 // ParseAlphaAuth parses AuthConfig and returns username and password/secret required by containerd.

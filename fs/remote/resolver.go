@@ -63,6 +63,7 @@ import (
 	"github.com/containerd/log"
 	"github.com/opencontainers/go-digest"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
+	"oras.land/oras-go/v2/registry"
 )
 
 type fetcher interface {
@@ -450,46 +451,51 @@ func redirect(ctx context.Context, blobURL string, tr http.RoundTripper) (string
 	return "", fmt.Errorf("%w on redirect %v", ErrUnexpectedStatusCode, res.StatusCode)
 }
 
+func CraftBlobURL(reference string, ref registry.Reference) string {
+	return fmt.Sprintf("%s://%s/v2/%s/blobs/%s", resolver.DefaultScheme(reference), ref.Host(), ref.Repository, ref.Reference)
+}
+
+func GetHeader(ctx context.Context, realURL string, rt http.RoundTripper) (*http.Response, error) {
+	statusCodes := []int{0, 0}
+
+	// Some repos do not allow us to make HEAD calls (e.g.
+	// ECR Public does not allow HEAD calls with default credentials),
+	// so try twice — once with HEAD, once with GET.
+	methods := []string{http.MethodHead, http.MethodGet}
+	for i, method := range methods {
+		req, err := http.NewRequestWithContext(ctx, method, realURL, nil)
+		if err != nil {
+			return nil, err
+		}
+		if method == http.MethodGet {
+			req.Header.Set("Range", "bytes=0-1")
+		}
+
+		resp, err := rt.RoundTrip(req)
+		if err != nil {
+			return nil, err
+		}
+		socihttp.Drain(resp.Body)
+
+		statusCodes[i] = resp.StatusCode
+		if resp.StatusCode == http.StatusOK || resp.StatusCode == http.StatusPartialContent {
+			return resp, nil
+		}
+	}
+
+	return nil, fmt.Errorf("failed to get header with code (HEAD=%v, GET=%v)",
+		statusCodes[0], statusCodes[1])
+}
+
 // getLayerSize gets the size of a layer by sending a request to the registry
 // and examining the Content-Length or Content-Range headers.
 func getLayerSize(ctx context.Context, hf *httpFetcher) (int64, error) {
-	req, err := http.NewRequestWithContext(ctx, "HEAD", hf.realURL, nil)
-	if err != nil {
-		return 0, err
-	}
-	res, err := hf.roundTripper.RoundTrip(req)
-	if err != nil {
-		return 0, err
-	}
-	defer res.Body.Close()
-	if res.StatusCode == http.StatusOK {
-		return strconv.ParseInt(res.Header.Get("Content-Length"), 10, 64)
-	}
-	headStatusCode := res.StatusCode
-
-	// Failed to do HEAD request. Fall back to GET.
-	// ghcr.io (https://github-production-container-registry.s3.amazonaws.com) doesn't allow
-	// HEAD request (2020).
-	req, err = http.NewRequestWithContext(ctx, "GET", hf.realURL, nil)
-	if err != nil {
-		return 0, err
-	}
-	req.Header.Set("Range", "bytes=0-1")
-	res, err = hf.roundTripper.RoundTrip(req)
+	resp, err := GetHeader(ctx, hf.realURL, hf.roundTripper)
 	if err != nil {
 		return 0, fmt.Errorf("%w: %w", ErrRequestFailed, err)
 	}
-	defer socihttp.Drain(res.Body)
 
-	if res.StatusCode == http.StatusOK {
-		return strconv.ParseInt(res.Header.Get("Content-Length"), 10, 64)
-	} else if res.StatusCode == http.StatusPartialContent {
-		_, size, err := parseRange(res.Header.Get("Content-Range"))
-		return size, err
-	}
-
-	return 0, fmt.Errorf("failed to get size with code (HEAD=%v, GET=%v)",
-		headStatusCode, res.StatusCode)
+	return ParseSize(resp)
 }
 
 type multipartReadCloser interface {
@@ -542,6 +548,17 @@ func (sr *multipartReader) Next() (region, io.Reader, error) {
 		return region{}, nil, fmt.Errorf("%w: %w", ErrCannotParseContentRange, err)
 	}
 	return reg, p, nil
+}
+
+func ParseSize(resp *http.Response) (int64, error) {
+	if resp.StatusCode == http.StatusOK {
+		return strconv.ParseInt(resp.Header.Get("Content-Length"), 10, 64)
+	} else if resp.StatusCode == http.StatusPartialContent {
+		_, size, err := parseRange(resp.Header.Get("Content-Range"))
+		return size, err
+	}
+
+	return 0, fmt.Errorf("cannot get size with status code %d", resp.StatusCode)
 }
 
 func parseRange(header string) (region, int64, error) {
