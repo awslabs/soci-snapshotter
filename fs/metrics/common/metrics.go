@@ -110,6 +110,10 @@ const (
 	// Note that a layer not having a ztoc is NOT classified as an error, even though `fs.Mount` returns an error in that case.
 	FuseMountFailureCount = "fuse_mount_failure_count"
 
+	// Number of times that local mounts fail to be created.
+	// This excludes the use case where we defer to container runtime early in the case of no ztoc.
+	LocalMountFailureCount = "local_mount_failure_count"
+
 	// Number of errors of span fetch by background fetcher
 	BackgroundSpanFetchFailureCount = "background_span_fetch_failure_count"
 
