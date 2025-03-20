@@ -435,6 +435,7 @@ func (o *snapshotter) Prepare(ctx context.Context, key, parent string, opts ...s
 
 	// Local snapshot setup failed. Generally means something critical has gone wrong.
 	log.G(lCtx).WithError(err).Warnf("failed to prepare local snapshot; %v", ErrDeferToContainerRuntime)
+	commonmetrics.IncOperationCount(commonmetrics.LocalMountFailureCount, digest.Digest(""))
 	return mounts, nil
 }
 
