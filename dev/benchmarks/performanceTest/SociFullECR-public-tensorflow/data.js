@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1742250274046,
+  "lastUpdate": 1742583392526,
   "repoUrl": "https://github.com/awslabs/soci-snapshotter",
   "entries": {
     "Soci Benchmark": [
@@ -10700,6 +10700,48 @@ window.BENCHMARK_DATA = {
           {
             "name": "SociFullECR-public-tensorflow-pullTaskDuration",
             "value": 1.6469999999999998,
+            "unit": "Seconds",
+            "extra": "P90"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "davbson@amazon.com",
+            "name": "David Son",
+            "username": "sondavidb"
+          },
+          "committer": {
+            "email": "55555210+sondavidb@users.noreply.github.com",
+            "name": "David Son",
+            "username": "sondavidb"
+          },
+          "distinct": true,
+          "id": "170d5232609c0094570fea754b05ce3283f5fefb",
+          "message": "Add metric for failing to prepare local snapshot\n\nSigned-off-by: David Son <davbson@amazon.com>",
+          "timestamp": "2025-03-21T11:48:41-07:00",
+          "tree_id": "34cb9e8e4691c3d3110a6cfb6d8802ea6a4d9419",
+          "url": "https://github.com/awslabs/soci-snapshotter/commit/170d5232609c0094570fea754b05ce3283f5fefb"
+        },
+        "date": 1742583386638,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "SociFullECR-public-tensorflow-lazyTaskDuration",
+            "value": 9.199,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-tensorflow-localTaskDuration",
+            "value": 2.548,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-tensorflow-pullTaskDuration",
+            "value": 1.9585,
             "unit": "Seconds",
             "extra": "P90"
           }
