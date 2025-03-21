@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1742250272132,
+  "lastUpdate": 1742583386402,
   "repoUrl": "https://github.com/awslabs/soci-snapshotter",
   "entries": {
     "Soci Benchmark": [
@@ -10700,6 +10700,48 @@ window.BENCHMARK_DATA = {
           {
             "name": "SociFullECR-public-redis-pullTaskDuration",
             "value": 1.143,
+            "unit": "Seconds",
+            "extra": "P90"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "davbson@amazon.com",
+            "name": "David Son",
+            "username": "sondavidb"
+          },
+          "committer": {
+            "email": "55555210+sondavidb@users.noreply.github.com",
+            "name": "David Son",
+            "username": "sondavidb"
+          },
+          "distinct": true,
+          "id": "170d5232609c0094570fea754b05ce3283f5fefb",
+          "message": "Add metric for failing to prepare local snapshot\n\nSigned-off-by: David Son <davbson@amazon.com>",
+          "timestamp": "2025-03-21T11:48:41-07:00",
+          "tree_id": "34cb9e8e4691c3d3110a6cfb6d8802ea6a4d9419",
+          "url": "https://github.com/awslabs/soci-snapshotter/commit/170d5232609c0094570fea754b05ce3283f5fefb"
+        },
+        "date": 1742583385075,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "SociFullECR-public-redis-lazyTaskDuration",
+            "value": 0.5465,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-redis-localTaskDuration",
+            "value": 0.0235,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-redis-pullTaskDuration",
+            "value": 1.2835,
             "unit": "Seconds",
             "extra": "P90"
           }
