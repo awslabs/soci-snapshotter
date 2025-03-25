@@ -9,7 +9,7 @@ require (
 	github.com/containerd/log v0.1.0
 	github.com/containerd/platforms v0.2.1
 	github.com/distribution/reference v0.6.0
-	github.com/docker/cli v28.0.1+incompatible
+	github.com/docker/cli v28.0.4+incompatible
 	github.com/docker/go-metrics v0.0.1
 	github.com/golang/groupcache v0.0.0-20241129210726-2c02b8208cf8
 	github.com/google/flatbuffers v25.2.10+incompatible
