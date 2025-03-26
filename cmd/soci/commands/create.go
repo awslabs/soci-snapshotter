@@ -115,21 +115,22 @@ var CreateCommand = cli.Command{
 			return err
 		}
 
-		builderOpts := []soci.BuildOption{
+		builderOpts := []soci.BuilderOption{
 			soci.WithMinLayerSize(minLayerSize),
 			soci.WithSpanSize(spanSize),
 			soci.WithBuildToolIdentifier(buildToolIdentifier),
 			soci.WithOptimizations(optimizations),
+			soci.WithArtifactsDb(artifactsDb),
+		}
+
+		builder, err := soci.NewIndexBuilder(cs, blobStore, builderOpts...)
+
+		if err != nil {
+			return err
 		}
 
 		for _, plat := range ps {
-			builder, err := soci.NewIndexBuilder(cs, blobStore, artifactsDb, append(builderOpts, soci.WithPlatform(plat))...)
-
-			if err != nil {
-				return err
-			}
-
-			_, err = builder.Build(ctx, srcImg)
+			_, err = builder.Build(ctx, srcImg, soci.WithPlatform(plat))
 			if err != nil {
 				return err
 			}
