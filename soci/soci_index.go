@@ -209,16 +209,15 @@ func GetIndexDescriptorCollection(ctx context.Context, cs content.Store, artifac
 	return descriptors, indexDesc, nil
 }
 
-type buildConfig struct {
+type builderConfig struct {
 	spanSize            int64
 	minLayerSize        int64
 	buildToolIdentifier string
 	artifactsDb         *ArtifactsDb
-	platform            ocispec.Platform
 	optimizations       []Optimization
 }
 
-func (b *buildConfig) hasOptimization(o Optimization) bool {
+func (b *builderConfig) hasOptimization(o Optimization) bool {
 	for _, optimization := range b.optimizations {
 		if o == optimization {
 			return true
@@ -250,53 +249,62 @@ func ParseOptimization(s string) (Optimization, error) {
 	return "", fmt.Errorf("optimization %s is not a valid optimization %v", s, Optimizations)
 }
 
-// BuildOption specifies a config change to build soci indices.
-type BuildOption func(c *buildConfig) error
+// BuilderOption is a functional argument that affects a SOCI index builder
+// and all indexes built with that builder.
+type BuilderOption func(c *builderConfig) error
 
 // WithSpanSize specifies span size.
-func WithSpanSize(spanSize int64) BuildOption {
-	return func(c *buildConfig) error {
+func WithSpanSize(spanSize int64) BuilderOption {
+	return func(c *builderConfig) error {
 		c.spanSize = spanSize
 		return nil
 	}
 }
 
 // WithMinLayerSize specifies min layer size to build a ztoc for a layer.
-func WithMinLayerSize(minLayerSize int64) BuildOption {
-	return func(c *buildConfig) error {
+func WithMinLayerSize(minLayerSize int64) BuilderOption {
+	return func(c *builderConfig) error {
 		c.minLayerSize = minLayerSize
 		return nil
 	}
 }
 
 // WithOptimizations enables optional optimizations when building the SOCI Index (experimental)
-func WithOptimizations(optimizations []Optimization) BuildOption {
-	return func(c *buildConfig) error {
+func WithOptimizations(optimizations []Optimization) BuilderOption {
+	return func(c *builderConfig) error {
 		c.optimizations = optimizations
 		return nil
 	}
 }
 
 // WithBuildToolIdentifier specifies the build tool annotation value.
-func WithBuildToolIdentifier(tool string) BuildOption {
-	return func(c *buildConfig) error {
+func WithBuildToolIdentifier(tool string) BuilderOption {
+	return func(c *builderConfig) error {
 		c.buildToolIdentifier = tool
 		return nil
 	}
 }
 
-// WithPlatform specifies platform used to build soci indices.
-func WithPlatform(platform ocispec.Platform) BuildOption {
-	return func(c *buildConfig) error {
-		c.platform = platform
+// WithArtifactsDb specifies the artifacts database
+func WithArtifactsDb(db *ArtifactsDb) BuilderOption {
+	return func(c *builderConfig) error {
+		c.artifactsDb = db
 		return nil
 	}
 }
 
-// WithArtifactsDb speicifies the artifacts database
-func WithArtifactsDb(db *ArtifactsDb) BuildOption {
-	return func(c *buildConfig) error {
-		c.artifactsDb = db
+// BuildOption is a functional argument that affects a single SOCI Index build.
+type BuildOption func(*buildConfig) error
+
+// buildConfig represents the config for a single index build operation.
+type buildConfig struct {
+	platform ocispec.Platform
+}
+
+// WithPlatform sets the platform for a single build operation.
+func WithPlatform(platform ocispec.Platform) BuildOption {
+	return func(bc *buildConfig) error {
+		bc.platform = platform
 		return nil
 	}
 }
@@ -305,19 +313,16 @@ func WithArtifactsDb(db *ArtifactsDb) BuildOption {
 type IndexBuilder struct {
 	contentStore content.Store
 	blobStore    store.Store
-	ArtifactsDb  *ArtifactsDb
-	config       *buildConfig
+	config       *builderConfig
 	ztocBuilder  *ztoc.Builder
 }
 
 // NewIndexBuilder returns an `IndexBuilder` that is used to create soci indices.
-func NewIndexBuilder(contentStore content.Store, blobStore store.Store, artifactsDb *ArtifactsDb, opts ...BuildOption) (*IndexBuilder, error) {
-	defaultPlatform := platforms.DefaultSpec()
-	config := &buildConfig{
+func NewIndexBuilder(contentStore content.Store, blobStore store.Store, opts ...BuilderOption) (*IndexBuilder, error) {
+	config := &builderConfig{
 		spanSize:            defaultSpanSize,
 		minLayerSize:        defaultMinLayerSize,
 		buildToolIdentifier: defaultBuildToolIdentifier,
-		platform:            defaultPlatform,
 	}
 
 	for _, opt := range opts {
@@ -325,11 +330,17 @@ func NewIndexBuilder(contentStore content.Store, blobStore store.Store, artifact
 			return nil, err
 		}
 	}
+	if config.artifactsDb == nil {
+		var err error
+		config.artifactsDb, err = NewDB(ArtifactsDbPath())
+		if err != nil {
+			return nil, err
+		}
+	}
 
 	return &IndexBuilder{
 		contentStore: contentStore,
 		blobStore:    blobStore,
-		ArtifactsDb:  artifactsDb,
 		config:       config,
 		ztocBuilder:  ztoc.NewBuilder(config.buildToolIdentifier),
 	}, nil
@@ -337,7 +348,7 @@ func NewIndexBuilder(contentStore content.Store, blobStore store.Store, artifact
 
 // Build builds a soci index for `img` and pushes it with its corresponding zTOCs to the blob store.
 // Returns the SOCI index and its metadata.
-func (b *IndexBuilder) Build(ctx context.Context, img images.Image) (*IndexWithMetadata, error) {
+func (b *IndexBuilder) Build(ctx context.Context, img images.Image, opts ...BuildOption) (*IndexWithMetadata, error) {
 	// batch will prevent content from being garbage collected in the middle of the following operations
 	ctx, done, err := b.blobStore.BatchOpen(ctx)
 	if err != nil {
@@ -346,7 +357,7 @@ func (b *IndexBuilder) Build(ctx context.Context, img images.Image) (*IndexWithM
 	defer done(ctx)
 
 	// Create and push zTOCs to blob store
-	index, err := b.build(ctx, img)
+	index, err := b.build(ctx, img, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -363,14 +374,25 @@ func (b *IndexBuilder) Build(ctx context.Context, img images.Image) (*IndexWithM
 // build attempts to create a zTOC in each layer and pushes the zTOC to the blob store.
 // It then creates the SOCI index and returns it with some metadata.
 // This should be done within a Batch and followed by writeSociIndex() to prevent garbage collection.
-func (b *IndexBuilder) build(ctx context.Context, img images.Image) (*IndexWithMetadata, error) {
+func (b *IndexBuilder) build(ctx context.Context, img images.Image, opts ...BuildOption) (*IndexWithMetadata, error) {
+	buildCfg := buildConfig{
+		platform: platforms.DefaultSpec(),
+	}
+	for _, opt := range opts {
+		err := opt(&buildCfg)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	platformMatcher := platforms.OnlyStrict(buildCfg.platform)
 	// we get manifest descriptor before calling images.Manifest, since after calling
 	// images.Manifest, images.Children will error out when reading the manifest blob (this happens on containerd side)
-	imgManifestDesc, err := GetImageManifestDescriptor(ctx, b.contentStore, img.Target, platforms.OnlyStrict(b.config.platform))
+	imgManifestDesc, err := GetImageManifestDescriptor(ctx, b.contentStore, img.Target, platformMatcher)
 	if err != nil {
 		return nil, err
 	}
-	manifest, err := images.Manifest(ctx, b.contentStore, img.Target, platforms.OnlyStrict(b.config.platform))
+	manifest, err := images.Manifest(ctx, b.contentStore, img.Target, platformMatcher)
 
 	if err != nil {
 		return nil, err
@@ -441,7 +463,7 @@ func (b *IndexBuilder) build(ctx context.Context, img images.Image) (*IndexWithM
 	index := NewIndex(ztocsDesc, refers, annotations)
 	return &IndexWithMetadata{
 		Index:       index,
-		Platform:    &b.config.platform,
+		Platform:    &buildCfg.platform,
 		ImageDigest: img.Target.Digest,
 		CreatedAt:   time.Now(),
 	}, nil
@@ -525,7 +547,7 @@ func (b *IndexBuilder) buildSociLayer(ctx context.Context, desc ocispec.Descript
 		MediaType:      SociLayerMediaType,
 		CreatedAt:      time.Now(),
 	}
-	err = b.ArtifactsDb.WriteArtifactEntry(entry)
+	err = b.config.artifactsDb.WriteArtifactEntry(entry)
 	if err != nil {
 		return nil, err
 	}
@@ -561,7 +583,7 @@ func NewIndexFromReader(reader io.Reader) (*Index, error) {
 	return index, nil
 }
 
-func skipBuildingZtoc(desc ocispec.Descriptor, cfg *buildConfig) (bool, string) {
+func skipBuildingZtoc(desc ocispec.Descriptor, cfg *builderConfig) (bool, string) {
 	if cfg == nil {
 		return false, ""
 	}
@@ -665,7 +687,7 @@ func (b *IndexBuilder) writeSociIndex(ctx context.Context, indexWithMetadata *In
 		MediaType:      indexWithMetadata.Index.MediaType,
 		CreatedAt:      indexWithMetadata.CreatedAt,
 	}
-	return b.ArtifactsDb.WriteArtifactEntry(entry)
+	return b.config.artifactsDb.WriteArtifactEntry(entry)
 }
 
 func (b *IndexBuilder) maybeAddDisableXattrAnnotation(ztocDesc *ocispec.Descriptor, ztoc *ztoc.Ztoc) {

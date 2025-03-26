@@ -34,7 +34,7 @@ func TestSkipBuildingZtoc(t *testing.T) {
 	testcases := []struct {
 		name        string
 		desc        ocispec.Descriptor
-		buildConfig buildConfig
+		buildConfig builderConfig
 		skip        bool
 	}{
 		{
@@ -44,7 +44,7 @@ func TestSkipBuildingZtoc(t *testing.T) {
 				Digest:    parseDigest("sha256:88a7002d88ed7b174259637a08a2ef9b7f4f2a314dfb51fa1a4a6a1d7e05dd01"),
 				Size:      5223,
 			},
-			buildConfig: buildConfig{
+			buildConfig: builderConfig{
 				minLayerSize: 65535,
 			},
 			skip: true,
@@ -56,7 +56,7 @@ func TestSkipBuildingZtoc(t *testing.T) {
 				Digest:    parseDigest("sha256:88a7002d88ed7b174259637a08a2ef9b7f4f2a314dfb51fa1a4a6a1d7e05dd01"),
 				Size:      65535,
 			},
-			buildConfig: buildConfig{
+			buildConfig: builderConfig{
 				minLayerSize: 65535,
 			},
 			skip: false,
@@ -68,7 +68,7 @@ func TestSkipBuildingZtoc(t *testing.T) {
 				Digest:    parseDigest("sha256:88a7002d88ed7b174259637a08a2ef9b7f4f2a314dfb51fa1a4a6a1d7e05dd01"),
 				Size:      5000,
 			},
-			buildConfig: buildConfig{
+			buildConfig: builderConfig{
 				minLayerSize: 500,
 			},
 			skip: false,
@@ -141,7 +141,7 @@ func TestBuildSociIndexNotLayer(t *testing.T) {
 	if err != nil {
 		t.Fatalf("can't create a test db")
 	}
-	builder, err := NewIndexBuilder(cs, blobStore, artifactsDb, WithSpanSize(spanSize), WithMinLayerSize(0))
+	builder, err := NewIndexBuilder(cs, blobStore, WithArtifactsDb(artifactsDb), WithSpanSize(spanSize), WithMinLayerSize(0))
 
 	if err != nil {
 		t.Fatalf("cannot create index builer: %v", err)
@@ -213,7 +213,7 @@ func TestBuildSociIndexWithLimits(t *testing.T) {
 			if err != nil {
 				t.Fatalf("can't create a test db")
 			}
-			builder, _ := NewIndexBuilder(cs, blobStore, artifactsDb, WithSpanSize(spanSize), WithMinLayerSize(tc.minLayerSize))
+			builder, _ := NewIndexBuilder(cs, blobStore, WithArtifactsDb(artifactsDb), WithSpanSize(spanSize), WithMinLayerSize(tc.minLayerSize))
 			ztoc, err := builder.buildSociLayer(ctx, desc)
 			if tc.ztocGenerated {
 				// we check only for build skip, which is indicated as nil value for ztoc and nil value for error
@@ -292,7 +292,7 @@ func TestDisableXattrs(t *testing.T) {
 			if err != nil {
 				t.Fatalf("can't create a test db")
 			}
-			builder, _ := NewIndexBuilder(cs, blobStore, artifactsDb, WithOptimizations([]Optimization{XAttrOptimization}))
+			builder, _ := NewIndexBuilder(cs, blobStore, WithArtifactsDb(artifactsDb), WithOptimizations([]Optimization{XAttrOptimization}))
 			builder.maybeAddDisableXattrAnnotation(&desc, &ztoc)
 			disableXAttrs := desc.Annotations[IndexAnnotationDisableXAttrs] == disableXAttrsTrue
 			if disableXAttrs != tc.shouldDisableXattrs {
