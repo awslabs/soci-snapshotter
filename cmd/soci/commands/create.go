@@ -33,6 +33,7 @@ const (
 	spanSizeFlag        = "span-size"
 	minLayerSizeFlag    = "min-layer-size"
 	optimizationFlag    = "optimizations"
+	sociIndexGCLabel    = "containerd.io/gc.ref.content.soci-index"
 )
 
 // CreateCommand creates SOCI index for an image
@@ -130,10 +131,22 @@ var CreateCommand = cli.Command{
 		}
 
 		for _, plat := range ps {
-			_, err = builder.Build(ctx, srcImg, soci.WithPlatform(plat))
+			batchCtx, done, err := blobStore.BatchOpen(ctx)
 			if err != nil {
 				return err
 			}
+			defer done(ctx)
+
+			indexWithMetadata, err := builder.Build(batchCtx, srcImg, soci.WithPlatform(plat), soci.WithNoGarbageCollectionLabel())
+			if err != nil {
+				return err
+			}
+
+			if srcImg.Labels == nil {
+				srcImg.Labels = make(map[string]string)
+			}
+			srcImg.Labels[sociIndexGCLabel] = indexWithMetadata.Desc.Digest.String()
+			is.Update(ctx, srcImg, "labels")
 		}
 
 		return nil
