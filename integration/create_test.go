@@ -21,6 +21,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/awslabs/soci-snapshotter/config"
@@ -231,4 +232,35 @@ func TestSociCreateGarbageCollection(t *testing.T) {
 	if err := checkOverlayFallbackCount(curlOutput, 0); err != nil {
 		t.Fatal(fmt.Errorf("resources unexpectedly garbage collected: %v", err))
 	}
+}
+
+func TestSociImageGCLabel(t *testing.T) {
+	image := rabbitmqImage
+	sh, done := newSnapshotterBaseShell(t)
+	defer done()
+
+	extraContainerdConfig := `
+[plugins."io.containerd.gc.v1.scheduler"]
+	deletion_threshold = 1`
+
+	rebootContainerd(t, sh, getContainerdConfigToml(t, false, extraContainerdConfig), getSnapshotterConfigToml(t, false, tcpMetricsConfig, GetContentStoreConfigToml(store.WithType(config.ContainerdContentStoreType))))
+
+	imgInfo := dockerhub(image)
+	sh.X("nerdctl", "pull", "-q", imgInfo.ref)
+	indexDigest := buildIndex(sh, imgInfo, withMinLayerSize(0), withContentStoreType(config.ContainerdContentStoreType))
+
+	// This should succeed because the index should still exist
+	sh.X("ctr", "content", "get", indexDigest)
+
+	sh.X("nerdctl", "rmi", imgInfo.ref)
+
+	// This should fail because the index should be GC'd
+	o, err := sh.CombinedOLog("ctr", "content", "get", indexDigest)
+	if !strings.Contains(string(o), "not found") {
+		t.Fatal("getting the SOCI index succeeded unexpectedly after GC")
+	}
+	if err == nil {
+		t.Fatal("getting the SOCI index after GC did not return an error")
+	}
+
 }
