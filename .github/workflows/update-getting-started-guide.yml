@@ -17,7 +17,7 @@ on:
 jobs:
   test-update-version:
     if: github.event_name == 'pull_request'
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
 
     permissions:
       contents: read
@@ -36,7 +36,7 @@ jobs:
 
   update-version:
     if: github.event_name == 'release'
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
 
     permissions:
       # Write permissions needed to create pull request.
