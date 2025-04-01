@@ -12,7 +12,7 @@ env:
 
 jobs:
   check:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v4
         with:
@@ -32,7 +32,7 @@ jobs:
       - run: PATH=$PATH:$(pwd) ./scripts/check-flatc.sh
 
   git-secrets:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
     steps:
       - name: Pull latest awslabs/git-secrets repo
         uses: actions/checkout@v4
@@ -54,7 +54,7 @@ jobs:
     strategy:
       matrix:
         working_dir: ['.', 'cmd']
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v4
       - uses: golangci/golangci-lint-action@v6
@@ -64,13 +64,13 @@ jobs:
 
   yamllint:
     name: yamllint-lint
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v4
       - run: yamllint .
 
   shellcheck:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
     container: koalaman/shellcheck-alpine:v0.10.0
     steps:
       - uses: actions/checkout@v4
