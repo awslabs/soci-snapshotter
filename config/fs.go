@@ -56,6 +56,10 @@ type FSConfig struct {
 	MountTimeoutSec                int64  `toml:"mount_timeout_sec"`
 	FuseMetricsEmitWaitDurationSec int64  `toml:"fuse_metrics_emit_wait_duration_sec"`
 
+	// VerifyLocalMounts will verify the shasum of compressed and uncompressed
+	// content for layers pulled ahead of time (i.e. non-FUSE mounts)
+	VerifyLocalMounts bool `toml:"verify_local_mounts" default:"true"`
+
 	RetryableHTTPClientConfig `toml:"http"`
 	BlobConfig                `toml:"blob"`
 
