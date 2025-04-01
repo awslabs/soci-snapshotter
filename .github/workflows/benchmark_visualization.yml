@@ -17,7 +17,7 @@ env:
 
 jobs:
   benchmark:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
     steps:
       - name: Checkout main branch
         uses: actions/checkout@v4
@@ -37,7 +37,7 @@ jobs:
           path: ${{github.workspace}}/benchmark/performanceTest/output/results.json
 
   download-and-convert-benchmark-result-to-visualization-data:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
     needs: benchmark
     steps:
       - name: Checkout main branch
@@ -67,7 +67,7 @@ jobs:
 
   push-benchmark-result-gh-pages:
     name: Push benchmark result to Github-pages
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
     needs: download-and-convert-benchmark-result-to-visualization-data
     strategy:
       matrix:
