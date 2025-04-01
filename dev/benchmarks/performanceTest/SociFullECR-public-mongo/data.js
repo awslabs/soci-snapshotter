@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1742583384447,
+  "lastUpdate": 1743540109984,
   "repoUrl": "https://github.com/awslabs/soci-snapshotter",
   "entries": {
     "Soci Benchmark": [
@@ -10660,6 +10660,48 @@ window.BENCHMARK_DATA = {
           {
             "name": "SociFullECR-public-mongo-pullTaskDuration",
             "value": 1.2415,
+            "unit": "Seconds",
+            "extra": "P90"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "walster@amazon.com",
+            "name": "Kern Walster",
+            "username": "Kern--"
+          },
+          "committer": {
+            "email": "55555210+sondavidb@users.noreply.github.com",
+            "name": "David Son",
+            "username": "sondavidb"
+          },
+          "distinct": true,
+          "id": "fadf416a4d5120e340686e298b14688270a8551c",
+          "message": "Update runners to ubuntu 22.04\n\nGitHub is removing ubuntu 20.04 hosted runners on April 15. This bumps\nall of our runners to 22.04\n\nThe most significant change for us is that ubuntu 22.04 uses libc 2.34\nwhich will be used in our release artifacts and may not be compatible\nwith older systems (e.g. AL2). For affected customers, we also ship a\nstatically linked binary, so this should have minimal impact.\n\nSigned-off-by: Kern Walster <walster@amazon.com>",
+          "timestamp": "2025-04-01T13:32:27-07:00",
+          "tree_id": "674935e6091d7e7cdcb9169519e901abfabef9a7",
+          "url": "https://github.com/awslabs/soci-snapshotter/commit/fadf416a4d5120e340686e298b14688270a8551c"
+        },
+        "date": 1743540105262,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "SociFullECR-public-mongo-lazyTaskDuration",
+            "value": 5.8265,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-mongo-localTaskDuration",
+            "value": 0.3025,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-mongo-pullTaskDuration",
+            "value": 1.5485,
             "unit": "Seconds",
             "extra": "P90"
           }
