@@ -393,3 +393,128 @@ func (u *userAgentRoundTripper) RoundTrip(req *http.Request) (*http.Response, er
 		Body:       io.NopCloser(bytes.NewReader([]byte("test"))),
 	}, nil
 }
+
+func TestParseSize(t *testing.T) {
+	tc := []struct {
+		name         string
+		resp         *http.Response
+		expectedSize int64
+		expectedErr  bool
+	}{
+		{
+			name: "should return size on 200 OK",
+			resp: &http.Response{
+				StatusCode: http.StatusOK,
+				Header: map[string][]string{
+					http.CanonicalHeaderKey("Content-Length"): {"12345"},
+				},
+			},
+			expectedSize: 12345,
+		},
+		{
+			name: "should return size on 206 OK",
+			resp: &http.Response{
+				StatusCode: http.StatusPartialContent,
+				Header: map[string][]string{
+					http.CanonicalHeaderKey("Content-Range"): {"bytes 0-1/12345"},
+				},
+			},
+			expectedSize: 12345,
+		},
+		{
+			name: "should return error on 401 Unauthorized",
+			resp: &http.Response{
+				StatusCode: http.StatusUnauthorized,
+			},
+			expectedErr: true,
+		},
+	}
+
+	failOrNotFail := func(expectedErr bool) string {
+		if expectedErr {
+			return "fail"
+		}
+		return "not fail"
+	}
+
+	for _, tt := range tc {
+		t.Run(tt.name, func(t *testing.T) {
+			size, err := ParseSize(tt.resp)
+			if (err == nil) == tt.expectedErr {
+				t.Fatalf("expected status code %d to %s", tt.resp.StatusCode, failOrNotFail(tt.expectedErr))
+			}
+			if size != tt.expectedSize {
+				t.Fatalf("expected size %d, got %d", tt.expectedSize, size)
+			}
+		})
+	}
+}
+
+type failHeadRequestRoundTripper struct {
+	failHeadRequest    []string
+	succeedHeadRequest []string
+}
+
+func (rt failHeadRequestRoundTripper) RoundTrip(req *http.Request) (*http.Response, error) {
+	failResp := &http.Response{
+		StatusCode: http.StatusUnauthorized,
+		Request:    req,
+		Body:       io.NopCloser(&bytes.Buffer{}),
+	}
+
+	successResp := &http.Response{
+		StatusCode: http.StatusOK,
+		Request:    req,
+		Body:       io.NopCloser(&bytes.Buffer{}),
+	}
+
+	switch req.Method {
+	case http.MethodHead:
+		for _, url := range rt.failHeadRequest {
+			if req.URL.String() == url {
+				return failResp, nil
+			}
+		}
+		for _, url := range rt.succeedHeadRequest {
+			if req.URL.String() == url {
+				return successResp, nil
+			}
+		}
+		return nil, fmt.Errorf("got HEAD request but link not found in arrays")
+
+	case http.MethodGet:
+		return successResp, nil
+	default:
+		return nil, fmt.Errorf("method %s not supported", req.Method)
+	}
+}
+
+func TestGetHeader(t *testing.T) {
+	rt := failHeadRequestRoundTripper{
+		failHeadRequest:    []string{"failheadrequest.com"},
+		succeedHeadRequest: []string{"successheadrequest.com"},
+	}
+
+	tc := []struct {
+		name string
+		link string
+	}{
+		{
+			name: "HEAD request to link succeeds",
+			link: "successheadrequest.com",
+		},
+		{
+			name: "HEAD request to link fails, falls back to GET",
+			link: "failheadrequest.com",
+		},
+	}
+
+	for _, tt := range tc {
+		t.Run(tt.name, func(t *testing.T) {
+			_, err := GetHeader(context.Background(), tt.link, rt)
+			if err != nil {
+				t.Fatalf("could not fetch header")
+			}
+		})
+	}
+}
