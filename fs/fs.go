@@ -298,7 +298,6 @@ func NewFilesystem(ctx context.Context, root string, cfg config.FSConfig, opts .
 
 type sociContext struct {
 	cachedErr            error
-	cachedErrMu          sync.RWMutex
 	bgFetchPauseOnce     sync.Once
 	fetchOnce            sync.Once
 	sociIndex            *soci.Index
@@ -306,54 +305,11 @@ type sociContext struct {
 	fuseOperationCounter *layer.FuseOperationCounter
 }
 
-func (c *sociContext) Init(fsCtx context.Context, ctx context.Context, imageRef, indexDigest, imageManifestDigest string, store store.Store, fuseOpEmitWaitDuration time.Duration, client *http.Client) error {
-	var retErr error
+func (c *sociContext) Init(ctx context.Context, fs *filesystem, imageRef, indexDigest, imageManifestDigest string, client *http.Client) error {
 	c.fetchOnce.Do(func() {
-		defer func() {
-			if retErr != nil {
-				c.cachedErrMu.Lock()
-				c.cachedErr = retErr
-				c.cachedErrMu.Unlock()
-			}
-		}()
-
-		refspec, err := reference.Parse(imageRef)
+		index, err := fs.fetchSociIndex(ctx, imageRef, indexDigest, imageManifestDigest, client)
 		if err != nil {
-			retErr = err
-			return
-		}
-
-		remoteStore, err := newRemoteStore(refspec, client)
-		if err != nil {
-			retErr = err
-			return
-		}
-
-		client := NewOCIArtifactClient(remoteStore)
-		indexDesc := ocispec.Descriptor{
-			Digest: digest.Digest(indexDigest),
-		}
-
-		if indexDigest == "" {
-			log.G(ctx).Info("index digest not provided, making a Referrers API call to fetch list of indices")
-			imgDigest, err := digest.Parse(imageManifestDigest)
-			if err != nil {
-				retErr = fmt.Errorf("unable to parse image digest: %w", err)
-			}
-
-			desc, err := client.SelectReferrer(ctx, ocispec.Descriptor{Digest: imgDigest}, defaultIndexSelectionPolicy)
-			if err != nil {
-				retErr = fmt.Errorf("%w: cannot fetch list of referrers: %w", snapshot.ErrNoIndex, err)
-				return
-			}
-			indexDesc = desc
-		}
-
-		log.G(ctx).WithField("digest", indexDesc.Digest.String()).Infof("fetching SOCI artifacts using index descriptor")
-
-		index, err := FetchSociArtifacts(ctx, refspec, indexDesc, store, remoteStore)
-		if err != nil {
-			retErr = fmt.Errorf("%w: error trying to fetch SOCI artifacts: %w", snapshot.ErrNoIndex, err)
+			c.cachedErr = err
 			return
 		}
 		c.sociIndex = index
@@ -361,13 +317,10 @@ func (c *sociContext) Init(fsCtx context.Context, ctx context.Context, imageRef,
 
 		// Create the FUSE operation counter.
 		// Metrics are emitted after a wait time of fuseOpEmitWaitDuration.
-		c.fuseOperationCounter = layer.NewFuseOperationCounter(digest.Digest(imageManifestDigest), fuseOpEmitWaitDuration)
-		go c.fuseOperationCounter.Run(fsCtx)
+		c.fuseOperationCounter = layer.NewFuseOperationCounter(digest.Digest(imageManifestDigest), fs.fuseMetricsEmitWaitDuration)
+		go c.fuseOperationCounter.Run(fs.ctx)
 	})
-	c.cachedErrMu.RLock()
-	retErr = c.cachedErr
-	c.cachedErrMu.RUnlock()
-	return retErr
+	return c.cachedErr
 }
 
 func (c *sociContext) populateImageLayerToSociMapping(sociIndex *soci.Index) {
@@ -442,8 +395,53 @@ func (fs *filesystem) getSociContext(ctx context.Context, imageRef, indexDigest,
 	if !ok {
 		return nil, fmt.Errorf("could not load index: fs soci context is invalid type for %s", indexDigest)
 	}
-	err := c.Init(fs.ctx, ctx, imageRef, indexDigest, imageManifestDigest, fs.contentStore, fs.fuseMetricsEmitWaitDuration, client)
+	err := c.Init(ctx, fs, imageRef, indexDigest, imageManifestDigest, client)
 	return c, err
+}
+
+func (fs *filesystem) fetchSociIndex(ctx context.Context, imageRef, indexDigest, imageManifestDigest string, client *http.Client) (*soci.Index, error) {
+	refspec, err := reference.Parse(imageRef)
+	if err != nil {
+		return nil, err
+	}
+
+	remoteStore, err := newRemoteStore(refspec, client)
+	if err != nil {
+		return nil, err
+	}
+
+	var indexDesc ocispec.Descriptor
+	if indexDigest == "" {
+		log.G(ctx).Info("index digest not provided, making a Referrers API call to fetch list of indices")
+		imgDigest, err := digest.Parse(imageManifestDigest)
+		if err != nil {
+			return nil, fmt.Errorf("unable to parse image digest: %w", err)
+		}
+
+		artifactClient := NewOCIArtifactClient(remoteStore)
+
+		desc, err := artifactClient.SelectReferrer(ctx, ocispec.Descriptor{Digest: imgDigest}, defaultIndexSelectionPolicy)
+		if err != nil {
+			return nil, fmt.Errorf("%w: cannot fetch list of referrers: %w", snapshot.ErrNoIndex, err)
+		}
+		indexDesc = desc
+	} else {
+		dg, err := digest.Parse(indexDigest)
+		if err != nil {
+			return nil, fmt.Errorf("%w: unable to parse SOCI index digest: %w", snapshot.ErrNoIndex, err)
+		}
+		indexDesc = ocispec.Descriptor{
+			Digest: dg,
+		}
+	}
+
+	log.G(ctx).WithField("digest", indexDesc.Digest.String()).Infof("fetching SOCI artifacts using index descriptor")
+
+	index, err := FetchSociArtifacts(ctx, refspec, indexDesc, fs.contentStore, remoteStore)
+	if err != nil {
+		return nil, fmt.Errorf("%w: error trying to fetch SOCI artifacts: %w", snapshot.ErrNoIndex, err)
+	}
+	return index, nil
 }
 
 func getIDMappedMountpoint(mountpoint, activeLayerID string) string {
