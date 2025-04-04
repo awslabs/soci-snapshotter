@@ -75,8 +75,20 @@ type Config struct {
 }
 type configParser func(*Config)
 
+var parsers = []configParser{parseRootConfig, parseServiceConfig, parseFSConfig}
+
+// NewConfig returns an initialized Config with default values set.
+func NewConfig() *Config {
+	cfg := Config{}
+	ps := append(parsers, defaultPullModes)
+	for _, p := range ps {
+		p(&cfg)
+	}
+	return &cfg
+}
+
 func NewConfigFromToml(cfgPath string) (*Config, error) {
-	cfg := &Config{}
+	cfg := NewConfig()
 	// Get configuration from specified file
 	tree, err := toml.LoadFile(cfgPath)
 	if err != nil && !(os.IsNotExist(err) && cfgPath == defaultConfigPath) {
@@ -85,13 +97,14 @@ func NewConfigFromToml(cfgPath string) (*Config, error) {
 	if err := tree.Unmarshal(cfg); err != nil {
 		return nil, fmt.Errorf("failed to unmarshal config file %q", cfgPath)
 	}
-	parsers := []configParser{parseRootConfig, parseServiceConfig, parseFSConfig}
+	parseConfig(cfg)
+	return cfg, nil
+}
 
+func parseConfig(cfg *Config) {
 	for _, p := range parsers {
 		p(cfg)
 	}
-
-	return cfg, nil
 }
 
 func parseRootConfig(cfg *Config) {

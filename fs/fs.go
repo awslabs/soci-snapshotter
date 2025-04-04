@@ -44,6 +44,7 @@ package fs
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -83,12 +84,15 @@ import (
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/sirupsen/logrus"
 	"golang.org/x/sync/semaphore"
+	orasremote "oras.land/oras-go/v2/registry/remote"
 )
 
 var (
 	defaultIndexSelectionPolicy = SelectFirstPolicy
 	fusermountBin               = "fusermount"
 	preresolverQueueBufferSize  = 1024 // arbitrarily chosen buffer size
+
+	ErrAllLazyPullModesDisabled = errors.New("all lazy pull modes are disabled")
 )
 
 // Preresolver will resolve a number of layers in parallel,
@@ -158,6 +162,7 @@ type options struct {
 	metadataStore     metadata.Store
 	overlayOpaqueType layer.OverlayOpaqueType
 	maxConcurrency    int64
+	pullModes         config.PullModes
 }
 
 func WithGetSources(s source.GetSources) Option {
@@ -190,6 +195,12 @@ func WithOverlayOpaqueType(overlayOpaqueType layer.OverlayOpaqueType) Option {
 func WithMaxConcurrency(maxConcurrency int64) Option {
 	return func(opts *options) {
 		opts.maxConcurrency = maxConcurrency
+	}
+}
+
+func WithPullModes(pullModes config.PullModes) Option {
+	return func(opts *options) {
+		opts.pullModes = pullModes
 	}
 }
 
@@ -293,6 +304,7 @@ func NewFilesystem(ctx context.Context, root string, cfg config.FSConfig, opts .
 		mountTimeout:                mountTimeout,
 		fuseMetricsEmitWaitDuration: fuseMetricsEmitWaitDuration,
 		pr:                          pr,
+		pullModes:                   fsOpts.pullModes,
 	}, nil
 }
 
@@ -349,6 +361,7 @@ type filesystem struct {
 	mountTimeout                time.Duration
 	fuseMetricsEmitWaitDuration time.Duration
 	pr                          *preresolver
+	pullModes                   config.PullModes
 }
 
 func (fs *filesystem) MountLocal(ctx context.Context, mountpoint string, labels map[string]string, mounts []mount.Mount) error {
@@ -410,29 +423,9 @@ func (fs *filesystem) fetchSociIndex(ctx context.Context, imageRef, indexDigest,
 		return nil, err
 	}
 
-	var indexDesc ocispec.Descriptor
-	if indexDigest == "" {
-		log.G(ctx).Info("index digest not provided, making a Referrers API call to fetch list of indices")
-		imgDigest, err := digest.Parse(imageManifestDigest)
-		if err != nil {
-			return nil, fmt.Errorf("unable to parse image digest: %w", err)
-		}
-
-		artifactClient := NewOCIArtifactClient(remoteStore)
-
-		desc, err := artifactClient.SelectReferrer(ctx, ocispec.Descriptor{Digest: imgDigest}, defaultIndexSelectionPolicy)
-		if err != nil {
-			return nil, fmt.Errorf("%w: cannot fetch list of referrers: %w", snapshot.ErrNoIndex, err)
-		}
-		indexDesc = desc
-	} else {
-		dg, err := digest.Parse(indexDigest)
-		if err != nil {
-			return nil, fmt.Errorf("%w: unable to parse SOCI index digest: %w", snapshot.ErrNoIndex, err)
-		}
-		indexDesc = ocispec.Descriptor{
-			Digest: dg,
-		}
+	indexDesc, err := fs.findSociIndexDesc(ctx, imageManifestDigest, indexDigest, remoteStore)
+	if err != nil {
+		return nil, fmt.Errorf("%w: %w", snapshot.ErrNoIndex, err)
 	}
 
 	log.G(ctx).WithField("digest", indexDesc.Digest.String()).Infof("fetching SOCI artifacts using index descriptor")
@@ -442,6 +435,93 @@ func (fs *filesystem) fetchSociIndex(ctx context.Context, imageRef, indexDigest,
 		return nil, fmt.Errorf("%w: error trying to fetch SOCI artifacts: %w", snapshot.ErrNoIndex, err)
 	}
 	return index, nil
+}
+
+func (fs *filesystem) findSociIndexDesc(ctx context.Context, imageManifestDigest string, sociIndexDigest string, remoteStore *orasremote.Repository) (ocispec.Descriptor, error) {
+	imgDigest, err := digest.Parse(imageManifestDigest)
+	if err != nil {
+		return ocispec.Descriptor{}, fmt.Errorf("unable to parse image digest: %w", err)
+	}
+
+	// 1. Try to find an explicit index digest
+	if sociIndexDigest != "" {
+		log.G(ctx).Debug("using provided soci index digest")
+		return parseIndexDigest(sociIndexDigest)
+	}
+	log.G(ctx).Debug("index digest not provided")
+
+	if !fs.pullModes.SOCIv1.Enable && !fs.pullModes.SOCIv2.Enable {
+		return ocispec.Descriptor{}, ErrAllLazyPullModesDisabled
+	}
+
+	// 2. Try to find an index digest in the manifest labels if SOCI v2 is enabled.
+	if fs.pullModes.SOCIv2.Enable {
+		log.G(ctx).Debug("checking for soci v2 index annotation")
+		desc, err := findSociIndexDescAnnotation(ctx, imgDigest, remoteStore)
+		if err == nil || !errors.Is(err, errdefs.ErrNotFound) {
+			return desc, err
+		}
+		log.G(ctx).Debug("soci v2 index annotation not found")
+	} else {
+		log.G(ctx).Debug("soci v2 is disabled")
+	}
+
+	// 3. Try to find an index using the referrers API if SOCI v1 is enabled.
+	if fs.pullModes.SOCIv1.Enable {
+		log.G(ctx).Debug("checking for soci v1 index via referrers API")
+		desc, err := findSociIndexDescReferrer(ctx, imgDigest, remoteStore)
+		if err == nil || !errors.Is(err, ErrNoReferrers) {
+			return desc, err
+		}
+		log.G(ctx).Debug("soci v1 referrers not found")
+	} else {
+		log.G(ctx).Debug("soci v1 is disabled")
+	}
+
+	return ocispec.Descriptor{}, errdefs.ErrNotFound
+}
+
+func parseIndexDigest(sociIndexDigest string) (ocispec.Descriptor, error) {
+	dg, err := digest.Parse(sociIndexDigest)
+	if err != nil {
+		return ocispec.Descriptor{}, fmt.Errorf("unable to parse SOCI index digest: %w", err)
+	}
+	return ocispec.Descriptor{
+		Digest: dg,
+	}, nil
+}
+
+func findSociIndexDescAnnotation(ctx context.Context, imgDigest digest.Digest, remoteStore *orasremote.Repository) (ocispec.Descriptor, error) {
+	ref := remoteStore.Reference
+	ref.Reference = imgDigest.String()
+	_, r, err := remoteStore.Manifests().FetchReference(ctx, ref.Reference)
+	if err != nil {
+		return ocispec.Descriptor{}, fmt.Errorf("could not fetch manifest: %w", err)
+	}
+	var manifest ocispec.Manifest
+	err = json.NewDecoder(r).Decode(&manifest)
+	if err != nil {
+		return ocispec.Descriptor{}, fmt.Errorf("could not unmarshal manifest: %w", err)
+	}
+	if manifest.Annotations == nil {
+		return ocispec.Descriptor{}, errdefs.ErrNotFound
+	}
+
+	indexDigestStr := manifest.Annotations[soci.ImageAnnotationSociIndexDigest]
+	if indexDigestStr != "" {
+		return parseIndexDigest(indexDigestStr)
+	}
+	return ocispec.Descriptor{}, errdefs.ErrNotFound
+}
+
+func findSociIndexDescReferrer(ctx context.Context, imgDigest digest.Digest, remoteStore *orasremote.Repository) (ocispec.Descriptor, error) {
+	artifactClient := NewOCIArtifactClient(remoteStore)
+
+	desc, err := artifactClient.SelectReferrer(ctx, ocispec.Descriptor{Digest: imgDigest}, defaultIndexSelectionPolicy)
+	if err != nil {
+		return ocispec.Descriptor{}, fmt.Errorf("cannot fetch list of referrers: %w", err)
+	}
+	return desc, nil
 }
 
 func getIDMappedMountpoint(mountpoint, activeLayerID string) string {

@@ -35,6 +35,10 @@ package config
 type ServiceConfig struct {
 	FSConfig
 
+	// PullModes controls which pull modes are enabled
+	// and their implementation-specific config
+	PullModes PullModes `toml:"pull_modes"`
+
 	// KubeconfigKeychainConfig is config for kubeconfig-based keychain.
 	KubeconfigKeychainConfig `toml:"kubeconfig_keychain"`
 

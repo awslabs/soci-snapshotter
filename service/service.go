@@ -99,9 +99,11 @@ func NewSociSnapshotterService(ctx context.Context, root string, serviceCfg *con
 		opq = layer.OverlayOpaqueUser
 	}
 	// Configure filesystem and snapshotter
-	fsOpts := append(sOpts.fsOpts, socifs.WithGetSources(
-		source.FromDefaultLabels(source.RegistryHosts(hosts)), // provides source info based on default labels
-	), socifs.WithOverlayOpaqueType(opq))
+	getSources := source.FromDefaultLabels(source.RegistryHosts(hosts)) // provides source info based on default labels
+	fsOpts := append(sOpts.fsOpts, socifs.WithGetSources(getSources),
+		socifs.WithOverlayOpaqueType(opq),
+		socifs.WithPullModes(serviceCfg.PullModes),
+	)
 	if serviceCfg.FSConfig.MaxConcurrency != 0 {
 		fsOpts = append(fsOpts, socifs.WithMaxConcurrency(serviceCfg.FSConfig.MaxConcurrency))
 	}

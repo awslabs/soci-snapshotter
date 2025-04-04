@@ -99,4 +99,10 @@ const (
 
 	// DefaultContentStore chooses the soci or containerd content store as the default
 	DefaultContentStoreType = "containerd"
+
+	// DefaultSOCIV1Enable is the default value for whether SOCI v1 is enabled
+	DefaultSOCIV1Enable = false
+
+	// DefaultSOCIV2Enable is the default value for whether SOCI v2 is enabled
+	DefaultSOCIV2Enable = true
 )

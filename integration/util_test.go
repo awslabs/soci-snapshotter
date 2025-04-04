@@ -347,14 +347,33 @@ func withFuseWaitDuration(i int64) snapshotterConfigOpt {
 	}
 }
 
+func withPullModes(pullModes config.PullModes) snapshotterConfigOpt {
+	return func(c *config.Config) {
+		c.ServiceConfig.PullModes = pullModes
+	}
+}
+
 func getSnapshotterConfigToml(t *testing.T, opts ...snapshotterConfigOpt) string {
 	// For integ tests, we intentionally don't initialize the config to simulate
 	// a partially filled config like you might find in a real /etc/soci-snapshotter-grpc/config.toml
-	config := config.Config{}
-	for _, opt := range opts {
-		opt(&config)
+	cfg := config.Config{}
+
+	// At the introduction of SOCI V2, all tests assume SOCI v1.
+	// Rather than update all existing tests, set the default config
+	// to use v1 and v2 tests can override.
+	cfg.ServiceConfig.PullModes = config.PullModes{
+		SOCIv1: config.V1{
+			Enable: true,
+		},
+		SOCIv2: config.V2{
+			Enable: false,
+		},
 	}
-	s, err := toml.Marshal(config)
+
+	for _, opt := range opts {
+		opt(&cfg)
+	}
+	s, err := toml.Marshal(cfg)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -803,9 +822,11 @@ func rebootContainerd(t *testing.T, sh *shell.Shell, customContainerdConfig, cus
 	sh.Gox(containerdCmds...)
 	snapshotterCmds := shell.C("/usr/local/bin/soci-snapshotter-grpc", "--log-level", sociLogLevel,
 		"--address", snapshotterSocket)
-	if customSnapshotterConfig != "" {
-		snapshotterCmds = addConfig(t, sh, customSnapshotterConfig, snapshotterCmds...)
+	if customSnapshotterConfig == "" {
+		customSnapshotterConfig = getSnapshotterConfigToml(t)
 	}
+	snapshotterCmds = addConfig(t, sh, customSnapshotterConfig, snapshotterCmds...)
+
 	outR, errR, err := sh.R(snapshotterCmds...)
 	if err != nil {
 		t.Fatalf("failed to create pipe: %v", err)

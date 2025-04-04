@@ -188,14 +188,31 @@ func (m *RemoteSnapshotMonitor) CheckAllRemoteSnapshots(t *testing.T) {
 	remote := atomic.LoadUint64(&m.remote)
 	local := atomic.LoadUint64(&m.local)
 	result := fmt.Sprintf("(local:%d,remote:%d)", local, remote)
-	if local > 0 {
-		t.Fatalf("some local snapshots creation have been reported %v", result)
-	} else if remote > 0 {
-		t.Logf("all layers have been reported as remote snapshots %v", result)
-		return
-	} else {
-		t.Fatalf("no log for checking remote snapshot was provided; Is the log-level = debug?")
+	m.checkExpectedMounts(t, result, remote, "remote")
+	m.checkUnexpectedMounts(t, result, local, "local")
+}
+
+// CheckAllRemoteSnapshots checks if the scanned log reports that all snapshots are prepared
+// as remote snapshots.
+func (m *RemoteSnapshotMonitor) CheckAllLocalSnapshots(t *testing.T) {
+	remote := atomic.LoadUint64(&m.remote)
+	local := atomic.LoadUint64(&m.local)
+	result := fmt.Sprintf("(local:%d,remote:%d)", local, remote)
+	m.checkExpectedMounts(t, result, local, "local")
+	m.checkUnexpectedMounts(t, result, remote, "remote")
+}
+
+func (m *RemoteSnapshotMonitor) checkUnexpectedMounts(t *testing.T, result string, count uint64, name string) {
+	if count > 0 {
+		t.Fatalf("some %s snapshots creation have been reported %v", name, result)
 	}
+}
+
+func (m *RemoteSnapshotMonitor) checkExpectedMounts(t *testing.T, result string, count uint64, name string) {
+	if count == 0 {
+		t.Fatalf("no log for checking %s snapshot was provided; Is the log-level = debug?", name)
+	}
+	t.Logf("all layers have been reported as %s snapshots %v", name, result)
 }
 
 // LogConfirmStartup registers a LogMonitor function to scan until startup succeeds or fails
