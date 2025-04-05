@@ -174,9 +174,10 @@ func (m *RemoteSnapshotMonitor) MonitorFunc(rawL string) {
 		rawL = rawL[i:] // trim garbage chars; expects "{...}"-styled JSON log
 	}
 	if err := json.Unmarshal([]byte(rawL), &logline); err == nil {
-		if logline.RemoteSnapshotPrepared == "true" {
+		switch logline.RemoteSnapshotPrepared {
+		case "true":
 			atomic.AddUint64(&m.remote, 1)
-		} else if logline.RemoteSnapshotPrepared == "false" {
+		case "false":
 			atomic.AddUint64(&m.local, 1)
 		}
 	}

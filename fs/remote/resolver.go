@@ -377,9 +377,10 @@ func (f *httpFetcher) check() error {
 		return fmt.Errorf("check failed: %w: %w", ErrRequestFailed, err)
 	}
 	defer socihttp.Drain(res.Body)
-	if res.StatusCode == http.StatusOK || res.StatusCode == http.StatusPartialContent {
+	switch res.StatusCode {
+	case http.StatusOK, http.StatusPartialContent:
 		return nil
-	} else if res.StatusCode == http.StatusForbidden {
+	case http.StatusForbidden:
 		// Try to re-redirect this blob
 		rCtx := context.Background()
 		if err := f.refreshURL(rCtx); err == nil {
@@ -478,7 +479,8 @@ func GetHeader(ctx context.Context, realURL string, rt http.RoundTripper) (*http
 		socihttp.Drain(resp.Body)
 
 		statusCodes[i] = resp.StatusCode
-		if resp.StatusCode == http.StatusOK || resp.StatusCode == http.StatusPartialContent {
+		switch resp.StatusCode {
+		case http.StatusOK, http.StatusPartialContent:
 			return resp, nil
 		}
 	}
@@ -551,9 +553,10 @@ func (sr *multipartReader) Next() (region, io.Reader, error) {
 }
 
 func ParseSize(resp *http.Response) (int64, error) {
-	if resp.StatusCode == http.StatusOK {
+	switch resp.StatusCode {
+	case http.StatusOK:
 		return strconv.ParseInt(resp.Header.Get("Content-Length"), 10, 64)
-	} else if resp.StatusCode == http.StatusPartialContent {
+	case http.StatusPartialContent:
 		_, size, err := parseRange(resp.Header.Get("Content-Range"))
 		return size, err
 	}

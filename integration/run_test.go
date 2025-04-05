@@ -167,13 +167,14 @@ func TestRunMultipleContainers(t *testing.T) {
 				}
 				matches := findResult[0]
 				for i, match := range matches {
-					if mountRegexGroupNames[i] == "upperdir" {
+					switch mountRegexGroupNames[i] {
+					case "upperdir":
 						if upperdirs[match] {
 							t.Fatalf("Duplicate overlay mount upperdir: %s", match)
 						} else {
 							upperdirs[match] = true
 						}
-					} else if mountRegexGroupNames[i] == "workdir" {
+					case "workdir":
 						if workdirs[match] {
 							t.Fatalf("Duplicate overlay mount workdir: %s", match)
 						} else {
