@@ -129,7 +129,7 @@ var listCommand = cli.Command{
 
 		if quiet {
 			for _, ae := range artifacts {
-				os.Stdout.Write([]byte(fmt.Sprintf("%s\n", ae.Digest)))
+				fmt.Fprintf(os.Stdout, "%s\n", ae.Digest)
 			}
 			return nil
 		}
@@ -137,7 +137,7 @@ var listCommand = cli.Command{
 		writer := tabwriter.NewWriter(os.Stdout, 8, 8, 4, ' ', 0)
 		writer.Write([]byte("DIGEST\tSIZE\tLAYER DIGEST\t\n"))
 		for _, artifact := range artifacts {
-			writer.Write([]byte(fmt.Sprintf("%s\t%d\t%s\t\n", artifact.Digest, artifact.Size, artifact.OriginalDigest)))
+			fmt.Fprintf(writer, "%s\t%d\t%s\t\n", artifact.Digest, artifact.Size, artifact.OriginalDigest)
 		}
 		writer.Flush()
 		return nil

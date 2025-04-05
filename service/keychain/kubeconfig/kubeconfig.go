@@ -162,7 +162,7 @@ func (kc *keychain) credentials(imgRefSpec reference.Spec, host string) (string,
 		if acfg, err := cfg.GetAuthConfig(host); err == nil {
 			if acfg.IdentityToken != "" {
 				return "", acfg.IdentityToken, nil
-			} else if !(acfg.Username == "" && acfg.Password == "") {
+			} else if acfg.Username != "" || acfg.Password != "" {
 				return acfg.Username, acfg.Password, nil
 			}
 		}
@@ -220,7 +220,7 @@ func (kc *keychain) startSyncSecrets(ctx context.Context, client kubernetes.Inte
 	})
 	go informer.Run(ctx.Done())
 	if !cache.WaitForCacheSync(ctx.Done(), informer.HasSynced) {
-		return fmt.Errorf("Timed out for syncing cache")
+		return fmt.Errorf("timed out for syncing cache")
 	}
 
 	// get informer and queue

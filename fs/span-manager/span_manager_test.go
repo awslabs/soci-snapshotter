@@ -51,7 +51,7 @@ func TestSpanManager(t *testing.T) {
 			name:     "span digest verification fails",
 			maxSpans: 100,
 			sectionReader: io.NewSectionReader(readerFn(func(b []byte, _ int64) (int, error) {
-				var sz compression.Offset = compression.Offset(len(b))
+				sz := compression.Offset(len(b))
 				copy(b, testutil.RandomByteData(int64(sz)))
 				return len(b), nil
 			}), 0, 10000000),

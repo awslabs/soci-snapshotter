@@ -49,9 +49,10 @@ func validateConversion(t *testing.T, sh *shell.Shell, originalDigest, converted
 	var manifests []ocispec.Descriptor
 	var sociIndexes []ocispec.Descriptor
 	for _, manifest := range index.Manifests {
-		if manifest.ArtifactType == soci.SociIndexArtifactTypeV2 {
+		switch manifest.ArtifactType {
+		case soci.SociIndexArtifactTypeV2:
 			sociIndexes = append(sociIndexes, manifest)
-		} else if manifest.ArtifactType == "" {
+		case "":
 			manifests = append(manifests, manifest)
 		}
 		// ignore unknown artifacts

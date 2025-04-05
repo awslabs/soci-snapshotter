@@ -187,7 +187,7 @@ func multiCredsFuncs(imgRefSpec reference.Spec, credsFuncs ...Credential) func(s
 		for _, f := range credsFuncs {
 			if username, secret, err := f(imgRefSpec, host); err != nil {
 				return "", "", err
-			} else if !(username == "" && secret == "") {
+			} else if username != "" || secret != "" {
 				return username, secret, nil
 			}
 		}
