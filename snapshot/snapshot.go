@@ -47,6 +47,7 @@ import (
 	"github.com/awslabs/soci-snapshotter/fs/source"
 	"github.com/awslabs/soci-snapshotter/idtools"
 	"github.com/containerd/containerd/mount"
+	"github.com/containerd/containerd/namespaces"
 	ctdsnapshotters "github.com/containerd/containerd/pkg/snapshotters"
 	"github.com/containerd/containerd/snapshots"
 	"github.com/containerd/containerd/snapshots/overlay/overlayutils"
@@ -87,6 +88,8 @@ var (
 	ErrDeferToContainerRuntime = errors.New("deferring to container runtime")
 	// ErrNoZtoc is returned by `fs.Mount` when there is no zTOC for a particular layer.
 	ErrNoZtoc = errors.New("no ztoc for layer")
+	// ErrNoNamespace is used when the snapshot label is not present in the request
+	ErrNoNamespace = errors.New("context has no namespace attached")
 )
 
 // FileSystem is a backing filesystem abstraction.
@@ -361,6 +364,13 @@ func (o *snapshotter) Prepare(ctx context.Context, key, parent string, opts ...s
 		}
 		return o.mounts(ctx, s, parent)
 	}
+
+	// Get namespace to save into snapshot
+	ns, ok := namespaces.Namespace(ctx)
+	if !ok {
+		return nil, ErrNoNamespace
+	}
+	base.Labels[source.TargetNamespace] = ns
 
 	// NOTE: If passed labels include a target of the remote snapshot, `Prepare`
 	//       must log whether this method succeeded to prepare that remote snapshot
@@ -1027,6 +1037,11 @@ func (o *snapshotter) restoreRemoteSnapshot(ctx context.Context) error {
 		return err
 	}
 	for _, info := range task {
+		ns, ok := info.Labels[source.TargetNamespace]
+		if !ok {
+			return ErrNoNamespace
+		}
+		ctx = namespaces.WithNamespace(ctx, ns)
 		if err := o.prepareRemoteSnapshot(ctx, info.Name, info.Labels); err != nil {
 			if o.allowInvalidMountsOnRestart {
 				logrus.WithError(err).Warnf("failed to restore remote snapshot %s; remove this snapshot manually", info.Name)

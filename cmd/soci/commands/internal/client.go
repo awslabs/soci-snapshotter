@@ -43,6 +43,9 @@ import (
 	"github.com/urfave/cli"
 )
 
+// All CLI commands should call either [AppContext] or [NewClient]
+// to control the lifecycle of each command
+
 // Largely taken from containerd/cmd/ctr/commands/client.go
 
 // AppContext returns the context for a command. Should only be called once per

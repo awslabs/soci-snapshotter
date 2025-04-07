@@ -494,7 +494,7 @@ func TestRunInNamespace(t *testing.T) {
 		for _, createNamespace := range namespaces {
 			for _, runNamespace := range namespaces {
 				t.Run("content store "+string(contentStoreType)+", create in "+createNamespace+", run in "+runNamespace, func(t *testing.T) {
-					rebootContainerd(t, sh, "", getSnapshotterConfigToml(t, false, tcpMetricsConfig, GetContentStoreConfigToml(store.WithType(contentStoreType), store.WithNamespace(runNamespace))))
+					rebootContainerd(t, sh, "", getSnapshotterConfigToml(t, false, tcpMetricsConfig, GetContentStoreConfigToml(store.WithType(contentStoreType))))
 					imageInfo := dockerhub(imageName)
 					indexDigest := buildIndex(sh, imageInfo, withMinLayerSize(0), withContentStoreType(contentStoreType), withNamespace(createNamespace))
 					if indexDigest == "" {

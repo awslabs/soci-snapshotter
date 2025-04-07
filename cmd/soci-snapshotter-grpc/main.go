@@ -137,8 +137,13 @@ func main() {
 		log.G(ctx).Warn("skipped snapshotter is supported check")
 	}
 
+	serverOpts := []grpc.ServerOption{
+		grpc.ChainUnaryInterceptor(unaryNamespaceInterceptor),
+		grpc.ChainStreamInterceptor(streamNamespaceInterceptor),
+	}
+
 	// Create a gRPC server
-	rpc := grpc.NewServer()
+	rpc := grpc.NewServer(serverOpts...)
 
 	// Configure keychain
 	credsFuncs := []resolver.Credential{dockerconfig.NewDockerConfigKeychain(ctx)}

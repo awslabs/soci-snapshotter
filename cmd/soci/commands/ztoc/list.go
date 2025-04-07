@@ -63,6 +63,8 @@ var listCommand = cli.Command{
 
 		var artifacts []*soci.ArtifactEntry
 		if imgRef == "" {
+			_, cancel := internal.AppContext(cliContext)
+			defer cancel()
 			db.Walk(func(ae *soci.ArtifactEntry) error {
 				if ae.Type == soci.ArtifactEntryTypeLayer && (ztocDgst == "" || ae.Digest == ztocDgst) {
 					artifacts = append(artifacts, ae)

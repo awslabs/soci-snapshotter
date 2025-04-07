@@ -27,7 +27,6 @@ import (
 	"github.com/containerd/containerd"
 	"github.com/containerd/containerd/content"
 	"github.com/containerd/containerd/defaults"
-	"github.com/containerd/containerd/namespaces"
 	"github.com/containerd/errdefs"
 	"github.com/opencontainers/go-digest"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
@@ -77,7 +76,6 @@ const (
 func NewStoreConfig(opts ...Option) config.ContentStoreConfig {
 	storeConfig := config.ContentStoreConfig{
 		Type:              config.DefaultContentStoreType,
-		Namespace:         namespaces.Default,
 		ContainerdAddress: defaults.DefaultAddress,
 	}
 	for _, o := range opts {
@@ -87,12 +85,6 @@ func NewStoreConfig(opts ...Option) config.ContentStoreConfig {
 }
 
 type Option func(*config.ContentStoreConfig)
-
-func WithNamespace(namespace string) Option {
-	return func(sc *config.ContentStoreConfig) {
-		sc.Namespace = namespace
-	}
-}
 
 func WithType(contentStoreType ContentStoreType) Option {
 	return func(sc *config.ContentStoreConfig) {
@@ -143,20 +135,20 @@ type CleanupFunc func(context.Context) error
 
 func NopCleanup(context.Context) error { return nil }
 
-func NewContentStore(ctx context.Context, opts ...Option) (context.Context, Store, error) {
+func NewContentStore(opts ...Option) (Store, error) {
 	storeConfig := NewStoreConfig(opts...)
 
 	contentStoreType, err := CanonicalizeContentStoreType(storeConfig.Type)
 	if err != nil {
-		return ctx, nil, err
+		return nil, err
 	}
 	switch contentStoreType {
 	case ContainerdContentStoreType:
-		return NewContainerdStore(ctx, storeConfig)
+		return NewContainerdStore(storeConfig)
 	case SociContentStoreType:
-		return NewSociStore(ctx)
+		return NewSociStore()
 	}
-	return ctx, nil, errors.New("unexpectedly reached end of NewContentStore")
+	return nil, errors.New("unexpectedly reached end of NewContentStore")
 }
 
 // SociStore wraps oci.Store and adds or stubs additional functionality of the Store interface.
@@ -168,9 +160,9 @@ type SociStore struct {
 var _ Store = (*SociStore)(nil)
 
 // NewSociStore creates a sociStore.
-func NewSociStore(ctx context.Context) (context.Context, *SociStore, error) {
+func NewSociStore() (*SociStore, error) {
 	store, err := oci.New(DefaultSociContentStorePath)
-	return ctx, &SociStore{store}, err
+	return &SociStore{store}, err
 }
 
 // Label is a no-op for sociStore until sociStore and ArtifactsDb are better integrated.
@@ -196,13 +188,11 @@ type ContainerdStore struct {
 // assert that ContainerdStore implements Store
 var _ Store = (*ContainerdStore)(nil)
 
-func NewContainerdStore(ctx context.Context, storeConfig config.ContentStoreConfig) (context.Context, *ContainerdStore, error) {
+func NewContainerdStore(storeConfig config.ContentStoreConfig) (*ContainerdStore, error) {
 	client, err := containerd.New(storeConfig.ContainerdAddress)
 	if err != nil {
-		return ctx, nil, fmt.Errorf("could not connect to containerd socket for content store access: %w", err)
+		return nil, fmt.Errorf("could not connect to containerd socket for content store access: %w", err)
 	}
-
-	ctx = namespaces.WithNamespace(ctx, storeConfig.Namespace)
 
 	containerdStore := ContainerdStore{
 		client: client,
@@ -210,12 +200,11 @@ func NewContainerdStore(ctx context.Context, storeConfig config.ContentStoreConf
 
 	containerdStore.ContentStoreConfig = storeConfig
 
-	return ctx, &containerdStore, nil
+	return &containerdStore, nil
 }
 
 // Exists returns true iff the described content exists.
 func (s *ContainerdStore) Exists(ctx context.Context, target ocispec.Descriptor) (bool, error) {
-	ctx = namespaces.WithNamespace(ctx, s.Namespace)
 	cs := s.client.ContentStore()
 	_, err := cs.Info(ctx, target.Digest)
 	if errors.Is(err, errdefs.ErrNotFound) {
@@ -234,7 +223,6 @@ type sectionReaderAt struct {
 
 // Fetch fetches the content identified by the descriptor.
 func (s *ContainerdStore) Fetch(ctx context.Context, target ocispec.Descriptor) (io.ReadCloser, error) {
-	ctx = namespaces.WithNamespace(ctx, s.Namespace)
 	cs := s.client.ContentStore()
 	ra, err := cs.ReaderAt(ctx, target)
 	if err != nil {
@@ -246,7 +234,6 @@ func (s *ContainerdStore) Fetch(ctx context.Context, target ocispec.Descriptor) 
 // Push pushes the content, matching the expected descriptor.
 // This should be done within a Batch and followed by Label calls to prevent garbage collection.
 func (s *ContainerdStore) Push(ctx context.Context, expected ocispec.Descriptor, reader io.Reader) error {
-	ctx = namespaces.WithNamespace(ctx, s.Namespace)
 	exists, err := s.Exists(ctx, expected)
 	if err != nil {
 		return err
@@ -310,7 +297,6 @@ func LabelGCRefContent(ctx context.Context, store Store, target ocispec.Descript
 
 // Label creates or updates the named label with the given value.
 func (s *ContainerdStore) Label(ctx context.Context, target ocispec.Descriptor, name string, value string) error {
-	ctx = namespaces.WithNamespace(ctx, s.Namespace)
 	cs := s.client.ContentStore()
 	info := content.Info{
 		Digest: target.Digest,
@@ -326,7 +312,6 @@ func (s *ContainerdStore) Label(ctx context.Context, target ocispec.Descriptor, 
 
 // Delete removes the described content.
 func (s *ContainerdStore) Delete(ctx context.Context, dgst digest.Digest) error {
-	ctx = namespaces.WithNamespace(ctx, s.Namespace)
 	cs := s.client.ContentStore()
 	return cs.Delete(ctx, dgst)
 }

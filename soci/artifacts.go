@@ -175,7 +175,7 @@ func (db *ArtifactsDb) Walk(f func(*ArtifactEntry) error) error {
 
 // SyncWithLocalStore will sync the artifacts databse with SOCIs local content store, either adding new or removing old artifacts.
 func (db *ArtifactsDb) SyncWithLocalStore(ctx context.Context, blobStore store.Store, blobStorePath string, cs content.Store) error {
-	if err := db.RemoveOldArtifacts(blobStore); err != nil {
+	if err := db.RemoveOldArtifacts(ctx, blobStore); err != nil {
 		return fmt.Errorf("failed to remove old artifacts from db: %w", err)
 	}
 	if err := db.addNewArtifacts(ctx, blobStorePath, cs); err != nil {
@@ -189,7 +189,7 @@ func (db *ArtifactsDb) SyncWithLocalStore(ctx context.Context, blobStore store.S
 // (bucket.ForEach) causes unexpected behavior (see: https://github.com/boltdb/bolt/issues/426).
 // This implementation works around this issue by appending buckets to a slice when
 // iterating and removing them after.
-func (db *ArtifactsDb) RemoveOldArtifacts(blobStore store.Store) error {
+func (db *ArtifactsDb) RemoveOldArtifacts(ctx context.Context, blobStore store.Store) error {
 	err := db.db.Update(func(tx *bolt.Tx) error {
 		bucket, err := getArtifactsBucket(tx)
 		if err != nil {
@@ -202,7 +202,7 @@ func (db *ArtifactsDb) RemoveOldArtifacts(blobStore store.Store) error {
 			if err != nil {
 				return err
 			}
-			existsInContentStore, err := blobStore.Exists(context.Background(),
+			existsInContentStore, err := blobStore.Exists(ctx,
 				ocispec.Descriptor{MediaType: ae.MediaType, Digest: digest.Digest(ae.Digest)})
 			if err != nil {
 				return err

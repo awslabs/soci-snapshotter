@@ -45,7 +45,7 @@ var RebuildDBCommand = cli.Command{
 		if err != nil {
 			return err
 		}
-		ctx, blobStore, err := store.NewContentStore(ctx, internal.ContentStoreOptions(cliContext)...)
+		blobStore, err := store.NewContentStore(internal.ContentStoreOptions(cliContext)...)
 		if err != nil {
 			return err
 		}

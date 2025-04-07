@@ -28,6 +28,5 @@ func ContentStoreOptions(context *cli.Context) []store.Option {
 	return []store.Option{
 		store.WithType(store.ContentStoreType(context.GlobalString("content-store"))),
 		store.WithContainerdAddress(strings.TrimPrefix(context.GlobalString("address"), "unix://")),
-		store.WithNamespace(context.GlobalString("namespace")),
 	}
 }

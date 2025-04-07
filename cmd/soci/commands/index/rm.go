@@ -46,8 +46,7 @@ var rmCommand = cli.Command{
 			return fmt.Errorf("please provide either index digests or image ref, but not both")
 		}
 
-		ctx := context.Background()
-		ctx, contentStore, err := store.NewContentStore(ctx, internal.ContentStoreOptions(cliContext)...)
+		contentStore, err := store.NewContentStore(internal.ContentStoreOptions(cliContext)...)
 		if err != nil {
 			return fmt.Errorf("cannot create local content store: %w", err)
 		}
@@ -57,6 +56,9 @@ var rmCommand = cli.Command{
 			return err
 		}
 		if ref == "" {
+			ctx, cancel := internal.AppContext(cliContext)
+			defer cancel()
+
 			byteArgs := make([][]byte, len(args))
 			for i, arg := range args {
 				byteArgs[i] = []byte(arg)
