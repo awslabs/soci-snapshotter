@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1743540098768,
+  "lastUpdate": 1744070298898,
   "repoUrl": "https://github.com/awslabs/soci-snapshotter",
   "entries": {
     "Soci Benchmark": [
@@ -10579,6 +10579,48 @@ window.BENCHMARK_DATA = {
           {
             "name": "SociFullECR-public-rabbitmq-pullTaskDuration",
             "value": 1.5655000000000001,
+            "unit": "Seconds",
+            "extra": "P90"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "davbson@amazon.com",
+            "name": "David Son",
+            "username": "sondavidb"
+          },
+          "committer": {
+            "email": "55555210+sondavidb@users.noreply.github.com",
+            "name": "David Son",
+            "username": "sondavidb"
+          },
+          "distinct": true,
+          "id": "84ad7cb1d6840950acc6e04c390b08a401e0e4bb",
+          "message": "Remove ORAS Resolve calls in MountLocal\n\nThis PR has two parts:\n\nPreviously in #1025, we fixed an issue where MountLocal would fail as\nthe artifact fetcher would make a call to the remote store, but since we\npassed it an ORAS Repository, the Resolve call would assume it was given\na ref to a manifest, which will never be the case in this call stack.\n\nBy passing the artifact fetcher a BlobStore instead in this callstack,\nwe can remove redundant logic. However, the ORAS resolve call will\nalways try to resolve with a HEAD request, which some repos do not\nsupport. This is not a problem for the remote snapshot codepath, as it\nresolves manually via the RoundTripper. These two codepaths should\nreally be using the same logic but currently are not, so by removing the\nORAS resolve codepath in MountLocal, we can also squash this bug.\n\nSigned-off-by: David Son <davbson@amazon.com>",
+          "timestamp": "2025-04-07T16:49:37-07:00",
+          "tree_id": "dbf490d1b7a4a8c150d075cbd61fa248ed65cecf",
+          "url": "https://github.com/awslabs/soci-snapshotter/commit/84ad7cb1d6840950acc6e04c390b08a401e0e4bb"
+        },
+        "date": 1744070296219,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "SociFullECR-public-rabbitmq-lazyTaskDuration",
+            "value": 17.592,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-rabbitmq-localTaskDuration",
+            "value": 9.474499999999999,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-rabbitmq-pullTaskDuration",
+            "value": 1.3505,
             "unit": "Seconds",
             "extra": "P90"
           }
