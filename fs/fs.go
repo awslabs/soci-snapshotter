@@ -44,6 +44,7 @@ package fs
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	golog "log"
@@ -69,6 +70,7 @@ import (
 	"github.com/awslabs/soci-snapshotter/soci"
 	"github.com/awslabs/soci-snapshotter/soci/store"
 	"github.com/containerd/containerd/mount"
+	"github.com/containerd/containerd/namespaces"
 	ctdsnapshotters "github.com/containerd/containerd/pkg/snapshotters"
 	"github.com/containerd/containerd/reference"
 	"github.com/containerd/containerd/remotes/docker"
@@ -217,10 +219,9 @@ func NewFilesystem(ctx context.Context, root string, cfg config.FSConfig, opts .
 			return docker.ConfigureDefaultRegistries(docker.WithPlainHTTP(docker.MatchLocalhost))(imgRefSpec.Hostname())
 		})
 	}
-	ctx, store, err := store.NewContentStore(ctx,
+	store, err := store.NewContentStore(
 		store.WithType(cfg.ContentStoreConfig.Type),
 		store.WithContainerdAddress(cfg.ContentStoreConfig.ContainerdAddress),
-		store.WithNamespace(cfg.ContentStoreConfig.Namespace),
 	)
 	if err != nil {
 		return nil, fmt.Errorf("cannot create content store: %w", err)
@@ -350,7 +351,7 @@ func (c *sociContext) Init(fsCtx context.Context, ctx context.Context, imageRef,
 
 		log.G(ctx).WithField("digest", indexDesc.Digest.String()).Infof("fetching SOCI artifacts using index descriptor")
 
-		index, err := FetchSociArtifacts(fsCtx, refspec, indexDesc, store, remoteStore)
+		index, err := FetchSociArtifacts(ctx, refspec, indexDesc, store, remoteStore)
 		if err != nil {
 			retErr = fmt.Errorf("%w: error trying to fetch SOCI artifacts: %w", snapshot.ErrNoIndex, err)
 			return
@@ -569,13 +570,18 @@ func (fs *filesystem) Mount(ctx context.Context, mountpoint string, labels map[s
 		errChan <- rErr
 	}()
 
+	ns, ok := namespaces.Namespace(ctx)
+	if !ok {
+		return errors.New("could not find namespace attached to context")
+	}
 	// Also resolve and cache other layers in parallel
 	preResolve := src[0] // TODO: should we pre-resolve blobs in other sources as well?
 	for _, desc := range neighboringLayers(preResolve.Manifest, preResolve.Target) {
 		desc := desc
 		imgNameAndDigest := preResolve.Name.String() + "/" + desc.Digest.String()
 		fs.pr.Enqueue(imgNameAndDigest, func(ctx context.Context) string {
-			// Use context from the preresolver
+			// Use context from the preresolver, but append namespace from current ctx
+			ctx = namespaces.WithNamespace(ctx, ns)
 			sociDesc, ok := c.imageLayerToSociDesc[desc.Digest.String()]
 			if !ok {
 				log.G(ctx).WithError(snapshot.ErrNoZtoc).WithField("layerDigest", desc.Digest.String()).Debug("skipping layer pre-resolve")

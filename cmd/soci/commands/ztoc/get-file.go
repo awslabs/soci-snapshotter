@@ -87,7 +87,7 @@ var getFileCommand = cli.Command{
 }
 
 func getZtoc(ctx context.Context, cliContext *cli.Context, d digest.Digest) (*ztoc.Ztoc, error) {
-	ctx, blobStore, err := store.NewContentStore(ctx, internal.ContentStoreOptions(cliContext)...)
+	blobStore, err := store.NewContentStore(internal.ContentStoreOptions(cliContext)...)
 	if err != nil {
 		return nil, err
 	}

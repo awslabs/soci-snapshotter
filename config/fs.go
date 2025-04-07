@@ -42,7 +42,6 @@ import (
 	"strings"
 
 	"github.com/containerd/containerd/defaults"
-	"github.com/containerd/containerd/namespaces"
 )
 
 type FSConfig struct {
@@ -174,8 +173,6 @@ type ContentStoreConfig struct {
 	// ContainerdAddress is the containerd socket address.
 	// Applicable if and only if using containerd content store.
 	ContainerdAddress string `toml:"containerd_address"`
-
-	Namespace string `toml:"namespace"`
 }
 
 func parseFSConfig(cfg *Config) {
@@ -285,8 +282,5 @@ func parseContentStoreConfig(cfg *Config) {
 		cfg.ContentStoreConfig.ContainerdAddress = defaults.DefaultAddress
 	} else if cfg.ContentStoreConfig.Type == ContainerdContentStoreType {
 		cfg.ContentStoreConfig.ContainerdAddress = strings.TrimPrefix(cfg.ContentStoreConfig.ContainerdAddress, "unix://")
-	}
-	if cfg.ContentStoreConfig.Namespace == "" {
-		cfg.ContentStoreConfig.Namespace = namespaces.Default
 	}
 }

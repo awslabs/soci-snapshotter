@@ -85,6 +85,9 @@ const (
 	// TargetSociIndexDigestLabel is a label which contains the digest of the soci index.
 	TargetSociIndexDigestLabel = "containerd.io/snapshot/remote/soci.index.digest"
 
+	// TargetNamespace gives us the namespace that the snapshot was created in
+	TargetNamespace = "containerd.io/snapshot/remote/namespace"
+
 	// HasSociIndexDigest is a label that tells if the layer was pulled with a SOCI index.
 	HasSociIndexDigest = "containerd.io/snapshot/remote/has.soci.index.digest"
 )

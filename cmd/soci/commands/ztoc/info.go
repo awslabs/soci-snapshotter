@@ -17,7 +17,6 @@
 package ztoc
 
 import (
-	"context"
 	"encoding/json"
 	"fmt"
 
@@ -71,9 +70,9 @@ var infoCommand = cli.Command{
 		if entry.MediaType == soci.SociIndexArtifactType {
 			return fmt.Errorf("the provided digest belongs to a SOCI index. Use `soci index info` to get the detailed information about it")
 		}
-		ctx, cancel := context.WithTimeout(context.Background(), cliContext.GlobalDuration("timeout"))
+		ctx, cancel := internal.AppContext(cliContext)
 		defer cancel()
-		ctx, store, err := store.NewContentStore(ctx, internal.ContentStoreOptions(cliContext)...)
+		store, err := store.NewContentStore(internal.ContentStoreOptions(cliContext)...)
 		if err != nil {
 			return err
 		}
