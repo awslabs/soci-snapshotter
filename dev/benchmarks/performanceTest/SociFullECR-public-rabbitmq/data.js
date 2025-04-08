@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1744070298898,
+  "lastUpdate": 1744129767346,
   "repoUrl": "https://github.com/awslabs/soci-snapshotter",
   "entries": {
     "Soci Benchmark": [
@@ -10621,6 +10621,48 @@ window.BENCHMARK_DATA = {
           {
             "name": "SociFullECR-public-rabbitmq-pullTaskDuration",
             "value": 1.3505,
+            "unit": "Seconds",
+            "extra": "P90"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "walster@amazon.com",
+            "name": "Kern Walster",
+            "username": "Kern--"
+          },
+          "committer": {
+            "email": "kern.walster@gmail.com",
+            "name": "Kern Walster",
+            "username": "Kern--"
+          },
+          "distinct": true,
+          "id": "404f9b95ad9d99aaa08766f5334db48ee1513698",
+          "message": "Attach SOCI index GC to Image\n\nBefore this change, SOCI indexes were given a root garbage collection\nlabel when using the containerd content store. This meant that in order\nto remove SOCI indexes, customers would have to know to delete the\ncontent in containerd (e.g. with ctr).\n\nThis change adds an option to the `Build` API to skip the GC root label\nand instead allow the caller to manage GC labels. As an example, it\nupdates the CLI's `create` command to set the SOCI index as a content\nref for the image. When using the contaienrd content store, the SOCI\nindex will be removed if/when the image gets removed.\n\nSigned-off-by: Kern Walster <walster@amazon.com>",
+          "timestamp": "2025-04-08T09:19:44-07:00",
+          "tree_id": "bf3c8d383c385d14bf26b1daac086ded739b1101",
+          "url": "https://github.com/awslabs/soci-snapshotter/commit/404f9b95ad9d99aaa08766f5334db48ee1513698"
+        },
+        "date": 1744129761355,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "SociFullECR-public-rabbitmq-lazyTaskDuration",
+            "value": 13.0915,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-rabbitmq-localTaskDuration",
+            "value": 9.264,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-rabbitmq-pullTaskDuration",
+            "value": 1.1059999999999999,
             "unit": "Seconds",
             "extra": "P90"
           }
