@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1744129762575,
+  "lastUpdate": 1744136712041,
   "repoUrl": "https://github.com/awslabs/soci-snapshotter",
   "entries": {
     "Soci Benchmark": [
@@ -10704,6 +10704,48 @@ window.BENCHMARK_DATA = {
           {
             "name": "SociFullECR-public-tensorflow_gpu-pullTaskDuration",
             "value": 2.3935,
+            "unit": "Seconds",
+            "extra": "P90"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "davbson@amazon.com",
+            "name": "David Son",
+            "username": "sondavidb"
+          },
+          "committer": {
+            "email": "55555210+sondavidb@users.noreply.github.com",
+            "name": "David Son",
+            "username": "sondavidb"
+          },
+          "distinct": true,
+          "id": "fc8257f8f1a706a4f7aa84655865ddef0e917edc",
+          "message": "Always use namespace from request context\n\nBefore this change, any calls (mostly to the containerd content store)\nwould use the namespace specified in the config. This means that\nmaking changes to the content store within one namespace would still be\naccessible when using another namespace. This was done because the\ncontext would have a namespace attached in the gRPC header, but not in\nthe context struct, so if we didn't explicitly attach a namespace to the\ncontext, any calls to the containerd content store would fail.\n\nThis change adds middleware to the gRPC to explicitly attach the context\nfrom the header to the context, so that it can be passed to store calls.\n\nThis change also removes the config option to specify a specific\nnamespace, which is okay since the CLI was never tied to this and still\nrequires a namespace to be used, and the correct namespace to use is the\none attached to the containerd context anyway.\n\nSigned-off-by: David Son <davbson@amazon.com>",
+          "timestamp": "2025-04-08T11:13:31-07:00",
+          "tree_id": "4bd9b3625d4fc1a1cbaa55c556e06498c9f18fab",
+          "url": "https://github.com/awslabs/soci-snapshotter/commit/fc8257f8f1a706a4f7aa84655865ddef0e917edc"
+        },
+        "date": 1744136710722,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "SociFullECR-public-tensorflow_gpu-lazyTaskDuration",
+            "value": 40.4635,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-tensorflow_gpu-localTaskDuration",
+            "value": 2.7279999999999998,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-tensorflow_gpu-pullTaskDuration",
+            "value": 2.7350000000000003,
             "unit": "Seconds",
             "extra": "P90"
           }
