@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1744230510225,
+  "lastUpdate": 1744301625110,
   "repoUrl": "https://github.com/awslabs/soci-snapshotter",
   "entries": {
     "Soci Benchmark": [
@@ -10952,6 +10952,48 @@ window.BENCHMARK_DATA = {
           {
             "name": "SociFullECR-public-redis-pullTaskDuration",
             "value": 1.0550000000000002,
+            "unit": "Seconds",
+            "extra": "P90"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "walster@amazon.com",
+            "name": "Kern Walster",
+            "username": "Kern--"
+          },
+          "committer": {
+            "email": "kern.walster@gmail.com",
+            "name": "Kern Walster",
+            "username": "Kern--"
+          },
+          "distinct": true,
+          "id": "15370c6fd7af921f6ca9daeb6ef14621592823e1",
+          "message": "Refactor SOCI Init logic\n\nThis change moves most of the SOCI init logic out of `SociContext.Init`\ninto `fs.fetchSociIndex`. This is to reduce the number of args we need\nto sent to `SociContext.Init`.\n\nThere are 2 logic changes here:\n\n1. Remove the cached error lock on `SociContext`. `sync.Once` guarantees\n   that no call to `Do` will return until exactly 1 executes the\n   function. Therefore, there was never any concurrent access as the\n   write to the cached error will always happen before any read.\n2. The SOCI index digest is parsed rather than casted to a\n   digest.Digest.\n\nSigned-off-by: Kern Walster <walster@amazon.com>",
+          "timestamp": "2025-04-10T09:05:21-07:00",
+          "tree_id": "531b7ab2204af7e525a810a457b1d26ca2d2bd13",
+          "url": "https://github.com/awslabs/soci-snapshotter/commit/15370c6fd7af921f6ca9daeb6ef14621592823e1"
+        },
+        "date": 1744301623014,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "SociFullECR-public-redis-lazyTaskDuration",
+            "value": 0.629,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-redis-localTaskDuration",
+            "value": 0.0225,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-redis-pullTaskDuration",
+            "value": 0.9550000000000001,
             "unit": "Seconds",
             "extra": "P90"
           }
