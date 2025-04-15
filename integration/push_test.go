@@ -50,7 +50,7 @@ func TestSociArtifactsPushAndPull(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.Name, func(t *testing.T) {
-			rebootContainerd(t, sh, getContainerdConfigToml(t, false), getSnapshotterConfigToml(t, false))
+			rebootContainerd(t, sh, getContainerdConfigToml(t, false), getSnapshotterConfigToml(t))
 
 			platform, err := platforms.Parse(tt.Platform)
 			if err != nil {
@@ -115,7 +115,7 @@ func TestPushAlwaysMostRecentlyCreatedIndex(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			rebootContainerd(t, sh, getContainerdConfigToml(t, false), getSnapshotterConfigToml(t, false))
+			rebootContainerd(t, sh, getContainerdConfigToml(t, false), getSnapshotterConfigToml(t))
 
 			imgInfo := regConfig.mirror(tc.ref)
 			copyImage(sh, dockerhub(tc.ref), imgInfo)
@@ -159,7 +159,7 @@ func TestLegacyOCI(t *testing.T) {
 			sh, done := newShellWithRegistry(t, regConfig, withRegistryImageRef(tc.registryImage))
 			defer done()
 
-			rebootContainerd(t, sh, getContainerdConfigToml(t, false), getSnapshotterConfigToml(t, false))
+			rebootContainerd(t, sh, getContainerdConfigToml(t, false), getSnapshotterConfigToml(t))
 
 			imageName := ubuntuImage
 			copyImage(sh, dockerhub(imageName), regConfig.mirror(imageName))
@@ -195,7 +195,7 @@ func TestPushWithExistingIndices(t *testing.T) {
 	sh, done := newShellWithRegistry(t, regConfig)
 	defer done()
 
-	rebootContainerd(t, sh, getContainerdConfigToml(t, false), getSnapshotterConfigToml(t, false))
+	rebootContainerd(t, sh, getContainerdConfigToml(t, false), getSnapshotterConfigToml(t))
 
 	const (
 		singleFoundMessage   = "soci index found in remote repository with digest:"

@@ -39,7 +39,6 @@ import (
 	"math"
 	"os"
 	"path/filepath"
-	"strconv"
 	"strings"
 	"testing"
 
@@ -94,7 +93,7 @@ func TestOptimizeConsistentSociArtifact(t *testing.T) {
 					t.Fatalf("cannot get local content store path: %v", err)
 				}
 				// build artifacts from scratch
-				rebootContainerd(t, sh, "", getSnapshotterConfigToml(t, false, GetContentStoreConfigToml(store.WithType(contentStoreType))))
+				rebootContainerd(t, sh, "", getSnapshotterConfigToml(t, withContentStoreConfig(store.WithType(contentStoreType))))
 				// ensure the image is in the local registry
 				copyImage(sh, dockerhub(tt.containerImage), regConfig.mirror(tt.containerImage))
 				buildIndex(sh, regConfig.mirror(tt.containerImage), withMinLayerSize(0), withContentStoreType(contentStoreType))
@@ -104,7 +103,7 @@ func TestOptimizeConsistentSociArtifact(t *testing.T) {
 					X("cp", "-r", contentStorePath, "copy")
 
 				// build artifacts from scratch again
-				rebootContainerd(t, sh, "", getSnapshotterConfigToml(t, false, GetContentStoreConfigToml(store.WithType(contentStoreType))))
+				rebootContainerd(t, sh, "", getSnapshotterConfigToml(t, withContentStoreConfig(store.WithType(contentStoreType))))
 				copyImage(sh, dockerhub(tt.containerImage), regConfig.mirror(tt.containerImage))
 				buildIndex(sh, regConfig.mirror(tt.containerImage), withMinLayerSize(0), withContentStoreType(contentStoreType))
 
@@ -140,7 +139,7 @@ func TestLazyPullWithSparseIndex(t *testing.T) {
 	sh, done := newShellWithRegistry(t, regConfig)
 	defer done()
 
-	rebootContainerd(t, sh, getContainerdConfigToml(t, false), getSnapshotterConfigToml(t, false))
+	rebootContainerd(t, sh, getContainerdConfigToml(t, false), getSnapshotterConfigToml(t))
 
 	_, minLayerSize, _ := middleSizeLayerInfo(t, sh, dockerhub(imageName))
 
@@ -246,7 +245,7 @@ func TestLazyPull(t *testing.T) {
 	nonOptimizedImageName := ubuntuImage
 
 	// Mirror images
-	rebootContainerd(t, sh, getContainerdConfigToml(t, false), getSnapshotterConfigToml(t, false))
+	rebootContainerd(t, sh, getContainerdConfigToml(t, false), getSnapshotterConfigToml(t))
 	copyImage(sh, dockerhub(optimizedImageName1), regConfig.mirror(optimizedImageName1))
 	copyImage(sh, dockerhub(optimizedImageName2), regConfig.mirror(optimizedImageName2))
 	copyImage(sh, dockerhub(nonOptimizedImageName), regConfig.mirror(nonOptimizedImageName))
@@ -330,7 +329,7 @@ func TestLazyPullNoIndexDigest(t *testing.T) {
 	nonOptimizedImageName := ubuntuImage
 
 	// Mirror images
-	rebootContainerd(t, sh, getContainerdConfigToml(t, false), getSnapshotterConfigToml(t, false))
+	rebootContainerd(t, sh, getContainerdConfigToml(t, false), getSnapshotterConfigToml(t))
 	copyImage(sh, dockerhub(optimizedImageName), regConfig.mirror(optimizedImageName))
 	copyImage(sh, dockerhub(nonOptimizedImageName), regConfig.mirror(nonOptimizedImageName))
 	buildIndex(sh, regConfig.mirror(optimizedImageName), withMinLayerSize(0))
@@ -413,10 +412,7 @@ func TestPullWithMaxConcurrency(t *testing.T) {
 			sh, done := newShellWithRegistry(t, regConfig)
 			defer done()
 
-			config := `
-max_concurrency = ` + fmt.Sprintf("%d\n", tt.maxConcurrency)
-
-			rebootContainerd(t, sh, getContainerdConfigToml(t, false), getSnapshotterConfigToml(t, false, config))
+			rebootContainerd(t, sh, getContainerdConfigToml(t, false), getSnapshotterConfigToml(t, withMaxConcurrency(tt.maxConcurrency)))
 			copyImage(sh, dockerhub(tt.image), regConfig.mirror(tt.image))
 
 			indexDigest := buildIndex(sh, regConfig.mirror(tt.image), withMinLayerSize(0), withSpanSize(100*1024))
@@ -446,7 +442,7 @@ func TestPullWithAribtraryBlobInvalidZtocFormat(t *testing.T) {
 
 	fromNormalSnapshotter := func(image string) tarPipeExporter {
 		return func(t *testing.T, tarExportArgs ...string) {
-			rebootContainerd(t, sh, getContainerdConfigToml(t, false), getSnapshotterConfigToml(t, false))
+			rebootContainerd(t, sh, getContainerdConfigToml(t, false), getSnapshotterConfigToml(t))
 			sh.X("nerdctl", "pull", "-q", image)
 			sh.Pipe(nil, shell.C("nerdctl", "run", "--name", "test", "--pull", "never", "--net", "none", "--rm", image, "tar", "-zc", "/usr"), tarExportArgs)
 		}
@@ -498,7 +494,7 @@ func TestPullWithAribtraryBlobInvalidZtocFormat(t *testing.T) {
 
 	for _, img := range images {
 		t.Run(img.name, func(t *testing.T) {
-			rebootContainerd(t, sh, getContainerdConfigToml(t, false), getSnapshotterConfigToml(t, false))
+			rebootContainerd(t, sh, getContainerdConfigToml(t, false), getSnapshotterConfigToml(t))
 			sociImage := regConfig.mirror(img.ref)
 			copyImage(sh, dockerhub(img.ref), sociImage)
 			pushedPlatformDigest, _ := sh.OLog("nerdctl", "image", "convert", "--platform",
@@ -534,11 +530,6 @@ func TestPullWithAribtraryBlobInvalidZtocFormat(t *testing.T) {
 
 // TestLazyPull tests if lazy pulling works without background fetch.
 func TestLazyPullNoBackgroundFetch(t *testing.T) {
-	const backgroundFetcherConfig = `
-[background_fetch]
-disable = true
-`
-
 	regConfig := newRegistryConfig()
 
 	sh, done := newShellWithRegistry(t, regConfig)
@@ -549,7 +540,7 @@ disable = true
 	nonOptimizedImageName := ubuntuImage
 
 	// Mirror images
-	rebootContainerd(t, sh, getContainerdConfigToml(t, false), getSnapshotterConfigToml(t, false, backgroundFetcherConfig))
+	rebootContainerd(t, sh, getContainerdConfigToml(t, false), getSnapshotterConfigToml(t, withDisableBgFetcher))
 	copyImage(sh, dockerhub(optimizedImageName1), regConfig.mirror(optimizedImageName1))
 	copyImage(sh, dockerhub(optimizedImageName2), regConfig.mirror(optimizedImageName2))
 	copyImage(sh, dockerhub(nonOptimizedImageName), regConfig.mirror(nonOptimizedImageName))
@@ -701,14 +692,21 @@ host = "%s"
 insecure = true
 `, regConfig.host, regAltConfig.hostWithPort())
 
-	snapshotterMirrorConfig := fmt.Sprintf(`
-[blob]
-check_always = true
+	var withCustomMirrorConfig = func(cfg *config.Config) {
+		cfg.ServiceConfig.FSConfig.BlobConfig.CheckAlways = true
 
-[[resolver.host."%s".mirrors]]
-host = "%s"
-insecure = true
-`, regConfig.host, regAltConfig.hostWithPort())
+		if cfg.ServiceConfig.ResolverConfig.Host == nil {
+			cfg.ServiceConfig.ResolverConfig.Host = make(map[string]config.HostConfig)
+		}
+		cfg.ServiceConfig.ResolverConfig.Host[regConfig.host] = config.HostConfig{
+			Mirrors: []config.MirrorConfig{
+				{
+					Host:     regAltConfig.hostWithPort(),
+					Insecure: true,
+				},
+			},
+		}
+	}
 
 	crtPath := filepath.Join(caCertDir, "domain.crt")
 	// Setup environment
@@ -721,7 +719,7 @@ insecure = true
 
 	imageName := rabbitmqImage
 	// Mirror images
-	rebootContainerd(t, sh, getContainerdConfigToml(t, false, containerdMirrorConfig), getSnapshotterConfigToml(t, false, snapshotterMirrorConfig))
+	rebootContainerd(t, sh, getContainerdConfigToml(t, false, containerdMirrorConfig), getSnapshotterConfigToml(t, withCustomMirrorConfig))
 	copyImage(sh, dockerhub(imageName), regConfig.mirror(imageName))
 	copyImage(sh, regConfig.mirror(imageName), regAltConfig.mirror(imageName))
 	indexDigest := buildIndex(sh, regConfig.mirror(imageName), withMinLayerSize(0))
@@ -831,16 +829,12 @@ func TestRpullImageWithMinLayerSize(t *testing.T) {
 	defer done()
 
 	// Start soci with default config
-	rebootContainerd(t, sh, getContainerdConfigToml(t, false), getSnapshotterConfigToml(t, false))
+	rebootContainerd(t, sh, getContainerdConfigToml(t, false), getSnapshotterConfigToml(t))
 
 	middleIndex, middleSize, layerCount := middleSizeLayerInfo(t, sh, dockerhub(containerImage))
 
-	minLayerSizeConfig := `
-[snapshotter]
-min_layer_size=` + strconv.FormatInt(middleSize, 10) + `
-`
 	// Start soci with config to test
-	rebootContainerd(t, sh, getContainerdConfigToml(t, false), getSnapshotterConfigToml(t, false, minLayerSizeConfig))
+	rebootContainerd(t, sh, getContainerdConfigToml(t, false), getSnapshotterConfigToml(t, withMinLayerSizeConfig(middleSize)))
 
 	copyImage(sh, dockerhub(containerImage), regConfig.mirror(containerImage))
 	indexDigest := buildIndex(sh, regConfig.mirror(containerImage), withMinLayerSize(0))
