@@ -98,7 +98,7 @@ func TestRebuildArtifactsDB(t *testing.T) {
 	for _, tc := range testCases {
 		for _, contentStoreType := range store.ContentStoreTypes() {
 			t.Run(fmt.Sprintf(tc.name, contentStoreType), func(t *testing.T) {
-				rebootContainerd(t, sh, "", getSnapshotterConfigToml(t, false, GetContentStoreConfigToml(store.WithType(contentStoreType))))
+				rebootContainerd(t, sh, "", getSnapshotterConfigToml(t, withContentStoreConfig(store.WithType(contentStoreType))))
 				if !tc.afterContent {
 					copyImage(sh, dockerhub(img), regConfig.mirror(img))
 					buildIndex(sh, regConfig.mirror(img), withMinLayerSize(0), withContentStoreType(contentStoreType))

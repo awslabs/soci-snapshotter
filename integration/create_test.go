@@ -167,7 +167,7 @@ func TestSociCreate(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			rebootContainerd(t, sh, "", getSnapshotterConfigToml(t, false, GetContentStoreConfigToml(store.WithType(tt.contentStoreType))))
+			rebootContainerd(t, sh, "", getSnapshotterConfigToml(t, withContentStoreConfig(store.WithType(tt.contentStoreType))))
 			platform := platforms.DefaultSpec()
 			if tt.platform != "" {
 				var err error
@@ -216,7 +216,7 @@ func TestSociCreateGarbageCollection(t *testing.T) {
 [plugins."io.containerd.gc.v1.scheduler"]
 	deletion_threshold = 1`
 
-	rebootContainerd(t, sh, getContainerdConfigToml(t, false, extraContainerdConfig), getSnapshotterConfigToml(t, false, tcpMetricsConfig, GetContentStoreConfigToml(store.WithType(config.ContainerdContentStoreType))))
+	rebootContainerd(t, sh, getContainerdConfigToml(t, false, extraContainerdConfig), getSnapshotterConfigToml(t, withTCPMetrics, withContentStoreConfig(store.WithType(config.ContainerdContentStoreType))))
 
 	imgInfo := dockerhub(image)
 	sh.X("nerdctl", "pull", "-q", imgInfo.ref)
@@ -243,7 +243,7 @@ func TestSociImageGCLabel(t *testing.T) {
 [plugins."io.containerd.gc.v1.scheduler"]
 	deletion_threshold = 1`
 
-	rebootContainerd(t, sh, getContainerdConfigToml(t, false, extraContainerdConfig), getSnapshotterConfigToml(t, false, tcpMetricsConfig, GetContentStoreConfigToml(store.WithType(config.ContainerdContentStoreType))))
+	rebootContainerd(t, sh, getContainerdConfigToml(t, false, extraContainerdConfig), getSnapshotterConfigToml(t, withTCPMetrics, withContentStoreConfig(store.WithType(config.ContainerdContentStoreType))))
 
 	imgInfo := dockerhub(image)
 	sh.X("nerdctl", "pull", "-q", imgInfo.ref)

@@ -15,9 +15,7 @@ http_cache_type=""
 filesystem_cache_type=""
 resolve_result_entry=0
 debug=false
-# disable_verification=false
-# Causes TestRunWithDefaultConfig to break, but
-# fine to use in /etc/soci-snapshotter-grpc-config.toml
+disable_verification=false
 max_concurrency=0  # Actually zero
 no_prometheus=false
 mount_timeout_sec=0

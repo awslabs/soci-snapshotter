@@ -44,29 +44,20 @@ const (
 	metricsPath        = "/metrics"
 )
 
-const tcpMetricsConfig = `
-metrics_address="` + tcpMetricsAddress + `"
-`
-
-const unixMetricsConfig = `
-metrics_address="` + unixMetricsAddress + `"
-metrics_network="unix"
-`
-
 func TestMetrics(t *testing.T) {
 	tests := []struct {
 		name    string
-		config  string
+		config  snapshotterConfigOpt
 		command []string
 	}{
 		{
 			name:    "tcp",
-			config:  tcpMetricsConfig,
+			config:  withTCPMetrics,
 			command: []string{"curl", "--fail", tcpMetricsAddress + metricsPath},
 		},
 		{
 			name:    "unix",
-			config:  unixMetricsConfig,
+			config:  withUnixMetrics,
 			command: []string{"curl", "--fail", "--unix-socket", unixMetricsAddress, "http://localhost" + metricsPath},
 		},
 	}
@@ -75,7 +66,7 @@ func TestMetrics(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			sh, done := newSnapshotterBaseShell(t)
 			defer done()
-			rebootContainerd(t, sh, "", tt.config)
+			rebootContainerd(t, sh, "", getSnapshotterConfigToml(t, tt.config))
 			sh.X(tt.command...)
 			if err := sh.Err(); err != nil {
 				t.Fatal(err)
@@ -150,7 +141,7 @@ func TestOverlayFallbackMetric(t *testing.T) {
 	for _, tc := range testCases {
 		for _, contentStoreType := range store.ContentStoreTypes() {
 			t.Run(tc.name+" with "+string(contentStoreType)+" content store", func(t *testing.T) {
-				rebootContainerd(t, sh, getContainerdConfigToml(t, false), getSnapshotterConfigToml(t, false, tcpMetricsConfig, GetContentStoreConfigToml(store.WithType(contentStoreType))))
+				rebootContainerd(t, sh, getContainerdConfigToml(t, false), getSnapshotterConfigToml(t, withTCPMetrics, withContentStoreConfig(store.WithType(contentStoreType))))
 
 				imgInfo := dockerhub(tc.image)
 
@@ -169,10 +160,9 @@ func TestOverlayFallbackMetric(t *testing.T) {
 }
 
 func TestFuseOperationFailureMetrics(t *testing.T) {
-	const logFuseOperationConfig = `
-[fuse]
-log_fuse_operations = true
-`
+	var withLogFuseOperations = func(cfg *config.Config) {
+		cfg.ServiceConfig.FSConfig.FuseConfig.LogFuseOperations = true
+	}
 
 	sh, done := newSnapshotterBaseShell(t)
 	defer done()
@@ -249,7 +239,7 @@ log_fuse_operations = true
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			rebootContainerd(t, sh, getContainerdConfigToml(t, false), getSnapshotterConfigToml(t, false, tcpMetricsConfig, logFuseOperationConfig))
+			rebootContainerd(t, sh, getContainerdConfigToml(t, false), getSnapshotterConfigToml(t, withTCPMetrics, withLogFuseOperations))
 
 			imgInfo := dockerhub(tc.image)
 			sh.X("nerdctl", "pull", "-q", imgInfo.ref)
@@ -272,10 +262,6 @@ log_fuse_operations = true
 }
 
 func TestFuseOperationCountMetrics(t *testing.T) {
-	const snapshotterConfig = `
-fuse_metrics_emit_wait_duration_sec = 10
-	`
-
 	sh, done := newSnapshotterBaseShell(t)
 	defer done()
 
@@ -291,7 +277,7 @@ fuse_metrics_emit_wait_duration_sec = 10
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			rebootContainerd(t, sh, getContainerdConfigToml(t, false), getSnapshotterConfigToml(t, false, tcpMetricsConfig, snapshotterConfig))
+			rebootContainerd(t, sh, getContainerdConfigToml(t, false), getSnapshotterConfigToml(t, withTCPMetrics, withFuseWaitDuration(10)))
 
 			imgInfo := dockerhub(tc.image)
 			sh.X("nerdctl", "pull", "-q", imgInfo.ref)
@@ -321,12 +307,11 @@ fuse_metrics_emit_wait_duration_sec = 10
 }
 
 func TestBackgroundFetchMetrics(t *testing.T) {
-	const backgroundFetchConfig = `
-[background_fetch]
-silence_period_msec = 1000
-fetch_period_msec = 100
-emit_metric_period_sec = 2
-	`
+	var withCustomBgFetchConfig = func(cfg *config.Config) {
+		cfg.ServiceConfig.FSConfig.BackgroundFetchConfig.SilencePeriodMsec = 100
+		cfg.ServiceConfig.FSConfig.BackgroundFetchConfig.FetchPeriodMsec = 100
+		cfg.ServiceConfig.FSConfig.BackgroundFetchConfig.EmitMetricPeriodSec = 2
+	}
 
 	bgFetchMetricsToCheck := []string{
 		commonmetrics.BackgroundFetchWorkQueueSize,
@@ -348,7 +333,7 @@ emit_metric_period_sec = 2
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			rebootContainerd(t, sh, getContainerdConfigToml(t, false), getSnapshotterConfigToml(t, false, tcpMetricsConfig, backgroundFetchConfig))
+			rebootContainerd(t, sh, getContainerdConfigToml(t, false), getSnapshotterConfigToml(t, withTCPMetrics, withCustomBgFetchConfig))
 
 			imgInfo := dockerhub(tc.image)
 			sh.X("nerdctl", "pull", "-q", imgInfo.ref)

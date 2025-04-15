@@ -52,6 +52,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/awslabs/soci-snapshotter/config"
 	commonmetrics "github.com/awslabs/soci-snapshotter/fs/metrics/common"
 	"github.com/awslabs/soci-snapshotter/soci/store"
 	shell "github.com/awslabs/soci-snapshotter/util/dockershell"
@@ -132,11 +133,6 @@ check_always = true
 [debug]
 format = "json"
 level = "{{.LogLevel}}"
-
-{{.AdditionalConfig}}
-`
-const snapshotterConfigTemplate = `
-disable_verification = {{.DisableVerification}}
 
 {{.AdditionalConfig}}
 `
@@ -315,18 +311,51 @@ func getContainerdConfigToml(t *testing.T, disableVerification bool, additionalC
 	return s
 }
 
-func getSnapshotterConfigToml(t *testing.T, disableVerification bool, additionalConfigs ...string) string {
-	s, err := testutil.ApplyTextTemplate(snapshotterConfigTemplate, struct {
-		DisableVerification bool
-		AdditionalConfig    string
-	}{
-		DisableVerification: disableVerification,
-		AdditionalConfig:    strings.Join(additionalConfigs, "\n"),
-	})
+type snapshotterConfigOpt func(*config.Config)
+
+func withTCPMetrics(cfg *config.Config) {
+	cfg.MetricsAddress = tcpMetricsAddress
+}
+
+func withUnixMetrics(cfg *config.Config) {
+	cfg.MetricsAddress = unixMetricsAddress
+	cfg.MetricsNetwork = "unix"
+}
+
+func withMaxConcurrency(m int64) snapshotterConfigOpt {
+	return func(c *config.Config) {
+		c.ServiceConfig.FSConfig.MaxConcurrency = m
+	}
+}
+
+func withDisableBgFetcher(cfg *config.Config) {
+	cfg.ServiceConfig.FSConfig.BackgroundFetchConfig.Disable = true
+}
+
+func withMinLayerSizeConfig(minLayerSize int64) snapshotterConfigOpt {
+	return func(c *config.Config) {
+		c.ServiceConfig.SnapshotterConfig.MinLayerSize = minLayerSize
+	}
+}
+
+func withFuseWaitDuration(i int64) snapshotterConfigOpt {
+	return func(c *config.Config) {
+		c.ServiceConfig.FSConfig.FuseMetricsEmitWaitDurationSec = i
+	}
+}
+
+func getSnapshotterConfigToml(t *testing.T, opts ...snapshotterConfigOpt) string {
+	// For integ tests, we intentionally don't initialize the config to simulate
+	// a partially filled config like you might find in a real /etc/soci-snapshotter-grpc/config.toml
+	config := config.Config{}
+	for _, opt := range opts {
+		opt(&config)
+	}
+	s, err := toml.Marshal(config)
 	if err != nil {
 		t.Fatal(err)
 	}
-	return s
+	return string(s)
 }
 
 func isTestingBuiltinSnapshotter() bool {
@@ -904,11 +933,8 @@ func FetchContentByDigest(sh *shell.Shell, contentStoreType store.ContentStoreTy
 	}
 }
 
-func GetContentStoreConfigToml(opts ...store.Option) string {
-	storeConfig := store.NewStoreConfig(opts...)
-	configToml, err := toml.Marshal(storeConfig)
-	if err != nil {
-		return ""
+func withContentStoreConfig(opts ...store.Option) snapshotterConfigOpt {
+	return func(c *config.Config) {
+		c.ServiceConfig.FSConfig.ContentStoreConfig = store.NewStoreConfig(opts...)
 	}
-	return "\n[content_store]\n" + string(configToml)
 }
