@@ -31,4 +31,9 @@ if [ -f /sys/fs/cgroup/cgroup.controllers ]; then
                > /sys/fs/cgroup/cgroup.subtree_control
 fi
 
-sleep infinity
+if [ $# -eq 0 ]; then
+        sleep infinity
+        exit 0
+fi
+
+exec "$@"

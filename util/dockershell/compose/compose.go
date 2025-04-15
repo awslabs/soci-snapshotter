@@ -153,7 +153,7 @@ func Up(dockerComposeYaml string, opts ...Option) (*Compose, error) {
 	})
 	cleanups = append(cleanups, func() error { return os.RemoveAll(tmpContext) })
 
-	cmd := exec.Command("docker", "compose", "-f", confFile, "up", "-d")
+	cmd := exec.Command("docker", "compose", "-f", confFile, "up")
 	if cOpts.addStdio != nil {
 		cOpts.addStdio(cmd)
 	}

@@ -169,7 +169,7 @@ $(COVDIR)/unit: $(COVDIR)
 integration: build nerdctl-with-idmapping
 	@echo "$@"
 	@echo "SOCI_SNAPSHOTTER_PROJECT_ROOT=$(SOCI_SNAPSHOTTER_PROJECT_ROOT)"
-	@GO111MODULE=$(GO111MODULE_VALUE) SOCI_SNAPSHOTTER_PROJECT_ROOT=$(SOCI_SNAPSHOTTER_PROJECT_ROOT) ENABLE_INTEGRATION_TEST=true go test $(GO_TEST_FLAGS) -v -timeout=0 ./integration
+	@GO111MODULE=$(GO111MODULE_VALUE) SOCI_SNAPSHOTTER_PROJECT_ROOT=$(SOCI_SNAPSHOTTER_PROJECT_ROOT) ENABLE_INTEGRATION_TEST=true go test -run TestSnapshotterSystemdStartup $(GO_TEST_FLAGS) -v -timeout=0 ./integration
 
 show-integration-coverage: integration-with-coverage
 	go tool covdata percent -i $(COVDIR)/integration

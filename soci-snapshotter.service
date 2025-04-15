@@ -30,7 +30,6 @@
 Description=soci snapshotter containerd plugin
 Documentation=https://github.com/awslabs/soci-snapshotter
 After=network.target
-Before=containerd.service
 
 [Service]
 Type=notify

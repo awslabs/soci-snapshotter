@@ -42,11 +42,11 @@ jobs:
         # having to write escaped json in a string.
         include:
           - use-codebuild: ${{ github.repository_owner == 'awslabs' }}
-            runs-on-names-cb: [ubuntu-x86, al2-arm]
+            runs-on-names-cb: [al2-x86, al2-arm]
             runs-on-names-gh: [ubuntu]
             runner-labels:
               ubuntu: ubuntu-22.04
-              ubuntu-x86: "codebuild-soci-snapshotter-instance-${{ github.run_id }}-${{ github.run_attempt }}-ubuntu-7.0-large"
+              al2-x86: "codebuild-soci-snapshotter-instance-${{ github.run_id }}-${{ github.run_attempt }}-linux-5.0-large"
               al2-arm: "codebuild-soci-snapshotter-instance-${{ github.run_id }}-${{ github.run_attempt }}-arm-3.0-large"
     outputs:
       available-runners: ${{ matrix.use-codebuild && toJSON(matrix.runs-on-names-cb) || toJSON(matrix.runs-on-names-gh) }}
@@ -67,9 +67,9 @@ jobs:
       - uses: actions/setup-go@v5
         with:
           go-version: ${{ env.GO_VERSION }}
-      - name: Install zlib static on AL2 ARM instances
-        if: matrix.os == 'al2-arm'
-        run: dnf install zlib-static.aarch64 -y
+      - name: Install zlib static on AL2 instances
+        if: matrix.os == 'al2-x86' || matrix.os == 'al2-arm'
+        run: dnf install zlib-static -y
       - run: make
       - run: make test-with-coverage
       - name: Show test coverage
@@ -91,9 +91,9 @@ jobs:
       - uses: actions/setup-go@v5
         with:
           go-version: ${{ env.GO_VERSION }}
-      - name: Install zlib static on AL2 ARM instances
-        if: matrix.os == 'al2-arm'
-        run: dnf install zlib-static.aarch64 -y
+      - name: Install zlib static on AL2 instances
+        if: matrix.os == 'al2-x86' || matrix.os == 'al2-arm'
+        run: dnf install zlib-static -y
       - run: make integration-with-coverage
       - name: Show test coverage
         run: make show-integration-coverage

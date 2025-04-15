@@ -112,7 +112,7 @@ func TestSnapshotterSystemdStartup(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(tt *testing.T) {
-			sh, cleanup := newSnapshotterBaseShell(tt, withEntrypoint("/usr/lib/systemd/systemd"))
+			sh, cleanup := newSnapshotterBaseShell(tt, withEntrypoint("/usr/lib/systemd/systemd --log-level=debug --show-status=true --dump-core=true --log-target=console"))
 			defer cleanup()
 
 			sh.X("containerd", "--version")

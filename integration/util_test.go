@@ -159,6 +159,9 @@ services:
   testing:
    image: soci_base:soci_test
    privileged: true
+   tty: true
+   cgroup: host
+   cgroup_parent: docker
    entrypoint: {{.Entrypoint}}
    environment:
     - NO_PROXY=127.0.0.1,localhost
@@ -168,6 +171,7 @@ services:
     - /var/lib/containerd
     - /var/lib/soci-snapshotter-grpc
    volumes:
+    - /sys/fs/cgroup/docker:/sys/fs/cgroup:rw
     - /dev/fuse:/dev/fuse
     - {{.ImageContextDir}}/cov/integration:/test_coverage
 `
