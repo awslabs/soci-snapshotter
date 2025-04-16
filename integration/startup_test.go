@@ -17,6 +17,7 @@
 package integration
 
 import (
+	"os"
 	"regexp"
 	"strings"
 	"testing"
@@ -62,6 +63,10 @@ func TestSnapshotterStartup(t *testing.T) {
 // It verifies that SOCI works when using socket activation and that SOCI starts up correctly when
 // it is configured for socket activation, but it launches directly.
 func TestSnapshotterSystemdStartup(t *testing.T) {
+	if os.Getenv("SKIP_SYSTEMD_TESTS") != "" {
+		t.Skip("Skipping systemd tests")
+	}
+
 	tests := []struct {
 		name                 string
 		init                 func(*shell.Shell)
