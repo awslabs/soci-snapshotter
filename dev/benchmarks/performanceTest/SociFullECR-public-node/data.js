@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1744760656564,
+  "lastUpdate": 1744864616847,
   "repoUrl": "https://github.com/awslabs/soci-snapshotter",
   "entries": {
     "Soci Benchmark": [
@@ -10914,6 +10914,48 @@ window.BENCHMARK_DATA = {
           {
             "name": "SociFullECR-public-node-pullTaskDuration",
             "value": 1.7249999999999999,
+            "unit": "Seconds",
+            "extra": "P90"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "walster@amazon.com",
+            "name": "Kern Walster",
+            "username": "Kern--"
+          },
+          "committer": {
+            "email": "kern.walster@gmail.com",
+            "name": "Kern Walster",
+            "username": "Kern--"
+          },
+          "distinct": true,
+          "id": "4544842f4b54548facccdfa94f358f6fc6bf3518",
+          "message": "Disable systemd tests on x86 codebuild\n\nsystemd tests fail on codebuild x86 runners due to some issue with\ncgroups v2. For now, disable the tests (they should still pass on ARM)\nso we're not blocking PRs while we investigate.\n\nSigned-off-by: Kern Walster <walster@amazon.com>",
+          "timestamp": "2025-04-16T21:28:12-07:00",
+          "tree_id": "574ba06596a078fed9eb3d5aaa2569c41ff5ba35",
+          "url": "https://github.com/awslabs/soci-snapshotter/commit/4544842f4b54548facccdfa94f358f6fc6bf3518"
+        },
+        "date": 1744864608661,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "SociFullECR-public-node-lazyTaskDuration",
+            "value": 3.9619999999999997,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-node-localTaskDuration",
+            "value": 0.4765,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-node-pullTaskDuration",
+            "value": 1.8094999999999999,
             "unit": "Seconds",
             "extra": "P90"
           }
