@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1744760648864,
+  "lastUpdate": 1744864607255,
   "repoUrl": "https://github.com/awslabs/soci-snapshotter",
   "entries": {
     "Soci Benchmark": [
@@ -11078,6 +11078,48 @@ window.BENCHMARK_DATA = {
           {
             "name": "SociFullECR-public-redis-pullTaskDuration",
             "value": 0.974,
+            "unit": "Seconds",
+            "extra": "P90"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "walster@amazon.com",
+            "name": "Kern Walster",
+            "username": "Kern--"
+          },
+          "committer": {
+            "email": "kern.walster@gmail.com",
+            "name": "Kern Walster",
+            "username": "Kern--"
+          },
+          "distinct": true,
+          "id": "4544842f4b54548facccdfa94f358f6fc6bf3518",
+          "message": "Disable systemd tests on x86 codebuild\n\nsystemd tests fail on codebuild x86 runners due to some issue with\ncgroups v2. For now, disable the tests (they should still pass on ARM)\nso we're not blocking PRs while we investigate.\n\nSigned-off-by: Kern Walster <walster@amazon.com>",
+          "timestamp": "2025-04-16T21:28:12-07:00",
+          "tree_id": "574ba06596a078fed9eb3d5aaa2569c41ff5ba35",
+          "url": "https://github.com/awslabs/soci-snapshotter/commit/4544842f4b54548facccdfa94f358f6fc6bf3518"
+        },
+        "date": 1744864605822,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "SociFullECR-public-redis-lazyTaskDuration",
+            "value": 1.387,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-redis-localTaskDuration",
+            "value": 0.024,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-redis-pullTaskDuration",
+            "value": 1.137,
             "unit": "Seconds",
             "extra": "P90"
           }
