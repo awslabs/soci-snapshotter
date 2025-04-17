@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1744864616847,
+  "lastUpdate": 1744911312411,
   "repoUrl": "https://github.com/awslabs/soci-snapshotter",
   "entries": {
     "Soci Benchmark": [
@@ -10956,6 +10956,48 @@ window.BENCHMARK_DATA = {
           {
             "name": "SociFullECR-public-node-pullTaskDuration",
             "value": 1.8094999999999999,
+            "unit": "Seconds",
+            "extra": "P90"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "davbson@amazon.com",
+            "name": "David Son",
+            "username": "sondavidb"
+          },
+          "committer": {
+            "email": "55555210+sondavidb@users.noreply.github.com",
+            "name": "David Son",
+            "username": "sondavidb"
+          },
+          "distinct": true,
+          "id": "575576db28b6b50c313e17a77dcdc3dda8a0a2dc",
+          "message": "Update golang.org/x/net to v0.39.0\n\nThis is a manual dependency bump to patch CVE GO-2025-3595, since our\nautomated script doesn't auto-bump indirect dependencies.\n\nhttps://pkg.go.dev/vuln/GO-2025-3595\n\nSigned-off-by: David Son <davbson@amazon.com>",
+          "timestamp": "2025-04-17T10:25:52-07:00",
+          "tree_id": "f33f8b2d723a67910167ab265347621f85cf23ff",
+          "url": "https://github.com/awslabs/soci-snapshotter/commit/575576db28b6b50c313e17a77dcdc3dda8a0a2dc"
+        },
+        "date": 1744911308979,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "SociFullECR-public-node-lazyTaskDuration",
+            "value": 5.074,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-node-localTaskDuration",
+            "value": 0.487,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-node-pullTaskDuration",
+            "value": 2.0815,
             "unit": "Seconds",
             "extra": "P90"
           }
