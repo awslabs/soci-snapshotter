@@ -48,50 +48,12 @@ RUN git clone https://github.com/intel/isa-l.git && \
     cd .. && \
     rm -rf isa-l
 
-# Build stage for rapidgzip
-FROM public.ecr.aws/amazonlinux/amazonlinux:2023 AS rapidgzip-builder
-
-ARG RAPIDGZIP_VERSION
-
-RUN dnf update -y && dnf install -y \
-    binutils \
-    cmake \
-    gcc \
-    gcc-c++ \
-    git \
-    make \
-    nasm \
-    yasm \
-    zlib-devel
-
-RUN mkdir -p /opt/rapidgzip/usr/local/bin
-
-# TODO: add ARM support for rapidgzip.
-# Only build rapidgzip on x86_64/amd64 architecture.
-# rapidgzip fails to build on ARM due to `-fcf-protection=full` flag not supported on target.
-RUN ARCH=$(uname -m) && \
-    if [ "$ARCH" = "x86_64" ]; then \
-        git clone https://github.com/mxmlnkn/rapidgzip.git && \
-        cd rapidgzip && \
-        git checkout "rapidgzip-v${RAPIDGZIP_VERSION}" && \
-        mkdir build && \
-        cd build && \
-        cmake -DCMAKE_DISABLE_FIND_PACKAGE_NASM=TRUE \
-              -DCMAKE_CXX_FLAGS="-O2 -fPIC" \
-              -DCMAKE_C_FLAGS="-O2 -fPIC" \
-              -DCMAKE_BUILD_TYPE=Release .. && \
-        make -j$(nproc) && \
-        cp src/tools/rapidgzip /opt/rapidgzip/usr/local/bin/ && \
-        chmod +x /opt/rapidgzip/usr/local/bin/rapidgzip && \
-        cd ../.. && \
-        rm -rf rapidgzip; \
-    fi
-
 FROM public.ecr.aws/amazonlinux/amazonlinux:2023 AS containerd-snapshotter-base
 
 ARG CONTAINERD_VERSION
 ARG RUNC_VERSION
 ARG NERDCTL_VERSION
+ARG RAPIDGZIP_VERSION
 ARG TARGETARCH
 ENV GOPROXY direct
 ENV GOCOVERDIR /test_coverage
@@ -101,17 +63,24 @@ COPY . $GOPATH/src/github.com/awslabs/soci-snapshotter
 RUN dnf update && dnf upgrade && dnf install -y \
     diffutils \
     findutils \
+    gcc \
+    gcc-c++ \
     gzip \
     iptables \
     pigz \
     procps \
+    python3 \
+    python3-devel \
+    python3-pip \
     systemd \
     tar \
-    util-linux-core
+    util-linux-core \
+    zlib-devel
 
-# Copy igzip and rapidgzip from builder stages
+# Copy igzip from builder stages
 COPY --from=igzip-builder /opt/igzip/usr /usr/local
-COPY --from=rapidgzip-builder /opt/rapidgzip/usr/local /usr/local
+# Install rapidgzip using Python to avoid compile/link issues on ARM.
+RUN python3 -m pip install rapidgzip==${RAPIDGZIP_VERSION}
 
 RUN cp $GOPATH/src/github.com/awslabs/soci-snapshotter/out/soci /usr/local/bin/ && \
     cp $GOPATH/src/github.com/awslabs/soci-snapshotter/out/soci-snapshotter-grpc /usr/local/bin/ && \
