@@ -252,7 +252,10 @@ func injectContainerdContentStoreContentFromReader(sh *shell.Shell, desc ocispec
 	if err := cmd.Run(); err != nil {
 		return err
 	}
-	cmd = sh.Command("ctr", "content", "label", desc.Digest.String(), "")
+	// Labelling the content root is not the right thing to do. We should build the proper set of references
+	// back to an image under a lease, but this should at least be safe because integration containers are
+	// ephemeral for the single test.
+	cmd = sh.Command("ctr", "content", "label", desc.Digest.String(), "containerd.io/gc.root")
 	return cmd.Run()
 }
 

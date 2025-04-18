@@ -129,6 +129,7 @@ func TestRunMultipleContainers(t *testing.T) {
 				copyImage(sh, dockerhub(container.containerImage), regConfig.mirror(container.containerImage))
 				// Pull image, create SOCI index
 				indexDigest := buildIndex(sh, regConfig.mirror(container.containerImage), withMinLayerSize(0))
+				sh.X("soci", "push", "--user", regConfig.mirror(container.containerImage).creds, regConfig.mirror(container.containerImage).ref)
 
 				sh.X(append(imagePullCmd, "--soci-index-digest", indexDigest, regConfig.mirror(container.containerImage).ref)...)
 			}
@@ -421,6 +422,7 @@ func TestRestartAfterSigint(t *testing.T) {
 	rebootContainerd(t, sh, getContainerdConfigToml(t, false), getSnapshotterConfigToml(t, withTCPMetrics))
 	copyImage(sh, dockerhub(containerImage), regConfig.mirror(containerImage))
 	indexDigest := buildIndex(sh, regConfig.mirror(containerImage), withMinLayerSize(0), withSpanSize(100*1024))
+	sh.X("soci", "push", "--user", regConfig.creds(), regConfig.mirror(containerImage).ref)
 	sh.X(append(imagePullCmd, "--soci-index-digest", indexDigest, regConfig.mirror(containerImage).ref)...)
 	testutil.KillMatchingProcess(sh, "soci-snapshotter-grpc")
 
