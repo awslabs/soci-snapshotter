@@ -196,6 +196,7 @@ func TestLazyPullWithSparseIndex(t *testing.T) {
 				image := regConfig.mirror(imageName).ref
 				rebootContainerd(t, sh, "", "")
 				buildIndex(sh, regConfig.mirror(imageName), withMinLayerSize(minLayerSize))
+				sh.X("soci", "push", "--user", regConfig.creds(), regConfig.mirror(imageName).ref)
 				sh.X("ctr", "i", "rm", imageName)
 				export(sh, image, tarExportArgs)
 				checkFuseMounts(t, sh, remoteSnapshotsExpectedCount)
@@ -244,13 +245,24 @@ func TestLazyPull(t *testing.T) {
 	optimizedImageName2 := nginxImage
 	nonOptimizedImageName := ubuntuImage
 
+	optimizedInfo1 := dockerhub(optimizedImageName1)
+	optimizedInfo2 := dockerhub(optimizedImageName2)
+	nonOptimizedInfo := dockerhub(nonOptimizedImageName)
+
+	optimizedMirror1 := regConfig.mirror(optimizedImageName1)
+	optimizedMirror2 := regConfig.mirror(optimizedImageName2)
+	nonOptimizedMirror := regConfig.mirror(nonOptimizedImageName)
+
 	// Mirror images
 	rebootContainerd(t, sh, getContainerdConfigToml(t, false), getSnapshotterConfigToml(t))
-	copyImage(sh, dockerhub(optimizedImageName1), regConfig.mirror(optimizedImageName1))
-	copyImage(sh, dockerhub(optimizedImageName2), regConfig.mirror(optimizedImageName2))
-	copyImage(sh, dockerhub(nonOptimizedImageName), regConfig.mirror(nonOptimizedImageName))
-	indexDigest1 := buildIndex(sh, regConfig.mirror(optimizedImageName1), withMinLayerSize(0))
-	indexDigest2 := buildIndex(sh, regConfig.mirror(optimizedImageName2), withMinLayerSize(0))
+	copyImage(sh, optimizedInfo1, optimizedMirror1)
+	copyImage(sh, optimizedInfo2, optimizedMirror2)
+	copyImage(sh, nonOptimizedInfo, nonOptimizedMirror)
+
+	indexDigest1 := buildIndex(sh, optimizedMirror1, withMinLayerSize(0))
+	sh.X("soci", "push", "--user", optimizedMirror1.creds, optimizedMirror1.ref)
+	indexDigest2 := buildIndex(sh, optimizedMirror2, withMinLayerSize(0))
+	sh.X("soci", "push", "--user", optimizedMirror2.creds, optimizedMirror2.ref)
 
 	// Test if contents are pulled
 	fromNormalSnapshotter := func(image string) tarPipeExporter {
@@ -266,56 +278,71 @@ func TestLazyPull(t *testing.T) {
 	}
 
 	// NOTE: these tests must be executed sequentially.
-	tests := []struct {
+	bgFetchVariants := []struct {
 		name string
-		want tarPipeExporter
-		test tarPipeExporter
+		opt  snapshotterConfigOpt
 	}{
 		{
-			name: "normal",
-			want: fromNormalSnapshotter(regConfig.mirror(nonOptimizedImageName).ref),
-			test: func(t *testing.T, tarExportArgs ...string) {
-				image := regConfig.mirror(nonOptimizedImageName).ref
-				rebootContainerd(t, sh, "", "")
-				export(sh, image, tarExportArgs)
-			},
+			name: "with bg fetch",
+			opt:  func(c *config.Config) {},
 		},
 		{
-			name: "Soci",
-			want: fromNormalSnapshotter(regConfig.mirror(optimizedImageName1).ref),
-			test: func(t *testing.T, tarExportArgs ...string) {
-				image := regConfig.mirror(optimizedImageName1).ref
-				m := rebootContainerd(t, sh, "", "")
-				rsm, done := testutil.NewRemoteSnapshotMonitor(m)
-				defer done()
-				buildIndex(sh, regConfig.mirror(optimizedImageName1), withMinLayerSize(0))
-				sh.X("ctr", "i", "rm", optimizedImageName1)
-				export(sh, image, tarExportArgs)
-				rsm.CheckAllRemoteSnapshots(t)
-			},
-		},
-		{
-			name: "multi-image",
-			want: fromNormalSnapshotter(regConfig.mirror(optimizedImageName1).ref),
-			test: func(t *testing.T, tarExportArgs ...string) {
-				image := regConfig.mirror(optimizedImageName1).ref
-				m := rebootContainerd(t, sh, "", "")
-				rsm, done := testutil.NewRemoteSnapshotMonitor(m)
-				defer done()
-				buildIndex(sh, regConfig.mirror(optimizedImageName2), withMinLayerSize(0))
-				sh.X(append(imagePullCmd, "--soci-index-digest", indexDigest2, regConfig.mirror(optimizedImageName2).ref)...)
-				buildIndex(sh, regConfig.mirror(optimizedImageName1), withMinLayerSize(0))
-				sh.X("ctr", "i", "rm", optimizedImageName1)
-				export(sh, image, tarExportArgs)
-				rsm.CheckAllRemoteSnapshots(t)
-			},
+			name: "without bg fetch",
+			opt:  withDisableBgFetcher,
 		},
 	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			testSameTarContents(t, sh, tt.want, tt.test)
+
+	for _, bgFetchVariant := range bgFetchVariants {
+		t.Run(bgFetchVariant.name, func(t *testing.T) {
+			tests := []struct {
+				name string
+				want tarPipeExporter
+				test tarPipeExporter
+			}{
+				{
+					name: "normal",
+					want: fromNormalSnapshotter(nonOptimizedMirror.ref),
+					test: func(t *testing.T, tarExportArgs ...string) {
+						image := nonOptimizedMirror.ref
+						rebootContainerd(t, sh, "", getSnapshotterConfigToml(t, bgFetchVariant.opt))
+						export(sh, image, tarExportArgs)
+					},
+				},
+				{
+					name: "Soci",
+					want: fromNormalSnapshotter(optimizedMirror1.ref),
+					test: func(t *testing.T, tarExportArgs ...string) {
+						image := optimizedMirror1.ref
+						m := rebootContainerd(t, sh, "", getSnapshotterConfigToml(t, bgFetchVariant.opt))
+						rsm, done := testutil.NewRemoteSnapshotMonitor(m)
+						defer done()
+						export(sh, image, tarExportArgs)
+						rsm.CheckAllRemoteSnapshots(t)
+					},
+				},
+				{
+					name: "multi-image",
+					want: fromNormalSnapshotter(optimizedMirror1.ref),
+					test: func(t *testing.T, tarExportArgs ...string) {
+						image := optimizedMirror1.ref
+						m := rebootContainerd(t, sh, "", getSnapshotterConfigToml(t, bgFetchVariant.opt))
+						rsm, done := testutil.NewRemoteSnapshotMonitor(m)
+						defer done()
+						sh.X(append(imagePullCmd, "--soci-index-digest", indexDigest2, regConfig.mirror(optimizedImageName2).ref)...)
+						export(sh, image, tarExportArgs)
+						rsm.CheckAllRemoteSnapshots(t)
+					},
+				},
+			}
+			for _, tt := range tests {
+				t.Run(tt.name, func(t *testing.T) {
+					testSameTarContents(t, sh, tt.want, tt.test)
+				})
+			}
+
 		})
 	}
+
 }
 
 // TestLazyPull tests if lazy pulling works when no index digest is provided (makes a Referrers API call)
@@ -414,8 +441,8 @@ func TestPullWithMaxConcurrency(t *testing.T) {
 
 			rebootContainerd(t, sh, getContainerdConfigToml(t, false), getSnapshotterConfigToml(t, withMaxConcurrency(tt.maxConcurrency)))
 			copyImage(sh, dockerhub(tt.image), regConfig.mirror(tt.image))
-
 			indexDigest := buildIndex(sh, regConfig.mirror(tt.image), withMinLayerSize(0), withSpanSize(100*1024))
+			sh.X("soci", "push", "--user", regConfig.creds(), regConfig.mirror(tt.image).ref)
 			sh.X(append(imagePullCmd, "--soci-index-digest", indexDigest, regConfig.mirror(tt.image).ref)...)
 		})
 	}
@@ -494,7 +521,7 @@ func TestPullWithAribtraryBlobInvalidZtocFormat(t *testing.T) {
 
 	for _, img := range images {
 		t.Run(img.name, func(t *testing.T) {
-			rebootContainerd(t, sh, getContainerdConfigToml(t, false), getSnapshotterConfigToml(t))
+			rebootContainerd(t, sh, getContainerdConfigToml(t, false), getSnapshotterConfigToml(t, withContentStoreConfig(store.WithType(store.ContainerdContentStoreType))))
 			sociImage := regConfig.mirror(img.ref)
 			copyImage(sh, dockerhub(img.ref), sociImage)
 			pushedPlatformDigest, _ := sh.OLog("nerdctl", "image", "convert", "--platform",
@@ -526,91 +553,6 @@ func TestPullWithAribtraryBlobInvalidZtocFormat(t *testing.T) {
 		})
 	}
 
-}
-
-// TestLazyPull tests if lazy pulling works without background fetch.
-func TestLazyPullNoBackgroundFetch(t *testing.T) {
-	regConfig := newRegistryConfig()
-
-	sh, done := newShellWithRegistry(t, regConfig)
-	defer done()
-
-	optimizedImageName1 := rabbitmqImage
-	optimizedImageName2 := nginxImage
-	nonOptimizedImageName := ubuntuImage
-
-	// Mirror images
-	rebootContainerd(t, sh, getContainerdConfigToml(t, false), getSnapshotterConfigToml(t, withDisableBgFetcher))
-	copyImage(sh, dockerhub(optimizedImageName1), regConfig.mirror(optimizedImageName1))
-	copyImage(sh, dockerhub(optimizedImageName2), regConfig.mirror(optimizedImageName2))
-	copyImage(sh, dockerhub(nonOptimizedImageName), regConfig.mirror(nonOptimizedImageName))
-	indexDigest1 := buildIndex(sh, regConfig.mirror(optimizedImageName1), withMinLayerSize(0))
-	indexDigest2 := buildIndex(sh, regConfig.mirror(optimizedImageName2), withMinLayerSize(0))
-
-	// Test if contents are pulled
-	fromNormalSnapshotter := func(image string) tarPipeExporter {
-		return func(t *testing.T, tarExportArgs ...string) {
-			rebootContainerd(t, sh, "", "")
-			sh.X("nerdctl", "pull", "-q", image)
-			sh.Pipe(nil, shell.C("nerdctl", "run", "--name", "test", "--pull", "never", "--net", "none", "--rm", image, "tar", "-zc", "/usr"), tarExportArgs)
-		}
-	}
-	export := func(sh *shell.Shell, image string, tarExportArgs []string) {
-		sh.X(append(imagePullCmd, "--soci-index-digest", indexDigest1, image)...)
-		sh.Pipe(nil, shell.C(append(runSociCmd, "--name", "test", "--rm", image, "tar", "-zc", "/usr")...), tarExportArgs)
-	}
-
-	// NOTE: these tests must be executed sequentially.
-	tests := []struct {
-		name string
-		want tarPipeExporter
-		test tarPipeExporter
-	}{
-		{
-			name: "normal",
-			want: fromNormalSnapshotter(regConfig.mirror(nonOptimizedImageName).ref),
-			test: func(t *testing.T, tarExportArgs ...string) {
-				image := regConfig.mirror(nonOptimizedImageName).ref
-				rebootContainerd(t, sh, "", "")
-				export(sh, image, tarExportArgs)
-			},
-		},
-		{
-			name: "Soci",
-			want: fromNormalSnapshotter(regConfig.mirror(optimizedImageName1).ref),
-			test: func(t *testing.T, tarExportArgs ...string) {
-				image := regConfig.mirror(optimizedImageName1).ref
-				m := rebootContainerd(t, sh, "", "")
-				rsm, done := testutil.NewRemoteSnapshotMonitor(m)
-				defer done()
-				buildIndex(sh, regConfig.mirror(optimizedImageName1), withMinLayerSize(0))
-				sh.X("ctr", "i", "rm", optimizedImageName1)
-				export(sh, image, tarExportArgs)
-				rsm.CheckAllRemoteSnapshots(t)
-			},
-		},
-		{
-			name: "multi-image",
-			want: fromNormalSnapshotter(regConfig.mirror(optimizedImageName1).ref),
-			test: func(t *testing.T, tarExportArgs ...string) {
-				image := regConfig.mirror(optimizedImageName1).ref
-				m := rebootContainerd(t, sh, "", "")
-				rsm, done := testutil.NewRemoteSnapshotMonitor(m)
-				defer done()
-				buildIndex(sh, regConfig.mirror(optimizedImageName2), withMinLayerSize(0))
-				sh.X(append(imagePullCmd, "--soci-index-digest", indexDigest2, regConfig.mirror(optimizedImageName2).ref)...)
-				buildIndex(sh, regConfig.mirror(optimizedImageName1), withMinLayerSize(0))
-				sh.X("ctr", "i", "rm", optimizedImageName1)
-				export(sh, image, tarExportArgs)
-				rsm.CheckAllRemoteSnapshots(t)
-			},
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			testSameTarContents(t, sh, tt.want, tt.test)
-		})
-	}
 }
 
 // TestMirror tests if mirror & refreshing functionalities of snapshotter work
@@ -810,6 +752,8 @@ func TestRpullImageThenRemove(t *testing.T) {
 		t.Fatalf("soci index %s contains 0 blobs, invalidating this test", indexDigest)
 	}
 
+	sh.X("soci", "push", "--user", regConfig.creds(), regConfig.mirror(containerImage).ref)
+
 	sh.X(append(imagePullCmd, "--soci-index-digest", indexDigest, regConfig.mirror(containerImage).ref)...)
 
 	checkFuseMounts(t, sh, len(sociIndex.Blobs))
@@ -838,6 +782,7 @@ func TestRpullImageWithMinLayerSize(t *testing.T) {
 
 	copyImage(sh, dockerhub(containerImage), regConfig.mirror(containerImage))
 	indexDigest := buildIndex(sh, regConfig.mirror(containerImage), withMinLayerSize(0))
+	sh.X("soci", "push", "--user", regConfig.creds(), regConfig.mirror(containerImage).ref)
 
 	sh.X(append(imagePullCmd, "--soci-index-digest", indexDigest, regConfig.mirror(containerImage).ref)...)
 
@@ -855,6 +800,7 @@ func TestFullLayerRead(t *testing.T) {
 	copyImage(sh, dockerhub(containerImage), regConfig.mirror(containerImage))
 	indexDigest := buildIndex(sh, regConfig.mirror(containerImage), withMinLayerSize(0), withSpanSize(math.MaxInt64))
 	// Max span size is used to ensure that the entire image will always be fetched at once.
+	sh.X("soci", "push", "--user", regConfig.creds(), regConfig.mirror(containerImage).ref)
 
 	sh.X(append(imagePullCmd, "--soci-index-digest", indexDigest, regConfig.mirror(containerImage).ref)...)
 	sh.X(append(runSociCmd, "-d", "--name", t.Name(), regConfig.mirror(containerImage).ref, "sleep", "infinity")...)

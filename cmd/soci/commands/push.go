@@ -241,7 +241,7 @@ if they are available in the snapshotter's local content store.
 				fmt.Printf("pushing soci index with digest: %v\n", indexDesc.Digest)
 			}
 
-			err = oraslib.CopyGraph(context.Background(), src, dst, indexDesc.Descriptor, options)
+			err = oraslib.CopyGraph(ctx, src, dst, indexDesc.Descriptor, options)
 			if err != nil {
 				return fmt.Errorf("error pushing graph to remote: %w", err)
 			}

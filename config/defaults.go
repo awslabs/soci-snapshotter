@@ -98,5 +98,5 @@ const (
 	defaultMaxWaitMsec = 300_000
 
 	// DefaultContentStore chooses the soci or containerd content store as the default
-	DefaultContentStoreType = "soci"
+	DefaultContentStoreType = "containerd"
 )

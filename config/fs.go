@@ -277,7 +277,8 @@ func parseBlobConfig(cfg *Config) {
 
 func parseContentStoreConfig(cfg *Config) {
 	if cfg.ContentStoreConfig.Type == "" {
-		cfg.ContentStoreConfig.Type = DefaultContentStoreType
+		// The snapshotter's default content store is soci until we're confident in the containerd integration
+		cfg.ContentStoreConfig.Type = SociContentStoreType
 	} else if cfg.ContentStoreConfig.Type == ContainerdContentStoreType && cfg.ContentStoreConfig.ContainerdAddress == "" {
 		cfg.ContentStoreConfig.ContainerdAddress = defaults.DefaultAddress
 	} else if cfg.ContentStoreConfig.Type == ContainerdContentStoreType {
