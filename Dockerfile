@@ -52,6 +52,7 @@ RUN git clone https://github.com/intel/isa-l.git && \
 FROM public.ecr.aws/amazonlinux/amazonlinux:2023 AS rapidgzip-builder
 
 ARG RAPIDGZIP_VERSION
+ARG TARGETARCH
 
 RUN dnf update -y && dnf install -y \
     binutils \
@@ -66,26 +67,30 @@ RUN dnf update -y && dnf install -y \
 
 RUN mkdir -p /opt/rapidgzip/usr/local/bin
 
-# TODO: add ARM support for rapidgzip.
-# Only build rapidgzip on x86_64/amd64 architecture.
-# rapidgzip fails to build on ARM due to `-fcf-protection=full` flag not supported on target.
-RUN ARCH=$(uname -m) && \
-    if [ "$ARCH" = "x86_64" ]; then \
-        git clone https://github.com/mxmlnkn/rapidgzip.git && \
-        cd rapidgzip && \
-        git checkout "rapidgzip-v${RAPIDGZIP_VERSION}" && \
-        mkdir build && \
-        cd build && \
-        cmake -DCMAKE_DISABLE_FIND_PACKAGE_NASM=TRUE \
-              -DCMAKE_CXX_FLAGS="-O2 -fPIC" \
-              -DCMAKE_C_FLAGS="-O2 -fPIC" \
-              -DCMAKE_BUILD_TYPE=Release .. && \
-        make -j$(nproc) && \
-        cp src/tools/rapidgzip /opt/rapidgzip/usr/local/bin/ && \
-        chmod +x /opt/rapidgzip/usr/local/bin/rapidgzip && \
-        cd ../.. && \
-        rm -rf rapidgzip; \
-    fi
+RUN git clone https://github.com/mxmlnkn/rapidgzip.git && \
+    cd rapidgzip && \
+    git checkout "rapidgzip-v${RAPIDGZIP_VERSION}" && \
+    if [ "$TARGETARCH" = "arm64" ] || [ "$(uname -m)" = "aarch64" ]; then \
+        # Disable ISA-L on ARM due to linking errors.
+        export ISAL_FLAGS="-DWITH_ISAL=OFF"; \
+
+        # Disable fcf-protection which is not supported on ARM.
+        sed -i 's/-fcf-protection=full/-fcf-protection=none/g' CMakeLists.txt; \
+    else \
+        export ISAL_FLAGS=""; \
+    fi && \
+    mkdir build && \
+    cd build && \
+    cmake -DCMAKE_DISABLE_FIND_PACKAGE_NASM=TRUE \
+          -DCMAKE_CXX_FLAGS="-O2 -fPIC" \
+          -DCMAKE_C_FLAGS="-O2 -fPIC" \
+          ${ISAL_FLAGS} \
+          -DCMAKE_BUILD_TYPE=Release .. && \
+    make -j$(nproc) && \
+    cp src/tools/rapidgzip /opt/rapidgzip/usr/local/bin/ && \
+    chmod +x /opt/rapidgzip/usr/local/bin/rapidgzip && \
+    cd ../.. && \
+    rm -rf rapidgzip
 
 FROM public.ecr.aws/amazonlinux/amazonlinux:2023 AS containerd-snapshotter-base
 
