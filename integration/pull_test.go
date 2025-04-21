@@ -510,7 +510,7 @@ func TestPullWithAribtraryBlobInvalidZtocFormat(t *testing.T) {
 			Digest: digest.Digest(imgDigest),
 			Size:   int64(len(imgBytes)),
 		}
-		index := soci.NewIndex(ztocDescs, &subject, nil)
+		index := soci.NewIndex(soci.V1, ztocDescs, &subject, nil)
 
 		b, err := soci.MarshalIndex(index)
 		if err != nil {

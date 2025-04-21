@@ -20,32 +20,49 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"strings"
 
 	"github.com/awslabs/soci-snapshotter/cmd/soci/commands/internal"
 	"github.com/awslabs/soci-snapshotter/config"
 	"github.com/awslabs/soci-snapshotter/soci"
 	"github.com/awslabs/soci-snapshotter/soci/store"
+	"github.com/containerd/containerd/errdefs"
+	"github.com/containerd/containerd/images"
+	"github.com/containerd/containerd/reference"
+	v1 "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/urfave/cli"
 )
 
-const (
-	// buildToolIdentifier is placed in annotations of the SOCI index
-	// to help identify how a SOCI index was created
-	buildToolIdentifier = "AWS SOCI CLI v0.2"
-	spanSizeFlag        = "span-size"
-	minLayerSizeFlag    = "min-layer-size"
-	optimizationFlag    = "optimizations"
-	sociIndexGCLabel    = "containerd.io/gc.ref.content.soci-index"
-)
+var ErrInvalidDestRef = errors.New(`the destination image must be a tagged ref of the form "registry/repository:tag"`)
 
-// CreateCommand creates SOCI index for an image
-// Output of this command is SOCI layers and SOCI index stored in a local directory
-// SOCI layer is named as <image-layer-digest>.soci.layer
-// SOCI index is named as <image-manifest-digest>.soci.index
-var CreateCommand = cli.Command{
-	Name:      "create",
-	Usage:     "create SOCI index",
-	ArgsUsage: "[flags] <image_ref>",
+func verifyRef(r string) error {
+	if r == "" {
+		return errors.New("reference cannot be empty")
+	}
+
+	ref, err := reference.Parse(r)
+	if err != nil {
+		return fmt.Errorf("could not parse reference: %w", err)
+	}
+
+	object := ref.Object
+	if object == "" {
+		return errors.New("reference must be tagged")
+	}
+	if strings.Contains(object, "@") {
+		return errors.New("reference must not contain a digest")
+	}
+
+	return nil
+}
+
+// ConvertCommand converts an image into a SOCI enabled image.
+// The new image is added to the containerd content store and can
+// be pushed and deployed like a normal image.
+var ConvertCommand = cli.Command{
+	Name:      "convert",
+	Usage:     "convert an OCI image to a SOCI enabled image",
+	ArgsUsage: "[flags] <image_ref> <dest_ref>",
 	Flags: append(
 		internal.PlatformFlags,
 		cli.Int64Flag{
@@ -67,6 +84,15 @@ var CreateCommand = cli.Command{
 		srcRef := cliContext.Args().Get(0)
 		if srcRef == "" {
 			return errors.New("source image needs to be specified")
+		}
+
+		dstRef := cliContext.Args().Get(1)
+		if dstRef == "" {
+			return errors.New("destination image needs to be specified")
+		}
+		err := verifyRef(dstRef)
+		if err != nil {
+			return fmt.Errorf("%w: %w", ErrInvalidDestRef, err)
 		}
 
 		var optimizations []soci.Optimization
@@ -108,11 +134,6 @@ var CreateCommand = cli.Command{
 			return err
 		}
 
-		ps, err := internal.GetPlatforms(ctx, cliContext, srcImg, cs)
-		if err != nil {
-			return err
-		}
-
 		artifactsDb, err := soci.NewDB(soci.ArtifactsDbPath())
 		if err != nil {
 			return err
@@ -132,25 +153,49 @@ var CreateCommand = cli.Command{
 			return err
 		}
 
-		for _, plat := range ps {
-			batchCtx, done, err := blobStore.BatchOpen(ctx)
-			if err != nil {
-				return err
-			}
-			defer done(ctx)
+		batchCtx, done, err := blobStore.BatchOpen(ctx)
+		if err != nil {
+			return err
+		}
+		defer done(ctx)
 
-			indexWithMetadata, err := builder.Build(batchCtx, srcImg, soci.WithPlatform(plat), soci.WithNoGarbageCollectionLabel())
-			if err != nil {
-				return err
-			}
-
-			if srcImg.Labels == nil {
-				srcImg.Labels = make(map[string]string)
-			}
-			srcImg.Labels[sociIndexGCLabel] = indexWithMetadata.Desc.Digest.String()
-			is.Update(ctx, srcImg, "labels")
+		var platforms []v1.Platform
+		explicitPlatforms := cliContext.StringSlice(internal.PlatformFlagKey)
+		if len(explicitPlatforms) > 0 {
+			platforms, err = internal.GetPlatforms(ctx, cliContext, srcImg, cs)
+		} else {
+			platforms, err = images.Platforms(ctx, cs, srcImg.Target)
+		}
+		if err != nil {
+			return err
 		}
 
-		return nil
+		desc, err := builder.Convert(batchCtx, srcImg,
+			soci.ConvertWithPlatforms(platforms...),
+			// Don't set a GC label on the converted OCI Index. We will create an image
+			// in containerd that will act as the GC root. This way, the OCI index, SOCI indexes, and
+			// images will be removed when the image is deleted in containerd
+			soci.ConvertWithNoGarbageCollectionLabels(),
+		)
+		if err != nil {
+			return err
+		}
+
+		im := images.Image{
+			Name:   dstRef,
+			Target: *desc,
+		}
+		img, err := is.Get(ctx, dstRef)
+		if err != nil {
+			if !errors.Is(err, errdefs.ErrNotFound) {
+				return err
+			}
+			_, err = is.Create(ctx, im)
+			return err
+		}
+		img.Target = *desc
+		_, err = is.Update(ctx, img)
+
+		return err
 	},
 }

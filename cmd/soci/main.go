@@ -81,7 +81,7 @@ func main() {
 		cli.StringFlag{
 			Name:  "content-store",
 			Usage: "use a specific content store (soci or containerd)",
-			Value: config.DefaultContentStoreType,
+			Value: string(config.DefaultContentStoreType),
 		},
 	}
 
@@ -91,6 +91,7 @@ func main() {
 		index.Command,
 		ztoc.Command,
 		commands.CreateCommand,
+		commands.ConvertCommand,
 		commands.PushCommand,
 		commands.RebuildDBCommand,
 	}

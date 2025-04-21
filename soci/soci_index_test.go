@@ -329,7 +329,7 @@ func TestNewIndex(t *testing.T) {
 
 	for _, tc := range testcases {
 		t.Run(tc.name, func(t *testing.T) {
-			index := NewIndex(tc.blobs, &tc.subject, tc.annotations)
+			index := NewIndex(V1, tc.blobs, &tc.subject, tc.annotations)
 
 			if diff := cmp.Diff(index.Blobs, tc.blobs); diff != "" {
 				t.Fatalf("unexpected blobs; diff = %v", diff)
@@ -377,7 +377,7 @@ func TestDecodeIndex(t *testing.T) {
 
 	for _, tc := range testcases {
 		t.Run(tc.name, func(t *testing.T) {
-			index := NewIndex(tc.blobs, &tc.subject, tc.annotations)
+			index := NewIndex(V1, tc.blobs, &tc.subject, tc.annotations)
 			jsonBytes, err := MarshalIndex(index)
 			if err != nil {
 				t.Fatalf("cannot convert index to json byte data: %v", err)
@@ -417,8 +417,13 @@ func TestMarshalIndex(t *testing.T) {
 		ty    interface{}
 	}{
 		{
-			name:  "successfully roundtrip as Image Manifest",
-			index: NewIndex(blobs, &subject, annotations),
+			name:  "successfully roundtrip a v1 SOCI index",
+			index: NewIndex(V1, blobs, &subject, annotations),
+			ty:    ocispec.Manifest{},
+		},
+		{
+			name:  "successfully roundtrip a v2 SOCI index",
+			index: NewIndex(V2, blobs, nil, annotations),
 			ty:    ocispec.Manifest{},
 		},
 	}

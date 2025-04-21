@@ -260,12 +260,6 @@ func TestFuseOperationFailureMetrics(t *testing.T) {
 }
 
 func TestFuseOperationCountMetrics(t *testing.T) {
-	var withFuseWaitDuration = func(i int64) snapshotterConfigOpt {
-		return func(c *config.Config) {
-			c.ServiceConfig.FSConfig.FuseMetricsEmitWaitDurationSec = i
-		}
-	}
-
 	registryConfig := newRegistryConfig()
 	sh, done := newShellWithRegistry(t, registryConfig)
 	defer done()
@@ -416,7 +410,7 @@ func buildIndexByManipulatingZtocData(sh *shell.Shell, indexDigest string, manip
 		Size:   index.Subject.Size,
 	}
 
-	newIndex := soci.NewIndex(newZtocDescs, &subject, nil)
+	newIndex := soci.NewIndex(soci.V1, newZtocDescs, &subject, nil)
 	b, err := soci.MarshalIndex(newIndex)
 	if err != nil {
 		return "", err
