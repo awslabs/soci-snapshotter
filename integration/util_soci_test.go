@@ -175,7 +175,7 @@ func validateSociIndex(sh *shell.Shell, contentStoreType store.ContentStoreType,
 	}
 
 	expectedAnnotations := map[string]string{
-		soci.IndexAnnotationBuildToolIdentifier: "AWS SOCI CLI v0.1",
+		soci.IndexAnnotationBuildToolIdentifier: "AWS SOCI CLI v0.2",
 	}
 
 	if diff := cmp.Diff(sociIndex.Annotations, expectedAnnotations); diff != "" {
