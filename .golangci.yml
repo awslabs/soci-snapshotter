@@ -1,32 +1,60 @@
 # https://golangci-lint.run/usage/configuration#config-file
-
+version: "2"
 linters:
   enable:
+    - misspell
+    - revive
     - staticcheck
     - unconvert
-    - gofmt
-    - goimports
-    - ineffassign
-    - revive
-    - govet
-    - unused
-    - misspell
+  settings:
+    staticcheck:
+      checks:
+        - all
+        # ST1003 is left out because it is a bit opinionated.
+        - -ST1003
+        # QF1008 discourages use of embedded field names,
+        # which can sometimes clear up what certain fields
+        # correspond to, especially in larger structs.
+        - -QF1008
   disable:
     - errcheck
+  exclusions:
+    generated: lax
+    presets:
+      - comments
+      - common-false-positives
+      - legacy
+      - std-error-handling
+    rules:
+      - linters:
+          - revive
+        # Ignore unused parameter rule. It's not enforced by go and
+        # it can make it hard to understand what the unused parameter
+        # was supposed to be used for.
+        text: 'unused-parameter:'
+    paths:
+      - docs
+      - images
+      - out
+      - script
+      - third_party$
+      - builtin$
+      - examples$
 
-issues:
-  exclude-dirs:
-    - docs
-    - images
-    - out
-    - script
-  exclude-rules:
-    - linters:
-        - revive
-      # Ignore unused parameter rule. It's not enforced by go and
-      # it can make it hard to understand what the unused parameter
-      # was supposed to be used for.
-      text: "unused-parameter:"
+formatters:
+  enable:
+    - gofmt
+    - goimports
+  exclusions:
+    generated: lax
+    paths:
+      - docs
+      - images
+      - out
+      - script
+      - third_party$
+      - builtin$
+      - examples$
 
 run:
   timeout: 3m
