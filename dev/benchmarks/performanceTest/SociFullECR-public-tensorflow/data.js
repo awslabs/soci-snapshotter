@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1745259302154,
+  "lastUpdate": 1745265282566,
   "repoUrl": "https://github.com/awslabs/soci-snapshotter",
   "entries": {
     "Soci Benchmark": [
@@ -11246,6 +11246,48 @@ window.BENCHMARK_DATA = {
           {
             "name": "SociFullECR-public-tensorflow-pullTaskDuration",
             "value": 1.8895,
+            "unit": "Seconds",
+            "extra": "P90"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "walster@amazon.com",
+            "name": "Kern Walster",
+            "username": "Kern--"
+          },
+          "committer": {
+            "email": "kern.walster@gmail.com",
+            "name": "Kern Walster",
+            "username": "Kern--"
+          },
+          "distinct": true,
+          "id": "e155859d63cadcb6dbf02ad09cb70c6eea17185f",
+          "message": "Use functional args for config in integ tests\n\nSigned-off-by: Kern Walster <walster@amazon.com>",
+          "timestamp": "2025-04-21T12:46:57-07:00",
+          "tree_id": "632985df0688565cad6cc358ee34caaf07dc2aec",
+          "url": "https://github.com/awslabs/soci-snapshotter/commit/e155859d63cadcb6dbf02ad09cb70c6eea17185f"
+        },
+        "date": 1745265276025,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "SociFullECR-public-tensorflow-lazyTaskDuration",
+            "value": 9.029,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-tensorflow-localTaskDuration",
+            "value": 2.5735,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-tensorflow-pullTaskDuration",
+            "value": 1.8905,
             "unit": "Seconds",
             "extra": "P90"
           }
