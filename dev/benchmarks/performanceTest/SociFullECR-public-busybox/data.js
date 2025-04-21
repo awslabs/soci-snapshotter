@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1745259312474,
+  "lastUpdate": 1745265280764,
   "repoUrl": "https://github.com/awslabs/soci-snapshotter",
   "entries": {
     "Soci Benchmark": [
@@ -11205,6 +11205,48 @@ window.BENCHMARK_DATA = {
           {
             "name": "SociFullECR-public-busybox-pullTaskDuration",
             "value": 1.532,
+            "unit": "Seconds",
+            "extra": "P90"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "walster@amazon.com",
+            "name": "Kern Walster",
+            "username": "Kern--"
+          },
+          "committer": {
+            "email": "kern.walster@gmail.com",
+            "name": "Kern Walster",
+            "username": "Kern--"
+          },
+          "distinct": true,
+          "id": "e155859d63cadcb6dbf02ad09cb70c6eea17185f",
+          "message": "Use functional args for config in integ tests\n\nSigned-off-by: Kern Walster <walster@amazon.com>",
+          "timestamp": "2025-04-21T12:46:57-07:00",
+          "tree_id": "632985df0688565cad6cc358ee34caaf07dc2aec",
+          "url": "https://github.com/awslabs/soci-snapshotter/commit/e155859d63cadcb6dbf02ad09cb70c6eea17185f"
+        },
+        "date": 1745265275950,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "SociFullECR-public-busybox-lazyTaskDuration",
+            "value": 0.014499999999999999,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-busybox-localTaskDuration",
+            "value": 0.005,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-busybox-pullTaskDuration",
+            "value": 1.038,
             "unit": "Seconds",
             "extra": "P90"
           }
