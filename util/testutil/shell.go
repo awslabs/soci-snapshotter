@@ -59,6 +59,10 @@ import (
 	"golang.org/x/sync/errgroup"
 )
 
+const (
+	sociContentRefLabelPrefix = "containerd.io/gc.ref.content.soci-integ-test."
+)
+
 // TestingReporter is an implementation of dockershell.Reporter backed by testing.T and TestingL.
 type TestingReporter struct {
 	t *testing.T
@@ -245,18 +249,39 @@ func TempDir(sh *shell.Shell) (string, error) {
 	return strings.TrimSpace(string(out)), nil
 }
 
-func injectContainerdContentStoreContentFromReader(sh *shell.Shell, desc ocispec.Descriptor, content io.Reader) error {
+func getNextContentRefNumber(sh *shell.Shell, contentRef string) int {
+	out := sh.O("ctr", "content", "label", contentRef)
+	labels := strings.Split(string(out), ",")
+	maxContentNumber := 0
+	for _, label := range labels {
+		if strings.HasPrefix(label, sociContentRefLabelPrefix) {
+			labelParts := strings.Split(label, "=")
+			if len(labelParts) != 2 {
+				sh.Fatal("failed to parse SOCI content label: %v", label)
+			}
+			contentNumber, err := strconv.Atoi(strings.TrimPrefix(labelParts[0], sociContentRefLabelPrefix))
+			if err != nil {
+				sh.Fatal("failed to parse SOCI content label: %v", err)
+			}
+			if contentNumber > maxContentNumber {
+				maxContentNumber = contentNumber
+			}
+
+		}
+	}
+	return maxContentNumber + 1
+}
+
+func injectContainerdContentStoreContentFromReader(sh *shell.Shell, parentContent string, desc ocispec.Descriptor, content io.Reader) error {
 	reference := desc.Digest.String()
+	sh.X("ctr", "content", "label", parentContent, fmt.Sprintf("%s%d=%s", sociContentRefLabelPrefix, getNextContentRefNumber(sh, parentContent), reference))
+
 	cmd := sh.Command("ctr", "content", "ingest", reference)
 	cmd.Stdin = content
 	if err := cmd.Run(); err != nil {
 		return err
 	}
-	// Labelling the content root is not the right thing to do. We should build the proper set of references
-	// back to an image under a lease, but this should at least be safe because integration containers are
-	// ephemeral for the single test.
-	cmd = sh.Command("ctr", "content", "label", desc.Digest.String(), "containerd.io/gc.root")
-	return cmd.Run()
+	return nil
 }
 
 func injectSociContentStoreContentFromReader(sh *shell.Shell, desc ocispec.Descriptor, content io.Reader) error {
@@ -270,7 +295,7 @@ func injectSociContentStoreContentFromReader(sh *shell.Shell, desc ocispec.Descr
 	return cmd.Run()
 }
 
-func InjectContentStoreContentFromReader(sh *shell.Shell, contentStoreType store.ContentStoreType, desc ocispec.Descriptor, content io.Reader) error {
+func InjectContentStoreContentFromReader(sh *shell.Shell, contentStoreType store.ContentStoreType, parentContent string, desc ocispec.Descriptor, content io.Reader) error {
 	contentStoreType, err := store.CanonicalizeContentStoreType(contentStoreType)
 	if err != nil {
 		return err
@@ -279,15 +304,15 @@ func InjectContentStoreContentFromReader(sh *shell.Shell, contentStoreType store
 	case store.SociContentStoreType:
 		injectSociContentStoreContentFromReader(sh, desc, content)
 	case store.ContainerdContentStoreType:
-		injectContainerdContentStoreContentFromReader(sh, desc, content)
+		injectContainerdContentStoreContentFromReader(sh, parentContent, desc, content)
 	default:
 		return store.ErrUnknownContentStoreType(contentStoreType)
 	}
 	return nil
 }
 
-func InjectContentStoreContentFromBytes(sh *shell.Shell, contentStoreType store.ContentStoreType, desc ocispec.Descriptor, content []byte) error {
-	return InjectContentStoreContentFromReader(sh, contentStoreType, desc, bytes.NewReader(content))
+func InjectContentStoreContentFromBytes(sh *shell.Shell, contentStoreType store.ContentStoreType, parentContent string, desc ocispec.Descriptor, content []byte) error {
+	return InjectContentStoreContentFromReader(sh, contentStoreType, parentContent, desc, bytes.NewReader(content))
 }
 
 func writeFileFromReader(sh *shell.Shell, name string, content io.Reader, mode uint32) error {

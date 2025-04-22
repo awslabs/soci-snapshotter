@@ -401,7 +401,7 @@ func buildIndexByManipulatingZtocData(sh *shell.Shell, indexDigest string, manip
 		if err != nil {
 			return "", fmt.Errorf("unable to marshal ztoc %s: %s", newZtocDesc.Digest.String(), err)
 		}
-		err = testutil.InjectContentStoreContentFromReader(sh, config.DefaultContentStoreType, newZtocDesc, newZtocReader)
+		err = testutil.InjectContentStoreContentFromReader(sh, config.DefaultContentStoreType, indexDigest, newZtocDesc, newZtocReader)
 		if err != nil {
 			return "", fmt.Errorf("cannot inject manipulated ztoc %s: %w", newZtocDesc.Digest.String(), err)
 		}
@@ -424,7 +424,7 @@ func buildIndexByManipulatingZtocData(sh *shell.Shell, indexDigest string, manip
 
 	newIndexDigest := digest.FromBytes(b)
 	desc := ocispec.Descriptor{Digest: newIndexDigest}
-	err = testutil.InjectContentStoreContentFromBytes(sh, config.DefaultContentStoreType, desc, b)
+	err = testutil.InjectContentStoreContentFromBytes(sh, config.DefaultContentStoreType, indexDigest, desc, b)
 	if err != nil {
 		return "", err
 	}
