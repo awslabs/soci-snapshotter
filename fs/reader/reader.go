@@ -181,7 +181,7 @@ func (sf *file) ReadAt(p []byte, offset int64) (int, error) {
 
 	n, err := io.ReadFull(r, p[0:expectedSize])
 	if err != nil {
-		return 0, fmt.Errorf("unexpected copied data size for on-demand fetch. read = %d, expected = %d", n, expectedSize)
+		return 0, fmt.Errorf("unexpected copied data size for on-demand fetch. read = %d, expected = %d: %w", n, expectedSize, err)
 	}
 
 	commonmetrics.AddBytesCount(commonmetrics.SynchronousBytesServed, sf.gr.layerSha, int64(n)) // measure the number of bytes served synchronously
