@@ -500,7 +500,7 @@ func TestPullWithAribtraryBlobInvalidZtocFormat(t *testing.T) {
 					soci.IndexAnnotationImageLayerMediaType: layer.MediaType,
 				},
 			}
-			if err := testutil.InjectContentStoreContentFromBytes(sh, config.DefaultContentStoreType, desc, ztocBytes); err != nil {
+			if err := testutil.InjectContentStoreContentFromBytes(sh, config.DefaultContentStoreType, imgDigest, desc, ztocBytes); err != nil {
 				t.Fatalf("cannot write ztoc %s to content store: %v", ztocDgst.String(), err)
 			}
 			ztocDescs = append(ztocDescs, desc)
@@ -524,24 +524,24 @@ func TestPullWithAribtraryBlobInvalidZtocFormat(t *testing.T) {
 			rebootContainerd(t, sh, getContainerdConfigToml(t, false), getSnapshotterConfigToml(t, withContentStoreConfig(store.WithType(store.ContainerdContentStoreType))))
 			sociImage := regConfig.mirror(img.ref)
 			copyImage(sh, dockerhub(img.ref), sociImage)
-			pushedPlatformDigest, _ := sh.OLog("nerdctl", "image", "convert", "--platform",
+			pushedPlatformDigestBytes, _ := sh.OLog("nerdctl", "image", "convert", "--platform",
 				platforms.Format(sociImage.platform), sociImage.ref, "test")
-			sociImage.ref = fmt.Sprintf("%s/%s@%s", regConfig.host, img.name, strings.TrimSpace(string(pushedPlatformDigest)))
+			pushedPlatformDigest := strings.TrimSpace(string(pushedPlatformDigestBytes))
+			sociImage.ref = fmt.Sprintf("%s/%s@%s", regConfig.host, img.name, pushedPlatformDigest)
 
 			want := fromNormalSnapshotter(sociImage.ref)
 			test := func(t *testing.T, tarExportArgs ...string) {
 				image := sociImage.ref
-				indexBytes, imgLayers, err := buildMaliciousIndex(sh, image[strings.IndexByte(image, '@')+1:])
+				indexBytes, imgLayers, err := buildMaliciousIndex(sh, pushedPlatformDigest)
 				if err != nil {
 					t.Fatal(err)
 				}
-				sh.X("ctr", "i", "rm", image)
 				indexDigest := digest.FromBytes(indexBytes)
 				desc := ocispec.Descriptor{
 					Digest: indexDigest,
 					Size:   int64(len(indexBytes)),
 				}
-				if err := testutil.InjectContentStoreContentFromBytes(sh, config.DefaultContentStoreType, desc, indexBytes); err != nil {
+				if err := testutil.InjectContentStoreContentFromBytes(sh, config.DefaultContentStoreType, pushedPlatformDigest, desc, indexBytes); err != nil {
 					t.Fatalf("cannot write index %s to content store: %v", indexDigest.String(), err)
 				}
 				export(sh, image, indexDigest.String(), tarExportArgs)
