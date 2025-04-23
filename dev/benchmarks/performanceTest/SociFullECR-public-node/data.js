@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1745265276201,
+  "lastUpdate": 1745377320822,
   "repoUrl": "https://github.com/awslabs/soci-snapshotter",
   "entries": {
     "Soci Benchmark": [
@@ -11124,6 +11124,48 @@ window.BENCHMARK_DATA = {
           {
             "name": "SociFullECR-public-node-pullTaskDuration",
             "value": 1.8525,
+            "unit": "Seconds",
+            "extra": "P90"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "walster@amazon.com",
+            "name": "Kern Walster",
+            "username": "Kern--"
+          },
+          "committer": {
+            "email": "kern.walster@gmail.com",
+            "name": "Kern Walster",
+            "username": "Kern--"
+          },
+          "distinct": true,
+          "id": "69e9063ef54c93575c154caf37f8bae650a19027",
+          "message": "Add error to unexpected read failures\n\nSigned-off-by: Kern Walster <walster@amazon.com>",
+          "timestamp": "2025-04-22T19:53:16-07:00",
+          "tree_id": "52981c0462bce01d822945a21a9aa5c06bb46929",
+          "url": "https://github.com/awslabs/soci-snapshotter/commit/69e9063ef54c93575c154caf37f8bae650a19027"
+        },
+        "date": 1745377319366,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "SociFullECR-public-node-lazyTaskDuration",
+            "value": 3.6510000000000002,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-node-localTaskDuration",
+            "value": 0.4845,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-node-pullTaskDuration",
+            "value": 1.794,
             "unit": "Seconds",
             "extra": "P90"
           }
