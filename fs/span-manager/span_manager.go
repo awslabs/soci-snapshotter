@@ -270,7 +270,7 @@ func (m *SpanManager) getSpanContent(spanID compression.SpanID, offsetStart, off
 		}
 
 		// cache uncompressed span
-		if err := m.addSpanToCache(s.id, uncompSpanBuf, m.cacheOpt...); err != nil {
+		if err := m.addSpanToCache(s.id, uncompSpanBuf); err != nil {
 			return nil, err
 		}
 		if err := s.setState(uncompressed); err != nil {
@@ -328,7 +328,7 @@ func (m *SpanManager) fetchAndCacheSpan(spanID compression.SpanID, uncompress bo
 	}
 
 	// cache span data
-	if err := m.addSpanToCache(spanID, buf, m.cacheOpt...); err != nil {
+	if err := m.addSpanToCache(spanID, buf); err != nil {
 		return nil, err
 	}
 	if err := s.setState(state); err != nil {
@@ -389,8 +389,8 @@ func (m *SpanManager) uncompressSpan(s *span, compressedBuf []byte) ([]byte, err
 
 // addSpanToCache adds contents of the span to the cache.
 // A non-nil error is returned if the data is not written to the cache.
-func (m *SpanManager) addSpanToCache(spanID compression.SpanID, contents []byte, opts ...cache.Option) error {
-	w, err := m.cache.Add(fmt.Sprintf("%d", spanID), opts...)
+func (m *SpanManager) addSpanToCache(spanID compression.SpanID, contents []byte) error {
+	w, err := m.cache.Add(fmt.Sprintf("%d", spanID), m.cacheOpt...)
 	if err != nil {
 		return err
 	}
@@ -410,7 +410,7 @@ func (m *SpanManager) addSpanToCache(spanID compression.SpanID, contents []byte,
 // `offset` is the offset of the requested contents within the span.
 // `size` is the size of the requested contents.
 func (m *SpanManager) getSpanFromCache(spanID compression.SpanID, offset, size compression.Offset) (io.ReadCloser, error) {
-	rc, err := m.cache.Get(fmt.Sprintf("%d", spanID))
+	rc, err := m.cache.Get(fmt.Sprintf("%d", spanID), m.cacheOpt...)
 	if err != nil {
 		return nil, fmt.Errorf("%w: %w", ErrSpanNotAvailable, err)
 	}
