@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1745425609013,
+  "lastUpdate": 1745604942121,
   "repoUrl": "https://github.com/awslabs/soci-snapshotter",
   "entries": {
     "Soci Benchmark": [
@@ -11208,6 +11208,48 @@ window.BENCHMARK_DATA = {
           {
             "name": "SociFullECR-public-tensorflow_gpu-pullTaskDuration",
             "value": 1.9355,
+            "unit": "Seconds",
+            "extra": "P90"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "walster@amazon.com",
+            "name": "Kern Walster",
+            "username": "Kern--"
+          },
+          "committer": {
+            "email": "kern.walster@gmail.com",
+            "name": "Kern Walster",
+            "username": "Kern--"
+          },
+          "distinct": true,
+          "id": "739c04f167b63b334e6cdae4486cabe8b17f69a7",
+          "message": "Pass cache options to spancache.Get\n\nBefore this change, the span manager did not pass cache opts to the span\ncache when getting keys, but it did pass options when putting keys. This\nchange makes them consistent.\n\nThis is problematic with the Direct option because writes are directly\nto files, but reads use a file descriptor cache. This leads to the\nfollowing issue:\n\n1. The background fetcher fetches a span, but does not decompress it\n2. The background fetcher writes the compressed span to the span cache\n3. A later read loads the compressed data from the span cache. This\n   caches the file descriptor\n4. The span is decompressed\n5. The span is rewritten to the same cache key by opening a temp file,\n   writing the decompressed span data, then renaming it to the original\n   name. NOTE: This is a different file descriptor from step 3!\n6. The span is marked decompressed\n7. Another read hits in the cache and get's back the fd to the (now\n   deleted) compressed file from step 3.\n8. SOCI returns compressed data or get's an unxpected EOF because there\n   isn't as much compressed data as uncompressed data.\n\nThe solution here is to pass cache options. Each cache Get opens a new\nfile descriptor, so the caching issue is bypassed.\n\nSigned-off-by: Kern Walster <walster@amazon.com>",
+          "timestamp": "2025-04-25T11:06:26-07:00",
+          "tree_id": "bb6e930d3a227a6c9e9b80f7fe543672fe37fa9c",
+          "url": "https://github.com/awslabs/soci-snapshotter/commit/739c04f167b63b334e6cdae4486cabe8b17f69a7"
+        },
+        "date": 1745604940887,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "SociFullECR-public-tensorflow_gpu-lazyTaskDuration",
+            "value": 40.44,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-tensorflow_gpu-localTaskDuration",
+            "value": 2.6470000000000002,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-tensorflow_gpu-pullTaskDuration",
+            "value": 2.3425000000000002,
             "unit": "Seconds",
             "extra": "P90"
           }
