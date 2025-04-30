@@ -73,7 +73,6 @@ RUN git clone https://github.com/mxmlnkn/rapidgzip.git && \
     if [ "$TARGETARCH" = "arm64" ] || [ "$(uname -m)" = "aarch64" ]; then \
         # Disable ISA-L on ARM due to linking errors.
         export ISAL_FLAGS="-DWITH_ISAL=OFF"; \
-
         # Disable fcf-protection which is not supported on ARM.
         sed -i 's/-fcf-protection=full/-fcf-protection=none/g' CMakeLists.txt; \
     else \
@@ -98,8 +97,9 @@ ARG CONTAINERD_VERSION
 ARG RUNC_VERSION
 ARG NERDCTL_VERSION
 ARG TARGETARCH
-ENV GOPROXY direct
-ENV GOCOVERDIR /test_coverage
+ENV GOPROXY=direct
+ENV GOCOVERDIR=/test_coverage
+ENV GOPATH=
 
 COPY ./integ_entrypoint.sh /integ_entrypoint.sh
 COPY . $GOPATH/src/github.com/awslabs/soci-snapshotter
