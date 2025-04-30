@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1746026918801,
+  "lastUpdate": 1746052123816,
   "repoUrl": "https://github.com/awslabs/soci-snapshotter",
   "entries": {
     "Soci Benchmark": [
@@ -11251,6 +11251,48 @@ window.BENCHMARK_DATA = {
           {
             "name": "SociFullECR-public-rabbitmq-pullTaskDuration",
             "value": 2.2245,
+            "unit": "Seconds",
+            "extra": "P90"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "walster@amazon.com",
+            "name": "Kern Walster",
+            "username": "Kern--"
+          },
+          "committer": {
+            "email": "kern.walster@gmail.com",
+            "name": "Kern Walster",
+            "username": "Kern--"
+          },
+          "distinct": true,
+          "id": "963edca6d4a103f15c04cfbb77ae3e17ee17f4cf",
+          "message": "Add SOCI conversion\n\nThis change adds a command to convert an image to a SOCI-enabled image which\ncontains strong references to both the image and SOCI index in a\nlogically single, deployable artifact.\n\nSigned-off-by: Kern Walster <walster@amazon.com>",
+          "timestamp": "2025-04-30T15:20:03-07:00",
+          "tree_id": "3e7f4b53bb17cf40556545332fb8370edda97667",
+          "url": "https://github.com/awslabs/soci-snapshotter/commit/963edca6d4a103f15c04cfbb77ae3e17ee17f4cf"
+        },
+        "date": 1746052117606,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "SociFullECR-public-rabbitmq-lazyTaskDuration",
+            "value": 15.8005,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-rabbitmq-localTaskDuration",
+            "value": 9.14,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-rabbitmq-pullTaskDuration",
+            "value": 1.9129999999999998,
             "unit": "Seconds",
             "extra": "P90"
           }
