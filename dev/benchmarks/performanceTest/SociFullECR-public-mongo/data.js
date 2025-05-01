@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1746052116459,
+  "lastUpdate": 1746132999944,
   "repoUrl": "https://github.com/awslabs/soci-snapshotter",
   "entries": {
     "Soci Benchmark": [
@@ -11416,6 +11416,48 @@ window.BENCHMARK_DATA = {
           {
             "name": "SociFullECR-public-mongo-pullTaskDuration",
             "value": 1.6275,
+            "unit": "Seconds",
+            "extra": "P90"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "walster@amazon.com",
+            "name": "Kern Walster",
+            "username": "Kern--"
+          },
+          "committer": {
+            "email": "kern.walster@gmail.com",
+            "name": "Kern Walster",
+            "username": "Kern--"
+          },
+          "distinct": true,
+          "id": "528b46ae132735ab96dd2e6b3d1ba6c2adbe83c1",
+          "message": "Fix config mediatype in Convert\n\nConverting an image to a soci-enabled image also converts docker v2\nimages to oci v1 images. Before this change, we didn't change the\nimage config's mediatype meaning the image would claim it is an OCI v1\nimage while the config would claim it's a Docker v2 image. This caused\nsome registries to interpret this as a non-image artifact. This change\nsets the config media type to be a OCI v1 config.\n\nSigned-off-by: Kern Walster <walster@amazon.com>",
+          "timestamp": "2025-05-01T13:48:08-07:00",
+          "tree_id": "90cecfb6aca42624a0fdcd3657e9e994ddf89933",
+          "url": "https://github.com/awslabs/soci-snapshotter/commit/528b46ae132735ab96dd2e6b3d1ba6c2adbe83c1"
+        },
+        "date": 1746132997730,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "SociFullECR-public-mongo-lazyTaskDuration",
+            "value": 7.5925,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-mongo-localTaskDuration",
+            "value": 0.3025,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-mongo-pullTaskDuration",
+            "value": 1.1085,
             "unit": "Seconds",
             "extra": "P90"
           }
