@@ -234,8 +234,13 @@ func (b *IndexBuilder) annotateImages(ctx context.Context, ociIndex *ocispec.Ind
 		}
 		// Some Registries don't like mixing Docker V2 manifests with OCI image manifests.
 		// Since we use ArtifactTypes for SOCI indexes, we will use OCI image manifests everywhere to increase compatibility.
-		// Registries don't seem to be as picky about layer and config types
+		// We also convert the config if necesssary to make sure it also has an OCI media type. If the config and image
+		// don't agree on OCI vs Docker, registries might think it's some sort of unknown, non-image artifact.
+		// Registries don't seem to be as picky about layers.
 		manifest.MediaType = ocispec.MediaTypeImageManifest
+		// The config itself doesn't have a mediatype, so we only need to update the manifest's descriptor.
+		// We also aren't modifying image contents at all, so we don't need to modify the config contents.
+		manifest.Config.MediaType = ocispec.MediaTypeImageConfig
 
 		idx := slices.IndexFunc(sociIndexes, func(i *IndexWithMetadata) bool { return i.ManifestDesc.Digest == manifestDesc.Digest })
 		if idx >= 0 {

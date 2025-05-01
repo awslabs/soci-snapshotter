@@ -80,6 +80,14 @@ func validateConversion(t *testing.T, sh *shell.Shell, originalDigest, converted
 			continue
 		}
 		manifestDesc := manifests[manifestIdx]
+		if manifestDesc.MediaType != ocispec.MediaTypeImageManifest {
+			t.Errorf("manifest desc %v is not an image manifest", manifestDesc)
+			continue
+		}
+		if manifestDesc.ArtifactType != "" {
+			t.Errorf("manifest desc %v has an artifact type", manifestDesc)
+			continue
+		}
 		if manifestDesc.Annotations == nil {
 			t.Errorf("manifest desc %v has no annotations", manifestDesc)
 			continue
@@ -99,6 +107,18 @@ func validateConversion(t *testing.T, sh *shell.Shell, originalDigest, converted
 		manifestBytes := sh.O("ctr", "content", "get", manifestDesc.Digest.String())
 		if err := json.Unmarshal(manifestBytes, &manifest); err != nil {
 			t.Errorf("failed to decode manifest: %v", err)
+			continue
+		}
+		if manifest.MediaType != ocispec.MediaTypeImageManifest {
+			t.Errorf("manifest %v is not an image manifest", manifest)
+			continue
+		}
+		if manifest.ArtifactType != "" {
+			t.Errorf("manifest %v has an artifact type", manifest)
+			continue
+		}
+		if manifest.Config.MediaType != ocispec.MediaTypeImageConfig {
+			t.Errorf("manifest %v has a non-OCI config", manifest)
 			continue
 		}
 		if manifest.Annotations == nil {
