@@ -12,9 +12,9 @@
 #   See the License for the specific language governing permissions and
 #   limitations under the License.
 
-ARG CONTAINERD_VERSION=1.6.38
-ARG RUNC_VERSION=1.2.5
-ARG NERDCTL_VERSION=1.7.1
+ARG CONTAINERD_VERSION=1.7.27
+ARG RUNC_VERSION=1.3.0
+ARG NERDCTL_VERSION=1.7.7
 ARG IGZIP_VERSION=2.31.1
 ARG RAPIDGZIP_VERSION=0.14.3
 
@@ -34,19 +34,21 @@ RUN dnf update -y && dnf install -y \
     libtool \
     make \
     nasm \
-    yasm
+    yasm \
+    && dnf clean all
 
-RUN git clone https://github.com/intel/isa-l.git && \
-    cd isa-l && \
-    git checkout "v${IGZIP_VERSION}" && \
-    ./autogen.sh && \
+
+RUN git clone https://github.com/intel/isa-l.git \
+    && cd isa-l \
+    && git checkout "v${IGZIP_VERSION}" \
+    && ./autogen.sh \
     # Configure with static libraries only
-    ./configure --enable-static --disable-shared && \
-    make && \
-    make install DESTDIR=/opt/igzip && \
+    && ./configure --enable-static --disable-shared \
+    && make \
+    && make install DESTDIR=/opt/igzip \
     # No need for ld.so.conf.d with static libraries
-    cd .. && \
-    rm -rf isa-l
+    && cd .. \
+    && rm -rf isa-l
 
 # Build stage for rapidgzip
 FROM public.ecr.aws/amazonlinux/amazonlinux:2023 AS rapidgzip-builder
@@ -63,7 +65,8 @@ RUN dnf update -y && dnf install -y \
     make \
     nasm \
     yasm \
-    zlib-devel
+    zlib-devel \
+    && dnf clean all
 
 RUN mkdir -p /opt/rapidgzip/usr/local/bin
 
@@ -98,8 +101,8 @@ ARG CONTAINERD_VERSION
 ARG RUNC_VERSION
 ARG NERDCTL_VERSION
 ARG TARGETARCH
-ENV GOPROXY direct
-ENV GOCOVERDIR /test_coverage
+ENV GOPROXY=direct
+ENV GOCOVERDIR=/test_coverage
 
 COPY ./integ_entrypoint.sh /integ_entrypoint.sh
 COPY . $GOPATH/src/github.com/awslabs/soci-snapshotter
@@ -112,29 +115,30 @@ RUN dnf update && dnf upgrade && dnf install -y \
     procps \
     systemd \
     tar \
-    util-linux-core
+    util-linux-core \
+    && dnf clean all
 
 # Copy igzip and rapidgzip from builder stages
 COPY --from=igzip-builder /opt/igzip/usr /usr/local
 COPY --from=rapidgzip-builder /opt/rapidgzip/usr/local /usr/local
 
-RUN cp $GOPATH/src/github.com/awslabs/soci-snapshotter/out/soci /usr/local/bin/ && \
-    cp $GOPATH/src/github.com/awslabs/soci-snapshotter/out/soci-snapshotter-grpc /usr/local/bin/ && \
-    mkdir /etc/soci-snapshotter-grpc && \
-    mkdir /etc/containerd/ && \
-    cp $GOPATH/src/github.com/awslabs/soci-snapshotter/integration/config/etc/soci-snapshotter-grpc/config.toml /etc/soci-snapshotter-grpc/ && \
-    cp $GOPATH/src/github.com/awslabs/soci-snapshotter/integration/config/etc/containerd/config.toml /etc/containerd/ && \
-    cp $GOPATH/src/github.com/awslabs/soci-snapshotter/soci-snapshotter.service /etc/systemd/system && \
-    cp $GOPATH/src/github.com/awslabs/soci-snapshotter/soci-snapshotter.socket /etc/systemd/system
-RUN curl -sSL --output /tmp/containerd.tgz https://github.com/containerd/containerd/releases/download/v${CONTAINERD_VERSION}/containerd-${CONTAINERD_VERSION}-linux-${TARGETARCH:-amd64}.tar.gz && \
-    tar zxvf /tmp/containerd.tgz -C /usr/local/ && \
-    rm -f /tmp/containerd.tgz && \
-    cp $GOPATH/src/github.com/awslabs/soci-snapshotter/out/nerdctl-with-idmapping /usr/local/bin && \
-    chmod +x /usr/local/bin/nerdctl-with-idmapping
-RUN curl -sSL --output /tmp/runc https://github.com/opencontainers/runc/releases/download/v${RUNC_VERSION}/runc.${TARGETARCH:-amd64} && \
-    cp /tmp/runc /usr/local/bin/ && \
-    chmod +x /usr/local/bin/runc && \
-    rm -f /tmp/runc
-RUN curl -sSL --output /tmp/nerdctl.tgz https://github.com/containerd/nerdctl/releases/download/v${NERDCTL_VERSION}/nerdctl-${NERDCTL_VERSION}-linux-${TARGETARCH:-amd64}.tar.gz && \
-    tar zxvf /tmp/nerdctl.tgz -C /usr/local/bin/ && \
-    rm -f /tmp/nerdctl.tgz
+RUN cp $GOPATH/src/github.com/awslabs/soci-snapshotter/out/soci /usr/local/bin/ \
+    && cp $GOPATH/src/github.com/awslabs/soci-snapshotter/out/soci-snapshotter-grpc /usr/local/bin/ \
+    && mkdir /etc/soci-snapshotter-grpc \
+    && mkdir /etc/containerd/ \
+    && cp $GOPATH/src/github.com/awslabs/soci-snapshotter/integration/config/etc/soci-snapshotter-grpc/config.toml /etc/soci-snapshotter-grpc/ \
+    && cp $GOPATH/src/github.com/awslabs/soci-snapshotter/integration/config/etc/containerd/config.toml /etc/containerd/ \
+    && cp $GOPATH/src/github.com/awslabs/soci-snapshotter/soci-snapshotter.service /etc/systemd/system \
+    && cp $GOPATH/src/github.com/awslabs/soci-snapshotter/soci-snapshotter.socket /etc/systemd/system
+RUN curl -sSL --output /tmp/containerd.tgz https://github.com/containerd/containerd/releases/download/v${CONTAINERD_VERSION}/containerd-${CONTAINERD_VERSION}-linux-${TARGETARCH:-amd64}.tar.gz \
+    && tar zxvf /tmp/containerd.tgz -C /usr/local/ \
+    && rm -f /tmp/containerd.tgz \
+    && cp $GOPATH/src/github.com/awslabs/soci-snapshotter/out/nerdctl-with-idmapping /usr/local/bin \
+    && chmod +x /usr/local/bin/nerdctl-with-idmapping
+RUN curl -sSL --output /tmp/runc https://github.com/opencontainers/runc/releases/download/v${RUNC_VERSION}/runc.${TARGETARCH:-amd64} \
+    && cp /tmp/runc /usr/local/bin/ \
+    && chmod +x /usr/local/bin/runc \
+    && rm -f /tmp/runc
+RUN curl -sSL --output /tmp/nerdctl.tgz https://github.com/containerd/nerdctl/releases/download/v${NERDCTL_VERSION}/nerdctl-${NERDCTL_VERSION}-linux-${TARGETARCH:-amd64}.tar.gz \
+    && tar zxvf /tmp/nerdctl.tgz -C /usr/local/bin/ \
+    && rm -f /tmp/nerdctl.tgz
