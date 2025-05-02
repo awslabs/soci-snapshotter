@@ -3,6 +3,12 @@ name: Comparision Tests
 on:
   schedule:
     - cron: "0 0 */2 * *" # every 2 days
+  pull_request:
+    branches: ['main']
+    paths:
+      - '.github/workflows/comparison-test.yml'
+      - 'benchmark/**'
+      - 'Makefile'
 
 env:
   GO_VERSION: '1.23.7'

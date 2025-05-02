@@ -7,13 +7,19 @@ on:
       - '**'
       - '!docs/**' # ignore docs changes
       - '!**.md' # ignore markdown changes
+  pull_request:
+    branches: ['main']
+    paths:
+      - '.github/workflows/benchmark-visualization.yml'
+      - 'benchmark/**'
+      - 'Makefile'
 
 permissions:
   contents: write
   deployments: write
 
 env:
-  GO_VERSION: '1.22.11'
+  GO_VERSION: '1.23.7'
 
 jobs:
   benchmark:
@@ -66,6 +72,7 @@ jobs:
       matrix: ${{ steps.set-matrix.outputs.files }}
 
   push-benchmark-result-gh-pages:
+    if: github.event_name == 'push'
     name: Push benchmark result to Github-pages
     runs-on: ubuntu-22.04
     needs: download-and-convert-benchmark-result-to-visualization-data
