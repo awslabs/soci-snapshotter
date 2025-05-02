@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1746133004556,
+  "lastUpdate": 1746220877080,
   "repoUrl": "https://github.com/awslabs/soci-snapshotter",
   "entries": {
     "Soci Benchmark": [
@@ -11335,6 +11335,48 @@ window.BENCHMARK_DATA = {
           {
             "name": "SociFullECR-public-rabbitmq-pullTaskDuration",
             "value": 1.0745,
+            "unit": "Seconds",
+            "extra": "P90"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "walster@amazon.com",
+            "name": "Kern Walster",
+            "username": "Kern--"
+          },
+          "committer": {
+            "email": "kern.walster@gmail.com",
+            "name": "Kern Walster",
+            "username": "Kern--"
+          },
+          "distinct": true,
+          "id": "82530d44ee2f477a9bbd2b821d6bfcb7711b5c16",
+          "message": "Support finding SOCI indexes in image annotations\n\nThis change adds a new mechanism to discover SOCI indexes without the\nOCI referrers API via annotations on the image manifest. The new\nmechanism is called SOCI v2 while the original is called SOCI v1.\n\nBy default, SOCI v1 is disabled and SOCI v2 is enabled.\n\nSigned-off-by: Kern Walster <walster@amazon.com>",
+          "timestamp": "2025-05-02T14:12:37-07:00",
+          "tree_id": "c632f197ff6ca7ad554eb0d8642dc59ce2ad26bc",
+          "url": "https://github.com/awslabs/soci-snapshotter/commit/82530d44ee2f477a9bbd2b821d6bfcb7711b5c16"
+        },
+        "date": 1746220869663,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "SociFullECR-public-rabbitmq-lazyTaskDuration",
+            "value": 12.474499999999999,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-rabbitmq-localTaskDuration",
+            "value": 9.869,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-rabbitmq-pullTaskDuration",
+            "value": 1.322,
             "unit": "Seconds",
             "extra": "P90"
           }
