@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1746466100606,
+  "lastUpdate": 1746557282915,
   "repoUrl": "https://github.com/awslabs/soci-snapshotter",
   "entries": {
     "Soci Benchmark": [
@@ -11624,6 +11624,48 @@ window.BENCHMARK_DATA = {
           {
             "name": "SociFullECR-public-redis-pullTaskDuration",
             "value": 1.0045,
+            "unit": "Seconds",
+            "extra": "P90"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "walster@amazon.com",
+            "name": "Kern Walster",
+            "username": "Kern--"
+          },
+          "committer": {
+            "email": "kern.walster@gmail.com",
+            "name": "Kern Walster",
+            "username": "Kern--"
+          },
+          "distinct": true,
+          "id": "869f8b30841c6836f426c187ab88cadc4de8b25f",
+          "message": "Increase CI Integration test timeout\n\nSigned-off-by: Kern Walster <walster@amazon.com>",
+          "timestamp": "2025-05-06T11:40:25-07:00",
+          "tree_id": "5dcb9340697e5e5132b17fc576a6409cb46cf920",
+          "url": "https://github.com/awslabs/soci-snapshotter/commit/869f8b30841c6836f426c187ab88cadc4de8b25f"
+        },
+        "date": 1746557281089,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "SociFullECR-public-redis-lazyTaskDuration",
+            "value": 0.9735,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-redis-localTaskDuration",
+            "value": 0.0225,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-redis-pullTaskDuration",
+            "value": 1.46,
             "unit": "Seconds",
             "extra": "P90"
           }
