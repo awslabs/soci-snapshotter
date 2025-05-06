@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1746466106190,
+  "lastUpdate": 1746557280117,
   "repoUrl": "https://github.com/awslabs/soci-snapshotter",
   "entries": {
     "Soci Benchmark": [
@@ -11419,6 +11419,48 @@ window.BENCHMARK_DATA = {
           {
             "name": "SociFullECR-public-rabbitmq-pullTaskDuration",
             "value": 1.0899999999999999,
+            "unit": "Seconds",
+            "extra": "P90"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "walster@amazon.com",
+            "name": "Kern Walster",
+            "username": "Kern--"
+          },
+          "committer": {
+            "email": "kern.walster@gmail.com",
+            "name": "Kern Walster",
+            "username": "Kern--"
+          },
+          "distinct": true,
+          "id": "869f8b30841c6836f426c187ab88cadc4de8b25f",
+          "message": "Increase CI Integration test timeout\n\nSigned-off-by: Kern Walster <walster@amazon.com>",
+          "timestamp": "2025-05-06T11:40:25-07:00",
+          "tree_id": "5dcb9340697e5e5132b17fc576a6409cb46cf920",
+          "url": "https://github.com/awslabs/soci-snapshotter/commit/869f8b30841c6836f426c187ab88cadc4de8b25f"
+        },
+        "date": 1746557277957,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "SociFullECR-public-rabbitmq-lazyTaskDuration",
+            "value": 11.931000000000001,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-rabbitmq-localTaskDuration",
+            "value": 9.318,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-rabbitmq-pullTaskDuration",
+            "value": 1.412,
             "unit": "Seconds",
             "extra": "P90"
           }
