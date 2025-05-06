@@ -24,6 +24,7 @@ import (
 	"github.com/awslabs/soci-snapshotter/config"
 	"github.com/awslabs/soci-snapshotter/util/dockershell"
 	"github.com/awslabs/soci-snapshotter/util/testutil"
+	"github.com/containerd/containerd/reference"
 	"github.com/containerd/platforms"
 )
 
@@ -250,5 +251,95 @@ func testV1IsNotUsedWhenDisabled(t *testing.T, imgName string) {
 	rsm.CheckAllLocalSnapshots(t)
 	if indexDigestUsed != "" {
 		t.Fatalf("expected no digest, got %s", indexDigestUsed)
+	}
+}
+
+func TestDanglingV2Annotation(t *testing.T) {
+	for _, imgName := range pullModesImages {
+		t.Run(imgName, func(t *testing.T) {
+			testDanglingV2Annotation(t, imgName)
+		})
+	}
+}
+
+func testDanglingV2Annotation(t *testing.T, imgName string) {
+	regConfig := newRegistryConfig()
+	sh, done := newShellWithRegistry(t, regConfig)
+	defer done()
+
+	rebootContainerd(t, sh, "", "")
+
+	srcInfo := dockerhub(imgName)
+	dstInfo := regConfig.mirror(imgName)
+
+	sh.X("nerdctl", "pull", "--all-platforms", srcInfo.ref)
+	sh.X("soci", "convert", "--min-layer-size", "0", srcInfo.ref, dstInfo.ref)
+
+	manifest, err := getManifestDigest(sh, dstInfo.ref, platforms.DefaultSpec())
+	if err != nil {
+		t.Fatalf("could not get manifest digest: %v", err)
+	}
+
+	v2IndexDigest, err := sh.OLog("soci",
+		"index", "list",
+		"-q", "--ref", srcInfo.ref,
+		"--platform", platforms.Format(platforms.DefaultSpec()),
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Nither nerdctl nor ctr expose a way to "elevate" a platform-specific
+	// manifest to a top level image directly, so we do a little registry dance:
+	// push image:tag
+	// pull image@sha256:... (the specific manifest we want to elevate)
+	// tag image@sha256:... image/dangling:tag
+	// push image/dangling:tag
+	//
+	// After this, image/dangling:tag refers to a single manifest that is platform specific.
+	// We use this to separate an image manifest that contains a reference to a SOCI index
+	// from the SOCI index itself to verify that it correctly pulls the image without lazy loading.
+	platformManifestRef, err := reference.Parse(dstInfo.ref)
+	if err != nil {
+		t.Fatalf("could not get parse destination ref: %v", err)
+	}
+	danglingRef := platformManifestRef
+	danglingRef.Locator += "/dangling" // image/dangling:tag
+
+	platformManifestRef.Object = "@" + manifest // image@sha256...
+
+	sh.X("nerdctl", "login", "--username", regConfig.user, "--password", regConfig.pass, platformManifestRef.String())
+	sh.X("nerdctl", "push", "--platform", platforms.DefaultString(), dstInfo.ref)
+	sh.X("nerdctl", "pull", platformManifestRef.String())
+	sh.X("nerdctl", "image", "tag", platformManifestRef.String(), danglingRef.String())
+	// Push a v1 index as well to verify that we do not fall back if we don't find the SOCI v2 index
+	sh.X("nerdctl", "push", "--snapshotter", "soci", "--soci-min-layer-size", "0", danglingRef.String())
+
+	m := rebootContainerd(t, sh, "", getSnapshotterConfigToml(t, withPullModes(config.DefaultPullModes())))
+
+	rsm, doneRsm := testutil.NewRemoteSnapshotMonitor(m)
+	defer doneRsm()
+	var foundNoIndexMessage bool
+	var indexDigestUsed string
+	m.Add("Look for digest", func(s string) {
+		if strings.Contains(s, "no valid SOCI index found") {
+			foundNoIndexMessage = true
+		}
+		structuredLog := make(map[string]string)
+		err := json.Unmarshal([]byte(s), &structuredLog)
+		if err != nil {
+			return
+		}
+		if structuredLog["msg"] == "fetching SOCI artifacts using index descriptor" {
+			indexDigestUsed = structuredLog["digest"]
+		}
+	})
+	sh.X("nerdctl", "pull", "--snapshotter", "soci", danglingRef.String())
+	rsm.CheckAllLocalSnapshots(t)
+	if !foundNoIndexMessage {
+		t.Fatalf("did not find the message that no index was found")
+	}
+	if strings.Trim(string(v2IndexDigest), "\n") != indexDigestUsed {
+		t.Fatalf("expected v2 index digest %s, got %s", v2IndexDigest, indexDigestUsed)
 	}
 }
