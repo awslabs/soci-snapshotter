@@ -18,11 +18,14 @@ package integration
 
 import (
 	"encoding/json"
+	"fmt"
 	"slices"
+	"strings"
 	"testing"
 
 	"github.com/awslabs/soci-snapshotter/soci"
 	shell "github.com/awslabs/soci-snapshotter/util/dockershell"
+	"github.com/containerd/platforms"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 )
 
@@ -226,6 +229,75 @@ func TestConvertAndPush(t *testing.T) {
 			sh.X("soci", "convert", img.ref, convertedImg.ref)
 			sh.X("nerdctl", "login", "--username", registryConfig.user, "--password", registryConfig.pass, convertedImg.ref)
 			sh.X("nerdctl", "push", "--all-platforms", convertedImg.ref)
+		})
+	}
+}
+
+func TestInvalidConversion(t *testing.T) {
+	registryConfig := newRegistryConfig()
+	sh, done := newShellWithRegistry(t, registryConfig)
+	defer done()
+
+	tests := []struct {
+		name     string
+		repo     string
+		modifier func(t *testing.T, sh *shell.Shell, img imageInfo)
+	}{
+		{
+			name: "deleting manifest invalidates image",
+			repo: "manifest",
+			modifier: func(t *testing.T, sh *shell.Shell, img imageInfo) {
+				digest, err := getManifestDigest(sh, img.ref, platforms.DefaultSpec())
+				if err != nil {
+					t.Fatalf("failed to get manifest digest: %v", err)
+				}
+				sh.X("ctr", "content", "delete", digest)
+			},
+		},
+		{
+			name: "deleting soci index invalidates image",
+			repo: "sociindex",
+			modifier: func(t *testing.T, sh *shell.Shell, img imageInfo) {
+				index, err := getImageIndex(sh, img.ref)
+				if err != nil {
+					t.Fatalf("failed to get image index: %v", err)
+				}
+				idx := slices.IndexFunc(index.Manifests, func(desc ocispec.Descriptor) bool {
+					return desc.ArtifactType == soci.SociIndexArtifactTypeV2
+				})
+				if idx == -1 {
+					t.Fatalf("no soci index found")
+				}
+				sh.X("ctr", "content", "delete", index.Manifests[idx].Digest.String())
+			},
+		},
+	}
+
+	for _, imageName := range convertImages {
+		t.Run(imageName, func(t *testing.T) {
+			rebootContainerd(t, sh, "", "")
+			img := dockerhub(imageName)
+
+			sh.X("nerdctl", "pull", "--all-platforms", img.ref)
+
+			for _, test := range tests {
+				t.Run(test.name, func(t *testing.T) {
+					imageName = fmt.Sprintf("%s/%s", test.repo, imageName)
+					convertedImg := registryConfig.mirror(imageName)
+					sh.X("soci", "convert", "--min-layer-size", "0", img.ref, convertedImg.ref)
+
+					test.modifier(t, sh, convertedImg)
+
+					sh.X("nerdctl", "login", "--username", registryConfig.user, "--password", registryConfig.pass, convertedImg.ref)
+					out, err := sh.CombinedOLog("nerdctl", "push", "--all-platforms", convertedImg.ref)
+					if err == nil {
+						t.Fatalf("expected push to fail")
+					}
+					if !strings.Contains(string(out), "not found") {
+						t.Fatalf("expected push to fail with 'not found' error, got %s", string(out))
+					}
+				})
+			}
 		})
 	}
 }
