@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1746466104546,
+  "lastUpdate": 1746557288171,
   "repoUrl": "https://github.com/awslabs/soci-snapshotter",
   "entries": {
     "Soci Benchmark": [
@@ -11542,6 +11542,48 @@ window.BENCHMARK_DATA = {
           {
             "name": "SociFullECR-public-mongo-pullTaskDuration",
             "value": 1.1955,
+            "unit": "Seconds",
+            "extra": "P90"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "walster@amazon.com",
+            "name": "Kern Walster",
+            "username": "Kern--"
+          },
+          "committer": {
+            "email": "kern.walster@gmail.com",
+            "name": "Kern Walster",
+            "username": "Kern--"
+          },
+          "distinct": true,
+          "id": "869f8b30841c6836f426c187ab88cadc4de8b25f",
+          "message": "Increase CI Integration test timeout\n\nSigned-off-by: Kern Walster <walster@amazon.com>",
+          "timestamp": "2025-05-06T11:40:25-07:00",
+          "tree_id": "5dcb9340697e5e5132b17fc576a6409cb46cf920",
+          "url": "https://github.com/awslabs/soci-snapshotter/commit/869f8b30841c6836f426c187ab88cadc4de8b25f"
+        },
+        "date": 1746557277218,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "SociFullECR-public-mongo-lazyTaskDuration",
+            "value": 2.3155,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-mongo-localTaskDuration",
+            "value": 0.2955,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-mongo-pullTaskDuration",
+            "value": 1.3345,
             "unit": "Seconds",
             "extra": "P90"
           }
