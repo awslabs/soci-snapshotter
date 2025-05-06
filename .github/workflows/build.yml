@@ -78,7 +78,7 @@ jobs:
   integration:
     needs: setup
     runs-on: ${{ fromJSON(needs.setup.outputs.runner-labels)[matrix.os] }}
-    timeout-minutes: 40
+    timeout-minutes: 60
     strategy:
       fail-fast: false
       matrix:
