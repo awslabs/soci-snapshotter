@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1746466099250,
+  "lastUpdate": 1746557284703,
   "repoUrl": "https://github.com/awslabs/soci-snapshotter",
   "entries": {
     "Soci Benchmark": [
@@ -11583,6 +11583,48 @@ window.BENCHMARK_DATA = {
           {
             "name": "SociFullECR-public-ffmpeg-pullTaskDuration",
             "value": 1.4235,
+            "unit": "Seconds",
+            "extra": "P90"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "walster@amazon.com",
+            "name": "Kern Walster",
+            "username": "Kern--"
+          },
+          "committer": {
+            "email": "kern.walster@gmail.com",
+            "name": "Kern Walster",
+            "username": "Kern--"
+          },
+          "distinct": true,
+          "id": "869f8b30841c6836f426c187ab88cadc4de8b25f",
+          "message": "Increase CI Integration test timeout\n\nSigned-off-by: Kern Walster <walster@amazon.com>",
+          "timestamp": "2025-05-06T11:40:25-07:00",
+          "tree_id": "5dcb9340697e5e5132b17fc576a6409cb46cf920",
+          "url": "https://github.com/awslabs/soci-snapshotter/commit/869f8b30841c6836f426c187ab88cadc4de8b25f"
+        },
+        "date": 1746557277109,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "SociFullECR-public-ffmpeg-lazyTaskDuration",
+            "value": 0.1205,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-ffmpeg-localTaskDuration",
+            "value": 0.008,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-ffmpeg-pullTaskDuration",
+            "value": 1.8235000000000001,
             "unit": "Seconds",
             "extra": "P90"
           }
