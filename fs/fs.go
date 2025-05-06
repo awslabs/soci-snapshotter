@@ -63,6 +63,7 @@ import (
 	"github.com/awslabs/soci-snapshotter/fs/layer"
 	commonmetrics "github.com/awslabs/soci-snapshotter/fs/metrics/common"
 	layermetrics "github.com/awslabs/soci-snapshotter/fs/metrics/layer"
+	"github.com/awslabs/soci-snapshotter/fs/reader"
 	"github.com/awslabs/soci-snapshotter/fs/remote"
 	"github.com/awslabs/soci-snapshotter/fs/source"
 	"github.com/awslabs/soci-snapshotter/idtools"
@@ -241,7 +242,7 @@ func NewFilesystem(ctx context.Context, root string, cfg config.FSConfig, opts .
 	var bgFetcher *bf.BackgroundFetcher
 
 	if !cfg.BackgroundFetchConfig.Disable {
-		log.G(context.Background()).WithFields(logrus.Fields{
+		log.G(ctx).WithFields(logrus.Fields{
 			"fetchPeriod":      bgFetchPeriod,
 			"silencePeriod":    bgSilencePeriod,
 			"maxQueueSize":     bgMaxQueueSize,
@@ -258,10 +259,19 @@ func NewFilesystem(ctx context.Context, root string, cfg config.FSConfig, opts .
 		}
 		go bgFetcher.Run(context.Background())
 	} else {
-		log.G(context.Background()).Info("background fetch is disabled")
+		log.G(ctx).Info("background fetch is disabled")
 	}
 
-	r, err := layer.NewResolver(root, cfg, fsOpts.resolveHandlers, metadataStore, store, fsOpts.overlayOpaqueType, bgFetcher)
+	var readerVerifier *reader.Verifier
+	if !cfg.DisableVerification {
+		log.G(ctx).Info("creating reader verifier")
+		readerVerifier = reader.NewVerifier(cfg.BackgroundFetchConfig.MaxQueueSize)
+		go readerVerifier.Run()
+	} else {
+		log.G(ctx).Info("reader verification is disabled")
+	}
+
+	r, err := layer.NewResolver(root, cfg, fsOpts.resolveHandlers, metadataStore, store, fsOpts.overlayOpaqueType, bgFetcher, readerVerifier)
 	if err != nil {
 		return nil, fmt.Errorf("failed to setup resolver: %w", err)
 	}
