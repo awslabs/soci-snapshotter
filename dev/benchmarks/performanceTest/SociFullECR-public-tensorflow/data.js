@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1746635650925,
+  "lastUpdate": 1746642796396,
   "repoUrl": "https://github.com/awslabs/soci-snapshotter",
   "entries": {
     "Soci Benchmark": [
@@ -11708,6 +11708,48 @@ window.BENCHMARK_DATA = {
           {
             "name": "SociFullECR-public-tensorflow-pullTaskDuration",
             "value": 2.13,
+            "unit": "Seconds",
+            "extra": "P90"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "retornam@users.noreply.github.com",
+            "name": "retornam",
+            "username": "retornam"
+          },
+          "committer": {
+            "email": "55906459+austinvazquez@users.noreply.github.com",
+            "name": "Austin Vazquez",
+            "username": "austinvazquez"
+          },
+          "distinct": true,
+          "id": "4b87d89f2f2965160ee5edd34d24ad962469cc93",
+          "message": "Updates to Dockerfile\n\ncontainerd to 1.7\n\nAccording to [1] the 1.6 branch of containerd is in log term testing\nuntil July 23, 2025, they suggest upgrading to 1.7 which will be\nin long term testing until March 10, 2026.\n\n[1]https://github.com/containerd/containerd/blob/main/RELEASES.md\n\nUpgrade runc to 1.3.0\n\nAccording to [1] opencontainers/runc\n\n\"runc follows a 6-month minor version release schedule, with the\n aim of releases happening at the end of April and October each\nyear.\"\n\nStarting with 1.3.0 which was released Apr 30th, 2025.\n\nThis PR upgrades the image so we can follow their release cadence.\n\n[1] https://github.com/opencontainers/runc/blob/main/RELEASES.md\n\nClear dnf cache after install\n\nAdd the dnf clean command to clear the DNF cache, deletie temporary\nfiles, metadata, and cached packages.\n\nI also reformatted the Dockerfile to be follow recommended formatting\nguidelines\n\nUpgrade nerdctl to 1.7.7\n\nA new version of nerdctl has been released[1] with\nseveral fixes and is compatible with containerd versions\nv1.6 and v1.7\n\n[1] https://github.com/containerd/nerdctl/releases/tag/v1.7.7\n\nSigned-off-by: Raymond Etornam <retornam@users.noreply.github.com>",
+          "timestamp": "2025-05-07T11:25:33-07:00",
+          "tree_id": "99ef4706499a483af9d6d66273fecb35484a85c1",
+          "url": "https://github.com/awslabs/soci-snapshotter/commit/4b87d89f2f2965160ee5edd34d24ad962469cc93"
+        },
+        "date": 1746642794973,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "SociFullECR-public-tensorflow-lazyTaskDuration",
+            "value": 10.062000000000001,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-tensorflow-localTaskDuration",
+            "value": 2.643,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-tensorflow-pullTaskDuration",
+            "value": 2.1580000000000004,
             "unit": "Seconds",
             "extra": "P90"
           }
