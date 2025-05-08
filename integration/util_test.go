@@ -740,6 +740,20 @@ func generateBasicHtpasswd(user, pass string) ([]byte, error) {
 	return []byte(user + ":" + string(bpass) + "\n"), nil
 }
 
+func getImageIndex(sh *shell.Shell, ref string) (*spec.Index, error) {
+	content := sh.O("ctr", "content", "get", getImageDigest(sh, ref))
+	var index spec.Index
+	err := json.Unmarshal(content, &index)
+	if err != nil {
+		return nil, err
+	}
+	if !images.IsIndexType(index.MediaType) {
+		return nil, fmt.Errorf("%s is not an index mediatype", index.MediaType)
+	}
+
+	return &index, nil
+}
+
 func getImageDigest(sh *shell.Shell, ref string) string {
 	buffer := new(bytes.Buffer)
 	sh.Pipe(buffer, []string{"ctr", "image", "list", "name==" + ref}, []string{"awk", `NR==2{printf "%s", $3}`})
@@ -747,9 +761,7 @@ func getImageDigest(sh *shell.Shell, ref string) string {
 }
 
 func getManifestDigest(sh *shell.Shell, ref string, platform spec.Platform) (string, error) {
-	content := sh.O("ctr", "content", "get", getImageDigest(sh, ref))
-	var index spec.Index
-	err := json.Unmarshal(content, &index)
+	index, err := getImageIndex(sh, ref)
 	if err != nil {
 		return "", err
 	}
