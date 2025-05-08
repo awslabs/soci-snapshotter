@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1746717602973,
+  "lastUpdate": 1746723464654,
   "repoUrl": "https://github.com/awslabs/soci-snapshotter",
   "entries": {
     "Soci Benchmark": [
@@ -11792,6 +11792,48 @@ window.BENCHMARK_DATA = {
           {
             "name": "SociFullECR-public-redis-pullTaskDuration",
             "value": 1.666,
+            "unit": "Seconds",
+            "extra": "P90"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "walster@amazon.com",
+            "name": "Kern Walster",
+            "username": "Kern--"
+          },
+          "committer": {
+            "email": "kern.walster@gmail.com",
+            "name": "Kern Walster",
+            "username": "Kern--"
+          },
+          "distinct": true,
+          "id": "65562008c43fb5231ac104cf038aecc4dd6d30ca",
+          "message": "Add FetchSociArtifacts test\n\nThis adds tests to verify that we correctly reject SOCI indexes if\nthey are somehow modified by the registry. We have always done this, but\nthis verifies it via a test that's run continuously.\n\nSigned-off-by: Kern Walster <walster@amazon.com>",
+          "timestamp": "2025-05-08T09:48:28-07:00",
+          "tree_id": "e36b363026c7d8f974aaebe80e0c93abc4bf4b92",
+          "url": "https://github.com/awslabs/soci-snapshotter/commit/65562008c43fb5231ac104cf038aecc4dd6d30ca"
+        },
+        "date": 1746723457814,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "SociFullECR-public-redis-lazyTaskDuration",
+            "value": 1.007,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-redis-localTaskDuration",
+            "value": 0.0245,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-redis-pullTaskDuration",
+            "value": 1.3915000000000002,
             "unit": "Seconds",
             "extra": "P90"
           }
