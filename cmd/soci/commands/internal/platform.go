@@ -47,7 +47,7 @@ var PlatformFlags = []cli.Flag{
 // The order of preference is:
 // 1) all platforms supported by the image if the `all-plaforms` flag is set
 // 2) the set of platforms specified by the `platform` flag
-// 3) the default platform
+// 3) An empty platform slice. The consumer is responsible for setting an appropriate platform
 //
 // This method is not suitable for situations where the default should be all supported platforms (e.g. the `soci index list` command)
 func GetPlatforms(ctx context.Context, cliContext *cli.Context, img images.Image, cs content.Store) ([]ocispec.Platform, error) {
@@ -56,7 +56,7 @@ func GetPlatforms(ctx context.Context, cliContext *cli.Context, img images.Image
 	}
 	ps := cliContext.StringSlice(PlatformFlagKey)
 	if len(ps) == 0 {
-		return []ocispec.Platform{platforms.DefaultSpec()}, nil
+		return []ocispec.Platform{}, nil
 	}
 	var result []ocispec.Platform
 	for _, p := range ps {
