@@ -19,6 +19,7 @@ package integration
 import (
 	"encoding/json"
 	"slices"
+	"strings"
 	"testing"
 
 	"github.com/awslabs/soci-snapshotter/soci"
@@ -143,6 +144,24 @@ func TestConvert(t *testing.T) {
 				convertedRef := imgRef + "-soci"
 
 				sh.X("nerdctl", "pull", "--all-platforms", imgRef)
+				sh.X("soci", "convert", "--all-platforms", "--min-layer-size", "0", imgRef, convertedRef)
+
+				imgDigest := getImageDigest(sh, imgRef)
+				convertedDigest := getImageDigest(sh, convertedRef)
+
+				validateConversion(t, sh, imgDigest, convertedDigest)
+			})
+		}
+	})
+
+	t.Run("single platform conversion", func(t *testing.T) {
+		for _, imageName := range convertImages {
+			t.Run(imageName, func(t *testing.T) {
+				rebootContainerd(t, sh, "", "")
+				imgRef := dockerhub(imageName).ref
+				convertedRef := imgRef + "-soci"
+
+				sh.X("nerdctl", "pull", imgRef)
 				sh.X("soci", "convert", "--min-layer-size", "0", imgRef, convertedRef)
 
 				imgDigest := getImageDigest(sh, imgRef)
@@ -162,8 +181,8 @@ func TestConvert(t *testing.T) {
 				convertedRef2 := imgRef + "-soci-2"
 
 				sh.X("nerdctl", "pull", "--all-platforms", imgRef)
-				sh.X("soci", "convert", imgRef, convertedRef1)
-				sh.X("soci", "convert", convertedRef1, convertedRef2)
+				sh.X("soci", "convert", "--all-platforms", imgRef, convertedRef1)
+				sh.X("soci", "convert", "--all-platforms", convertedRef1, convertedRef2)
 
 				convertedDigest1 := getImageDigest(sh, convertedRef1)
 				convertedDigest2 := getImageDigest(sh, convertedRef2)
@@ -174,14 +193,14 @@ func TestConvert(t *testing.T) {
 		}
 	})
 
-	t.Run("single platform conversion", func(t *testing.T) {
+	t.Run("single image manifest conversion", func(t *testing.T) {
 		images := []string{cloudwatchAgentx86ImageRef}
 		for _, imgRef := range images {
 			t.Run(imgRef, func(t *testing.T) {
 				rebootContainerd(t, sh, "", "")
 				convertedRef := imgRef + "-soci"
 
-				sh.X("nerdctl", "pull", "--platform", "linux/amd64", imgRef)
+				sh.X("nerdctl", "pull", imgRef)
 				sh.X("soci", "convert", imgRef, convertedRef)
 
 				imgDigest := getImageDigest(sh, imgRef)
@@ -216,16 +235,108 @@ func TestConvertAndPush(t *testing.T) {
 	registryConfig := newRegistryConfig()
 	sh, done := newShellWithRegistry(t, registryConfig)
 	defer done()
-	for _, imageName := range convertImages {
-		t.Run(imageName, func(t *testing.T) {
+
+	imageName := nginxImage
+
+	tests := []struct {
+		name                 string
+		pullArgs             []string
+		convert              []string
+		pushArgs             []string
+		expectedConvertError string
+		expectedPushError    string
+	}{
+		{
+			name:     "all, all, all",
+			pullArgs: []string{"--all-platforms"},
+			convert:  []string{"--all-platforms"},
+			pushArgs: []string{"--all-platforms"},
+		},
+		{
+			name:     "all, all, one",
+			pullArgs: []string{"--all-platforms"},
+			convert:  []string{"--all-platforms"},
+			pushArgs: []string{"--platform", "linux/amd64"},
+		},
+		{
+			name:     "all, one, all",
+			pullArgs: []string{"--all-platforms"},
+			convert:  []string{"--platform", "linux/amd64"},
+			pushArgs: []string{"--all-platforms"},
+		},
+		{
+			name:     "all, one, one",
+			pullArgs: []string{"--all-platforms"},
+			convert:  []string{"--platform", "linux/amd64"},
+			pushArgs: []string{"--platform", "linux/amd64"},
+		},
+		{
+			name:                 "one, all, all",
+			pullArgs:             []string{"--platform", "linux/amd64"},
+			convert:              []string{"--all-platforms"},
+			pushArgs:             []string{"--all-platforms"},
+			expectedConvertError: "not found",
+		},
+		{
+			name:                 "one, all, one",
+			pullArgs:             []string{"--platform", "linux/amd64"},
+			convert:              []string{"--all-platforms"},
+			pushArgs:             []string{"--platform", "linux/amd64"},
+			expectedConvertError: "not found",
+		},
+		{
+			name:              "one, one, all",
+			pullArgs:          []string{"--platform", "linux/amd64"},
+			convert:           []string{"--platform", "linux/amd64"},
+			pushArgs:          []string{"--all-platforms"},
+			expectedPushError: "not found",
+		},
+		{
+			name:     "one, one, one",
+			pullArgs: []string{"--platform", "linux/amd64"},
+			convert:  []string{"--platform", "linux/amd64"},
+			pushArgs: []string{"--platform", "linux/amd64"},
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
 			rebootContainerd(t, sh, "", "")
 			img := dockerhub(imageName)
 			convertedImg := registryConfig.mirror(imageName)
 
-			sh.X("nerdctl", "pull", "--all-platforms", img.ref)
-			sh.X("soci", "convert", img.ref, convertedImg.ref)
+			pull := []string{"nerdctl", "pull"}
+			convert := []string{"soci", "convert"}
+			push := []string{"nerdctl", "push"}
+
+			pull = append(pull, test.pullArgs...)
+			convert = append(convert, test.convert...)
+			push = append(push, test.pushArgs...)
+
+			sh.X(append(pull, img.ref)...)
+			o, err := sh.CombinedOLog(append(convert, img.ref, convertedImg.ref)...)
+			skip := validateErrorOutput(t, "convert", string(o), err, test.expectedConvertError)
+			if skip {
+				return
+			}
 			sh.X("nerdctl", "login", "--username", registryConfig.user, "--password", registryConfig.pass, convertedImg.ref)
-			sh.X("nerdctl", "push", "--all-platforms", convertedImg.ref)
+			o, err = sh.CombinedOLog(append(push, convertedImg.ref)...)
+			validateErrorOutput(t, "push", string(o), err, test.expectedPushError)
 		})
 	}
+}
+
+func validateErrorOutput(t *testing.T, name string, o string, err error, expectedError string) bool {
+	if expectedError != "" {
+		if err == nil {
+			t.Fatalf("%s: expected error %q, got nil", name, expectedError)
+		}
+		if !strings.Contains(o, expectedError) {
+			t.Fatalf("%s: expected error %q, got %q", name, expectedError, o)
+		}
+		return true
+	} else if err != nil {
+		t.Fatalf("%s: unexpected error: %v", name, err)
+	}
+	return false
 }

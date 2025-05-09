@@ -25,6 +25,7 @@ import (
 	"github.com/awslabs/soci-snapshotter/config"
 	"github.com/awslabs/soci-snapshotter/soci"
 	"github.com/awslabs/soci-snapshotter/soci/store"
+	"github.com/containerd/platforms"
 	"github.com/urfave/cli"
 )
 
@@ -111,6 +112,9 @@ var CreateCommand = cli.Command{
 		ps, err := internal.GetPlatforms(ctx, cliContext, srcImg, cs)
 		if err != nil {
 			return err
+		}
+		if len(ps) == 0 {
+			ps = append(ps, platforms.DefaultSpec())
 		}
 
 		artifactsDb, err := soci.NewDB(soci.ArtifactsDbPath())
