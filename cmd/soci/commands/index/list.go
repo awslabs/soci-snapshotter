@@ -17,6 +17,7 @@
 package index
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -26,6 +27,7 @@ import (
 
 	"github.com/awslabs/soci-snapshotter/cmd/soci/commands/internal"
 	"github.com/awslabs/soci-snapshotter/soci"
+	"github.com/containerd/containerd/errdefs"
 	"github.com/containerd/containerd/images"
 	"github.com/containerd/platforms"
 	specs "github.com/opencontainers/image-spec/specs-go/v1"
@@ -119,6 +121,9 @@ var listCommand = cli.Command{
 			for _, plat := range plats {
 				desc, err := soci.GetImageManifestDescriptor(ctx, cs, img.Target, platforms.OnlyStrict(plat))
 				if err != nil {
+					if errors.Is(err, errdefs.ErrNotFound) {
+						return fmt.Errorf("image manifest for platform %s: %w", platforms.Format(plat), err)
+					}
 					return err
 				}
 				filters = append(filters, originalDigestFilter(desc.Digest.String()))

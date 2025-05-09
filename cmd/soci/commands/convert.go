@@ -27,7 +27,6 @@ import (
 	"github.com/containerd/containerd/errdefs"
 	"github.com/containerd/containerd/images"
 	"github.com/containerd/containerd/reference"
-	v1 "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/urfave/cli"
 )
 
@@ -147,13 +146,7 @@ var ConvertCommand = cli.Command{
 		}
 		defer done(ctx)
 
-		var platforms []v1.Platform
-		explicitPlatforms := cliContext.StringSlice(internal.PlatformFlagKey)
-		if len(explicitPlatforms) > 0 {
-			platforms, err = internal.GetPlatforms(ctx, cliContext, srcImg, cs)
-		} else {
-			platforms, err = images.Platforms(ctx, cs, srcImg.Target)
-		}
+		platforms, err := internal.GetPlatforms(ctx, cliContext, srcImg, cs)
 		if err != nil {
 			return err
 		}
