@@ -34,14 +34,14 @@ import (
 	"github.com/awslabs/soci-snapshotter/ztoc"
 	"github.com/awslabs/soci-snapshotter/ztoc/compression"
 	"github.com/containerd/containerd/content"
+	"github.com/containerd/errdefs"
+	"oras.land/oras-go/v2/errdef"
 
 	"github.com/containerd/containerd/images"
 	"github.com/containerd/log"
 	"github.com/containerd/platforms"
 	"github.com/opencontainers/go-digest"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
-
-	"oras.land/oras-go/v2/errdef"
 )
 
 const (
@@ -501,6 +501,9 @@ func (b *IndexBuilder) build(ctx context.Context, img images.Image, buildCfg bui
 	// images.Manifest, images.Children will error out when reading the manifest blob (this happens on containerd side)
 	imgManifestDesc, err := GetImageManifestDescriptor(ctx, b.contentStore, img.Target, platformMatcher)
 	if err != nil {
+		if errors.Is(err, errdefs.ErrNotFound) {
+			return nil, fmt.Errorf("image manifest for %s: %w", platforms.Format(buildCfg.platform), err)
+		}
 		return nil, err
 	}
 	manifest, err := images.Manifest(ctx, b.contentStore, img.Target, platformMatcher)
@@ -726,8 +729,11 @@ func GetImageManifestDescriptor(ctx context.Context, cs content.Store, imageTarg
 				return &manifest, nil
 			}
 		}
-		return nil, errors.New("image manifest not found")
+		return nil, errdefs.ErrNotFound
 	} else if images.IsManifestType(imageTarget.MediaType) {
+		if imageTarget.Platform != nil && !platform.Match(*imageTarget.Platform) {
+			return nil, errdefs.ErrNotFound
+		}
 		return &imageTarget, nil
 	}
 

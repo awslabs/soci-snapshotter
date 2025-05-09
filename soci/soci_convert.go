@@ -28,6 +28,7 @@ import (
 	"github.com/awslabs/soci-snapshotter/soci/store"
 	"github.com/awslabs/soci-snapshotter/util/ociutil"
 	"github.com/containerd/containerd/images"
+	"github.com/containerd/errdefs"
 	"github.com/containerd/platforms"
 	"github.com/opencontainers/go-digest"
 	"github.com/opencontainers/image-spec/specs-go"
@@ -45,7 +46,9 @@ type convertConfig struct {
 // ConvertWithPlatforms sets the platforms that will be indexed during conversion
 func ConvertWithPlatforms(platforms ...ocispec.Platform) ConvertOption {
 	return func(cc *convertConfig) error {
-		cc.platforms = platforms
+		if len(platforms) != 0 {
+			cc.platforms = platforms
+		}
 		return nil
 	}
 }
@@ -82,17 +85,26 @@ func (b *IndexBuilder) Convert(ctx context.Context, img images.Image, opts ...Co
 	if len(allPlatforms) == 0 {
 		return nil, errors.New("image does not support any platforms")
 	}
-	if images.IsManifestType(img.Target.MediaType) && img.Target.Platform == nil {
+	defaultPlatform := platforms.DefaultSpec()
+	if images.IsManifestType(img.Target.MediaType) {
 		// If the image's target descriptor is a single manifest, then it will not
 		// contain a platform because that information is stored in the image config instead.
 		// If we directly use this descriptor in the converted image,
 		// runtimes will not be able to pull the correct manifest.
 		// We know the actual platform by inspecting the image config in `images.Platforms`,
 		// so we add that to the target descriptor.
-		img.Target.Platform = &allPlatforms[0]
+		imagePlatform := allPlatforms[0]
+		img.Target.Platform = &imagePlatform
+
+		// We also set the default platform as the image's platform.
+		// We shouldn't force the user to specify the platform if
+		// we know the only platform the image supports. This allows users
+		// to convert single platform images on non-native hardware
+		// (e.g. converting an arm64 image on an amd64 machine without explicitly specifying the platform)
+		defaultPlatform = imagePlatform
 	}
 	convertCfg := convertConfig{
-		platforms: allPlatforms,
+		platforms: []ocispec.Platform{defaultPlatform},
 		gcRoot:    true,
 	}
 	for _, opt := range opts {
@@ -226,10 +238,33 @@ func (b *IndexBuilder) newOciIndex(ctx context.Context, img images.Image) (ocisp
 func (b *IndexBuilder) annotateImages(ctx context.Context, ociIndex *ocispec.Index, sociIndexes []*IndexWithMetadata) error {
 	for i := 0; i < len(ociIndex.Manifests); i++ {
 		manifestDesc := &ociIndex.Manifests[i]
+
+		var indexWithMetadata *IndexWithMetadata
+		idx := slices.IndexFunc(sociIndexes, func(i *IndexWithMetadata) bool { return i.ManifestDesc.Digest == manifestDesc.Digest })
+		if idx >= 0 {
+			indexWithMetadata = sociIndexes[idx]
+		}
+
 		// images.Manifest validates the mediatype, no need to do it ourselves like
 		// we did when loading the OCI index
 		manifest, err := images.Manifest(ctx, b.contentStore, *manifestDesc, nil)
 		if err != nil {
+			// If the manifest is not found:
+			//   if there is an index for the image: error. The manifest was unexpectedly deleted
+			//   if there is not an index for the image: skip.
+			//       In this case, we are working with a multi-platform image where the user only
+			//       pulled a subset of the platforms. We should convert the platforms
+			//       requested and not touch anything else. The user can still push the image as a reduced
+			//       platform (i.e. without --all-platforms).
+			//       This is the case of:
+			//           nerdctl pull $IMAGE
+			//           soci convert $IMAGE $IMAGE-soci
+			//           nerdctl push $IMAGE-soci
+			if errors.Is(err, errdefs.ErrNotFound) {
+				if indexWithMetadata == nil {
+					continue
+				}
+			}
 			return err
 		}
 		// Some Registries don't like mixing Docker V2 manifests with OCI image manifests.
@@ -242,10 +277,7 @@ func (b *IndexBuilder) annotateImages(ctx context.Context, ociIndex *ocispec.Ind
 		// We also aren't modifying image contents at all, so we don't need to modify the config contents.
 		manifest.Config.MediaType = ocispec.MediaTypeImageConfig
 
-		idx := slices.IndexFunc(sociIndexes, func(i *IndexWithMetadata) bool { return i.ManifestDesc.Digest == manifestDesc.Digest })
-		if idx >= 0 {
-			indexWithMetadata := sociIndexes[idx]
-
+		if indexWithMetadata != nil {
 			if manifest.Annotations == nil {
 				manifest.Annotations = make(map[string]string)
 			}
