@@ -11,14 +11,17 @@ This document explains how to configure SOCI on Kubernetes. For a hands on examp
 ## Configuration
 
 SOCI on kubernetes requires two pieces of configuration:
+
 1) [Containerd Configuration](#containerd-configuration) to launch containers with SOCI
 2) [Registry Authentication Configuration](#registry-authentication-configuration) so that SOCI can pull images from non-public container registries
 
 ### Containerd configuration
 
-To configure containerd to launch containers with SOCI, add the following snippet to the containerd config. The config is located at `/etc/containerd/config.toml` by default. 
+To configure containerd to launch containers with SOCI, add the following snippet to the containerd config. The config is located at `/etc/containerd/config.toml` by default.
 
-```
+#### containerd 1.x configuration
+
+```toml
 [proxy_plugins.soci]
 type = "snapshot"
 address = "/run/soci-snapshotter-grpc/soci-snapshotter-grpc.sock"
@@ -46,6 +49,25 @@ Breaking it down line-by-line:
 `[plugins."io.containerd.grpc.v1.cri".containerd]` defines kubernetes-specific configuration  
 `  snapshotter = "soci"` tells containerd to use SOCI by default. This name must match the proxy_plugin name. (this is required. See [Limitations](#limitations))  
 `  disable_snapshot_annotations = false` tells containerd to send lazy loading information to the SOCI snapshotter  
+
+#### containerd 2.x configuration
+
+```toml
+[proxy_plugins.soci]
+type = "snapshot"
+address = "/run/soci-snapshotter-grpc/soci-snapshotter-grpc.sock"
+[proxy_plugins.soci.exports]
+  root = "/var/lib/soci-snapshotter-grpc"
+
+[plugins."io.containerd.cri.v1.images"]
+  snapshotter = "soci"
+  # This line is required for containerd to send information about how to lazily load the image to the snapshotter
+  disable_snapshot_annotations = false
+```
+
+> **NOTE**
+>
+> The change from the containerd 1.x configuration is the header for kubernetes-specific configuration.
 
 ### Registry Authentication Configuration
 
