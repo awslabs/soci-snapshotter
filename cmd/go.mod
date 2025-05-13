@@ -5,7 +5,7 @@ go 1.23.0
 require (
 	github.com/awslabs/soci-snapshotter v0.0.0-local
 	github.com/containerd/containerd v1.7.27
-	github.com/containerd/containerd/api v1.8.0
+	github.com/containerd/containerd/api v1.9.0
 	github.com/containerd/log v0.1.0
 	github.com/containerd/platforms v0.2.1
 	github.com/coreos/go-systemd/v22 v22.5.0
@@ -19,7 +19,7 @@ require (
 	golang.org/x/sys v0.33.0
 	google.golang.org/grpc v1.59.0
 	k8s.io/cri-api v0.28.2
-	oras.land/oras-go/v2 v2.5.0
+	oras.land/oras-go/v2 v2.6.0
 )
 
 require (
