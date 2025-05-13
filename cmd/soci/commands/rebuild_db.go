@@ -41,7 +41,7 @@ var RebuildDBCommand = cli.Command{
 		}
 		defer cancel()
 		containerdContentStore := client.ContentStore()
-		artifactsDb, err := soci.NewDB(soci.ArtifactsDbPath())
+		artifactsDb, err := soci.NewDB(soci.ArtifactsDbPath(cliContext.GlobalString("root")))
 		if err != nil {
 			return err
 		}

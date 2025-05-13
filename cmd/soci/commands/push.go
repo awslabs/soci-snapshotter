@@ -99,7 +99,7 @@ if they are available in the snapshotter's local content store.
 			return err
 		}
 
-		artifactsDb, err := soci.NewDB(soci.ArtifactsDbPath())
+		artifactsDb, err := soci.NewDB(soci.ArtifactsDbPath(cliContext.GlobalString("root")))
 		if err != nil {
 			return err
 		}

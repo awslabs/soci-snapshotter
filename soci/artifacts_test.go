@@ -98,6 +98,33 @@ func TestGetIndexArtifactEntries(t *testing.T) {
 	}
 }
 
+func TestArtifactDbPath(t *testing.T) {
+	tests := []struct {
+		name     string
+		root     string
+		expected string
+	}{
+		{
+			name:     "default",
+			root:     "",
+			expected: "/var/lib/soci-snapshotter-grpc/artifacts.db",
+		},
+		{
+			name:     "custom",
+			root:     "/tmp",
+			expected: "/tmp/artifacts.db",
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			if got := ArtifactsDbPath(test.root); got != test.expected {
+				t.Errorf("ArtifactsDbPath() = %v, want %v", got, test.expected)
+			}
+		})
+	}
+}
+
 func TestArtifactDB_DoesNotExist(t *testing.T) {
 	resetArtifactDBInit()
 	t.Cleanup(resetArtifactDBInit)
@@ -105,7 +132,7 @@ func TestArtifactDB_DoesNotExist(t *testing.T) {
 		// Fail db initialization.
 		db = nil
 	})
-	_, err := NewDB(ArtifactsDbPath())
+	_, err := NewDB(ArtifactsDbPath(t.TempDir()))
 	if err == nil {
 		t.Fatalf("getArtifactEntry should fail since artifacts.db doesn't exist")
 	}
