@@ -18,6 +18,7 @@ package soci
 
 import (
 	"os"
+	"sync"
 	"testing"
 
 	bolt "go.etcd.io/bbolt"
@@ -98,6 +99,12 @@ func TestGetIndexArtifactEntries(t *testing.T) {
 }
 
 func TestArtifactDB_DoesNotExist(t *testing.T) {
+	resetArtifactDBInit()
+	t.Cleanup(resetArtifactDBInit)
+	once.Do(func() {
+		// Fail db initialization.
+		db = nil
+	})
 	_, err := NewDB(ArtifactsDbPath())
 	if err == nil {
 		t.Fatalf("getArtifactEntry should fail since artifacts.db doesn't exist")
@@ -207,4 +214,9 @@ func newTestableDb() (*ArtifactsDb, error) {
 		return nil, err
 	}
 	return &ArtifactsDb{db: db}, nil
+}
+
+func resetArtifactDBInit() {
+	once = sync.Once{}
+	db = nil
 }
