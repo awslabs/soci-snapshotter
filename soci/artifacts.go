@@ -88,8 +88,11 @@ var (
 )
 
 // Get the default artifacts db path
-func ArtifactsDbPath() string {
-	return path.Join(config.SociSnapshotterRootPath, artifactsDbName)
+func ArtifactsDbPath(root string) string {
+	if root == "" {
+		root = config.DefaultSociSnapshotterRootPath
+	}
+	return path.Join(root, artifactsDbName)
 }
 
 // ArtifactEntry is a metadata object for a SOCI artifact.
@@ -121,20 +124,20 @@ func NewDB(path string) (*ArtifactsDb, error) {
 	once.Do(func() {
 		f, err := os.OpenFile(path, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0600)
 		if err != nil {
-			log.G(context.Background()).Errorf("can't create or open the file %s", path)
+			log.G(context.Background()).WithError(err).WithField("path", path).Error("Cannot create or open file")
 			return
 		}
 		defer f.Close()
 		database, err := bolt.Open(f.Name(), 0600, nil)
 		if err != nil {
-			log.G(context.Background()).Errorf("can't open the db")
+			log.G(context.Background()).WithError(err).Error("Cannot open the db")
 			return
 		}
 		db = &ArtifactsDb{db: database}
 	})
 
 	if db == nil {
-		return nil, fmt.Errorf("artifacts.db is not available")
+		return nil, errors.New("artifacts.db is not available")
 	}
 
 	return db, nil
