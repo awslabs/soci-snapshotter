@@ -215,6 +215,38 @@ func (m *RemoteSnapshotMonitor) checkExpectedMounts(t *testing.T, result string,
 	t.Logf("all layers have been reported as %s snapshots %v", name, result)
 }
 
+const indexDigestMonitorID = "index-digest-monitor"
+
+// IndexDigestMonitor scans the SOCI logs looking for a log that indicates
+// which SOCI index digest was used to pull an image.
+type IndexDigestMonitor struct {
+	IndexDigest string
+	m           *LogMonitor
+}
+
+func NewIndexDigestMonitor(m *LogMonitor) *IndexDigestMonitor {
+	idm := IndexDigestMonitor{
+		m: m,
+	}
+	m.Add(indexDigestMonitorID, idm.process)
+	return &idm
+}
+
+func (idm *IndexDigestMonitor) Close() {
+	idm.m.Remove(indexDigestMonitorID)
+}
+
+func (idm *IndexDigestMonitor) process(s string) {
+	structuredLog := make(map[string]string)
+	err := json.Unmarshal([]byte(s), &structuredLog)
+	if err != nil {
+		return
+	}
+	if structuredLog["msg"] == "fetching SOCI artifacts using index descriptor" {
+		idm.IndexDigest = structuredLog["digest"]
+	}
+}
+
 // LogConfirmStartup registers a LogMonitor function to scan until startup succeeds or fails
 func LogConfirmStartup(m *LogMonitor) error {
 	errs := make(chan error, 1)
