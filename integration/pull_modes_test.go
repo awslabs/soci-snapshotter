@@ -235,20 +235,11 @@ func testV1IsNotUsedWhenDisabled(t *testing.T, imgName string) {
 
 	rsm, doneRsm := testutil.NewRemoteSnapshotMonitor(m)
 	defer doneRsm()
-	var indexDigestUsed string
-	m.Add("Look for digest", func(s string) {
-		structuredLog := make(map[string]string)
-		err := json.Unmarshal([]byte(s), &structuredLog)
-		if err != nil {
-			return
-		}
-		if structuredLog["msg"] == "fetching SOCI artifacts using index descriptor" {
-			indexDigestUsed = structuredLog["digest"]
-		}
-	})
+	idm := testutil.NewIndexDigestMonitor(m)
+	defer idm.Close()
 	sh.X("nerdctl", "pull", "--snapshotter", "soci", dstInfo.ref)
 	rsm.CheckAllLocalSnapshots(t)
-	if indexDigestUsed != "" {
-		t.Fatalf("expected no digest, got %s", indexDigestUsed)
+	if idm.IndexDigest != "" {
+		t.Fatalf("expected no digest, got %s", idm.IndexDigest)
 	}
 }
