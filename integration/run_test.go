@@ -711,13 +711,10 @@ func TestRunWithIdMap(t *testing.T) {
 					pullCmd = append(pullCmd, "--soci-index-digest", indexDigest)
 				}
 				sh.X(append(pullCmd, mirrorInfo.ref)...)
-				containerID := strings.TrimSpace(string(sh.O("nerdctl-with-idmapping", "run", "-d",
-					"--net", "none",
-					"--pull", "never",
+				containerID := strings.TrimSpace(string(sh.O(append(runSociCmd,
 					"--userns", dummyuser,
-					"--snapshotter", "soci",
 					imageInfo.ref, "sleep", "infinity",
-				)))
+				)...)))
 
 				newFilenames, err := sh.OLog("ls", baseSnapshotDir)
 				if err != nil {
