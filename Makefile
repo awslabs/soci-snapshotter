@@ -64,12 +64,8 @@ SOCI_GRPC_PACKAGE_LIST=$(shell echo $(SOCI_LIBRARY_PACKAGE_LIST),$(shell cd $(SO
 
 GO_BENCHMARK_TESTS?=.
 
-NERDCTL_REPO = https://github.com/containerd/nerdctl.git
-NERDCTL_TAG = v1.7.7
-NERDCTL_PATCH = $(SOCI_SNAPSHOTTER_PROJECT_ROOT)/integration/config/nerdctl.patch
-
 .PHONY: all build check flatc add-ltag install uninstall tidy vendor clean clean-coverage \
-	clean-integration test test-with-coverage show-test-coverage show-test-coverage-html nerdctl-with-idmapping \
+	clean-integration test test-with-coverage show-test-coverage show-test-coverage-html \
 	integration integration-with-coverage show-integration-coverage show-integration-coverage-html \
 	release benchmarks build-benchmarks benchmarks-perf-test benchmarks-comparison-test
 
@@ -166,7 +162,7 @@ $(COVDIR)/unit: $(COVDIR)
 	GO_BUILD_FLAGS="$(GO_BUILD_FLAGS) -coverpkg=$(SOCI_LIBRARY_PACKAGE_LIST)"\
 		$(MAKE) test
 
-integration: build nerdctl-with-idmapping
+integration: build
 	@echo "$@"
 	@echo "SOCI_SNAPSHOTTER_PROJECT_ROOT=$(SOCI_SNAPSHOTTER_PROJECT_ROOT)"
 	@GO111MODULE=$(GO111MODULE_VALUE) SOCI_SNAPSHOTTER_PROJECT_ROOT=$(SOCI_SNAPSHOTTER_PROJECT_ROOT) ENABLE_INTEGRATION_TEST=true go test $(GO_TEST_FLAGS) -v -timeout=0 ./integration
@@ -185,21 +181,6 @@ $(COVDIR)/integration: $(COVDIR)
 	GO_TEST_FLAGS="$(GO_TEST_FLAGS)" \
 	GO_BUILD_FLAGS="$(GO_BUILD_FLAGS) -coverpkg=$(SOCI_CLI_PACKAGE_LIST),$(SOCI_GRPC_PACKAGE_LIST)" \
 		$(MAKE) integration
-
-nerdctl-with-idmapping: $(OUTDIR)/nerdctl-with-idmapping
-
-$(OUTDIR)/nerdctl-with-idmapping:
-    # Use a custom patch for testing ID-mapping as nerdctl doesn't fully support this yet.
-	rm -rf $(SOCI_SNAPSHOTTER_PROJECT_ROOT)/tempfolder
-
-	git clone $(NERDCTL_REPO) $(SOCI_SNAPSHOTTER_PROJECT_ROOT)/tempfolder
-	cd $(SOCI_SNAPSHOTTER_PROJECT_ROOT)/tempfolder && \
-	git checkout $(NERDCTL_TAG) && \
-	git apply $(NERDCTL_PATCH) && \
-	make && \
-	cp _output/nerdctl $(OUTDIR)/nerdctl-with-idmapping && \
-	cd ../
-	rm -rf $(SOCI_SNAPSHOTTER_PROJECT_ROOT)/tempfolder
 
 release:
 	@echo "$@"
