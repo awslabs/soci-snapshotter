@@ -330,6 +330,9 @@ type BuilderOption func(c *builderConfig) error
 // WithSpanSize specifies span size.
 func WithSpanSize(spanSize int64) BuilderOption {
 	return func(c *builderConfig) error {
+		if spanSize < 0 {
+			return fmt.Errorf("span size must be >= 0")
+		}
 		c.spanSize = spanSize
 		return nil
 	}
@@ -338,6 +341,9 @@ func WithSpanSize(spanSize int64) BuilderOption {
 // WithMinLayerSize specifies min layer size to build a ztoc for a layer.
 func WithMinLayerSize(minLayerSize int64) BuilderOption {
 	return func(c *builderConfig) error {
+		if minLayerSize < 0 {
+			return fmt.Errorf("min layer size must be >= 0")
+		}
 		c.minLayerSize = minLayerSize
 		return nil
 	}

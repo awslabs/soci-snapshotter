@@ -20,6 +20,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"math"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -32,6 +33,69 @@ import (
 	"github.com/opencontainers/go-digest"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 )
+
+func TestCreateConvertParameterValidation(t *testing.T) {
+	tests := []struct {
+		name          string
+		minLayerSize  string
+		spanSize      string
+		expectedError string
+	}{
+		{
+			name:          "minLayerSize < 0 fails validation",
+			minLayerSize:  "-1",
+			spanSize:      "0",
+			expectedError: "min layer size must be >= 0",
+		},
+		{
+			name:          "spanSize < 0 fails validation",
+			minLayerSize:  "0",
+			spanSize:      "-1",
+			expectedError: "span size must be >= 0",
+		},
+		{
+			name:          "minLayerSize > int64.MaxValue fails validation",
+			minLayerSize:  fmt.Sprintf("%d", uint64(math.MaxInt64)+1),
+			spanSize:      "",
+			expectedError: "for flag -min-layer-size: value out of range",
+		},
+		{
+			name:          "spanSize > int64.MaxValue fails validation",
+			minLayerSize:  "0",
+			spanSize:      fmt.Sprintf("%d", uint64(math.MaxInt64)+1),
+			expectedError: "for flag -span-size: value out of range",
+		},
+	}
+
+	sh, done := newSnapshotterBaseShell(t)
+	defer done()
+	rebootContainerd(t, sh, "", "")
+	image := dockerhub(alpineImage)
+	sh.X("nerdctl", "pull", image.ref)
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			t.Run("create", func(t *testing.T) {
+				b, err := sh.CombinedOLog("soci", "create", "--min-layer-size", test.minLayerSize, "--span-size", test.spanSize, image.ref)
+				if !strings.Contains(string(b), test.expectedError) {
+					t.Fatalf("expected error to contain %q, got %q", test.expectedError, string(b))
+				}
+				if err == nil {
+					t.Fatal("expected error but got nil")
+				}
+			})
+
+			t.Run("convert", func(t *testing.T) {
+				b, err := sh.CombinedOLog("soci", "convert", "--min-layer-size", test.minLayerSize, "--span-size", test.spanSize, image.ref, image.ref)
+				if !strings.Contains(string(b), test.expectedError) {
+					t.Fatalf("convert: expected error to contain %q, got %q", test.expectedError, string(b))
+				}
+				if err == nil {
+					t.Fatal("convert: expected error but got nil")
+				}
+			})
+		})
+	}
+}
 
 func TestSociCreateEmptyIndex(t *testing.T) {
 	sh, done := newSnapshotterBaseShell(t)
