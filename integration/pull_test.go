@@ -413,6 +413,61 @@ func TestLazyPullNoIndexDigest(t *testing.T) {
 	}
 }
 
+// TestPullWrongIndexDigest tests how SOCI behaves when you pull an image with a valid SOCI index
+// that was created for a different image. The snapshotter should find and use the SOCI index, but
+// all the layers should be locally mounted because there are no ztocs for the real image.
+func TestPullWrongIndexDigest(t *testing.T) {
+	regConfig := newRegistryConfig()
+
+	sh, done := newShellWithRegistry(t, regConfig)
+	defer done()
+
+	image1 := alpineImage
+	image2 := ubuntuImage
+
+	image1Upstream := dockerhub(image1)
+	image2Upstream := dockerhub(image2)
+
+	image1Mirror := regConfig.mirror(image1)
+	image2Mirror := regConfig.mirror(image2)
+
+	// In order to get a valid SOCI index for the wrong image:
+	// Start with 2 images:
+	//    image1 - this one has a SOCI index
+	//    image2 - this one does not have a SOCI index and we will use the index from the other image
+	// 1. Mirror both image1 and image2
+	// 2. Create an index for image1
+	// 3. Push the index for image1
+	// 4. Fetch the index for image1 (this creates an image object in containerd metadata)
+	// 5. Tag the index under image2 (e.g. image2:tag-soci-index)
+	// 6. Push the index tagged under image2.
+	//
+	// This creates a tagged SOCI index in image2's repo that was built for image1.
+	// Then, we can pull image2 with the image1 index digest. SOCI will use the index, but all layers will be locally mounted
+	rebootContainerd(t, sh, getContainerdConfigToml(t, false), getSnapshotterConfigToml(t))
+	copyImage(sh, image1Upstream, image1Mirror)
+	copyImage(sh, image2Upstream, image2Mirror)
+	image1IndexDigest := buildIndex(sh, image1Mirror, withMinLayerSize(0))
+	sh.X("soci", "push", "--user", regConfig.creds(), image1Mirror.ref)
+
+	image1IndexRef := fmt.Sprintf("%s@%s", image1Mirror.ref, image1IndexDigest)
+	sh.X("ctr", "content", "fetch", "--user", image1Mirror.creds, image1IndexRef)
+	wrongImageIndexRef := image2Mirror.ref + "-soci-index"
+	sh.X("nerdctl", "tag", image1IndexRef, wrongImageIndexRef)
+	sh.X("nerdctl", "image", "push", wrongImageIndexRef)
+
+	m := rebootContainerd(t, sh, "", "")
+	rsm, rsmDone := testutil.NewRemoteSnapshotMonitor(m)
+	defer rsmDone()
+	idm := testutil.NewIndexDigestMonitor(m)
+	defer idm.Close()
+	sh.X(append(imagePullCmd, "--soci-index-digest", image1IndexDigest, image2Mirror.ref)...)
+	rsm.CheckAllLocalSnapshots(t)
+	if idm.IndexDigest != image1IndexDigest {
+		t.Fatalf("wrong index digest was used. Expected %s, got %s", image1IndexDigest, idm.IndexDigest)
+	}
+}
+
 func TestPullWithMaxConcurrency(t *testing.T) {
 	tests := []struct {
 		name           string
