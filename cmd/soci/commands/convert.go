@@ -19,11 +19,9 @@ package commands
 import (
 	"errors"
 	"fmt"
-	"os"
 	"strings"
 
 	"github.com/awslabs/soci-snapshotter/cmd/soci/commands/internal"
-	"github.com/awslabs/soci-snapshotter/config"
 	"github.com/awslabs/soci-snapshotter/soci"
 	"github.com/awslabs/soci-snapshotter/soci/store"
 	"github.com/containerd/containerd/errdefs"
@@ -118,23 +116,13 @@ var ConvertCommand = cli.Command{
 		}
 		spanSize := cliContext.Int64(spanSizeFlag)
 		minLayerSize := cliContext.Int64(minLayerSizeFlag)
-		// Creating the snapshotter's root path first if it does not exist, since this ensures, that
-		// it has the limited permission set as drwx--x--x.
-		// The subsequent oci.New creates a root path dir with too broad permission set.
-		if _, err := os.Stat(config.SociSnapshotterRootPath); os.IsNotExist(err) {
-			if err = os.Mkdir(config.SociSnapshotterRootPath, 0711); err != nil {
-				return err
-			}
-		} else if err != nil {
-			return err
-		}
 
 		blobStore, err := store.NewContentStore(internal.ContentStoreOptions(cliContext)...)
 		if err != nil {
 			return err
 		}
 
-		artifactsDb, err := soci.NewDB(soci.ArtifactsDbPath())
+		artifactsDb, err := soci.NewDB(soci.ArtifactsDbPath(cliContext.GlobalString("root")))
 		if err != nil {
 			return err
 		}

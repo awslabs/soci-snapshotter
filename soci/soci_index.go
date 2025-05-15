@@ -29,6 +29,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/awslabs/soci-snapshotter/config"
 	"github.com/awslabs/soci-snapshotter/soci/store"
 	"github.com/awslabs/soci-snapshotter/ztoc"
 	"github.com/awslabs/soci-snapshotter/ztoc/compression"
@@ -421,20 +422,20 @@ type IndexBuilder struct {
 
 // NewIndexBuilder returns an `IndexBuilder` that is used to create soci indices.
 func NewIndexBuilder(contentStore content.Store, blobStore store.Store, opts ...BuilderOption) (*IndexBuilder, error) {
-	config := &builderConfig{
+	cfg := &builderConfig{
 		spanSize:            defaultSpanSize,
 		minLayerSize:        defaultMinLayerSize,
 		buildToolIdentifier: defaultBuildToolIdentifier,
 	}
 
 	for _, opt := range opts {
-		if err := opt(config); err != nil {
+		if err := opt(cfg); err != nil {
 			return nil, err
 		}
 	}
-	if config.artifactsDb == nil {
+	if cfg.artifactsDb == nil {
 		var err error
-		config.artifactsDb, err = NewDB(ArtifactsDbPath())
+		cfg.artifactsDb, err = NewDB(ArtifactsDbPath(config.DefaultSociSnapshotterRootPath))
 		if err != nil {
 			return nil, err
 		}
@@ -443,8 +444,8 @@ func NewIndexBuilder(contentStore content.Store, blobStore store.Store, opts ...
 	return &IndexBuilder{
 		contentStore: contentStore,
 		blobStore:    blobStore,
-		config:       config,
-		ztocBuilder:  ztoc.NewBuilder(config.buildToolIdentifier),
+		config:       cfg,
+		ztocBuilder:  ztoc.NewBuilder(cfg.buildToolIdentifier),
 	}, nil
 }
 

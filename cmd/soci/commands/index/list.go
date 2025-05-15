@@ -132,7 +132,7 @@ var listCommand = cli.Command{
 			f = anyMatch(filters)
 		}
 
-		db, err := soci.NewDB(soci.ArtifactsDbPath())
+		db, err := soci.NewDB(soci.ArtifactsDbPath(cliContext.GlobalString("root")))
 		if err != nil {
 			return err
 		}

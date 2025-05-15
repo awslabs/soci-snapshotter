@@ -55,6 +55,7 @@ import (
 	"github.com/awslabs/soci-snapshotter/service"
 	"github.com/awslabs/soci-snapshotter/service/keychain/cri/v1"
 	crialpha "github.com/awslabs/soci-snapshotter/service/keychain/cri/v1alpha"
+	"github.com/awslabs/soci-snapshotter/soci"
 
 	"github.com/awslabs/soci-snapshotter/service/keychain/dockerconfig"
 	"github.com/awslabs/soci-snapshotter/service/keychain/kubeconfig"
@@ -84,7 +85,6 @@ const (
 	defaultAddress    = "/run/soci-snapshotter-grpc/soci-snapshotter-grpc.sock"
 	defaultConfigPath = "/etc/soci-snapshotter-grpc/config.toml"
 	defaultLogLevel   = logrus.InfoLevel
-	defaultRootDir    = "/var/lib/soci-snapshotter-grpc"
 )
 
 // logLevel of Debug or Trace may emit sensitive information
@@ -93,7 +93,7 @@ var (
 	address      = flag.String("address", defaultAddress, "address for the snapshotter's GRPC server")
 	configPath   = flag.String("config", defaultConfigPath, "path to the configuration file")
 	logLevel     = flag.String("log-level", defaultLogLevel.String(), "set the logging level [trace, debug, info, warn, error, fatal, panic]")
-	rootDir      = flag.String("root", defaultRootDir, "path to the root directory for this snapshotter")
+	rootDir      = flag.String("root", config.DefaultSociSnapshotterRootPath, "path to the root directory for this snapshotter")
 	printVersion = flag.Bool("version", false, "print the version")
 )
 
@@ -361,7 +361,7 @@ func listen(ctx context.Context, address string) (net.Listener, error) {
 
 func listenUnix(addr string) (net.Listener, error) {
 	// Prepare the directory for the socket
-	if err := os.MkdirAll(filepath.Dir(addr), 0700); err != nil {
+	if err := soci.EnsureSnapshotterRootPath(filepath.Dir(addr)); err != nil {
 		return nil, fmt.Errorf("failed to create directory %q: %w", filepath.Dir(addr), err)
 	}
 

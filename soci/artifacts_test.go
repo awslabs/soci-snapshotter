@@ -18,6 +18,7 @@ package soci
 
 import (
 	"os"
+	"sync"
 	"testing"
 
 	bolt "go.etcd.io/bbolt"
@@ -97,8 +98,41 @@ func TestGetIndexArtifactEntries(t *testing.T) {
 	}
 }
 
+func TestArtifactDbPath(t *testing.T) {
+	tests := []struct {
+		name     string
+		root     string
+		expected string
+	}{
+		{
+			name:     "default",
+			root:     "",
+			expected: "/var/lib/soci-snapshotter-grpc/artifacts.db",
+		},
+		{
+			name:     "custom",
+			root:     "/tmp",
+			expected: "/tmp/artifacts.db",
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			if got := ArtifactsDbPath(test.root); got != test.expected {
+				t.Errorf("ArtifactsDbPath() = %v, want %v", got, test.expected)
+			}
+		})
+	}
+}
+
 func TestArtifactDB_DoesNotExist(t *testing.T) {
-	_, err := NewDB(ArtifactsDbPath())
+	resetArtifactDBInit()
+	t.Cleanup(resetArtifactDBInit)
+	once.Do(func() {
+		// Fail db initialization.
+		db = nil
+	})
+	_, err := NewDB(ArtifactsDbPath(t.TempDir()))
 	if err == nil {
 		t.Fatalf("getArtifactEntry should fail since artifacts.db doesn't exist")
 	}
@@ -207,4 +241,9 @@ func newTestableDb() (*ArtifactsDb, error) {
 		return nil, err
 	}
 	return &ArtifactsDb{db: db}, nil
+}
+
+func resetArtifactDBInit() {
+	once = sync.Once{}
+	db = nil
 }

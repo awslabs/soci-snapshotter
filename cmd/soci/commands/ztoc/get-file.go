@@ -65,7 +65,12 @@ var getFileCommand = cli.Command{
 			return err
 		}
 
-		layerReader, err := getLayer(ctx, ztocDigest, client.ContentStore())
+		artifactsDB, err := soci.NewDB(soci.ArtifactsDbPath(cliContext.GlobalString("root")))
+		if err != nil {
+			return err
+		}
+
+		layerReader, err := getLayer(ctx, artifactsDB, ztocDigest, client.ContentStore())
 		if err != nil {
 			return err
 		}
@@ -101,11 +106,7 @@ func getZtoc(ctx context.Context, cliContext *cli.Context, d digest.Digest) (*zt
 	return ztoc.Unmarshal(reader)
 }
 
-func getLayer(ctx context.Context, ztocDigest digest.Digest, cs content.Store) (content.ReaderAt, error) {
-	metadata, err := soci.NewDB(soci.ArtifactsDbPath())
-	if err != nil {
-		return nil, err
-	}
+func getLayer(ctx context.Context, metadata *soci.ArtifactsDb, ztocDigest digest.Digest, cs content.Store) (content.ReaderAt, error) {
 	artifact, err := metadata.GetArtifactEntry(ztocDigest.String())
 	if err != nil {
 		return nil, err

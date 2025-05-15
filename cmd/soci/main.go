@@ -40,6 +40,7 @@ import (
 	"github.com/awslabs/soci-snapshotter/cmd/soci/commands/index"
 	"github.com/awslabs/soci-snapshotter/cmd/soci/commands/ztoc"
 	"github.com/awslabs/soci-snapshotter/config"
+	"github.com/awslabs/soci-snapshotter/soci"
 	"github.com/awslabs/soci-snapshotter/version"
 	"github.com/containerd/containerd/defaults"
 	"github.com/containerd/containerd/namespaces"
@@ -83,6 +84,11 @@ func main() {
 			Usage: "use a specific content store (soci or containerd)",
 			Value: string(config.DefaultContentStoreType),
 		},
+		cli.StringFlag{
+			Name:  "root",
+			Usage: "path to the root directory for this snapshotter",
+			Value: config.DefaultSociSnapshotterRootPath,
+		},
 	}
 
 	app.Version = fmt.Sprintf("%s %s", version.Version, version.Revision)
@@ -94,6 +100,10 @@ func main() {
 		commands.ConvertCommand,
 		commands.PushCommand,
 		commands.RebuildDBCommand,
+	}
+
+	app.Before = func(context *cli.Context) error {
+		return soci.EnsureSnapshotterRootPath(context.GlobalString("root"))
 	}
 
 	if err := app.Run(os.Args); err != nil {

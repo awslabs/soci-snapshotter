@@ -51,7 +51,7 @@ var rmCommand = cli.Command{
 			return fmt.Errorf("cannot create local content store: %w", err)
 		}
 
-		db, err := soci.NewDB(soci.ArtifactsDbPath())
+		db, err := soci.NewDB(soci.ArtifactsDbPath(cliContext.GlobalString("root")))
 		if err != nil {
 			return err
 		}
