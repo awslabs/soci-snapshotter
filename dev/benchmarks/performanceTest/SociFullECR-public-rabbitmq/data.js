@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1747176407769,
+  "lastUpdate": 1747325158795,
   "repoUrl": "https://github.com/awslabs/soci-snapshotter",
   "entries": {
     "Soci Benchmark": [
@@ -11713,6 +11713,48 @@ window.BENCHMARK_DATA = {
           {
             "name": "SociFullECR-public-rabbitmq-pullTaskDuration",
             "value": 1.8885,
+            "unit": "Seconds",
+            "extra": "P90"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "walster@amazon.com",
+            "name": "Kern Walster",
+            "username": "Kern--"
+          },
+          "committer": {
+            "email": "kern.walster@gmail.com",
+            "name": "Kern Walster",
+            "username": "Kern--"
+          },
+          "distinct": true,
+          "id": "926f17e7c6a55c61c3bbc53616a04619144de3ee",
+          "message": "Add test for dangling SOCI index v2 reference\n\nIf an image manifest contains a reference to a SOCI index, but the SOCI\nindex doesn't exist in the registry, the snapshotter should try to use\nthat SOCI index, but then fallback to non-lazy loading when it can't\nfind the SOCI index. This adds a test to verify that.\n\nSigned-off-by: Kern Walster <walster@amazon.com>",
+          "timestamp": "2025-05-15T08:57:13-07:00",
+          "tree_id": "b525ce2c91ccb91ed70e1bad94e38c4b7bcf0518",
+          "url": "https://github.com/awslabs/soci-snapshotter/commit/926f17e7c6a55c61c3bbc53616a04619144de3ee"
+        },
+        "date": 1747325154085,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "SociFullECR-public-rabbitmq-lazyTaskDuration",
+            "value": 13.1325,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-rabbitmq-localTaskDuration",
+            "value": 9.197500000000002,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-rabbitmq-pullTaskDuration",
+            "value": 1.674,
             "unit": "Seconds",
             "extra": "P90"
           }
