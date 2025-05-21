@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1747674427941,
+  "lastUpdate": 1747862289230,
   "repoUrl": "https://github.com/awslabs/soci-snapshotter",
   "entries": {
     "Soci Benchmark": [
@@ -12002,6 +12002,48 @@ window.BENCHMARK_DATA = {
           {
             "name": "SociFullECR-public-redis-pullTaskDuration",
             "value": 0.95,
+            "unit": "Seconds",
+            "extra": "P90"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "walster@amazon.com",
+            "name": "Kern Walster",
+            "username": "Kern--"
+          },
+          "committer": {
+            "email": "kern.walster@gmail.com",
+            "name": "Kern Walster",
+            "username": "Kern--"
+          },
+          "distinct": true,
+          "id": "f2d8312d0d12fdc40d5964b3b8dd203968c9a02d",
+          "message": "Add test for pulling an image with the wrong index\n\nThis change adds a test that if you manage to pull and image with a SOCI\nindex that was built for another image, the SOCI snapshotter will use\nthe SOCI index, but the image will not be lazy loaded.\n\nSigned-off-by: Kern Walster <walster@amazon.com>",
+          "timestamp": "2025-05-21T14:09:48-07:00",
+          "tree_id": "58b5a81defe8c0835fa1d4374d3a7f350de554a4",
+          "url": "https://github.com/awslabs/soci-snapshotter/commit/f2d8312d0d12fdc40d5964b3b8dd203968c9a02d"
+        },
+        "date": 1747862287821,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "SociFullECR-public-redis-lazyTaskDuration",
+            "value": 0.6020000000000001,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-redis-localTaskDuration",
+            "value": 0.022,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-redis-pullTaskDuration",
+            "value": 0.856,
             "unit": "Seconds",
             "extra": "P90"
           }
