@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1747863020829,
+  "lastUpdate": 1747863034644,
   "repoUrl": "https://github.com/awslabs/soci-snapshotter",
   "entries": {
     "Soci Benchmark": [
@@ -12045,6 +12045,48 @@ window.BENCHMARK_DATA = {
           {
             "name": "SociFullECR-public-ffmpeg-pullTaskDuration",
             "value": 1.3900000000000001,
+            "unit": "Seconds",
+            "extra": "P90"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "walster@amazon.com",
+            "name": "Kern Walster",
+            "username": "Kern--"
+          },
+          "committer": {
+            "email": "kern.walster@gmail.com",
+            "name": "Kern Walster",
+            "username": "Kern--"
+          },
+          "distinct": true,
+          "id": "8bbfe951bbb411798ee85dbd908544df4a1619a8",
+          "message": "Add test for span arg validation\n\nThis adds a test that a user cannot specify a min-layer-size or\nspan-size that is negative or larger than what can fit into a signed\n64-bit integer.\n\nSigned-off-by: Kern Walster <walster@amazon.com>",
+          "timestamp": "2025-05-21T14:22:17-07:00",
+          "tree_id": "c8707347eb25b8b26d06222e27f816c6c8a92d79",
+          "url": "https://github.com/awslabs/soci-snapshotter/commit/8bbfe951bbb411798ee85dbd908544df4a1619a8"
+        },
+        "date": 1747863031968,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "SociFullECR-public-ffmpeg-lazyTaskDuration",
+            "value": 0.136,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-ffmpeg-localTaskDuration",
+            "value": 0.007,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-ffmpeg-pullTaskDuration",
+            "value": 1.2075,
             "unit": "Seconds",
             "extra": "P90"
           }
