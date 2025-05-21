@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1747863022638,
+  "lastUpdate": 1747863028817,
   "repoUrl": "https://github.com/awslabs/soci-snapshotter",
   "entries": {
     "Soci Benchmark": [
@@ -12004,6 +12004,48 @@ window.BENCHMARK_DATA = {
           {
             "name": "SociFullECR-public-mongo-pullTaskDuration",
             "value": 0.7909999999999999,
+            "unit": "Seconds",
+            "extra": "P90"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "walster@amazon.com",
+            "name": "Kern Walster",
+            "username": "Kern--"
+          },
+          "committer": {
+            "email": "kern.walster@gmail.com",
+            "name": "Kern Walster",
+            "username": "Kern--"
+          },
+          "distinct": true,
+          "id": "16d71c28b17e959def9c226111f41df1b5e9bb3a",
+          "message": "Test invalid conversions\n\nIf a SOCI index or image manifest is removed from a converted image, the\nimage should be invalid. This change adds a test to confirm this.\n\nThis effectively tests that we are actually putting the SOCI index into\nthe converted Image Index.\n\nSigned-off-by: Kern Walster <walster@amazon.com>",
+          "timestamp": "2025-05-21T14:21:52-07:00",
+          "tree_id": "32133fe99e972c0c55692283735f359c3d170ec2",
+          "url": "https://github.com/awslabs/soci-snapshotter/commit/16d71c28b17e959def9c226111f41df1b5e9bb3a"
+        },
+        "date": 1747863019168,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "SociFullECR-public-mongo-lazyTaskDuration",
+            "value": 1.7040000000000002,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-mongo-localTaskDuration",
+            "value": 0.3025,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-mongo-pullTaskDuration",
+            "value": 0.989,
             "unit": "Seconds",
             "extra": "P90"
           }
