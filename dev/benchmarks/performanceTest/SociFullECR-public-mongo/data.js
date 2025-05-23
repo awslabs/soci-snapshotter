@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1747863028817,
+  "lastUpdate": 1748041555255,
   "repoUrl": "https://github.com/awslabs/soci-snapshotter",
   "entries": {
     "Soci Benchmark": [
@@ -12046,6 +12046,48 @@ window.BENCHMARK_DATA = {
           {
             "name": "SociFullECR-public-mongo-pullTaskDuration",
             "value": 0.989,
+            "unit": "Seconds",
+            "extra": "P90"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "davbson@amazon.com",
+            "name": "David Son",
+            "username": "sondavidb"
+          },
+          "committer": {
+            "email": "55555210+sondavidb@users.noreply.github.com",
+            "name": "David Son",
+            "username": "sondavidb"
+          },
+          "distinct": true,
+          "id": "f69ce011022e04482a91f9ffce7d012bb4b620bc",
+          "message": "Resolve descriptor before unpacking\n\nIn #1493, we introduced a fix where OPAS Resolve calls would fail when\npulling images from Public ECR using crictl by implementing our own\nlogic to populate the descriptor size. In doing this we removed\n\"redundant\" logic in fs/fs.go, but this removal actually broke the same\nuse case using the ORAS store. (containerd content store doesn't check\nthe expected descriptor size if it is zero, so it passed in this use\ncase.) This is because we would resolve the descriptor in Fetch, but\nthen when storing we would use the unresolved descriptor, which ORAS\ndoes not have a special ignore case for if the descriptor size is zero,\nso it would fail to ingest and error out.\n\nThis change re-adds this logic back.\n\nSigned-off-by: David Son <davbson@amazon.com>",
+          "timestamp": "2025-05-23T15:56:38-07:00",
+          "tree_id": "f886c22c07444e62db46b18320d1d8c285d77d19",
+          "url": "https://github.com/awslabs/soci-snapshotter/commit/f69ce011022e04482a91f9ffce7d012bb4b620bc"
+        },
+        "date": 1748041552244,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "SociFullECR-public-mongo-lazyTaskDuration",
+            "value": 7.1795,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-mongo-localTaskDuration",
+            "value": 0.306,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-mongo-pullTaskDuration",
+            "value": 1.046,
             "unit": "Seconds",
             "extra": "P90"
           }
