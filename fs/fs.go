@@ -393,8 +393,24 @@ func (fs *filesystem) MountLocal(ctx context.Context, mountpoint string, labels 
 		return fmt.Errorf("cannot create fetcher: %w", err)
 	}
 	unpacker := NewLayerUnpacker(fetcher, archive)
+	desc := s.Target
 
-	err = unpacker.Unpack(ctx, s.Target, mountpoint, mounts)
+	// If the descriptor size is zero, the artifact fetcher will resolve it.
+	// However, it never returns this resolved descriptor.
+	// Since the unpacker is also in charge of storing the content and the
+	// ORAS store requires an expected size, we need to resolve here.
+	if desc.Size == 0 {
+		// In remoteStore.Reference, Registry and Target should be correct.
+		// However, we need Reference to point to the current layer.
+		blobRef := remoteStore.Reference
+		blobRef.Reference = s.Target.Digest.String()
+		desc, err = remoteStore.Resolve(ctx, blobRef.String())
+		if err != nil {
+			return fmt.Errorf("cannot resolve size of layer (%s): %w", blobRef.String(), err)
+		}
+	}
+
+	err = unpacker.Unpack(ctx, desc, mountpoint, mounts)
 	if err != nil {
 		return fmt.Errorf("cannot unpack the layer: %w", err)
 	}
