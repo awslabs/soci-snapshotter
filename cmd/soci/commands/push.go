@@ -31,6 +31,7 @@ import (
 	"github.com/awslabs/soci-snapshotter/soci"
 	"github.com/awslabs/soci-snapshotter/soci/store"
 	"github.com/containerd/containerd/reference"
+	"github.com/containerd/platforms"
 	dockercliconfig "github.com/docker/cli/cli/config"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/urfave/cli"
@@ -97,6 +98,9 @@ if they are available in the snapshotter's local content store.
 		ps, err := internal.GetPlatforms(ctx, cliContext, img, cs)
 		if err != nil {
 			return err
+		}
+		if len(ps) == 0 {
+			ps = append(ps, platforms.DefaultSpec())
 		}
 
 		artifactsDb, err := soci.NewDB(soci.ArtifactsDbPath(cliContext.GlobalString("root")))

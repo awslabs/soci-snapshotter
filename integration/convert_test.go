@@ -146,6 +146,24 @@ func TestConvert(t *testing.T) {
 				convertedRef := imgRef + "-soci"
 
 				sh.X("nerdctl", "pull", "--all-platforms", imgRef)
+				sh.X("soci", "convert", "--all-platforms", "--min-layer-size", "0", imgRef, convertedRef)
+
+				imgDigest := getImageDigest(sh, imgRef)
+				convertedDigest := getImageDigest(sh, convertedRef)
+
+				validateConversion(t, sh, imgDigest, convertedDigest)
+			})
+		}
+	})
+
+	t.Run("single platform conversion", func(t *testing.T) {
+		for _, imageName := range convertImages {
+			t.Run(imageName, func(t *testing.T) {
+				rebootContainerd(t, sh, "", "")
+				imgRef := dockerhub(imageName).ref
+				convertedRef := imgRef + "-soci"
+
+				sh.X("nerdctl", "pull", imgRef)
 				sh.X("soci", "convert", "--min-layer-size", "0", imgRef, convertedRef)
 
 				imgDigest := getImageDigest(sh, imgRef)
@@ -165,8 +183,8 @@ func TestConvert(t *testing.T) {
 				convertedRef2 := imgRef + "-soci-2"
 
 				sh.X("nerdctl", "pull", "--all-platforms", imgRef)
-				sh.X("soci", "convert", imgRef, convertedRef1)
-				sh.X("soci", "convert", convertedRef1, convertedRef2)
+				sh.X("soci", "convert", "--all-platforms", imgRef, convertedRef1)
+				sh.X("soci", "convert", "--all-platforms", convertedRef1, convertedRef2)
 
 				convertedDigest1 := getImageDigest(sh, convertedRef1)
 				convertedDigest2 := getImageDigest(sh, convertedRef2)
@@ -177,7 +195,7 @@ func TestConvert(t *testing.T) {
 		}
 	})
 
-	t.Run("single platform conversion", func(t *testing.T) {
+	t.Run("single image manifest conversion", func(t *testing.T) {
 		images := []string{cloudwatchAgentx86ImageRef}
 		for _, imgRef := range images {
 			t.Run(imgRef, func(t *testing.T) {
@@ -215,21 +233,89 @@ func TestConvert(t *testing.T) {
 
 }
 
+type convertAndPushTestConfig struct {
+	PullPlatforms    string
+	ConvertPlatforms string
+	PushPlatforms    string
+}
+
+func (c convertAndPushTestConfig) String() string {
+	return strings.Join([]string{c.PullPlatforms, c.ConvertPlatforms, c.PushPlatforms}, ",")
+}
+
 func TestConvertAndPush(t *testing.T) {
 	registryConfig := newRegistryConfig()
 	sh, done := newShellWithRegistry(t, registryConfig)
 	defer done()
-	for _, imageName := range convertImages {
-		t.Run(imageName, func(t *testing.T) {
-			rebootContainerd(t, sh, "", "")
-			img := dockerhub(imageName)
-			convertedImg := registryConfig.mirror(imageName)
 
-			sh.X("nerdctl", "pull", "--all-platforms", img.ref)
-			sh.X("soci", "convert", img.ref, convertedImg.ref)
-			sh.X("nerdctl", "login", "--username", registryConfig.user, "--password", registryConfig.pass, convertedImg.ref)
-			sh.X("nerdctl", "push", "--all-platforms", convertedImg.ref)
-		})
+	imageName := nginxImage
+
+	platformOptions := map[string][]string{
+		"one": {"--platform", "linux/x86_64"},
+		"all": {"--all-platforms"},
+	}
+
+	convertFailureMessages := map[convertAndPushTestConfig]string{
+		// Any config not in this list should succeed on convert (no error message)
+		{PullPlatforms: "one", ConvertPlatforms: "all", PushPlatforms: "one"}: "not found",
+		{PullPlatforms: "one", ConvertPlatforms: "all", PushPlatforms: "all"}: "not found",
+	}
+
+	pushFailureMessages := map[convertAndPushTestConfig]string{
+		// Any config not in this list should succeed on push (no error message)
+		{PullPlatforms: "one", ConvertPlatforms: "one", PushPlatforms: "all"}: "not found",
+	}
+
+	for pullPlatform := range platformOptions {
+		for convertPlatform := range platformOptions {
+			for pushPlatform := range platformOptions {
+				test := convertAndPushTestConfig{
+					PullPlatforms:    pullPlatform,
+					ConvertPlatforms: convertPlatform,
+					PushPlatforms:    pushPlatform,
+				}
+
+				t.Run(test.String(), func(t *testing.T) {
+					rebootContainerd(t, sh, "", "")
+					img := dockerhub(imageName)
+					convertedImg := registryConfig.mirror(imageName)
+
+					pull := []string{"nerdctl", "pull"}
+					convert := []string{"soci", "convert"}
+					push := []string{"nerdctl", "push"}
+
+					pull = append(pull, platformOptions[pullPlatform]...)
+					convert = append(convert, platformOptions[convertPlatform]...)
+					push = append(push, platformOptions[pushPlatform]...)
+
+					convertFailureMessage, expectedConvertFailure := convertFailureMessages[test]
+					pushFailureMessage := pushFailureMessages[test]
+
+					sh.X(append(pull, img.ref)...)
+					o, err := sh.CombinedOLog(append(convert, img.ref, convertedImg.ref)...)
+					validateErrorOutput(t, "convert", string(o), err, convertFailureMessage)
+					if expectedConvertFailure {
+						// If we expected a convert error and we got the correct one, then the test is done.
+						// We should push because we know it will fail.
+						return
+					}
+					sh.X("nerdctl", "login", "--username", registryConfig.user, "--password", registryConfig.pass, convertedImg.ref)
+					o, err = sh.CombinedOLog(append(push, convertedImg.ref)...)
+					validateErrorOutput(t, "push", string(o), err, pushFailureMessage)
+				})
+
+			}
+		}
+	}
+}
+
+func validateErrorOutput(t *testing.T, name string, o string, err error, expectedError string) {
+	if expectedError != "" {
+		if !strings.Contains(o, expectedError) {
+			t.Fatalf("%s: expected error %q, got %q", name, expectedError, o)
+		}
+	} else if err != nil {
+		t.Fatalf("%s: unexpected error: %v", name, err)
 	}
 }
 
