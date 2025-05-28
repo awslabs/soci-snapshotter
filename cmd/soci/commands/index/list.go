@@ -149,7 +149,7 @@ var listCommand = cli.Command{
 
 		if quiet {
 			for _, ae := range artifacts {
-				os.Stdout.Write([]byte(fmt.Sprintf("%s\n", ae.Digest)))
+				fmt.Fprintf(os.Stdout, "%s\n", ae.Digest)
 			}
 			return nil
 		}
@@ -173,7 +173,7 @@ var listCommand = cli.Command{
 }
 
 func writeArtifactEntry(w io.Writer, ae *soci.ArtifactEntry, imageRef string) {
-	w.Write([]byte(fmt.Sprintf(
+	fmt.Fprintf(w,
 		"%s\t%d\t%s\t%s\t%s\t%s\t\n",
 		ae.Digest,
 		ae.Size,
@@ -181,7 +181,7 @@ func writeArtifactEntry(w io.Writer, ae *soci.ArtifactEntry, imageRef string) {
 		ae.Platform,
 		ae.MediaType,
 		getDuration(ae.CreatedAt),
-	)))
+	)
 }
 
 func getDuration(t time.Time) string {

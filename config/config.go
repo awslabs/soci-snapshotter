@@ -91,7 +91,7 @@ func NewConfigFromToml(cfgPath string) (*Config, error) {
 	cfg := NewConfig()
 	// Get configuration from specified file
 	tree, err := toml.LoadFile(cfgPath)
-	if err != nil && !(os.IsNotExist(err) && cfgPath == defaultConfigPath) {
+	if err != nil && (!os.IsNotExist(err) || cfgPath != defaultConfigPath) {
 		return nil, fmt.Errorf("failed to load config file %q", cfgPath)
 	}
 	if err := tree.Unmarshal(cfg); err != nil {

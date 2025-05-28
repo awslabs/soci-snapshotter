@@ -844,7 +844,7 @@ func rebootContainerd(t *testing.T, sh *shell.Shell, customContainerdConfig, cus
 		t.Fatalf("failed to create pipe: %v", err)
 	}
 	reporter := testutil.NewTestingReporter(t)
-	var m *testutil.LogMonitor = testutil.NewLogMonitor(reporter, outR, errR)
+	m := testutil.NewLogMonitor(reporter, outR, errR)
 
 	if err = testutil.LogConfirmStartup(m); err != nil {
 		t.Fatalf("snapshotter startup failed: %v", err)
