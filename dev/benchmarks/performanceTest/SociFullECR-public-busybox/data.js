@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1748471776321,
+  "lastUpdate": 1748472177375,
   "repoUrl": "https://github.com/awslabs/soci-snapshotter",
   "entries": {
     "Soci Benchmark": [
@@ -12171,6 +12171,48 @@ window.BENCHMARK_DATA = {
           {
             "name": "SociFullECR-public-busybox-pullTaskDuration",
             "value": 1.1680000000000001,
+            "unit": "Seconds",
+            "extra": "P90"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "walster@amazon.com",
+            "name": "Kern Walster",
+            "username": "Kern--"
+          },
+          "committer": {
+            "email": "kern.walster@gmail.com",
+            "name": "Kern Walster",
+            "username": "Kern--"
+          },
+          "distinct": true,
+          "id": "f53f34731338305393662163675d30dfe87fcc92",
+          "message": "Fix TestOverlayView in userns\n\nTestOverlayView assumes that it is not run in a user namespace or that\n/tmp is a tmpfs. If it is run in a user namespace with a non-tmpfs /tmp,\nthen the mount contains an additional `userxattr` mount option. This\nchange checks if we expect that option and asserts on it as necessary.\n\nSigned-off-by: Kern Walster <walster@amazon.com>",
+          "timestamp": "2025-05-28T15:35:06-07:00",
+          "tree_id": "4cb81574241a33221a9c43a801c42789110a780a",
+          "url": "https://github.com/awslabs/soci-snapshotter/commit/f53f34731338305393662163675d30dfe87fcc92"
+        },
+        "date": 1748472175907,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "SociFullECR-public-busybox-lazyTaskDuration",
+            "value": 0.0135,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-busybox-localTaskDuration",
+            "value": 0.006500000000000001,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-busybox-pullTaskDuration",
+            "value": 1.0594999999999999,
             "unit": "Seconds",
             "extra": "P90"
           }
