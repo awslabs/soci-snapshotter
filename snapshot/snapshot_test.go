@@ -45,6 +45,7 @@ import (
 	"github.com/containerd/containerd/mount"
 	"github.com/containerd/containerd/pkg/testutil"
 	"github.com/containerd/containerd/snapshots"
+	"github.com/containerd/containerd/snapshots/overlay/overlayutils"
 	"github.com/containerd/containerd/snapshots/storage"
 	"github.com/containerd/containerd/snapshots/testsuite"
 	"github.com/containerd/errdefs"
@@ -709,12 +710,20 @@ func TestOverlayView(t *testing.T) {
 	if m.Source != "overlay" {
 		t.Errorf("mount source should be overlay but received %q", m.Source)
 	}
-	if len(m.Options) != 1 {
-		t.Errorf("expected 1 mount option but got %d", len(m.Options))
+	requiresUserXattrs, _ := overlayutils.NeedsUserXAttr("/tmp/view2")
+	expectedMountOptionsCount := 1
+	if requiresUserXattrs {
+		expectedMountOptionsCount = 2
+	}
+	if len(m.Options) != expectedMountOptionsCount {
+		t.Errorf("expected %d mount option(s) but got %d: %v", expectedMountOptionsCount, len(m.Options), m.Options)
 	}
 	lowers := getParents(ctx, o, root, "/tmp/view2")
 	expected = fmt.Sprintf("lowerdir=%s:%s", lowers[0], lowers[1])
 	if m.Options[0] != expected {
-		t.Errorf("expected option %q but received %q", expected, m.Options[0])
+		t.Errorf("expected option %q but got %q", expected, m.Options[0])
+	}
+	if requiresUserXattrs && m.Options[1] != "userxattr" {
+		t.Errorf("expected userxattr option, but got %s", m.Options[1])
 	}
 }
