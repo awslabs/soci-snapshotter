@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1748041555255,
+  "lastUpdate": 1748471777353,
   "repoUrl": "https://github.com/awslabs/soci-snapshotter",
   "entries": {
     "Soci Benchmark": [
@@ -12088,6 +12088,48 @@ window.BENCHMARK_DATA = {
           {
             "name": "SociFullECR-public-mongo-pullTaskDuration",
             "value": 1.046,
+            "unit": "Seconds",
+            "extra": "P90"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "davbson@amazon.com",
+            "name": "David Son",
+            "username": "sondavidb"
+          },
+          "committer": {
+            "email": "55555210+sondavidb@users.noreply.github.com",
+            "name": "David Son",
+            "username": "sondavidb"
+          },
+          "distinct": true,
+          "id": "fb0570f8d239d60e9bcec994a059dd24d5beb1ac",
+          "message": "Add ARM release workflow\n\nSigned-off-by: David Son <davbson@amazon.com>",
+          "timestamp": "2025-05-28T15:28:04-07:00",
+          "tree_id": "3828926c8edc490f924ab9f2da9b74a6b35b3c5b",
+          "url": "https://github.com/awslabs/soci-snapshotter/commit/fb0570f8d239d60e9bcec994a059dd24d5beb1ac"
+        },
+        "date": 1748471771592,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "SociFullECR-public-mongo-lazyTaskDuration",
+            "value": 2.5305,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-mongo-localTaskDuration",
+            "value": 0.2995,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-mongo-pullTaskDuration",
+            "value": 1.337,
             "unit": "Seconds",
             "extra": "P90"
           }
