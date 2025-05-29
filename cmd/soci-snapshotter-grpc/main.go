@@ -56,6 +56,7 @@ import (
 	"github.com/awslabs/soci-snapshotter/service/keychain/cri/v1"
 	crialpha "github.com/awslabs/soci-snapshotter/service/keychain/cri/v1alpha"
 	"github.com/awslabs/soci-snapshotter/soci"
+	"github.com/pelletier/go-toml/v2"
 
 	"github.com/awslabs/soci-snapshotter/service/keychain/dockerconfig"
 	"github.com/awslabs/soci-snapshotter/service/keychain/kubeconfig"
@@ -95,6 +96,7 @@ var (
 	logLevel     = flag.String("log-level", defaultLogLevel.String(), "set the logging level [trace, debug, info, warn, error, fatal, panic]")
 	rootDir      = flag.String("root", config.DefaultSociSnapshotterRootPath, "path to the root directory for this snapshotter")
 	printVersion = flag.Bool("version", false, "print the version")
+	dumpConfig   = flag.Bool("config-dump", false, "print contents of resolved configuration")
 )
 
 func main() {
@@ -118,14 +120,21 @@ func main() {
 	// Snapshotter should use "github.com/containerd/log" otherwise
 	// logs are always printed as "debug" mode.
 	golog.SetOutput(log.G(ctx).WriterLevel(logrus.DebugLevel))
-	log.G(ctx).WithFields(logrus.Fields{
-		"version":  version.Version,
-		"revision": version.Revision,
-	}).Info("starting soci-snapshotter-grpc")
+	if !*dumpConfig {
+		log.G(ctx).WithFields(logrus.Fields{
+			"version":  version.Version,
+			"revision": version.Revision,
+		}).Info("starting soci-snapshotter-grpc")
+	}
 
 	cfg, err := config.NewConfigFromToml(*configPath)
 	if err != nil {
 		log.G(ctx).WithError(err).Fatal(err)
+	}
+
+	if *dumpConfig {
+		toml.NewEncoder(os.Stdout).SetIndentTables(true).Encode(cfg)
+		return
 	}
 
 	if !cfg.SkipCheckSnapshotterSupported {
