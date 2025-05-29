@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1748472180275,
+  "lastUpdate": 1748539369301,
   "repoUrl": "https://github.com/awslabs/soci-snapshotter",
   "entries": {
     "Soci Benchmark": [
@@ -12172,6 +12172,48 @@ window.BENCHMARK_DATA = {
           {
             "name": "SociFullECR-public-mongo-pullTaskDuration",
             "value": 1.1715,
+            "unit": "Seconds",
+            "extra": "P90"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "walster@amazon.com",
+            "name": "Kern Walster",
+            "username": "Kern--"
+          },
+          "committer": {
+            "email": "kern.walster@gmail.com",
+            "name": "Kern Walster",
+            "username": "Kern--"
+          },
+          "distinct": true,
+          "id": "fa7d4ca92b444e71b4cd54c757e9165552838eed",
+          "message": "Use default platform in convert\n\nBefore this change, the SOCI cli defaulted to converting all platforms.\nThis is inconsistent with nerdctl's pull, push, and convert functions.\nIt also leads to weird issues like this not working:\n\n```\nnerdctl pull docker.io/library/busybox:latest\nsoci convert docker.io/library/busybox:latest other:latest-soci\n```\n\nthe solution is either to pull with `--all-platforms` or convert with\n`--platform`. The latter had an additional bug that convert touched all\nmanifests, even if you didn't convert them.\n\nThis change makes SOCI default to single platform conversions and fixes\nthe manifests bug. SOCI convert now behaves like nerdctl\npull/convert/push.\n\nSigned-off-by: Kern Walster <walster@amazon.com>",
+          "timestamp": "2025-05-29T10:13:03-07:00",
+          "tree_id": "5d9b8231688dd86e2e15b93e8556893a63e20b75",
+          "url": "https://github.com/awslabs/soci-snapshotter/commit/fa7d4ca92b444e71b4cd54c757e9165552838eed"
+        },
+        "date": 1748539366011,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "SociFullECR-public-mongo-lazyTaskDuration",
+            "value": 7.701,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-mongo-localTaskDuration",
+            "value": 0.314,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-mongo-pullTaskDuration",
+            "value": 1.048,
             "unit": "Seconds",
             "extra": "P90"
           }
