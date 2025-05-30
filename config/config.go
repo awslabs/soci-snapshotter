@@ -41,7 +41,10 @@ package config
 import (
 	"fmt"
 	"os"
+	"path/filepath"
+	"strings"
 
+	"github.com/awslabs/soci-snapshotter/config/internal/merge"
 	"github.com/pelletier/go-toml/v2"
 )
 
@@ -55,6 +58,9 @@ const (
 
 type Config struct {
 	ServiceConfig
+
+	// Imports is a list of additional configuration filesystem paths.
+	Imports []string `toml:"imports"`
 
 	// MetricsAddress is address for the metrics API
 	MetricsAddress string `toml:"metrics_address"`
@@ -91,20 +97,79 @@ func NewConfig() *Config {
 	return cfg
 }
 
-func NewConfigFromToml(cfgPath string) (*Config, error) {
-	f, err := os.Open(cfgPath)
-	if err != nil {
-		return nil, fmt.Errorf("failed to open config file %q: %w", cfgPath, err)
-	}
-	defer f.Close()
+// NewConfigFromToml loads the soci-snapshotter service configuration from the provided filepath.
+func NewConfigFromToml(path string) (*Config, error) {
+	mergedCfg := NewConfig()
 
-	cfg := NewConfig()
-	// Get configuration from specified file
-	if err = toml.NewDecoder(f).Decode(cfg); err != nil {
-		return nil, fmt.Errorf("failed to load config file %q: %w", cfgPath, err)
+	var (
+		loaded  = map[string]bool{}
+		pending = []string{path}
+	)
+
+	for len(pending) > 0 {
+		path, pending = pending[0], pending[1:]
+
+		// Check if a file at the given path has already been loaded to prevent circular imports.
+		if _, ok := loaded[path]; ok {
+			continue
+		}
+
+		// Get configuration from specified file
+		data, err := os.ReadFile(path)
+		if err != nil {
+			return nil, fmt.Errorf("failed to read config file %q: %w", path, err)
+		}
+
+		cfg := map[string]any{}
+		if err = toml.Unmarshal(data, &cfg); err != nil {
+			return nil, fmt.Errorf("failed to parse config file %q: %w", path, err)
+		}
+
+		if err := merge.Merge(mergedCfg, &cfg); err != nil {
+			return nil, fmt.Errorf("failed to merge config file %q: %w", path, err)
+		}
+
+		if importsVal, ok := cfg["imports"]; ok {
+			var importPaths []string
+
+			// Convert to []string regardless of whether it's []any or []string
+			switch v := importsVal.(type) {
+			case []string:
+				importPaths = v
+			case []any:
+				for i, item := range v {
+					s, ok := item.(string)
+					if !ok {
+						return nil, fmt.Errorf("imports[%d] must be a string, got %T", i, item)
+					}
+					importPaths = append(importPaths, s)
+				}
+			default:
+				return nil, fmt.Errorf("imports must be an array, got %T", importsVal)
+			}
+
+			// Process all import paths
+			for _, s := range importPaths {
+				if strings.Contains(s, "*") {
+					paths, err := filepath.Glob(filepath.Clean(filepath.Join(filepath.Dir(path), s)))
+					if err != nil {
+						return nil, fmt.Errorf("failed to resolve import path pattern %q: %w", s, err)
+					}
+					pending = append(pending, paths...)
+				} else {
+					importPath := filepath.Clean(s)
+					if !filepath.IsAbs(importPath) {
+						importPath = filepath.Join(filepath.Dir(path), importPath)
+					}
+					pending = append(pending, importPath)
+				}
+			}
+		}
+
+		loaded[path] = true
 	}
-	parseConfig(cfg)
-	return cfg, nil
+	parseConfig(mergedCfg)
+	return mergedCfg, nil
 }
 
 func parseConfig(cfg *Config) {

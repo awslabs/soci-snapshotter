@@ -23,6 +23,8 @@ fuse_metrics_emit_wait_duration_sec=0
 
 ## config/config.go Config
 
+imports = []
+
 metrics_address=""
 metrics_network="" # Uses default metrics network
 # no_prometheus=true # Defined above, can't be redeclared

@@ -17,6 +17,8 @@
 package config
 
 import (
+	"os"
+	"path/filepath"
 	"testing"
 )
 
@@ -161,6 +163,141 @@ func TestConfigDefaults(t *testing.T) {
 			if tc.expected != tc.actual {
 				t.Fatalf("invalid default value. expected: %v. actual: %v", tc.expected, tc.actual)
 			}
+		})
+	}
+}
+
+func TestNewConfigFromToml(t *testing.T) {
+	tests := []struct {
+		name   string
+		setup  func(testing.TB, string)
+		assert func(testing.TB, *Config, error)
+	}{
+		{
+			name: "basic config(import)",
+			setup: func(tb testing.TB, dir string) {
+				rootCfg := `
+					imports = ["http.toml", "blob.toml", "fuse.toml"]
+				`
+				if err := os.WriteFile(filepath.Join(dir, "config.toml"), []byte(rootCfg), 0o600); err != nil {
+					tb.Fatalf("unexpected error: %v", err)
+				}
+
+				httpCfg := `
+					[http]
+					MaxRetries = 10
+					MinWaitMsec = 1000
+					MaxWaitMsec = 2000
+					DialTimeoutMsec = 1000
+					ResponseHeaderTimeoutMsec = 2000
+					RequestTimeoutMsec = 3000
+				`
+				if err := os.WriteFile(filepath.Join(dir, "http.toml"), []byte(httpCfg), 0o600); err != nil {
+					tb.Fatalf("unexpected error: %v", err)
+				}
+
+				blobCfg := `
+					[blob]
+					valid_interval = 1000
+					fetching_timeout_sec = 2000
+				`
+				if err := os.WriteFile(filepath.Join(dir, "blob.toml"), []byte(blobCfg), 0o600); err != nil {
+					tb.Fatalf("unexpected error: %v", err)
+				}
+
+				fuseCfg := `
+					[fuse]
+					attr_timeout = 1000
+				`
+				if err := os.WriteFile(filepath.Join(dir, "fuse.toml"), []byte(fuseCfg), 0o600); err != nil {
+					tb.Fatalf("unexpected error: %v", err)
+				}
+			},
+			assert: func(tb testing.TB, cfg *Config, err error) {
+				if err != nil {
+					tb.Fatalf("unexpected error: %v", err)
+				}
+
+				// http.toml
+				if cfg.RetryConfig.MaxRetries != 10 {
+					tb.Fatalf("unexpected value. expected: %v. actual: %v", 10, cfg.RetryableHTTPClientConfig.RetryConfig.MaxRetries)
+				}
+				if cfg.RetryConfig.MinWaitMsec != 1000 {
+					tb.Fatalf("unexpected value. expected: %v. actual: %v", 1000, cfg.RetryableHTTPClientConfig.RetryConfig.MinWaitMsec)
+				}
+				if cfg.RetryConfig.MaxWaitMsec != 2000 {
+					tb.Fatalf("unexpected value. expected: %v. actual: %v", 2000, cfg.RetryableHTTPClientConfig.TimeoutConfig.ResponseHeaderTimeoutMsec)
+				}
+				if cfg.TimeoutConfig.DialTimeoutMsec != 1000 {
+					tb.Fatalf("unexpected value. expected: %v. actual: %v", 1000, cfg.RetryableHTTPClientConfig.TimeoutConfig.DialTimeoutMsec)
+				}
+				if cfg.TimeoutConfig.ResponseHeaderTimeoutMsec != 2000 {
+					tb.Fatalf("unexpected value. expected: %v. actual: %v", 2000, cfg.RetryableHTTPClientConfig.TimeoutConfig.ResponseHeaderTimeoutMsec)
+				}
+				if cfg.TimeoutConfig.RequestTimeoutMsec != 3000 {
+					tb.Fatalf("unexpected value. expected: %v. actual: %v", 3000, cfg.RetryableHTTPClientConfig.TimeoutConfig.RequestTimeoutMsec)
+				}
+
+				// blob.toml
+				if cfg.BlobConfig.ValidInterval != 1000 {
+					tb.Fatalf("unexpected value. expected: %v. actual: %v", 1000, cfg.BlobConfig.ValidInterval)
+				}
+
+				// fuse.toml
+				if cfg.FuseConfig.AttrTimeout != 1000 {
+					tb.Fatalf("unexpected value. expected: %v. actual: %v", 1000, cfg.FuseConfig.AttrTimeout)
+				}
+			},
+		},
+		{
+			name: "basic config(override)",
+			setup: func(tb testing.TB, dir string) {
+				rootCfg := `
+					imports = ["http.toml"]
+
+					[http]
+					MaxRetries = 10
+					MinWaitMsec = 1000
+					MaxWaitMsec = 2000
+				`
+				if err := os.WriteFile(filepath.Join(dir, "config.toml"), []byte(rootCfg), 0o600); err != nil {
+					tb.Fatalf("unexpected error: %v", err)
+				}
+
+				httpCfg := `
+					[http]
+					MaxRetries = 20
+				`
+				if err := os.WriteFile(filepath.Join(dir, "http.toml"), []byte(httpCfg), 0o600); err != nil {
+					tb.Fatalf("unexpected error: %v", err)
+				}
+			},
+			assert: func(tb testing.TB, cfg *Config, err error) {
+				if err != nil {
+					tb.Fatalf("unexpected error: %v", err)
+				}
+
+				// http.toml
+				if cfg.RetryConfig.MaxRetries != 20 {
+					tb.Fatalf("unexpected value. expected: %v. actual: %v", 10, cfg.RetryableHTTPClientConfig.RetryConfig.MaxRetries)
+				}
+				if cfg.RetryConfig.MinWaitMsec != 1000 {
+					tb.Fatalf("unexpected value. expected: %v. actual: %v", 1000, cfg.RetryableHTTPClientConfig.RetryConfig.MinWaitMsec)
+				}
+				if cfg.RetryConfig.MaxWaitMsec != 2000 {
+					tb.Fatalf("unexpected value. expected: %v. actual: %v", 2000, cfg.RetryableHTTPClientConfig.TimeoutConfig.ResponseHeaderTimeoutMsec)
+				}
+			},
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			tempDir := t.TempDir()
+			test.setup(t, tempDir)
+
+			cfg, err := NewConfigFromToml(filepath.Join(tempDir, "config.toml"))
+			test.assert(t, cfg, err)
 		})
 	}
 }
