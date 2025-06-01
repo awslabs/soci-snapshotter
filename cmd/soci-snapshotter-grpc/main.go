@@ -82,16 +82,15 @@ import (
 )
 
 const (
-	defaultAddress    = "/run/soci-snapshotter-grpc/soci-snapshotter-grpc.sock"
-	defaultConfigPath = "/etc/soci-snapshotter-grpc/config.toml"
-	defaultLogLevel   = logrus.InfoLevel
+	defaultAddress  = "/run/soci-snapshotter-grpc/soci-snapshotter-grpc.sock"
+	defaultLogLevel = logrus.InfoLevel
 )
 
 // logLevel of Debug or Trace may emit sensitive information
 // e.g. file contents, file names and paths, network addresses and ports
 var (
 	address      = flag.String("address", defaultAddress, "address for the snapshotter's GRPC server")
-	configPath   = flag.String("config", defaultConfigPath, "path to the configuration file")
+	configPath   = flag.String("config", config.DefaultConfigPath, "path to the configuration file")
 	logLevel     = flag.String("log-level", defaultLogLevel.String(), "set the logging level [trace, debug, info, warn, error, fatal, panic]")
 	rootDir      = flag.String("root", config.DefaultSociSnapshotterRootPath, "path to the root directory for this snapshotter")
 	printVersion = flag.Bool("version", false, "print the version")

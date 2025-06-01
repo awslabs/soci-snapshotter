@@ -63,7 +63,7 @@ import (
 	"github.com/containerd/platforms"
 	"github.com/opencontainers/go-digest"
 	spec "github.com/opencontainers/image-spec/specs-go/v1"
-	"github.com/pelletier/go-toml"
+	"github.com/pelletier/go-toml/v2"
 	"github.com/rs/xid"
 	"golang.org/x/crypto/bcrypt"
 )

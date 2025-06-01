@@ -41,6 +41,7 @@ package config
 // Config (root) defaults
 const (
 	defaultMetricsNetwork = "tcp"
+	defaultMetadataStore  = "db"
 )
 
 // ServiceConfig defaults

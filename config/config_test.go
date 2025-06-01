@@ -44,6 +44,11 @@ func TestConfigDefaults(t *testing.T) {
 			actual:   cfg.MetricsNetwork,
 		},
 		{
+			name:     "metadata store",
+			expected: defaultMetadataStore,
+			actual:   cfg.MetadataStore,
+		},
+		{
 			name:     "cri image service address",
 			expected: DefaultImageServiceAddress,
 			actual:   cfg.CRIKeychainConfig.ImageServicePath,
@@ -77,6 +82,11 @@ func TestConfigDefaults(t *testing.T) {
 			name:     "fuse negative timeout",
 			expected: int64(defaultFuseTimeoutSec),
 			actual:   cfg.FuseConfig.NegativeTimeout,
+		},
+		{
+			name:     "fuse directory cache direct",
+			expected: true,
+			actual:   cfg.FSConfig.DirectoryCacheConfig.Direct,
 		},
 		{
 			name:     "bg fetch period",
