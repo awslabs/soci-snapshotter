@@ -33,48 +33,50 @@
 package internal
 
 import (
-	"github.com/urfave/cli"
+	"github.com/urfave/cli/v2"
 )
 
 var RegistryFlags = []cli.Flag{
-	cli.BoolFlag{
-		Name:  "skip-verify,k",
-		Usage: "Skip SSL certificate validation",
+	&cli.BoolFlag{
+		Name:    "skip-verify",
+		Aliases: []string{"k"},
+		Usage:   "Skip SSL certificate validation",
 	},
-	cli.BoolFlag{
+	&cli.BoolFlag{
 		Name:  "plain-http",
 		Usage: "Allow connections using plain HTTP",
 	},
-	cli.StringFlag{
-		Name:  "user,u",
-		Usage: "User[:password] Registry user and password",
+	&cli.StringFlag{
+		Name:    "user",
+		Aliases: []string{"u"},
+		Usage:   "User[:password] Registry user and password",
 	},
-	cli.StringFlag{
+	&cli.StringFlag{
 		Name:  "refresh",
 		Usage: "Refresh token for authorization server",
 	},
-	cli.StringFlag{
+	&cli.StringFlag{
 		Name: "hosts-dir",
 		// compatible with "/etc/docker/certs.d"
 		Usage: "Custom hosts configuration directory",
 	},
-	cli.StringFlag{
+	&cli.StringFlag{
 		Name:  "tlscacert",
 		Usage: "Path to TLS root CA",
 	},
-	cli.StringFlag{
+	&cli.StringFlag{
 		Name:  "tlscert",
 		Usage: "Path to TLS client certificate",
 	},
-	cli.StringFlag{
+	&cli.StringFlag{
 		Name:  "tlskey",
 		Usage: "Path to TLS client key",
 	},
-	cli.BoolFlag{
+	&cli.BoolFlag{
 		Name:  "http-dump",
 		Usage: "Dump all HTTP request/responses when interacting with container registry",
 	},
-	cli.BoolFlag{
+	&cli.BoolFlag{
 		Name:  "http-trace",
 		Usage: "Enable HTTP tracing for registry interactions",
 	},

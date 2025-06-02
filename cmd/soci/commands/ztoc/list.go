@@ -26,33 +26,35 @@ import (
 	"github.com/containerd/containerd/images"
 	"github.com/containerd/platforms"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
-	"github.com/urfave/cli"
+	"github.com/urfave/cli/v2"
 )
 
-var listCommand = cli.Command{
+var listCommand = &cli.Command{
 	Name:        "list",
 	Description: "list ztocs",
 	Aliases:     []string{"ls"},
 	Flags: []cli.Flag{
-		cli.StringFlag{
+		&cli.StringFlag{
 			Name:  "ztoc-digest",
 			Usage: "filter ztocs by digest",
 		},
-		cli.StringFlag{
+		&cli.StringFlag{
 			Name:  "image-ref",
 			Usage: "filter ztocs to those that are associated with a specific image",
 		},
-		cli.BoolFlag{
-			Name:  "verbose, v",
-			Usage: "display extra debugging messages",
+		&cli.BoolFlag{
+			Name:    "verbose",
+			Aliases: []string{"v"},
+			Usage:   "display extra debugging messages",
 		},
-		cli.BoolFlag{
-			Name:  "quiet, q",
-			Usage: "only display the index digests",
+		&cli.BoolFlag{
+			Name:    "quiet",
+			Aliases: []string{"q"},
+			Usage:   "only display the index digests",
 		},
 	},
 	Action: func(cliContext *cli.Context) error {
-		db, err := soci.NewDB(soci.ArtifactsDbPath(cliContext.GlobalString("root")))
+		db, err := soci.NewDB(soci.ArtifactsDbPath(cliContext.String("root")))
 		if err != nil {
 			return err
 		}

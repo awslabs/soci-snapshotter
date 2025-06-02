@@ -16,7 +16,7 @@
 
 package internal
 
-import "github.com/urfave/cli"
+import "github.com/urfave/cli/v2"
 
 const (
 	ExistingIndexFlagName = "existing-index"
@@ -27,7 +27,7 @@ const (
 
 var SupportedExistingIndexOptions = []string{Warn, Skip, Allow}
 
-var ExistingIndexFlag = cli.StringFlag{
+var ExistingIndexFlag = &cli.StringFlag{
 	Name:  ExistingIndexFlagName,
 	Value: Warn,
 	Usage: `Configure how to handle existing SOCI artifacts in remote when pushing indices

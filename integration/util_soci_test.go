@@ -139,10 +139,11 @@ func buildIndex(sh *shell.Shell, src imageInfo, opt ...indexBuildOption) string 
 		"soci",
 		"--namespace", indexBuildConfig.namespace,
 		"--content-store", string(indexBuildConfig.contentStoreType),
-		"create", src.ref,
+		"create",
 		"--min-layer-size", fmt.Sprintf("%d", indexBuildConfig.minLayerSize),
 		"--span-size", fmt.Sprintf("%d", indexBuildConfig.spanSize),
 		"--platform", platforms.Format(src.platform),
+		src.ref,
 	}
 
 	shx := sh.X

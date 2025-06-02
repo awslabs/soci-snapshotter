@@ -24,7 +24,7 @@ import (
 	"github.com/containerd/containerd/images"
 	"github.com/containerd/platforms"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
-	"github.com/urfave/cli"
+	"github.com/urfave/cli/v2"
 )
 
 const (
@@ -33,13 +33,14 @@ const (
 )
 
 var PlatformFlags = []cli.Flag{
-	cli.BoolFlag{
+	&cli.BoolFlag{
 		Name:  AllPlatformsFlagKey,
 		Usage: "",
 	},
-	cli.StringSliceFlag{
-		Name:  PlatformFlagKey + ", p",
-		Usage: "",
+	&cli.StringSliceFlag{
+		Name:    PlatformFlagKey,
+		Aliases: []string{"p"},
+		Usage:   "",
 	},
 }
 

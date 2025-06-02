@@ -72,7 +72,7 @@ import (
 	sddaemon "github.com/coreos/go-systemd/v22/daemon"
 	metrics "github.com/docker/go-metrics"
 	"github.com/sirupsen/logrus"
-	"github.com/urfave/cli"
+	"github.com/urfave/cli/v2"
 	bolt "go.etcd.io/bbolt"
 	"golang.org/x/sys/unix"
 	"google.golang.org/grpc"
@@ -90,22 +90,22 @@ func main() {
 	app := cli.NewApp()
 	app.Name = "soci-snapshotter-grpc"
 	app.Flags = []cli.Flag{
-		cli.StringFlag{
+		&cli.StringFlag{
 			Name:  "address",
 			Usage: "address for the snapshotter's GRPC server",
 			Value: defaultAddress,
 		},
-		cli.StringFlag{
+		&cli.StringFlag{
 			Name:  "config",
 			Usage: "path to the configuration file",
 			Value: config.DefaultConfigPath,
 		},
-		cli.StringFlag{
+		&cli.StringFlag{
 			Name:  "log-level",
 			Usage: "set the logging level [trace, debug, info, warn, error, fatal, panic]",
 			Value: defaultLogLevel.String(),
 		},
-		cli.StringFlag{
+		&cli.StringFlag{
 			Name:  "root",
 			Usage: "path to the root directory for this snapshotter",
 			Value: config.DefaultSociSnapshotterRootPath,

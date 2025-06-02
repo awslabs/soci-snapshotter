@@ -40,7 +40,7 @@ import (
 	"github.com/containerd/containerd/namespaces"
 	"github.com/containerd/containerd/pkg/epoch"
 	"github.com/containerd/log"
-	"github.com/urfave/cli"
+	"github.com/urfave/cli/v2"
 )
 
 // All CLI commands should call either [AppContext] or [NewClient]
@@ -56,8 +56,8 @@ import (
 func AppContext(context *cli.Context) (gocontext.Context, gocontext.CancelFunc) {
 	var (
 		ctx       = gocontext.Background()
-		timeout   = context.GlobalDuration("timeout")
-		namespace = context.GlobalString("namespace")
+		timeout   = context.Duration("timeout")
+		namespace = context.String("namespace")
 		cancel    gocontext.CancelFunc
 	)
 	ctx = namespaces.WithNamespace(ctx, namespace)
@@ -77,8 +77,8 @@ func AppContext(context *cli.Context) (gocontext.Context, gocontext.CancelFunc) 
 
 // NewClient returns a new containerd client
 func NewClient(context *cli.Context, opts ...containerd.ClientOpt) (*containerd.Client, gocontext.Context, gocontext.CancelFunc, error) {
-	opts = append(opts, containerd.WithTimeout(context.GlobalDuration("timeout")))
-	address := config.TrimSocketAddress(context.GlobalString("address"))
+	opts = append(opts, containerd.WithTimeout(context.Duration("timeout")))
+	address := config.TrimSocketAddress(context.String("address"))
 	client, err := containerd.New(address, opts...)
 	if err != nil {
 		return nil, nil, nil, err

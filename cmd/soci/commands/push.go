@@ -35,7 +35,7 @@ import (
 	"github.com/containerd/platforms"
 	dockercliconfig "github.com/docker/cli/cli/config"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
-	"github.com/urfave/cli"
+	"github.com/urfave/cli/v2"
 	oraslib "oras.land/oras-go/v2"
 	"oras.land/oras-go/v2/registry/remote"
 	"oras.land/oras-go/v2/registry/remote/auth"
@@ -56,7 +56,7 @@ type pushDescs struct {
 }
 
 // PushCommand is a command to push an image artifacts from local content store to the remote repository
-var PushCommand = cli.Command{
+var PushCommand = &cli.Command{
 	Name:      "push",
 	Usage:     "push SOCI artifacts to a registry",
 	ArgsUsage: "[flags] <ref>",
@@ -71,14 +71,15 @@ if they are available in the snapshotter's local content store.
 		internal.SnapshotterFlags...),
 		internal.PlatformFlags...),
 		internal.ExistingIndexFlag,
-		cli.Uint64Flag{
+		&cli.Uint64Flag{
 			Name:  maxConcurrentUploadsFlag,
 			Usage: fmt.Sprintf("Max concurrent uploads. Default is %d", defaultMaxConcurrentUploads),
 			Value: defaultMaxConcurrentUploads,
 		},
-		cli.BoolFlag{
-			Name:  "quiet, q",
-			Usage: "quiet mode",
+		&cli.BoolFlag{
+			Name:    "quiet",
+			Aliases: []string{"q"},
+			Usage:   "quiet mode",
 		},
 	),
 	Action: func(cliContext *cli.Context) error {
@@ -109,7 +110,7 @@ if they are available in the snapshotter's local content store.
 			ps = append(ps, platforms.DefaultSpec())
 		}
 
-		artifactsDb, err := soci.NewDB(soci.ArtifactsDbPath(cliContext.GlobalString("root")))
+		artifactsDb, err := soci.NewDB(soci.ArtifactsDbPath(cliContext.String("root")))
 		if err != nil {
 			return err
 		}
@@ -158,7 +159,7 @@ if they are available in the snapshotter's local content store.
 		dst.Client = authClient
 		dst.PlainHTTP = cliContext.Bool("plain-http")
 
-		debug := cliContext.GlobalBool("debug")
+		debug := cliContext.Bool("debug")
 		if debug {
 			dst.Client = &debugClient{client: authClient}
 		} else {

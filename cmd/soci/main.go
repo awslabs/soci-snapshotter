@@ -44,39 +44,41 @@ import (
 	"github.com/awslabs/soci-snapshotter/version"
 	"github.com/containerd/containerd/defaults"
 	"github.com/containerd/containerd/namespaces"
-	"github.com/urfave/cli"
+	"github.com/urfave/cli/v2"
 )
 
 func main() {
 	app := cli.NewApp()
 	app.Name = "soci"
 	app.Flags = []cli.Flag{
-		cli.StringFlag{
-			Name:   "address, a",
-			Usage:  "address for containerd's GRPC server",
-			Value:  defaults.DefaultAddress,
-			EnvVar: "CONTAINERD_ADDRESS",
+		&cli.StringFlag{
+			Name:    "address",
+			Aliases: []string{"a"},
+			Usage:   "address for containerd's GRPC server",
+			Value:   defaults.DefaultAddress,
+			EnvVars: []string{"CONTAINERD_ADDRESS"},
 		},
-		cli.StringFlag{
-			Name:   "namespace, n",
-			Usage:  "namespace to use with commands",
-			Value:  namespaces.Default,
-			EnvVar: namespaces.NamespaceEnvVar,
+		&cli.StringFlag{
+			Name:    "namespace",
+			Aliases: []string{"n"},
+			Usage:   "namespace to use with commands",
+			Value:   namespaces.Default,
+			EnvVars: []string{namespaces.NamespaceEnvVar},
 		},
-		cli.DurationFlag{
+		&cli.DurationFlag{
 			Name:  "timeout",
 			Usage: "timeout for commands",
 		},
-		cli.BoolFlag{
+		&cli.BoolFlag{
 			Name:  "debug",
 			Usage: "enable debug output",
 		},
-		cli.StringFlag{
+		&cli.StringFlag{
 			Name:  "content-store",
 			Usage: "use a specific content store (soci or containerd)",
 			Value: string(config.DefaultContentStoreType),
 		},
-		cli.StringFlag{
+		&cli.StringFlag{
 			Name:  "root",
 			Usage: "path to the root directory for this snapshotter",
 			Value: config.DefaultSociSnapshotterRootPath,
@@ -85,7 +87,7 @@ func main() {
 
 	app.Version = fmt.Sprintf("%s %s", version.Version, version.Revision)
 
-	app.Commands = []cli.Command{
+	app.Commands = []*cli.Command{
 		index.Command,
 		ztoc.Command,
 		commands.CreateCommand,
@@ -95,7 +97,7 @@ func main() {
 	}
 
 	app.Before = func(context *cli.Context) error {
-		return soci.EnsureSnapshotterRootPath(context.GlobalString("root"))
+		return soci.EnsureSnapshotterRootPath(context.String("root"))
 	}
 
 	if err := app.Run(os.Args); err != nil {
