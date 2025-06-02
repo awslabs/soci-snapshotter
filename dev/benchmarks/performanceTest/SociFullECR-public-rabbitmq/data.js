@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1748539370927,
+  "lastUpdate": 1748901654548,
   "repoUrl": "https://github.com/awslabs/soci-snapshotter",
   "entries": {
     "Soci Benchmark": [
@@ -12091,6 +12091,48 @@ window.BENCHMARK_DATA = {
           {
             "name": "SociFullECR-public-rabbitmq-pullTaskDuration",
             "value": 1.214,
+            "unit": "Seconds",
+            "extra": "P90"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "macedonv@amazon.com",
+            "name": "Austin Vazquez",
+            "username": "austinvazquez"
+          },
+          "committer": {
+            "email": "55906459+austinvazquez@users.noreply.github.com",
+            "name": "Austin Vazquez",
+            "username": "austinvazquez"
+          },
+          "distinct": true,
+          "id": "32dcd22b868132b63b974d6c346c84ae6eb50193",
+          "message": "Upgrade to github.com/pelletier/go-toml/v2\n\nSigned-off-by: Austin Vazquez <macedonv@amazon.com>",
+          "timestamp": "2025-06-02T14:50:16-07:00",
+          "tree_id": "2cdc09fcf7074d65bc4a0280ea198cec631d27cc",
+          "url": "https://github.com/awslabs/soci-snapshotter/commit/32dcd22b868132b63b974d6c346c84ae6eb50193"
+        },
+        "date": 1748901653049,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "SociFullECR-public-rabbitmq-lazyTaskDuration",
+            "value": 15.466,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-rabbitmq-localTaskDuration",
+            "value": 9.217500000000001,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-rabbitmq-pullTaskDuration",
+            "value": 1.7999999999999998,
             "unit": "Seconds",
             "extra": "P90"
           }
