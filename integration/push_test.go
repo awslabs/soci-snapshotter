@@ -125,7 +125,7 @@ func TestPushAlwaysMostRecentlyCreatedIndex(t *testing.T) {
 			for _, opt := range tc.opts {
 				index := buildIndex(sh, imgInfo, withMinLayerSize(opt.minLayerSize), withSpanSize(opt.spanSize))
 				index = strings.Split(index, "\n")[0]
-				out := sh.O("soci", "push", "--existing-index", "allow", "--user", regConfig.creds(), imgInfo.ref, "-q")
+				out := sh.O("soci", "push", "--existing-index", "allow", "--user", regConfig.creds(), "-q", imgInfo.ref)
 				pushedIndex := strings.Trim(string(out), "\n")
 				if index != pushedIndex {
 					t.Fatalf("incorrect index pushed to remote registry; expected %s, got %s", index, pushedIndex)

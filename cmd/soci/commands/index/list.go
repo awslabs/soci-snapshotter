@@ -31,7 +31,7 @@ import (
 	"github.com/containerd/containerd/images"
 	"github.com/containerd/platforms"
 	specs "github.com/opencontainers/image-spec/specs-go/v1"
-	"github.com/urfave/cli"
+	"github.com/urfave/cli/v2"
 )
 
 type filter func(ae *soci.ArtifactEntry) bool
@@ -63,22 +63,24 @@ func anyMatch(fns []filter) filter {
 	}
 }
 
-var listCommand = cli.Command{
+var listCommand = &cli.Command{
 	Name:    "list",
 	Usage:   "list indices",
 	Aliases: []string{"ls"},
 	Flags: []cli.Flag{
-		cli.StringFlag{
+		&cli.StringFlag{
 			Name:  "ref",
 			Usage: "filter indices to those that are associated with a specific image ref",
 		},
-		cli.BoolFlag{
-			Name:  "quiet, q",
-			Usage: "only display the index digests",
+		&cli.BoolFlag{
+			Name:    "quiet",
+			Aliases: []string{"q"},
+			Usage:   "only display the index digests",
 		},
-		cli.StringSliceFlag{
-			Name:  "platform, p",
-			Usage: "filter indices to a specific platform",
+		&cli.StringSliceFlag{
+			Name:    "platform",
+			Aliases: []string{"p"},
+			Usage:   "filter indices to a specific platform",
 		},
 	},
 	Action: func(cliContext *cli.Context) error {
@@ -137,7 +139,7 @@ var listCommand = cli.Command{
 			f = anyMatch(filters)
 		}
 
-		db, err := soci.NewDB(soci.ArtifactsDbPath(cliContext.GlobalString("root")))
+		db, err := soci.NewDB(soci.ArtifactsDbPath(cliContext.String("root")))
 		if err != nil {
 			return err
 		}

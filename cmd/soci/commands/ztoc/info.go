@@ -27,7 +27,7 @@ import (
 	"github.com/awslabs/soci-snapshotter/ztoc/compression"
 	"github.com/opencontainers/go-digest"
 	v1 "github.com/opencontainers/image-spec/specs-go/v1"
-	"github.com/urfave/cli"
+	"github.com/urfave/cli/v2"
 )
 
 type Info struct {
@@ -50,7 +50,7 @@ type FileInfo struct {
 	EndSpan   compression.SpanID `json:"end_span"`
 }
 
-var infoCommand = cli.Command{
+var infoCommand = &cli.Command{
 	Name:      "info",
 	Usage:     "get detailed info about a ztoc",
 	ArgsUsage: "<digest>",
@@ -59,7 +59,7 @@ var infoCommand = cli.Command{
 		if err != nil {
 			return err
 		}
-		db, err := soci.NewDB(soci.ArtifactsDbPath(cliContext.GlobalString("root")))
+		db, err := soci.NewDB(soci.ArtifactsDbPath(cliContext.String("root")))
 		if err != nil {
 			return err
 		}

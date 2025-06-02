@@ -24,16 +24,16 @@ import (
 	"github.com/awslabs/soci-snapshotter/soci"
 	"github.com/awslabs/soci-snapshotter/soci/store"
 	"github.com/opencontainers/go-digest"
-	"github.com/urfave/cli"
+	"github.com/urfave/cli/v2"
 )
 
-var rmCommand = cli.Command{
+var rmCommand = &cli.Command{
 	Name:        "remove",
 	Aliases:     []string{"rm"},
 	Usage:       "remove indices",
 	Description: "remove an index from local db, and from content store if supported",
 	Flags: []cli.Flag{
-		cli.StringFlag{
+		&cli.StringFlag{
 			Name:  "ref",
 			Usage: "only remove indices that are associated with a specific image ref",
 		},
@@ -42,7 +42,7 @@ var rmCommand = cli.Command{
 		args := cliContext.Args()
 		ref := cliContext.String("ref")
 
-		if len(args) != 0 && ref != "" {
+		if args.Len() != 0 && ref != "" {
 			return fmt.Errorf("please provide either index digests or image ref, but not both")
 		}
 
@@ -51,7 +51,7 @@ var rmCommand = cli.Command{
 			return fmt.Errorf("cannot create local content store: %w", err)
 		}
 
-		db, err := soci.NewDB(soci.ArtifactsDbPath(cliContext.GlobalString("root")))
+		db, err := soci.NewDB(soci.ArtifactsDbPath(cliContext.String("root")))
 		if err != nil {
 			return err
 		}
@@ -59,8 +59,8 @@ var rmCommand = cli.Command{
 			ctx, cancel := internal.AppContext(cliContext)
 			defer cancel()
 
-			byteArgs := make([][]byte, len(args))
-			for i, arg := range args {
+			byteArgs := make([][]byte, args.Len())
+			for i, arg := range args.Slice() {
 				byteArgs[i] = []byte(arg)
 			}
 			err = removeArtifactsAndContent(ctx, db, contentStore, byteArgs)

@@ -33,10 +33,10 @@
 package internal
 
 import (
-	"github.com/urfave/cli"
+	"github.com/urfave/cli/v2"
 )
 
-var LabelFlag = cli.StringSliceFlag{
+var LabelFlag = &cli.StringSliceFlag{
 	Name:  "label",
 	Usage: "Labels to attach to the image",
 }

@@ -30,29 +30,31 @@ import (
 	"github.com/containerd/containerd/content"
 	"github.com/opencontainers/go-digest"
 	v1 "github.com/opencontainers/image-spec/specs-go/v1"
-	"github.com/urfave/cli"
+	"github.com/urfave/cli/v2"
 )
 
-var getFileCommand = cli.Command{
+var getFileCommand = &cli.Command{
 	Name:      "get-file",
 	Usage:     "retrieve a file from a local image layer using a specified ztoc",
 	ArgsUsage: "<digest> <file>",
 	Flags: []cli.Flag{
-		cli.StringFlag{
-			Name:  "output, o",
-			Usage: "the file to write the extracted content. Defaults to stdout",
+		&cli.StringFlag{
+			Name:    "output",
+			Aliases: []string{"o"},
+			Usage:   "the file to write the extracted content. Defaults to stdout",
 		},
 	},
 	Action: func(cliContext *cli.Context) error {
-		if len(cliContext.Args()) != 2 {
+		args := cliContext.Args().Slice()
+		if len(args) != 2 {
 			return errors.New("please provide both a ztoc digest and a filename to extract")
 		}
 
-		ztocDigest, err := digest.Parse(cliContext.Args()[0])
+		ztocDigest, err := digest.Parse(args[0])
 		if err != nil {
 			return err
 		}
-		file := cliContext.Args()[1]
+		file := args[1]
 
 		client, ctx, cancel, err := internal.NewClient(cliContext)
 		if err != nil {
@@ -65,7 +67,7 @@ var getFileCommand = cli.Command{
 			return err
 		}
 
-		artifactsDB, err := soci.NewDB(soci.ArtifactsDbPath(cliContext.GlobalString("root")))
+		artifactsDB, err := soci.NewDB(soci.ArtifactsDbPath(cliContext.String("root")))
 		if err != nil {
 			return err
 		}

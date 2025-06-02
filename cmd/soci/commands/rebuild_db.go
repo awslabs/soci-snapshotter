@@ -22,10 +22,10 @@ import (
 	"github.com/awslabs/soci-snapshotter/cmd/soci/commands/internal"
 	"github.com/awslabs/soci-snapshotter/soci"
 	"github.com/awslabs/soci-snapshotter/soci/store"
-	"github.com/urfave/cli"
+	"github.com/urfave/cli/v2"
 )
 
-var RebuildDBCommand = cli.Command{
+var RebuildDBCommand = &cli.Command{
 	Name:  "rebuild-db",
 	Usage: "rebuilds the artifacts database",
 	UsageText: `
@@ -41,7 +41,7 @@ var RebuildDBCommand = cli.Command{
 		}
 		defer cancel()
 		containerdContentStore := client.ContentStore()
-		artifactsDb, err := soci.NewDB(soci.ArtifactsDbPath(cliContext.GlobalString("root")))
+		artifactsDb, err := soci.NewDB(soci.ArtifactsDbPath(cliContext.String("root")))
 		if err != nil {
 			return err
 		}
@@ -50,7 +50,7 @@ var RebuildDBCommand = cli.Command{
 			return err
 		}
 
-		contentStorePath, err := store.GetContentStorePath(store.ContentStoreType(cliContext.GlobalString("content-store")))
+		contentStorePath, err := store.GetContentStorePath(store.ContentStoreType(cliContext.String("content-store")))
 		if err != nil {
 			return err
 		}
