@@ -28,10 +28,10 @@ import (
 
 	"github.com/opencontainers/go-digest"
 	v1 "github.com/opencontainers/image-spec/specs-go/v1"
-	"github.com/urfave/cli"
+	"github.com/urfave/cli/v2"
 )
 
-var infoCommand = cli.Command{
+var infoCommand = &cli.Command{
 	Name:        "info",
 	Usage:       "display an index",
 	Description: "get detailed info about an index",
@@ -44,7 +44,7 @@ var infoCommand = cli.Command{
 		if err != nil {
 			return err
 		}
-		db, err := soci.NewDB(soci.ArtifactsDbPath(cliContext.GlobalString("root")))
+		db, err := soci.NewDB(soci.ArtifactsDbPath(cliContext.String("root")))
 		if err != nil {
 			return err
 		}

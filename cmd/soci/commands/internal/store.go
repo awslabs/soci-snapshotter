@@ -20,13 +20,13 @@ import (
 	"strings"
 
 	"github.com/awslabs/soci-snapshotter/soci/store"
-	"github.com/urfave/cli"
+	"github.com/urfave/cli/v2"
 )
 
 // ContentStoreOptions builds a list of content store options from a CLI context.
 func ContentStoreOptions(context *cli.Context) []store.Option {
 	return []store.Option{
-		store.WithType(store.ContentStoreType(context.GlobalString("content-store"))),
-		store.WithContainerdAddress(strings.TrimPrefix(context.GlobalString("address"), "unix://")),
+		store.WithType(store.ContentStoreType(context.String("content-store"))),
+		store.WithContainerdAddress(strings.TrimPrefix(context.String("address"), "unix://")),
 	}
 }

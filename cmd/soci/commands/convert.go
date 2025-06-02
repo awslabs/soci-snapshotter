@@ -27,7 +27,7 @@ import (
 	"github.com/containerd/containerd/errdefs"
 	"github.com/containerd/containerd/images"
 	"github.com/containerd/containerd/reference"
-	"github.com/urfave/cli"
+	"github.com/urfave/cli/v2"
 )
 
 var ErrInvalidDestRef = errors.New(`the destination image must be a tagged ref of the form "registry/repository:tag"`)
@@ -56,23 +56,23 @@ func verifyRef(r string) error {
 // ConvertCommand converts an image into a SOCI enabled image.
 // The new image is added to the containerd content store and can
 // be pushed and deployed like a normal image.
-var ConvertCommand = cli.Command{
+var ConvertCommand = &cli.Command{
 	Name:      "convert",
 	Usage:     "convert an OCI image to a SOCI enabled image",
 	ArgsUsage: "[flags] <image_ref> <dest_ref>",
 	Flags: append(
 		internal.PlatformFlags,
-		cli.Int64Flag{
+		&cli.Int64Flag{
 			Name:  spanSizeFlag,
 			Usage: "Span size that soci index uses to segment layer data. Default is 4 MiB",
 			Value: 1 << 22,
 		},
-		cli.Int64Flag{
+		&cli.Int64Flag{
 			Name:  minLayerSizeFlag,
 			Usage: "Minimum layer size to build zTOC for. Smaller layers won't have zTOC and not lazy pulled. Default is 10 MiB.",
 			Value: 10 << 20,
 		},
-		cli.StringSliceFlag{
+		&cli.StringSliceFlag{
 			Name:  optimizationFlag,
 			Usage: fmt.Sprintf("(Experimental) Enable optional optimizations. Valid values are %v", soci.Optimizations),
 		},
@@ -121,7 +121,7 @@ var ConvertCommand = cli.Command{
 			return err
 		}
 
-		artifactsDb, err := soci.NewDB(soci.ArtifactsDbPath(cliContext.GlobalString("root")))
+		artifactsDb, err := soci.NewDB(soci.ArtifactsDbPath(cliContext.String("root")))
 		if err != nil {
 			return err
 		}

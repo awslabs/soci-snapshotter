@@ -24,7 +24,7 @@ import (
 	"github.com/awslabs/soci-snapshotter/soci"
 	"github.com/awslabs/soci-snapshotter/soci/store"
 	"github.com/containerd/platforms"
-	"github.com/urfave/cli"
+	"github.com/urfave/cli/v2"
 )
 
 const (
@@ -41,23 +41,23 @@ const (
 // Output of this command is SOCI layers and SOCI index stored in a local directory
 // SOCI layer is named as <image-layer-digest>.soci.layer
 // SOCI index is named as <image-manifest-digest>.soci.index
-var CreateCommand = cli.Command{
+var CreateCommand = &cli.Command{
 	Name:      "create",
 	Usage:     "create SOCI index",
 	ArgsUsage: "[flags] <image_ref>",
 	Flags: append(
 		internal.PlatformFlags,
-		cli.Int64Flag{
+		&cli.Int64Flag{
 			Name:  spanSizeFlag,
 			Usage: "Span size that soci index uses to segment layer data. Default is 4 MiB",
 			Value: 1 << 22,
 		},
-		cli.Int64Flag{
+		&cli.Int64Flag{
 			Name:  minLayerSizeFlag,
 			Usage: "Minimum layer size to build zTOC for. Smaller layers won't have zTOC and not lazy pulled. Default is 10 MiB.",
 			Value: 10 << 20,
 		},
-		cli.StringSliceFlag{
+		&cli.StringSliceFlag{
 			Name:  optimizationFlag,
 			Usage: fmt.Sprintf("(Experimental) Enable optional optimizations. Valid values are %v", soci.Optimizations),
 		},
@@ -105,7 +105,7 @@ var CreateCommand = cli.Command{
 			ps = append(ps, platforms.DefaultSpec())
 		}
 
-		artifactsDb, err := soci.NewDB(soci.ArtifactsDbPath(cliContext.GlobalString("root")))
+		artifactsDb, err := soci.NewDB(soci.ArtifactsDbPath(cliContext.String("root")))
 		if err != nil {
 			return err
 		}
