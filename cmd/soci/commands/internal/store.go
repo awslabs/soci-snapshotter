@@ -17,16 +17,25 @@
 package internal
 
 import (
+	"context"
 	"strings"
 
+	clicontext "github.com/awslabs/soci-snapshotter/cmd/internal/context"
 	"github.com/awslabs/soci-snapshotter/soci/store"
-	"github.com/urfave/cli/v2"
 )
 
 // ContentStoreOptions builds a list of content store options from a CLI context.
-func ContentStoreOptions(context *cli.Context) []store.Option {
-	return []store.Option{
-		store.WithType(store.ContentStoreType(context.String("content-store"))),
-		store.WithContainerdAddress(strings.TrimPrefix(context.String("address"), "unix://")),
+func ContentStoreOptions(ctx context.Context) ([]store.Option, error) {
+	contentStore, err := clicontext.GetValue[string](ctx, "content-store")
+	if err != nil {
+		return []store.Option{}, err
 	}
+	address, err := clicontext.GetValue[string](ctx, "address")
+	if err != nil {
+		return []store.Option{}, err
+	}
+	return []store.Option{
+		store.WithType(store.ContentStoreType(contentStore)),
+		store.WithContainerdAddress(strings.TrimPrefix(address, "unix://")),
+	}, nil
 }

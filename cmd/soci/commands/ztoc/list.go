@@ -17,16 +17,18 @@
 package ztoc
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"text/tabwriter"
 
+	clicontext "github.com/awslabs/soci-snapshotter/cmd/internal/context"
 	"github.com/awslabs/soci-snapshotter/cmd/soci/commands/internal"
 	"github.com/awslabs/soci-snapshotter/soci"
 	"github.com/containerd/containerd/images"
 	"github.com/containerd/platforms"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
-	"github.com/urfave/cli/v2"
+	"github.com/urfave/cli/v3"
 )
 
 var listCommand = &cli.Command{
@@ -43,27 +45,47 @@ var listCommand = &cli.Command{
 			Usage: "filter ztocs to those that are associated with a specific image",
 		},
 		&cli.BoolFlag{
-			Name:  "verbose, v",
-			Usage: "display extra debugging messages",
+			Name:    "verbose",
+			Aliases: []string{"v"},
+			Usage:   "display extra debugging messages",
 		},
 		&cli.BoolFlag{
-			Name:  "quiet, q",
-			Usage: "only display the index digests",
+			Name:    "quiet",
+			Aliases: []string{"q"},
+			Usage:   "only display the index digests",
 		},
 	},
-	Action: func(cliContext *cli.Context) error {
-		db, err := soci.NewDB(soci.ArtifactsDbPath(cliContext.String("root")))
+	Action: func(ctx context.Context, cmd *cli.Command) error {
+		root, err := clicontext.GetValue[string](ctx, clicontext.RootKey)
 		if err != nil {
 			return err
 		}
-		ztocDgst := cliContext.String("ztoc-digest")
-		imgRef := cliContext.String("image-ref")
-		verbose := cliContext.Bool("verbose")
-		quiet := cliContext.Bool("quiet")
+
+		db, err := soci.NewDB(soci.ArtifactsDbPath(root))
+		if err != nil {
+			return err
+		}
+
+		ztocDgst, err := clicontext.GetValue[string](ctx, "ztoc-digest")
+		if err != nil {
+			return err
+		}
+		imgRef, err := clicontext.GetValue[string](ctx, "image-ref")
+		if err != nil {
+			return err
+		}
+		verbose, err := clicontext.GetValue[bool](ctx, "verbose")
+		if err != nil {
+			return err
+		}
+		quiet, err := clicontext.GetValue[bool](ctx, "quiet")
+		if err != nil {
+			return err
+		}
 
 		var artifacts []*soci.ArtifactEntry
 		if imgRef == "" {
-			_, cancel := internal.AppContext(cliContext)
+			_, cancel := internal.AppContext(ctx)
 			defer cancel()
 			db.Walk(func(ae *soci.ArtifactEntry) error {
 				if ae.Type == soci.ArtifactEntryTypeLayer && (ztocDgst == "" || ae.Digest == ztocDgst) {
@@ -72,7 +94,7 @@ var listCommand = &cli.Command{
 				return nil
 			})
 		} else {
-			client, ctx, cancel, err := internal.NewClient(cliContext)
+			client, ctx, cancel, err := internal.NewClient(ctx)
 			if err != nil {
 				return err
 			}

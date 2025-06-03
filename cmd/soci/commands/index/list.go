@@ -17,6 +17,7 @@
 package index
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"io"
@@ -25,13 +26,24 @@ import (
 	"text/tabwriter"
 	"time"
 
+	clicontext "github.com/awslabs/soci-snapshotter/cmd/internal/context"
 	"github.com/awslabs/soci-snapshotter/cmd/soci/commands/internal"
 	"github.com/awslabs/soci-snapshotter/soci"
 	"github.com/containerd/containerd/errdefs"
 	"github.com/containerd/containerd/images"
 	"github.com/containerd/platforms"
 	specs "github.com/opencontainers/image-spec/specs-go/v1"
-	"github.com/urfave/cli/v2"
+	"github.com/urfave/cli/v3"
+)
+
+const (
+	refKey = "ref"
+
+	quietKey      = "quiet"
+	quietShortKey = "q"
+
+	platformKey      = "platform"
+	platformShortKey = "p"
 )
 
 type filter func(ae *soci.ArtifactEntry) bool
@@ -73,20 +85,36 @@ var listCommand = &cli.Command{
 			Usage: "filter indices to those that are associated with a specific image ref",
 		},
 		&cli.BoolFlag{
-			Name:  "quiet, q",
-			Usage: "only display the index digests",
+			Name:    quietKey,
+			Aliases: []string{quietShortKey},
+			Usage:   "only display the index digests",
 		},
 		&cli.StringSliceFlag{
-			Name:  "platform, p",
-			Usage: "filter indices to a specific platform",
+			Name:    platformKey,
+			Aliases: []string{platformShortKey},
+			Usage:   "filter indices to a specific platform",
 		},
 	},
-	Action: func(cliContext *cli.Context) error {
+	Action: func(ctx context.Context, _ *cli.Command) error {
 		var artifacts []*soci.ArtifactEntry
-		ref := cliContext.String("ref")
-		quiet := cliContext.Bool("quiet")
+
+		ref, err := clicontext.GetValue[string](ctx, refKey)
+		if err != nil {
+			return err
+		}
+
+		quiet, err := clicontext.GetValue[bool](ctx, quietKey)
+		if err != nil {
+			return err
+		}
+
+		parsePlatforms, err := clicontext.GetValue[[]string](ctx, platformKey)
+		if err != nil {
+			return err
+		}
+
 		var plats []specs.Platform
-		for _, p := range cliContext.StringSlice("platform") {
+		for _, p := range parsePlatforms {
 			pp, err := platforms.Parse(p)
 			if err != nil {
 				return err
@@ -94,7 +122,7 @@ var listCommand = &cli.Command{
 			plats = append(plats, pp)
 		}
 
-		client, ctx, cancel, err := internal.NewClient(cliContext)
+		client, ctx, cancel, err := internal.NewClient(ctx)
 		if err != nil {
 			return err
 		}
@@ -137,7 +165,12 @@ var listCommand = &cli.Command{
 			f = anyMatch(filters)
 		}
 
-		db, err := soci.NewDB(soci.ArtifactsDbPath(cliContext.String("root")))
+		root, err := clicontext.GetValue[string](ctx, clicontext.RootKey)
+		if err != nil {
+			return err
+		}
+
+		db, err := soci.NewDB(soci.ArtifactsDbPath(root))
 		if err != nil {
 			return err
 		}

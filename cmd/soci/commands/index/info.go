@@ -18,17 +18,19 @@ package index
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
 
+	clicontext "github.com/awslabs/soci-snapshotter/cmd/internal/context"
 	"github.com/awslabs/soci-snapshotter/cmd/soci/commands/internal"
 	"github.com/awslabs/soci-snapshotter/soci"
 	"github.com/awslabs/soci-snapshotter/soci/store"
 
 	"github.com/opencontainers/go-digest"
 	v1 "github.com/opencontainers/image-spec/specs-go/v1"
-	"github.com/urfave/cli/v2"
+	"github.com/urfave/cli/v3"
 )
 
 var infoCommand = &cli.Command{
@@ -36,18 +38,25 @@ var infoCommand = &cli.Command{
 	Usage:       "display an index",
 	Description: "get detailed info about an index",
 	ArgsUsage:   "<digest>",
-	Action: func(cliContext *cli.Context) error {
-		ctx, cancel := internal.AppContext(cliContext)
+	Action: func(ctx context.Context, cmd *cli.Command) error {
+		ctx, cancel := internal.AppContext(ctx)
 		defer cancel()
 
-		digest, err := digest.Parse(cliContext.Args().First())
+		digest, err := digest.Parse(cmd.Args().First())
 		if err != nil {
 			return err
 		}
-		db, err := soci.NewDB(soci.ArtifactsDbPath(cliContext.String("root")))
+
+		root, err := clicontext.GetValue[string](ctx, clicontext.RootKey)
 		if err != nil {
 			return err
 		}
+
+		db, err := soci.NewDB(soci.ArtifactsDbPath(root))
+		if err != nil {
+			return err
+		}
+
 		artifactType, err := db.GetArtifactType(digest.String())
 		if err != nil {
 			return err
@@ -55,10 +64,17 @@ var infoCommand = &cli.Command{
 		if artifactType == soci.ArtifactEntryTypeLayer {
 			return fmt.Errorf("the provided digest is of ztoc not SOCI index. Use \"soci ztoc info\" command to get detailed info of ztoc")
 		}
-		store, err := store.NewContentStore(internal.ContentStoreOptions(cliContext)...)
+
+		contentStoreOpts, err := internal.ContentStoreOptions(ctx)
 		if err != nil {
 			return err
 		}
+
+		store, err := store.NewContentStore(contentStoreOpts...)
+		if err != nil {
+			return err
+		}
+
 		reader, err := store.Fetch(ctx, v1.Descriptor{Digest: digest})
 		if err != nil {
 			return err

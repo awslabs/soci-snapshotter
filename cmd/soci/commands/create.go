@@ -17,14 +17,16 @@
 package commands
 
 import (
+	"context"
 	"errors"
 	"fmt"
 
+	clicontext "github.com/awslabs/soci-snapshotter/cmd/internal/context"
 	"github.com/awslabs/soci-snapshotter/cmd/soci/commands/internal"
 	"github.com/awslabs/soci-snapshotter/soci"
 	"github.com/awslabs/soci-snapshotter/soci/store"
 	"github.com/containerd/platforms"
-	"github.com/urfave/cli/v2"
+	"github.com/urfave/cli/v3"
 )
 
 const (
@@ -62,14 +64,19 @@ var CreateCommand = &cli.Command{
 			Usage: fmt.Sprintf("(Experimental) Enable optional optimizations. Valid values are %v", soci.Optimizations),
 		},
 	),
-	Action: func(cliContext *cli.Context) error {
-		srcRef := cliContext.Args().Get(0)
+	Action: func(ctx context.Context, cmd *cli.Command) error {
+		srcRef := cmd.Args().Get(0)
 		if srcRef == "" {
 			return errors.New("source image needs to be specified")
 		}
 
+		parseOptimizations, err := clicontext.GetValue[[]string](ctx, optimizationFlag)
+		if err != nil {
+			return err
+		}
+
 		var optimizations []soci.Optimization
-		for _, o := range cliContext.StringSlice(optimizationFlag) {
+		for _, o := range parseOptimizations {
 			optimization, err := soci.ParseOptimization(o)
 			if err != nil {
 				return err
@@ -77,7 +84,7 @@ var CreateCommand = &cli.Command{
 			optimizations = append(optimizations, optimization)
 		}
 
-		client, ctx, cancel, err := internal.NewClient(cliContext)
+		client, ctx, cancel, err := internal.NewClient(ctx)
 		if err != nil {
 			return err
 		}
@@ -89,15 +96,27 @@ var CreateCommand = &cli.Command{
 		if err != nil {
 			return err
 		}
-		spanSize := cliContext.Int64(spanSizeFlag)
-		minLayerSize := cliContext.Int64(minLayerSizeFlag)
 
-		blobStore, err := store.NewContentStore(internal.ContentStoreOptions(cliContext)...)
+		spanSize, err := clicontext.GetValue[int64](ctx, spanSizeFlag)
+		if err != nil {
+			return err
+		}
+		minLayerSize, err := clicontext.GetValue[int64](ctx, minLayerSizeFlag)
 		if err != nil {
 			return err
 		}
 
-		ps, err := internal.GetPlatforms(ctx, cliContext, srcImg, cs)
+		contentStoreOpts, err := internal.ContentStoreOptions(ctx)
+		if err != nil {
+			return err
+		}
+
+		blobStore, err := store.NewContentStore(contentStoreOpts...)
+		if err != nil {
+			return err
+		}
+
+		ps, err := internal.GetPlatforms(ctx, srcImg, cs)
 		if err != nil {
 			return err
 		}
@@ -105,7 +124,12 @@ var CreateCommand = &cli.Command{
 			ps = append(ps, platforms.DefaultSpec())
 		}
 
-		artifactsDb, err := soci.NewDB(soci.ArtifactsDbPath(cliContext.String("root")))
+		root, err := clicontext.GetValue[string](ctx, clicontext.RootKey)
+		if err != nil {
+			return err
+		}
+
+		artifactsDb, err := soci.NewDB(soci.ArtifactsDbPath(root))
 		if err != nil {
 			return err
 		}

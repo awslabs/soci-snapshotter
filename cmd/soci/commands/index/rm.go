@@ -20,11 +20,12 @@ import (
 	"context"
 	"fmt"
 
+	clicontext "github.com/awslabs/soci-snapshotter/cmd/internal/context"
 	"github.com/awslabs/soci-snapshotter/cmd/soci/commands/internal"
 	"github.com/awslabs/soci-snapshotter/soci"
 	"github.com/awslabs/soci-snapshotter/soci/store"
 	"github.com/opencontainers/go-digest"
-	"github.com/urfave/cli/v2"
+	"github.com/urfave/cli/v3"
 )
 
 var rmCommand = &cli.Command{
@@ -34,29 +35,43 @@ var rmCommand = &cli.Command{
 	Description: "remove an index from local db, and from content store if supported",
 	Flags: []cli.Flag{
 		&cli.StringFlag{
-			Name:  "ref",
+			Name:  refKey,
 			Usage: "only remove indices that are associated with a specific image ref",
 		},
 	},
-	Action: func(cliContext *cli.Context) error {
-		args := cliContext.Args()
-		ref := cliContext.String("ref")
+	Action: func(ctx context.Context, cmd *cli.Command) error {
+		args := cmd.Args()
+
+		ref, err := clicontext.GetValue[string](ctx, refKey)
+		if err != nil {
+			return err
+		}
 
 		if args.Len() != 0 && ref != "" {
 			return fmt.Errorf("please provide either index digests or image ref, but not both")
 		}
 
-		contentStore, err := store.NewContentStore(internal.ContentStoreOptions(cliContext)...)
+		contentStoreOpts, err := internal.ContentStoreOptions(ctx)
+		if err != nil {
+			return err
+		}
+
+		contentStore, err := store.NewContentStore(contentStoreOpts...)
 		if err != nil {
 			return fmt.Errorf("cannot create local content store: %w", err)
 		}
 
-		db, err := soci.NewDB(soci.ArtifactsDbPath(cliContext.String("root")))
+		root, err := clicontext.GetValue[string](ctx, clicontext.RootKey)
+		if err != nil {
+			return err
+		}
+
+		db, err := soci.NewDB(soci.ArtifactsDbPath(root))
 		if err != nil {
 			return err
 		}
 		if ref == "" {
-			ctx, cancel := internal.AppContext(cliContext)
+			ctx, cancel := internal.AppContext(ctx)
 			defer cancel()
 
 			byteArgs := make([][]byte, args.Len())
@@ -68,7 +83,7 @@ var rmCommand = &cli.Command{
 				return err
 			}
 		} else {
-			client, ctx, cancel, err := internal.NewClient(cliContext)
+			client, ctx, cancel, err := internal.NewClient(ctx)
 			if err != nil {
 				return err
 			}

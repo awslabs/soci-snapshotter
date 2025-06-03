@@ -16,12 +16,12 @@
 
 package ztoc
 
-import "github.com/urfave/cli/v2"
+import "github.com/urfave/cli/v3"
 
 var Command = &cli.Command{
 	Name:  "ztoc",
 	Usage: "manage ztocs",
-	Subcommands: []*cli.Command{
+	Commands: []*cli.Command{
 		infoCommand,
 		getFileCommand,
 		listCommand,

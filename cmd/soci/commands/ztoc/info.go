@@ -17,9 +17,11 @@
 package ztoc
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 
+	clicontext "github.com/awslabs/soci-snapshotter/cmd/internal/context"
 	"github.com/awslabs/soci-snapshotter/cmd/soci/commands/internal"
 	"github.com/awslabs/soci-snapshotter/soci"
 	"github.com/awslabs/soci-snapshotter/soci/store"
@@ -27,7 +29,7 @@ import (
 	"github.com/awslabs/soci-snapshotter/ztoc/compression"
 	"github.com/opencontainers/go-digest"
 	v1 "github.com/opencontainers/image-spec/specs-go/v1"
-	"github.com/urfave/cli/v2"
+	"github.com/urfave/cli/v3"
 )
 
 type Info struct {
@@ -54,12 +56,16 @@ var infoCommand = &cli.Command{
 	Name:      "info",
 	Usage:     "get detailed info about a ztoc",
 	ArgsUsage: "<digest>",
-	Action: func(cliContext *cli.Context) error {
-		digest, err := digest.Parse(cliContext.Args().First())
+	Action: func(ctx context.Context, cmd *cli.Command) error {
+		digest, err := digest.Parse(cmd.Args().First())
 		if err != nil {
 			return err
 		}
-		db, err := soci.NewDB(soci.ArtifactsDbPath(cliContext.String("root")))
+		root, err := clicontext.GetValue[string](ctx, clicontext.RootKey)
+		if err != nil {
+			return err
+		}
+		db, err := soci.NewDB(soci.ArtifactsDbPath(root))
 		if err != nil {
 			return err
 		}
@@ -70,9 +76,13 @@ var infoCommand = &cli.Command{
 		if entry.MediaType == soci.SociIndexArtifactType {
 			return fmt.Errorf("the provided digest belongs to a SOCI index. Use `soci index info` to get the detailed information about it")
 		}
-		ctx, cancel := internal.AppContext(cliContext)
+		ctx, cancel := internal.AppContext(ctx)
 		defer cancel()
-		store, err := store.NewContentStore(internal.ContentStoreOptions(cliContext)...)
+		contentStoreOptions, err := internal.ContentStoreOptions(ctx)
+		if err != nil {
+			return err
+		}
+		store, err := store.NewContentStore(contentStoreOptions...)
 		if err != nil {
 			return err
 		}

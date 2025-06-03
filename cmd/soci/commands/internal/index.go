@@ -16,7 +16,7 @@
 
 package internal
 
-import "github.com/urfave/cli/v2"
+import "github.com/urfave/cli/v3"
 
 const (
 	ExistingIndexFlagName = "existing-index"

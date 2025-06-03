@@ -17,17 +17,19 @@
 package commands
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"strings"
 
+	clicontext "github.com/awslabs/soci-snapshotter/cmd/internal/context"
 	"github.com/awslabs/soci-snapshotter/cmd/soci/commands/internal"
 	"github.com/awslabs/soci-snapshotter/soci"
 	"github.com/awslabs/soci-snapshotter/soci/store"
 	"github.com/containerd/containerd/errdefs"
 	"github.com/containerd/containerd/images"
 	"github.com/containerd/containerd/reference"
-	"github.com/urfave/cli/v2"
+	"github.com/urfave/cli/v3"
 )
 
 var ErrInvalidDestRef = errors.New(`the destination image must be a tagged ref of the form "registry/repository:tag"`)
@@ -77,23 +79,29 @@ var ConvertCommand = &cli.Command{
 			Usage: fmt.Sprintf("(Experimental) Enable optional optimizations. Valid values are %v", soci.Optimizations),
 		},
 	),
-	Action: func(cliContext *cli.Context) error {
-		srcRef := cliContext.Args().Get(0)
+	Action: func(ctx context.Context, cmd *cli.Command) error {
+		srcRef := cmd.Args().Get(0)
 		if srcRef == "" {
 			return errors.New("source image needs to be specified")
 		}
 
-		dstRef := cliContext.Args().Get(1)
+		dstRef := cmd.Args().Get(1)
 		if dstRef == "" {
 			return errors.New("destination image needs to be specified")
 		}
+
 		err := verifyRef(dstRef)
 		if err != nil {
 			return fmt.Errorf("%w: %w", ErrInvalidDestRef, err)
 		}
 
+		parseOptimizations, err := clicontext.GetValue[[]string](ctx, optimizationFlag)
+		if err != nil {
+			return err
+		}
+
 		var optimizations []soci.Optimization
-		for _, o := range cliContext.StringSlice(optimizationFlag) {
+		for _, o := range parseOptimizations {
 			optimization, err := soci.ParseOptimization(o)
 			if err != nil {
 				return err
@@ -101,7 +109,7 @@ var ConvertCommand = &cli.Command{
 			optimizations = append(optimizations, optimization)
 		}
 
-		client, ctx, cancel, err := internal.NewClient(cliContext)
+		client, ctx, cancel, err := internal.NewClient(ctx)
 		if err != nil {
 			return err
 		}
@@ -113,15 +121,32 @@ var ConvertCommand = &cli.Command{
 		if err != nil {
 			return err
 		}
-		spanSize := cliContext.Int64(spanSizeFlag)
-		minLayerSize := cliContext.Int64(minLayerSizeFlag)
 
-		blobStore, err := store.NewContentStore(internal.ContentStoreOptions(cliContext)...)
+		spanSize, err := clicontext.GetValue[int64](ctx, spanSizeFlag)
+		if err != nil {
+			return err
+		}
+		minLayerSize, err := clicontext.GetValue[int64](ctx, minLayerSizeFlag)
 		if err != nil {
 			return err
 		}
 
-		artifactsDb, err := soci.NewDB(soci.ArtifactsDbPath(cliContext.String("root")))
+		contentStoreOpts, err := internal.ContentStoreOptions(ctx)
+		if err != nil {
+			return err
+		}
+
+		blobStore, err := store.NewContentStore(contentStoreOpts...)
+		if err != nil {
+			return err
+		}
+
+		root, err := clicontext.GetValue[string](ctx, clicontext.RootKey)
+		if err != nil {
+			return err
+		}
+
+		artifactsDb, err := soci.NewDB(soci.ArtifactsDbPath(root))
 		if err != nil {
 			return err
 		}
@@ -146,7 +171,7 @@ var ConvertCommand = &cli.Command{
 		}
 		defer done(ctx)
 
-		platforms, err := internal.GetPlatforms(ctx, cliContext, srcImg, cs)
+		platforms, err := internal.GetPlatforms(ctx, srcImg, cs)
 		if err != nil {
 			return err
 		}

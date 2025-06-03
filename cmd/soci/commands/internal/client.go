@@ -33,14 +33,14 @@
 package internal
 
 import (
-	gocontext "context"
+	"context"
 	"strings"
+	"time"
 
+	clicontext "github.com/awslabs/soci-snapshotter/cmd/internal/context"
 	"github.com/containerd/containerd"
-	"github.com/containerd/containerd/namespaces"
 	"github.com/containerd/containerd/pkg/epoch"
 	"github.com/containerd/log"
-	"github.com/urfave/cli/v2"
 )
 
 // All CLI commands should call either [AppContext] or [NewClient]
@@ -53,18 +53,13 @@ import (
 //
 // This will ensure the namespace is picked up and set the timeout, if one is
 // defined.
-func AppContext(context *cli.Context) (gocontext.Context, gocontext.CancelFunc) {
-	var (
-		ctx       = gocontext.Background()
-		timeout   = context.Duration("timeout")
-		namespace = context.String("namespace")
-		cancel    gocontext.CancelFunc
-	)
-	ctx = namespaces.WithNamespace(ctx, namespace)
-	if timeout > 0 {
-		ctx, cancel = gocontext.WithTimeout(ctx, timeout)
+func AppContext(ctx context.Context) (context.Context, context.CancelFunc) {
+	var cancel context.CancelFunc
+
+	if timeout, err := clicontext.GetValue[time.Duration](ctx, "timeout"); err != nil && timeout > 0 {
+		ctx, cancel = context.WithTimeout(ctx, timeout)
 	} else {
-		ctx, cancel = gocontext.WithCancel(ctx)
+		ctx, cancel = context.WithCancel(ctx)
 	}
 	if tm, err := epoch.SourceDateEpoch(); err != nil {
 		log.L.WithError(err).Warn("Failed to read SOURCE_DATE_EPOCH")
@@ -76,13 +71,19 @@ func AppContext(context *cli.Context) (gocontext.Context, gocontext.CancelFunc) 
 }
 
 // NewClient returns a new containerd client
-func NewClient(context *cli.Context, opts ...containerd.ClientOpt) (*containerd.Client, gocontext.Context, gocontext.CancelFunc, error) {
-	opts = append(opts, containerd.WithTimeout(context.Duration("timeout")))
-	address := strings.TrimPrefix(context.String("address"), "unix://")
+func NewClient(ctx context.Context, opts ...containerd.ClientOpt) (*containerd.Client, context.Context, context.CancelFunc, error) {
+	if timeout, err := clicontext.GetValue[time.Duration](ctx, "timeout"); err == nil {
+		opts = append(opts, containerd.WithTimeout(timeout))
+	}
+	address, err := clicontext.GetValue[string](ctx, "address")
+	if err != nil {
+		return nil, nil, nil, err
+	}
+	address = strings.TrimPrefix(address, "unix://")
 	client, err := containerd.New(address, opts...)
 	if err != nil {
 		return nil, nil, nil, err
 	}
-	ctx, cancel := AppContext(context)
+	ctx, cancel := AppContext(ctx)
 	return client, ctx, cancel, nil
 }

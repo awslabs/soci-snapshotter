@@ -17,12 +17,14 @@
 package commands
 
 import (
+	"context"
 	"path/filepath"
 
+	clicontext "github.com/awslabs/soci-snapshotter/cmd/internal/context"
 	"github.com/awslabs/soci-snapshotter/cmd/soci/commands/internal"
 	"github.com/awslabs/soci-snapshotter/soci"
 	"github.com/awslabs/soci-snapshotter/soci/store"
-	"github.com/urfave/cli/v2"
+	"github.com/urfave/cli/v3"
 )
 
 var RebuildDBCommand = &cli.Command{
@@ -34,23 +36,40 @@ var RebuildDBCommand = &cli.Command{
 	Use after pulling an image to discover SOCI indices/ztocs or after "index rm"
 	when using the containerd content store to clear the database of removed zTOCs.
 	`,
-	Action: func(cliContext *cli.Context) error {
-		client, ctx, cancel, err := internal.NewClient(cliContext)
+	Action: func(ctx context.Context, cmd *cli.Command) error {
+		client, ctx, cancel, err := internal.NewClient(ctx)
 		if err != nil {
 			return err
 		}
 		defer cancel()
 		containerdContentStore := client.ContentStore()
-		artifactsDb, err := soci.NewDB(soci.ArtifactsDbPath(cliContext.String("root")))
-		if err != nil {
-			return err
-		}
-		blobStore, err := store.NewContentStore(internal.ContentStoreOptions(cliContext)...)
+
+		root, err := clicontext.GetValue[string](ctx, "root")
 		if err != nil {
 			return err
 		}
 
-		contentStorePath, err := store.GetContentStorePath(store.ContentStoreType(cliContext.String("content-store")))
+		artifactsDb, err := soci.NewDB(soci.ArtifactsDbPath(root))
+		if err != nil {
+			return err
+		}
+
+		contentStoreOptions, err := internal.ContentStoreOptions(ctx)
+		if err != nil {
+			return err
+		}
+
+		blobStore, err := store.NewContentStore(contentStoreOptions...)
+		if err != nil {
+			return err
+		}
+
+		contentStoreType, err := clicontext.GetValue[string](ctx, "content-store")
+		if err != nil {
+			return err
+		}
+
+		contentStorePath, err := store.GetContentStorePath(store.ContentStoreType(contentStoreType))
 		if err != nil {
 			return err
 		}

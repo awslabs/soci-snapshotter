@@ -14,18 +14,27 @@
    limitations under the License.
 */
 
-package index
+package context
 
 import (
-	"github.com/urfave/cli/v3"
+	"context"
+	"fmt"
 )
 
-var Command = &cli.Command{
-	Name:  "index",
-	Usage: "manage indices",
-	Commands: []*cli.Command{
-		listCommand,
-		infoCommand,
-		rmCommand,
-	},
+const (
+	RootKey = "root"
+)
+
+func GetValue[T any](ctx context.Context, key string) (T, error) {
+	value := ctx.Value(key)
+	if value == nil {
+		var zero T
+		return zero, fmt.Errorf("key %q not found in context", key)
+	}
+	val, ok := value.(T)
+	if !ok {
+		var zero T
+		return zero, fmt.Errorf("value for key %q is not of type %T", key, zero)
+	}
+	return val, nil
 }

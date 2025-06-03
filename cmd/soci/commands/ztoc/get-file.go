@@ -23,6 +23,7 @@ import (
 	"io"
 	"os"
 
+	clicontext "github.com/awslabs/soci-snapshotter/cmd/internal/context"
 	"github.com/awslabs/soci-snapshotter/cmd/soci/commands/internal"
 	"github.com/awslabs/soci-snapshotter/soci"
 	"github.com/awslabs/soci-snapshotter/soci/store"
@@ -30,7 +31,7 @@ import (
 	"github.com/containerd/containerd/content"
 	"github.com/opencontainers/go-digest"
 	v1 "github.com/opencontainers/image-spec/specs-go/v1"
-	"github.com/urfave/cli/v2"
+	"github.com/urfave/cli/v3"
 )
 
 var getFileCommand = &cli.Command{
@@ -43,8 +44,8 @@ var getFileCommand = &cli.Command{
 			Usage: "the file to write the extracted content. Defaults to stdout",
 		},
 	},
-	Action: func(cliContext *cli.Context) error {
-		args := cliContext.Args().Slice()
+	Action: func(ctx context.Context, cmd *cli.Command) error {
+		args := cmd.Args().Slice()
 		if len(args) != 2 {
 			return errors.New("please provide both a ztoc digest and a filename to extract")
 		}
@@ -55,18 +56,23 @@ var getFileCommand = &cli.Command{
 		}
 		file := args[1]
 
-		client, ctx, cancel, err := internal.NewClient(cliContext)
+		client, ctx, cancel, err := internal.NewClient(ctx)
 		if err != nil {
 			return err
 		}
 		defer cancel()
 
-		toc, err := getZtoc(ctx, cliContext, ztocDigest)
+		toc, err := getZtoc(ctx, ztocDigest)
 		if err != nil {
 			return err
 		}
 
-		artifactsDB, err := soci.NewDB(soci.ArtifactsDbPath(cliContext.String("root")))
+		root, err := clicontext.GetValue[string](ctx, clicontext.RootKey)
+		if err != nil {
+			return err
+		}
+
+		artifactsDB, err := soci.NewDB(soci.ArtifactsDbPath(root))
 		if err != nil {
 			return err
 		}
@@ -82,7 +88,10 @@ var getFileCommand = &cli.Command{
 			return err
 		}
 
-		outfile := cliContext.String("output")
+		outfile, err := clicontext.GetValue[string](ctx, "output")
+		if err != nil {
+			return err
+		}
 		if outfile != "" {
 			os.WriteFile(outfile, data, 0)
 			return nil
@@ -92,8 +101,12 @@ var getFileCommand = &cli.Command{
 	},
 }
 
-func getZtoc(ctx context.Context, cliContext *cli.Context, d digest.Digest) (*ztoc.Ztoc, error) {
-	blobStore, err := store.NewContentStore(internal.ContentStoreOptions(cliContext)...)
+func getZtoc(ctx context.Context, d digest.Digest) (*ztoc.Ztoc, error) {
+	contentStoreOptions, err := internal.ContentStoreOptions(ctx)
+	if err != nil {
+		return nil, err
+	}
+	blobStore, err := store.NewContentStore(contentStoreOptions...)
 	if err != nil {
 		return nil, err
 	}

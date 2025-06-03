@@ -33,9 +33,11 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"os"
 
+	clicontext "github.com/awslabs/soci-snapshotter/cmd/internal/context"
 	"github.com/awslabs/soci-snapshotter/cmd/soci/commands"
 	"github.com/awslabs/soci-snapshotter/cmd/soci/commands/index"
 	"github.com/awslabs/soci-snapshotter/cmd/soci/commands/ztoc"
@@ -47,7 +49,7 @@ import (
 
 	//nolint:staticcheck
 	"github.com/containerd/containerd/pkg/seed"
-	cli "github.com/urfave/cli/v2"
+	cli "github.com/urfave/cli/v3"
 )
 
 func init() {
@@ -56,57 +58,62 @@ func init() {
 }
 
 func main() {
-	app := cli.NewApp()
-	app.Name = "soci"
-	app.Flags = []cli.Flag{
-		&cli.StringFlag{
-			Name:    "address, a",
-			Usage:   "address for containerd's GRPC server",
-			Value:   defaults.DefaultAddress,
-			EnvVars: []string{"CONTAINERD_ADDRESS"},
+	app := cli.Command{
+		Name: "soci",
+		Flags: []cli.Flag{
+			&cli.StringFlag{
+				Name:    "address",
+				Aliases: []string{"a"},
+				Usage:   "address for containerd's GRPC server",
+				Value:   defaults.DefaultAddress,
+				Sources: cli.EnvVars("CONTAINERD_ADDRESS"),
+			},
+			&cli.StringFlag{
+				Name:    "namespace",
+				Aliases: []string{"n"},
+				Usage:   "namespace to use with commands",
+				Value:   namespaces.Default,
+				Sources: cli.EnvVars(namespaces.NamespaceEnvVar),
+			},
+			&cli.DurationFlag{
+				Name:  "timeout",
+				Usage: "timeout for commands",
+			},
+			&cli.BoolFlag{
+				Name:  "debug",
+				Usage: "enable debug output",
+			},
+			&cli.StringFlag{
+				Name:  "content-store",
+				Usage: "use a specific content store (soci or containerd)",
+				Value: string(config.DefaultContentStoreType),
+			},
+			&cli.StringFlag{
+				Name:  "root",
+				Usage: "path to the root directory for this snapshotter",
+				Value: config.DefaultSociSnapshotterRootPath,
+			},
 		},
-		&cli.StringFlag{
-			Name:    "namespace, n",
-			Usage:   "namespace to use with commands",
-			Value:   namespaces.Default,
-			EnvVars: []string{namespaces.NamespaceEnvVar},
+		Version: fmt.Sprintf("%s %s", version.Version, version.Revision),
+		Commands: []*cli.Command{
+			index.Command,
+			ztoc.Command,
+			commands.CreateCommand,
+			commands.ConvertCommand,
+			commands.PushCommand,
+			commands.RebuildDBCommand,
 		},
-		&cli.DurationFlag{
-			Name:  "timeout",
-			Usage: "timeout for commands",
-		},
-		&cli.BoolFlag{
-			Name:  "debug",
-			Usage: "enable debug output",
-		},
-		&cli.StringFlag{
-			Name:  "content-store",
-			Usage: "use a specific content store (soci or containerd)",
-			Value: string(config.DefaultContentStoreType),
-		},
-		&cli.StringFlag{
-			Name:  "root",
-			Usage: "path to the root directory for this snapshotter",
-			Value: config.DefaultSociSnapshotterRootPath,
+		Before: func(ctx context.Context, _ *cli.Command) (context.Context, error) {
+			root, err := clicontext.GetValue[string](ctx, clicontext.RootKey)
+			if err != nil {
+				return nil, err
+			}
+			return ctx, soci.EnsureSnapshotterRootPath(root)
 		},
 	}
 
-	app.Version = fmt.Sprintf("%s %s", version.Version, version.Revision)
-
-	app.Commands = []*cli.Command{
-		index.Command,
-		ztoc.Command,
-		commands.CreateCommand,
-		commands.ConvertCommand,
-		commands.PushCommand,
-		commands.RebuildDBCommand,
-	}
-
-	app.Before = func(context *cli.Context) error {
-		return soci.EnsureSnapshotterRootPath(context.String("root"))
-	}
-
-	if err := app.Run(os.Args); err != nil {
+	ctx := context.TODO()
+	if err := app.Run(ctx, os.Args); err != nil {
 		fmt.Fprintf(os.Stderr, "soci: %v\n", err)
 		os.Exit(1)
 	}

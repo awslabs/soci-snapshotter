@@ -33,21 +33,23 @@
 package internal
 
 import (
-	"github.com/urfave/cli/v2"
+	"github.com/urfave/cli/v3"
 )
 
 var RegistryFlags = []cli.Flag{
 	&cli.BoolFlag{
-		Name:  "skip-verify,k",
-		Usage: "Skip SSL certificate validation",
+		Name:    "skip-verify",
+		Aliases: []string{"k"},
+		Usage:   "Skip SSL certificate validation",
 	},
 	&cli.BoolFlag{
 		Name:  "plain-http",
 		Usage: "Allow connections using plain HTTP",
 	},
 	&cli.StringFlag{
-		Name:  "user,u",
-		Usage: "User[:password] Registry user and password",
+		Name:    "user",
+		Aliases: []string{"u"},
+		Usage:   "User[:password] Registry user and password",
 	},
 	&cli.StringFlag{
 		Name:  "refresh",
