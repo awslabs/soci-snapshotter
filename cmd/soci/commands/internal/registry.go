@@ -33,7 +33,7 @@
 package internal
 
 import (
-	"github.com/urfave/cli/v2"
+	"github.com/urfave/cli/v3"
 )
 
 var RegistryFlags = []cli.Flag{

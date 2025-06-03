@@ -56,14 +56,14 @@ func TestCreateConvertParameterValidation(t *testing.T) {
 		{
 			name:          "minLayerSize > int64.MaxValue fails validation",
 			minLayerSize:  fmt.Sprintf("%d", uint64(math.MaxInt64)+1),
-			spanSize:      "",
-			expectedError: "for flag -min-layer-size: value out of range",
+			spanSize:      "0",
+			expectedError: fmt.Sprintf(`invalid value "%d" for flag -min-layer-size`, uint64(math.MaxInt64)+1),
 		},
 		{
 			name:          "spanSize > int64.MaxValue fails validation",
 			minLayerSize:  "0",
 			spanSize:      fmt.Sprintf("%d", uint64(math.MaxInt64)+1),
-			expectedError: "for flag -span-size: value out of range",
+			expectedError: fmt.Sprintf(`invalid value "%d" for flag -span-size`, uint64(math.MaxInt64)+1),
 		},
 	}
 

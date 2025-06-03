@@ -17,6 +17,7 @@
 package ztoc
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"text/tabwriter"
@@ -26,7 +27,7 @@ import (
 	"github.com/containerd/containerd/images"
 	"github.com/containerd/platforms"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
-	"github.com/urfave/cli/v2"
+	"github.com/urfave/cli/v3"
 )
 
 var listCommand = &cli.Command{
@@ -53,19 +54,20 @@ var listCommand = &cli.Command{
 			Usage:   "only display the index digests",
 		},
 	},
-	Action: func(cliContext *cli.Context) error {
-		db, err := soci.NewDB(soci.ArtifactsDbPath(cliContext.String("root")))
+	Action: func(ctx context.Context, cmd *cli.Command) error {
+		db, err := soci.NewDB(soci.ArtifactsDbPath(cmd.String("root")))
 		if err != nil {
 			return err
 		}
-		ztocDgst := cliContext.String("ztoc-digest")
-		imgRef := cliContext.String("image-ref")
-		verbose := cliContext.Bool("verbose")
-		quiet := cliContext.Bool("quiet")
+
+		ztocDgst := cmd.String("ztoc-digest")
+		imgRef := cmd.String("image-ref")
+		verbose := cmd.Bool("verbose")
+		quiet := cmd.Bool("quiet")
 
 		var artifacts []*soci.ArtifactEntry
 		if imgRef == "" {
-			_, cancel := internal.AppContext(cliContext)
+			_, cancel := internal.AppContext(ctx, cmd)
 			defer cancel()
 			db.Walk(func(ae *soci.ArtifactEntry) error {
 				if ae.Type == soci.ArtifactEntryTypeLayer && (ztocDgst == "" || ae.Digest == ztocDgst) {
@@ -74,7 +76,7 @@ var listCommand = &cli.Command{
 				return nil
 			})
 		} else {
-			client, ctx, cancel, err := internal.NewClient(cliContext)
+			client, ctx, cancel, err := internal.NewClient(ctx, cmd)
 			if err != nil {
 				return err
 			}

@@ -17,6 +17,7 @@
 package ztoc
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 
@@ -27,7 +28,7 @@ import (
 	"github.com/awslabs/soci-snapshotter/ztoc/compression"
 	"github.com/opencontainers/go-digest"
 	v1 "github.com/opencontainers/image-spec/specs-go/v1"
-	"github.com/urfave/cli/v2"
+	"github.com/urfave/cli/v3"
 )
 
 type Info struct {
@@ -54,12 +55,12 @@ var infoCommand = &cli.Command{
 	Name:      "info",
 	Usage:     "get detailed info about a ztoc",
 	ArgsUsage: "<digest>",
-	Action: func(cliContext *cli.Context) error {
-		digest, err := digest.Parse(cliContext.Args().First())
+	Action: func(ctx context.Context, cmd *cli.Command) error {
+		digest, err := digest.Parse(cmd.Args().First())
 		if err != nil {
 			return err
 		}
-		db, err := soci.NewDB(soci.ArtifactsDbPath(cliContext.String("root")))
+		db, err := soci.NewDB(soci.ArtifactsDbPath(cmd.String("root")))
 		if err != nil {
 			return err
 		}
@@ -70,9 +71,9 @@ var infoCommand = &cli.Command{
 		if entry.Type == soci.ArtifactEntryTypeIndex {
 			return fmt.Errorf("the provided digest belongs to a SOCI index. Use `soci index info` to get the detailed information about it")
 		}
-		ctx, cancel := internal.AppContext(cliContext)
+		ctx, cancel := internal.AppContext(ctx, cmd)
 		defer cancel()
-		store, err := store.NewContentStore(internal.ContentStoreOptions(cliContext)...)
+		store, err := store.NewContentStore(internal.ContentStoreOptions(ctx, cmd)...)
 		if err != nil {
 			return err
 		}
