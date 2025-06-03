@@ -24,12 +24,13 @@ import (
 	"github.com/containerd/containerd/images"
 	"github.com/containerd/platforms"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
-	"github.com/urfave/cli/v2"
+	"github.com/urfave/cli/v3"
 )
 
 const (
-	PlatformFlagKey     = "platform"
-	AllPlatformsFlagKey = "all-platforms"
+	PlatformFlagKey      = "platform"
+	PlatformShortFlagKey = "p"
+	AllPlatformsFlagKey  = "all-platforms"
 )
 
 var PlatformFlags = []cli.Flag{
@@ -39,26 +40,25 @@ var PlatformFlags = []cli.Flag{
 	},
 	&cli.StringSliceFlag{
 		Name:    PlatformFlagKey,
-		Aliases: []string{"p"},
+		Aliases: []string{PlatformShortFlagKey},
 		Usage:   "",
 	},
 }
 
-// GetPlatforms returns the set of platforms from a cli.Context
+// GetPlatforms returns the set of platforms from a command context.
 // The order of preference is:
 // 1) all platforms supported by the image if the `all-plaforms` flag is set
 // 2) the set of platforms specified by the `platform` flag
 // 3) An empty platform slice. The consumer is responsible for setting an appropriate platform
 //
 // This method is not suitable for situations where the default should be all supported platforms (e.g. the `soci index list` command)
-func GetPlatforms(ctx context.Context, cliContext *cli.Context, img images.Image, cs content.Store) ([]ocispec.Platform, error) {
-	if cliContext.Bool(AllPlatformsFlagKey) {
+func GetPlatforms(ctx context.Context, cmd *cli.Command, img images.Image, cs content.Store) ([]ocispec.Platform, error) {
+	allPlatforms := cmd.Bool(AllPlatformsFlagKey)
+	if allPlatforms {
 		return images.Platforms(ctx, cs, img.Target)
 	}
-	ps := cliContext.StringSlice(PlatformFlagKey)
-	if len(ps) == 0 {
-		return []ocispec.Platform{}, nil
-	}
+
+	ps := cmd.StringSlice(PlatformFlagKey)
 	var result []ocispec.Platform
 	for _, p := range ps {
 		platform, err := platforms.Parse(p)
