@@ -146,6 +146,12 @@ func (b *IndexBuilder) Convert(ctx context.Context, img images.Image, opts ...Co
 		return nil, err
 	}
 
+	// Update artifacts DB references to the new image/index digests
+	err = b.updateSociV2ArtifactReferences(&ociIndex, ociIndexDesc.Digest.String())
+	if err != nil {
+		return nil, err
+	}
+
 	// Apply GC Labels
 	for i, desc := range ociIndex.Manifests {
 		err := store.LabelGCRefContent(ctx, b.blobStore, ociIndexDesc, fmt.Sprintf("m.%d", i), desc.Digest.String())
@@ -351,4 +357,22 @@ func (b *IndexBuilder) pushOCIObject(ctx context.Context, obj any) (ocispec.Desc
 		return ocispec.Descriptor{}, err
 	}
 	return desc, nil
+}
+
+// updateSociV2ArtifactReferences adjusts the artifacts DB so that the SOCI indexes contained in the OCI index
+// reference the correct digests.
+//
+// When we create the SOCI index manifest v2, we add it to the artifacts DB with the original image manifest digest
+// and image digest. When we add the annotations, we change the manifest digest and create a new image with a new
+// digest. This function goes back and fixes the artifacts DB so that the index is associated with the new manifest and image digests.
+func (b *IndexBuilder) updateSociV2ArtifactReferences(index *ocispec.Index, indexDigest string) error {
+	for _, manifestDesc := range index.Manifests {
+		if manifestDesc.ArtifactType == SociIndexArtifactTypeV2 {
+			err := b.config.artifactsDb.updateSociV2ArtifactReference(manifestDesc.Digest.String(), manifestDesc.Annotations[IndexAnnotationImageManifestDigest], indexDigest)
+			if err != nil {
+				return err
+			}
+		}
+	}
+	return nil
 }

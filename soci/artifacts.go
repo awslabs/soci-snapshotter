@@ -319,24 +319,22 @@ func (db *ArtifactsDb) addNewArtifacts(ctx context.Context, blobStorePath string
 
 // GetArtifactEntry loads a single ArtifactEntry from the ArtifactsDB by digest
 func (db *ArtifactsDb) GetArtifactEntry(digest string) (*ArtifactEntry, error) {
-	entry := ArtifactEntry{}
+	var entry *ArtifactEntry
 	err := db.db.View(func(tx *bolt.Tx) error {
-		bucket, err := getArtifactsBucket(tx)
-		if err != nil {
-			return err
-		}
-		e, err := getArtifactEntryByDigest(bucket, digest)
-		if err != nil {
-			return err
-		}
-		entry = *e
-		return nil
+		var err error
+		entry, err = db.getArtifactEntry(tx, digest)
+		return err
 	})
 
+	return entry, err
+}
+
+func (db *ArtifactsDb) getArtifactEntry(tx *bolt.Tx, digest string) (*ArtifactEntry, error) {
+	bucket, err := getArtifactsBucket(tx)
 	if err != nil {
 		return nil, err
 	}
-	return &entry, nil
+	return getArtifactEntryByDigest(bucket, digest)
 }
 
 // GetArtifactType gets Type of an ArtifactEntry from the ArtifactsDB by digest
@@ -407,15 +405,32 @@ func (db *ArtifactsDb) WriteArtifactEntry(entry *ArtifactEntry) error {
 	if entry == nil {
 		return fmt.Errorf("no entry to write")
 	}
-	err := db.db.Update(func(tx *bolt.Tx) error {
-		bucket, err := tx.CreateBucketIfNotExists(bucketKeySociArtifacts)
+	return db.db.Update(func(tx *bolt.Tx) error {
+		return db.writeArtifactEntry(tx, entry)
+	})
+}
+
+func (db *ArtifactsDb) writeArtifactEntry(tx *bolt.Tx, entry *ArtifactEntry) error {
+	bucket, err := tx.CreateBucketIfNotExists(bucketKeySociArtifacts)
+	if err != nil {
+		return err
+	}
+	return putArtifactEntry(bucket, entry)
+}
+
+// updateSociV2ArtifactReference updates the image and manifest digests associated with the SOCI index digest in the artifacts db.
+// the indexDigest is the SOCI index to updated, the manifestDigest is the specific image manifest that the SOCI index is bound to,
+// and the imageDigest is the target of the image (this is the same as the manifestDigest for single platform images, but different for mult-platform)
+func (db *ArtifactsDb) updateSociV2ArtifactReference(indexDigest string, manifestDigest string, imageDigest string) error {
+	return db.db.Update(func(tx *bolt.Tx) error {
+		ae, err := db.getArtifactEntry(tx, indexDigest)
 		if err != nil {
 			return err
 		}
-		err = putArtifactEntry(bucket, entry)
-		return err
+		ae.ImageDigest = imageDigest
+		ae.OriginalDigest = manifestDigest
+		return db.writeArtifactEntry(tx, ae)
 	})
-	return err
 }
 
 func getArtifactsBucket(tx *bolt.Tx) (*bolt.Bucket, error) {

@@ -34,16 +34,19 @@ var (
 
 func createAndPushV2Index(t *testing.T, sh *dockershell.Shell, srcInfo imageInfo, dstInfo imageInfo) string {
 	sh.X("nerdctl", "pull", "--all-platforms", srcInfo.ref)
-	sh.X("soci", "convert", "--min-layer-size", "0", srcInfo.ref, dstInfo.ref)
+	sh.X("soci", "convert", "--all-platforms", "--min-layer-size", "0", srcInfo.ref, dstInfo.ref)
 	sh.X("nerdctl", "push", "--all-platforms", dstInfo.ref)
 
 	indexDigest, err := sh.OLog("soci",
 		"index", "list",
-		"-q", "--ref", srcInfo.ref,
+		"-q", "--ref", dstInfo.ref,
 		"--platform", platforms.Format(platforms.DefaultSpec()),
 	)
 	if err != nil {
 		t.Fatal(err)
+	}
+	if len(indexDigest) == 0 {
+		t.Fatal("index digest is empty")
 	}
 
 	return strings.Trim(string(indexDigest), "\n")
@@ -264,7 +267,7 @@ func testDanglingV2Annotation(t *testing.T, imgName string) {
 	dstInfo := regConfig.mirror(imgName)
 
 	sh.X("nerdctl", "pull", "--all-platforms", srcInfo.ref)
-	sh.X("soci", "convert", "--min-layer-size", "0", srcInfo.ref, dstInfo.ref)
+	sh.X("soci", "convert", "--all-platforms", "--min-layer-size", "0", srcInfo.ref, dstInfo.ref)
 
 	manifest, err := getManifestDigest(sh, dstInfo.ref, platforms.DefaultSpec())
 	if err != nil {
@@ -273,14 +276,17 @@ func testDanglingV2Annotation(t *testing.T, imgName string) {
 
 	v2IndexDigest, err := sh.OLog("soci",
 		"index", "list",
-		"-q", "--ref", srcInfo.ref,
+		"-q", "--ref", dstInfo.ref,
 		"--platform", platforms.Format(platforms.DefaultSpec()),
 	)
 	if err != nil {
 		t.Fatal(err)
 	}
+	if len(v2IndexDigest) == 0 {
+		t.Fatal("index digest is empty")
+	}
 
-	// Nither nerdctl nor ctr expose a way to "elevate" a platform-specific
+	// Neither nerdctl nor ctr expose a way to "elevate" a platform-specific
 	// manifest to a top level image directly, so we do a little registry dance:
 	// push image:tag
 	// pull image@sha256:... (the specific manifest we want to elevate)
