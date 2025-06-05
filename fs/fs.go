@@ -364,6 +364,10 @@ type filesystem struct {
 	pullModes                   config.PullModes
 }
 
+func (fs *filesystem) MountParallel(ctx context.Context, mountpoint string, labels map[string]string, mounts []mount.Mount) error {
+	return fs.MountLocal(ctx, mountpoint, labels, mounts)
+}
+
 func (fs *filesystem) MountLocal(ctx context.Context, mountpoint string, labels map[string]string, mounts []mount.Mount) error {
 	imageRef, ok := labels[ctdsnapshotters.TargetRefLabel]
 	if !ok {

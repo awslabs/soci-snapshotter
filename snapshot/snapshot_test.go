@@ -419,6 +419,10 @@ func (fs *bindFs) MountLocal(ctx context.Context, mountpoint string, labels map[
 	return nil
 }
 
+func (fs *bindFs) MountParallel(ctx context.Context, mountpoint string, labels map[string]string, mounts []mount.Mount) error {
+	return fs.MountLocal(ctx, mountpoint, labels, mounts)
+}
+
 func (fs *bindFs) IDMapMount(ctx context.Context, mountpoint, activeLayerID string, idmap idtools.IDMap) (string, error) {
 	return mountpoint, nil
 }
@@ -444,6 +448,10 @@ func (fs *dummyFs) Unmount(ctx context.Context, mountpoint string) error {
 }
 
 func (fs *dummyFs) MountLocal(ctx context.Context, mountpoint string, labels map[string]string, mounts []mount.Mount) error {
+	return fmt.Errorf("dummy")
+}
+
+func (fs *dummyFs) MountParallel(ctx context.Context, mountpoint string, labels map[string]string, mounts []mount.Mount) error {
 	return fmt.Errorf("dummy")
 }
 
