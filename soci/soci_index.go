@@ -812,6 +812,7 @@ func (b *IndexBuilder) writeSociIndex(ctx context.Context, indexWithMetadata *In
 		Location:       indexWithMetadata.ManifestDesc.Digest.String(),
 		Size:           size,
 		MediaType:      indexWithMetadata.Index.MediaType,
+		ArtifactType:   indexWithMetadata.Index.Config.MediaType,
 		CreatedAt:      indexWithMetadata.CreatedAt,
 	}
 	return desc, b.config.artifactsDb.WriteArtifactEntry(entry)
