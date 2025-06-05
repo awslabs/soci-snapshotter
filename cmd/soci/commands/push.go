@@ -23,6 +23,7 @@ import (
 	"io"
 	"math"
 	"net/http"
+	"slices"
 	"sort"
 	"strings"
 
@@ -48,6 +49,11 @@ const (
 	// Reference: https://github.com/oras-project/oras-go/blob/850a24737c15927603d1cecddc74c87f5f3377f4/copy.go#L38
 	defaultMaxConcurrentUploads = 3
 )
+
+type pushDescs struct {
+	sociIndexDesc  soci.IndexDescriptorInfo
+	imageIndexDesc *ocispec.Descriptor
+}
 
 // PushCommand is a command to push an image artifacts from local content store to the remote repository
 var PushCommand = cli.Command{
@@ -194,21 +200,41 @@ if they are available in the snapshotter's local content store.
 			return nil
 		}
 
+		var toPush []pushDescs
+		var foundV2Indexes bool
 		for _, platform := range ps {
 			indexDescriptors, imgManifestDesc, err := soci.GetIndexDescriptorCollection(ctx, cs, artifactsDb, img, []ocispec.Platform{platform})
 			if err != nil {
 				return err
 			}
+			v1IndexDescriptors := slices.DeleteFunc(indexDescriptors, func(desc soci.IndexDescriptorInfo) bool {
+				if desc.ArtifactType == soci.SociIndexArtifactTypeV2 {
+					foundV2Indexes = true
+					return true
+				}
+				return false
+			})
 
-			if len(indexDescriptors) == 0 {
-				return fmt.Errorf("could not find any soci indices to push")
+			if foundV2Indexes {
+				fmt.Println("[WARN] Skippping SOCI index manifest v2. You should push the whole image with higher level tools like finch or nerdctl.")
+			}
+			if len(v1IndexDescriptors) == 0 {
+				return fmt.Errorf("could not find any soci index manifest v1 to push for platform %v", platforms.Format(platform))
 			}
 
-			sort.Slice(indexDescriptors, func(i, j int) bool {
-				return indexDescriptors[i].CreatedAt.Before(indexDescriptors[j].CreatedAt)
+			sort.Slice(v1IndexDescriptors, func(i, j int) bool {
+				return v1IndexDescriptors[i].CreatedAt.Before(v1IndexDescriptors[j].CreatedAt)
 			})
-			indexDesc := indexDescriptors[len(indexDescriptors)-1]
+			indexDesc := v1IndexDescriptors[len(v1IndexDescriptors)-1]
+			toPush = append(toPush, pushDescs{
+				sociIndexDesc:  indexDesc,
+				imageIndexDesc: imgManifestDesc,
+			})
+		}
 
+		for i := range len(toPush) {
+			indexDesc := toPush[i].sociIndexDesc
+			imgManifestDesc := toPush[i].imageIndexDesc
 			if existingIndexOption != internal.Allow {
 				if !quiet {
 					fmt.Println("checking if a soci index already exists in remote repository...")
