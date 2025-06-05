@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1748985693291,
+  "lastUpdate": 1749157263226,
   "repoUrl": "https://github.com/awslabs/soci-snapshotter",
   "entries": {
     "Soci Benchmark": [
@@ -12174,6 +12174,48 @@ window.BENCHMARK_DATA = {
           {
             "name": "SociFullECR-public-node-pullTaskDuration",
             "value": 2.1079999999999997,
+            "unit": "Seconds",
+            "extra": "P90"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "walster@amazon.com",
+            "name": "Kern Walster",
+            "username": "Kern--"
+          },
+          "committer": {
+            "email": "kern.walster@gmail.com",
+            "name": "Kern Walster",
+            "username": "Kern--"
+          },
+          "distinct": true,
+          "id": "3d62be8fe92673e2c465e68dd4a5985c5dd5da8d",
+          "message": "Update SOCI index manifest V2 db references\n\nWhen we convert images to SOCI index manifest v2, we first create SOCI\nindexes, then add the annotations to the image manifests. In the process\nof creating the SOCI indexes, we create an artifacts DB reference to the\nSOCI index using the original manifest and image ids. This change goes\nback after everything is done and updates the artifacts DB so the index\nis associated with the new manifest and image.\n\nSigned-off-by: Kern Walster <walster@amazon.com>",
+          "timestamp": "2025-06-05T13:52:02-07:00",
+          "tree_id": "1a79bd97ab12bbf3d7a1e6556abf8f1e05b29ee6",
+          "url": "https://github.com/awslabs/soci-snapshotter/commit/3d62be8fe92673e2c465e68dd4a5985c5dd5da8d"
+        },
+        "date": 1749157255833,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "SociFullECR-public-node-lazyTaskDuration",
+            "value": 1.4264999999999999,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-node-localTaskDuration",
+            "value": 0.4755,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-node-pullTaskDuration",
+            "value": 1.553,
             "unit": "Seconds",
             "extra": "P90"
           }
