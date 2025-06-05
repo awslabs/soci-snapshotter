@@ -271,9 +271,10 @@ func GetIndexDescriptorCollection(ctx context.Context, cs content.Store, artifac
 			continue
 		}
 		desc := ocispec.Descriptor{
-			MediaType: entry.MediaType,
-			Digest:    dgst,
-			Size:      entry.Size,
+			MediaType:    entry.MediaType,
+			ArtifactType: entry.ArtifactType,
+			Digest:       dgst,
+			Size:         entry.Size,
 		}
 		descriptors = append(descriptors, IndexDescriptorInfo{
 			Descriptor: desc,
