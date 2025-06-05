@@ -112,6 +112,7 @@ type FileSystem interface {
 	Check(ctx context.Context, mountpoint string, labels map[string]string) error
 	Unmount(ctx context.Context, mountpoint string) error
 	MountLocal(ctx context.Context, mountpoint string, labels map[string]string, mounts []mount.Mount) error
+	MountParallel(ctx context.Context, mountpoint string, labels map[string]string, mounts []mount.Mount) error
 	IDMapMount(ctx context.Context, mountpoint, activeLayerID string, idmap idtools.IDMap) (string, error)
 	IDMapMountLocal(ctx context.Context, mountpoint, activeLayerID string, idmap idtools.IDMap) (string, error)
 }
@@ -438,10 +439,17 @@ func (o *snapshotter) Prepare(ctx context.Context, key, parent string, opts ...s
 		return mounts, nil
 	}
 
-	log.G(ctx).WithField("layerDigest", base.Labels[ctdsnapshotters.TargetLayerDigestLabel]).Info("preparing snapshot as local snapshot")
-	err = o.prepareLocalSnapshot(lCtx, key, base.Labels, mounts)
+	if o.parallelPullUnpack {
+		log.G(ctx).WithField("layerDigest", base.Labels[ctdsnapshotters.TargetLayerDigestLabel]).Info("preparing snapshot with parallel pull/unpack")
+		err = o.prepareParallelPullSnapshot(lCtx, key, base.Labels, mounts)
+	} else {
+		log.G(ctx).WithField("layerDigest", base.Labels[ctdsnapshotters.TargetLayerDigestLabel]).Info("preparing snapshot as local snapshot")
+		err = o.prepareLocalSnapshot(lCtx, key, base.Labels, mounts)
+		if err == nil {
+			base.Labels[source.HasSociIndexDigest] = "true" // Mark that this snapshot was loaded with a SOCI index
+		}
+	}
 	if err == nil {
-		base.Labels[source.HasSociIndexDigest] = "true" // Mark that this snapshot was loaded with a SOCI index
 		err := o.commit(ctx, false, target, key, append(opts, snapshots.WithLabels(base.Labels))...)
 		if err == nil || errdefs.IsAlreadyExists(err) {
 			// count also AlreadyExists as "success"
@@ -954,6 +962,22 @@ func (o *snapshotter) unmountAllSnapshots(ctx context.Context, cleanupCommitted 
 	}
 
 	return nil
+}
+
+// prepareParallelPullSnapshot tries to prepare the snapshot and its associated image in parallel
+func (o *snapshotter) prepareParallelPullSnapshot(ctx context.Context, key string, labels map[string]string, mounts []mount.Mount) error {
+	ctx, t, err := o.ms.TransactionContext(ctx, false)
+	if err != nil {
+		return err
+	}
+	defer t.Rollback()
+	id, _, _, err := storage.GetInfo(ctx, key)
+	if err != nil {
+		return err
+	}
+	mountpoint := o.upperPath(id)
+	log.G(ctx).Infof("preparing local filesystem at mountpoint=%v", mountpoint)
+	return o.fs.MountParallel(ctx, mountpoint, labels, mounts)
 }
 
 // prepareLocalSnapshot tries to prepare the snapshot as a local snapshot.
