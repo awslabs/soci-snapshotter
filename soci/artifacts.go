@@ -72,6 +72,7 @@ var (
 	bucketKeyLocation       = []byte("location")
 	bucketKeyType           = []byte("type")
 	bucketKeyMediaType      = []byte("media_type")
+	bucketKeyArtifactType   = []byte("artifact_type")
 	bucketKeyCreatedAt      = []byte("created_at")
 
 	// ArtifactEntryTypeIndex indicates that an ArtifactEntry is a SOCI index artifact
@@ -115,6 +116,8 @@ type ArtifactEntry struct {
 	Type ArtifactEntryType
 	// Media Type of the stored artifact.
 	MediaType string
+	// ArtifactType is the type of artifact stored (e.g. index manifest v1 vs index manifest v2)
+	ArtifactType string
 	// Creation time of SOCI artifact.
 	CreatedAt time.Time
 }
@@ -293,6 +296,7 @@ func (db *ArtifactsDb) addNewArtifacts(ctx context.Context, blobStorePath string
 				Type:           ArtifactEntryTypeIndex,
 				Location:       manifestDigest,
 				MediaType:      sociIndex.MediaType,
+				ArtifactType:   sociIndex.Config.MediaType,
 				CreatedAt:      time.Now(),
 			}
 			if err = db.WriteArtifactEntry(indexEntry); err != nil {
@@ -457,6 +461,7 @@ func loadArtifact(artifactBkt *bolt.Bucket, digest string) (*ArtifactEntry, erro
 	ae.ImageDigest = string(artifactBkt.Get(bucketKeyImageDigest))
 	ae.Platform = string(artifactBkt.Get(bucketKeyPlatform))
 	ae.MediaType = string(artifactBkt.Get(bucketKeyMediaType))
+	ae.ArtifactType = string(artifactBkt.Get(bucketKeyArtifactType))
 	ae.CreatedAt = createdAt
 	return &ae, nil
 }
@@ -492,6 +497,7 @@ func putArtifactEntry(artifacts *bolt.Bucket, ae *ArtifactEntry) error {
 		{bucketKeyPlatform, []byte(ae.Platform)},
 		{bucketKeyType, []byte(ae.Type)},
 		{bucketKeyMediaType, []byte(ae.MediaType)},
+		{bucketKeyArtifactType, []byte(ae.ArtifactType)},
 		{bucketKeyCreatedAt, createdAt},
 	}
 
