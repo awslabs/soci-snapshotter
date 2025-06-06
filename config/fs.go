@@ -135,26 +135,26 @@ type BackgroundFetchConfig struct {
 type RetryConfig struct {
 	// MaxRetries is the maximum number of retries before giving up on a retryable request.
 	// This does not include the initial request so the total number of attempts will be MaxRetries + 1.
-	MaxRetries int
+	MaxRetries int `toml:"MaxRetries,max_retries"`
 	// MinWait is the minimum wait time between attempts. The actual wait time is governed by the BackoffStrategy,
 	// but the wait time will never be shorter than this duration.
-	MinWaitMsec int64
+	MinWaitMsec int64 `toml:"MinWaitMsec,min_wait_msec"`
 	// MaxWait is the maximum wait time between attempts. The actual wait time is governed by the BackoffStrategy,
 	// but the wait time will never be longer than this duration.
-	MaxWaitMsec int64
+	MaxWaitMsec int64 `toml:"MaxWaitMsec,max_wait_msec"`
 }
 
 // TimeoutConfig represents the settings for timeout at various points in a request lifecycle in a retryable http client.
 type TimeoutConfig struct {
 	// DialTimeout is the maximum duration that connection can take before a request attempt is timed out.
-	DialTimeoutMsec int64
+	DialTimeoutMsec int64 `toml:"DialTimeoutMsec,dial_timeout_msec"`
 	// ResponseHeaderTimeout is the maximum duration waiting for response headers before a request attempt is timed out.
 	// This starts after the entire request body is uploaded to the remote endpoint and stops when the request headers
 	// are fully read. It does not include reading the body.
-	ResponseHeaderTimeoutMsec int64
+	ResponseHeaderTimeoutMsec int64 `toml:"ResponseHeaderTimeoutMsec,response_header_timeout_msec"`
 	// RequestTimeout is the maximum duration before the entire request attempt is timed out. This starts when the
 	// client starts the connection attempt and ends when the entire response body is read.
-	RequestTimeoutMsec int64
+	RequestTimeoutMsec int64 `toml:"RequestTimeoutMsec,request_timeout_msec"`
 }
 
 // RetryableHTTPClientConfig is the complete config for a retryable http client
