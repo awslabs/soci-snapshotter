@@ -33,13 +33,13 @@
 package internal
 
 import (
-	"github.com/urfave/cli"
+	"github.com/urfave/cli/v3"
 )
 
 var SnapshotterFlags = []cli.Flag{
-	cli.StringFlag{
-		Name:   "snapshotter",
-		Usage:  "Snapshotter name. Empty value stands for the default value.",
-		EnvVar: "CONTAINERD_SNAPSHOTTER",
+	&cli.StringFlag{
+		Name:    "snapshotter",
+		Usage:   "Snapshotter name. Empty value stands for the default value.",
+		Sources: cli.EnvVars("CONTAINERD_SNAPSHOTTER"),
 	},
 }
