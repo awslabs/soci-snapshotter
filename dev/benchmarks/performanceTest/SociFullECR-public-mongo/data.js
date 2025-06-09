@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1749157256692,
+  "lastUpdate": 1749499255245,
   "repoUrl": "https://github.com/awslabs/soci-snapshotter",
   "entries": {
     "Soci Benchmark": [
@@ -12340,6 +12340,48 @@ window.BENCHMARK_DATA = {
           {
             "name": "SociFullECR-public-mongo-pullTaskDuration",
             "value": 1.0355,
+            "unit": "Seconds",
+            "extra": "P90"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "walster@amazon.com",
+            "name": "Kern Walster",
+            "username": "Kern--"
+          },
+          "committer": {
+            "email": "kern.walster@gmail.com",
+            "name": "Kern Walster",
+            "username": "Kern--"
+          },
+          "distinct": true,
+          "id": "d96cd2d58828d1d5ebe41a97d9ab4e421e9cac30",
+          "message": "Prevent pushing SOCI index manifest v2\n\nSOCI index manifest v2 does not have a subject field and instead relies\non a connection to an image via an image index. Before this change, you\ncould use `soci push` to push a SOCI index manifest v2 without the rest\nof the image which is unusable without the image index. This change\ndetects SOCI index manifest v2 and skips the push.\n\nSigned-off-by: Kern Walster <walster@amazon.com>",
+          "timestamp": "2025-06-09T12:51:20-07:00",
+          "tree_id": "89a210f1fc0d59a0459a3f2b1dc62caf32103954",
+          "url": "https://github.com/awslabs/soci-snapshotter/commit/d96cd2d58828d1d5ebe41a97d9ab4e421e9cac30"
+        },
+        "date": 1749499253754,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "SociFullECR-public-mongo-lazyTaskDuration",
+            "value": 3.844,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-mongo-localTaskDuration",
+            "value": 0.3105,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-mongo-pullTaskDuration",
+            "value": 1.705,
             "unit": "Seconds",
             "extra": "P90"
           }
