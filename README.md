@@ -24,6 +24,9 @@ the container, and to instead lazily load data on demand, and also prefetch data
 
 ### No image conversion
 
+> **NOTE**
+> This section describes SOCI Index Manifest v1. While the lack of an image conversion step is appealing, for production scenarios it also creates the potential for performance changes across multiple dimensions if an index is added to or removed from an existing image that is widely deployed. To address these downsides, we introduced SOCI Index Manifest v2 which does use a build-time conversion step. For more information see the [SOCI Index Manifest v2 documentation](./docs/soci-index-manifest-v2.md)
+
 Existing lazy loading snapshotters rely on a build-time conversion step, to produce a new image artifact.
 This is problematic for container developers who won't or can't modify their CI/CD pipeline, or don't
 want to manage the cost and complexity of keeping copies of images in two formats. It also creates
