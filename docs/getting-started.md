@@ -43,8 +43,6 @@ The SOCI project produces 2 binaries:
 - `soci`: the CLI tool used to build/manage SOCI indices.
 - `soci-snapshotter-grpc`: the daemon (a containerd snapshotter plugin) used for lazy loading.
 
-Note that while the SOCI CLI is never explicitly used, nerdctl (used in this doc) uses it under the hood when given the flag `--snapshotter soci`.
-
 You can download prebuilt binaries from our [release page](https://github.com/awslabs/soci-snapshotter/releases)
 or [build them from source](./build.md).
 
@@ -100,16 +98,9 @@ echo $REGISTRY_PASSWORD | nerdctl login -u $REGISTRY_USER --password-stdin $REGI
 # needed the SOCI snapshotter which runs as root
 echo $REGISTRY_PASSWORD | sudo nerdctl login -u $REGISTRY_USER --password-stdin $REGISTRY
 sudo nerdctl pull docker.io/library/rabbitmq:latest
-sudo nerdctl image tag docker.io/library/rabbitmq:latest $REGISTRY/rabbitmq:latest
-sudo nerdctl push --platform linux/amd64 --snapshotter soci $REGISTRY/rabbitmq:latest
+sudo soci convert docker.io/library/rabbitmq:latest $REGISTRY/rabbitmq:latest
+sudo nerdctl push $REGISTRY/rabbitmq:latest
 ```
-
-Instead of converting the image format, the SOCI snapshotter uses the SOCI index
-associated with an image to implement its lazy loading. (For more details
-please see [README](../README.md#no-image-conversion).)
-Upon pushing with nerdctl, the `--snapshotter soci` flag causes it to
-create a SOCI index and manifest before pushing all associated files to the registry
-(the original image, the SOCI index, and manifest).
 
 After this step, please check your registry to confirm the image and SOCI index are present.
 You can go to your registry console or use your registry's CLI (e.g. for ECR, you
@@ -122,8 +113,8 @@ Behind the scene SOCI created two kinds of objects. One is a series of ztocs
 a manifest that relates the ztocs to their corresponding image layers and relates
 the entire SOCI index to a particular image manifest (i.e. a particular image for a particular platform).
 
-> We skip building ztocs for smaller layers (controlled by `--soci-min-layer-size` in
-> `nerdctl push`) because small layers don't benefit much from lazy loading.)
+> We skip building ztocs for smaller layers (controlled by `--min-layer-size` in
+> `soci convert`) because small layers don't benefit much from lazy loading.)
 >
 > When all layers are smaller than `min-layer-size`, soci CLI would fail.
 
@@ -205,9 +196,6 @@ sudo soci-snapshotter-grpc 2> ~/soci-snapshotter-errors 1> ~/soci-snapshotter-lo
 Once the snapshotter is running we can call the `pull` command from nerdctl.
 This command reads the manifest from the registry and mounts a FUSE filesystem
 for each layer.
-
-> The snapshotter will use the OCI distribution-spec's [Referrers API](https://github.com/opencontainers/distribution-spec/blob/v1.1.0/spec.md#listing-referrers)
-> (if available, otherwise the spec's [fallback mechanism](https://github.com/opencontainers/distribution-spec/blob/v1.1.0/spec.md#unavailable-referrers-api)) to fetch a list of available indices.
 
 ```shell
 sudo nerdctl pull --snapshotter soci $REGISTRY/rabbitmq:latest
