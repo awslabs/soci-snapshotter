@@ -526,7 +526,23 @@ func (fs *filesystem) premount(ctx context.Context, desc ocispec.Descriptor, ref
 		close(layerJob.errCh)
 	}()
 
-	archive := NewLayerArchive()
+	uncompressedDigest, ok := diffIDMap[desc.Digest.String()]
+	if !ok {
+		return fmt.Errorf("digest %s not found in image manifest", desc.Digest.String())
+	}
+
+	var decompressStream compression.DecompressStream
+	if ds, ok := compression.GetDecompressStream(desc.MediaType); ok {
+		decompressStream = ds
+	}
+
+	// If we discard unpacked layers, we must verify layer integrity ourselves.
+	var compressedVerifier digest.Verifier
+	if fs.discardUnpackedLayers {
+		compressedVerifier = desc.Digest.Verifier()
+	}
+
+	archive := NewLayerArchive(compressedVerifier, uncompressedDigest.Verifier(), decompressStream)
 	chunkSize := fs.pullModes.ParallelPullUnpack.ConcurrentDownloadChunkSize
 	fetcher, err := newParallelArtifactFetcher(refspec, fs.contentStore, remoteStore, layerJob, chunkSize)
 	if err != nil {
@@ -534,7 +550,7 @@ func (fs *filesystem) premount(ctx context.Context, desc ocispec.Descriptor, ref
 		return err
 	}
 
-	unpacker := NewLayerUnpacker(fetcher, archive)
+	unpacker := NewParallelLayerUnpacker(fetcher, archive, layerJob, fs.discardUnpackedLayers)
 	fsPath := layerJob.GetUnpackUpperPath()
 	err = unpacker.Unpack(ctx, desc, fsPath, []mount.Mount{})
 	if err != nil {
@@ -683,7 +699,6 @@ func (fs *filesystem) MountLocal(ctx context.Context, mountpoint string, labels 
 	// download the target layer
 	s := src[0]
 	client := s.Hosts[0].Client
-	archive := NewLayerArchive()
 	refspec, err := reference.Parse(imageRef)
 	if err != nil {
 		return fmt.Errorf("cannot parse image ref (%s): %w", imageRef, err)
@@ -696,7 +711,7 @@ func (fs *filesystem) MountLocal(ctx context.Context, mountpoint string, labels 
 	if err != nil {
 		return fmt.Errorf("cannot create fetcher: %w", err)
 	}
-	unpacker := NewLayerUnpacker(fetcher, archive)
+
 	desc := s.Target
 
 	// If the descriptor size is zero, the artifact fetcher will resolve it.
@@ -713,6 +728,26 @@ func (fs *filesystem) MountLocal(ctx context.Context, mountpoint string, labels 
 			return fmt.Errorf("cannot resolve size of layer (%s): %w", blobRef.String(), err)
 		}
 	}
+
+	imageDigest, ok := labels[ctdsnapshotters.TargetManifestDigestLabel]
+	if !ok {
+		return errors.New("layer has no image manifest attached")
+	}
+	manifest, err := fs.getImageManifest(ctx, imageDigest)
+	if err != nil {
+		return fmt.Errorf("cannot get image manifest: %w", err)
+	}
+	diffIDMap, err := fs.getDiffIDMap(ctx, manifest)
+	if err != nil {
+		return fmt.Errorf("error getting uncompressed shasums for image %s: %v", desc.Digest, err)
+	}
+	uncompressedDigest, ok := diffIDMap[desc.Digest.String()]
+	if !ok {
+		return fmt.Errorf("digest %s not found in image manifest", desc.Digest.String())
+	}
+
+	archive := NewLayerArchive(nil, uncompressedDigest.Verifier(), nil)
+	unpacker := NewLayerUnpacker(fetcher, archive)
 
 	err = unpacker.Unpack(ctx, desc, mountpoint, mounts)
 	if err != nil {
