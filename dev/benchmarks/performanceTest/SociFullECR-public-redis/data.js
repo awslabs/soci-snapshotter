@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1749665359937,
+  "lastUpdate": 1749674053895,
   "repoUrl": "https://github.com/awslabs/soci-snapshotter",
   "entries": {
     "Soci Benchmark": [
@@ -12506,6 +12506,48 @@ window.BENCHMARK_DATA = {
           {
             "name": "SociFullECR-public-redis-pullTaskDuration",
             "value": 1.06,
+            "unit": "Seconds",
+            "extra": "P90"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "walster@amazon.com",
+            "name": "Kern Walster",
+            "username": "Kern--"
+          },
+          "committer": {
+            "email": "kern.walster@gmail.com",
+            "name": "Kern Walster",
+            "username": "Kern--"
+          },
+          "distinct": true,
+          "id": "0a23f72a606f1105002c3a52ecbac4658722dff1",
+          "message": "Add pull_modes to example config\n\nSigned-off-by: Kern Walster <walster@amazon.com>",
+          "timestamp": "2025-06-11T13:26:20-07:00",
+          "tree_id": "802320761ff9769e32c89c792369ae02243d4f07",
+          "url": "https://github.com/awslabs/soci-snapshotter/commit/0a23f72a606f1105002c3a52ecbac4658722dff1"
+        },
+        "date": 1749674052196,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "SociFullECR-public-redis-lazyTaskDuration",
+            "value": 0.519,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-redis-localTaskDuration",
+            "value": 0.0225,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-redis-pullTaskDuration",
+            "value": 1.3245,
             "unit": "Seconds",
             "extra": "P90"
           }
