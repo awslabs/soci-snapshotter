@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1749665360916,
+  "lastUpdate": 1749674060808,
   "repoUrl": "https://github.com/awslabs/soci-snapshotter",
   "entries": {
     "Soci Benchmark": [
@@ -12465,6 +12465,48 @@ window.BENCHMARK_DATA = {
           {
             "name": "SociFullECR-public-busybox-pullTaskDuration",
             "value": 0.9339999999999999,
+            "unit": "Seconds",
+            "extra": "P90"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "walster@amazon.com",
+            "name": "Kern Walster",
+            "username": "Kern--"
+          },
+          "committer": {
+            "email": "kern.walster@gmail.com",
+            "name": "Kern Walster",
+            "username": "Kern--"
+          },
+          "distinct": true,
+          "id": "0a23f72a606f1105002c3a52ecbac4658722dff1",
+          "message": "Add pull_modes to example config\n\nSigned-off-by: Kern Walster <walster@amazon.com>",
+          "timestamp": "2025-06-11T13:26:20-07:00",
+          "tree_id": "802320761ff9769e32c89c792369ae02243d4f07",
+          "url": "https://github.com/awslabs/soci-snapshotter/commit/0a23f72a606f1105002c3a52ecbac4658722dff1"
+        },
+        "date": 1749674053446,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "SociFullECR-public-busybox-lazyTaskDuration",
+            "value": 0.015,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-busybox-localTaskDuration",
+            "value": 0.005,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-busybox-pullTaskDuration",
+            "value": 1.1035,
             "unit": "Seconds",
             "extra": "P90"
           }
