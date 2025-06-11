@@ -18,13 +18,16 @@ package fs
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"strings"
 
+	socicompression "github.com/awslabs/soci-snapshotter/internal/archive/compression"
 	"github.com/containerd/containerd/archive"
 	"github.com/containerd/containerd/archive/compression"
 	"github.com/containerd/containerd/mount"
+	"github.com/opencontainers/go-digest"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 )
 
@@ -43,21 +46,60 @@ type Archive interface {
 }
 
 type layerArchive struct {
+	verifier         *layerVerifier
+	decompressStream socicompression.DecompressStream
 }
 
-func NewLayerArchive() Archive {
-	return &layerArchive{}
+type layerVerifier struct {
+	compressed   digest.Verifier
+	uncompressed digest.Verifier
+}
+
+func NewLayerArchive(compressedVerifier, uncompressedVerifier digest.Verifier, decompressStream socicompression.DecompressStream) Archive {
+	// If no layer decompress stream was provided, then use containerd's decompress stream implementation.
+	if decompressStream == nil {
+		decompressStream = compression.DecompressStream
+	}
+	return &layerArchive{
+		verifier: &layerVerifier{
+			compressed:   compressedVerifier,
+			uncompressed: uncompressedVerifier,
+		},
+		decompressStream: decompressStream,
+	}
 }
 
 func (la *layerArchive) Apply(ctx context.Context, root string, r io.Reader, opts ...archive.ApplyOpt) (int64, error) {
-	// we use containerd implementation here
-	// decompress first and then apply
-	decompressReader, err := compression.DecompressStream(r)
+	// Decompress first, then apply.
+	if la.verifier.compressed != nil {
+		r = io.TeeReader(r, la.verifier.compressed)
+	}
+
+	decompressReader, err := la.decompressStream(r)
 	if err != nil {
 		return 0, fmt.Errorf("cannot decompress the stream: %w", err)
 	}
 	defer decompressReader.Close()
-	return archive.Apply(ctx, root, decompressReader, opts...)
+
+	verifiyReader := io.TeeReader(decompressReader, la.verifier.uncompressed)
+	n, err := archive.Apply(ctx, root, verifiyReader, opts...)
+	if err != nil {
+		return 0, err
+	}
+
+	// Read any trailing data to ensure digest validation
+	if _, err := io.Copy(io.Discard, verifiyReader); err != nil {
+		return 0, err
+	}
+
+	if !la.verifier.uncompressed.Verified() {
+		return 0, errors.New("uncompressed digests did not match")
+	}
+	if la.verifier.compressed != nil && !la.verifier.compressed.Verified() {
+		return 0, errors.New("compressed digests did not match")
+	}
+
+	return n, nil
 }
 
 type layerUnpacker struct {
