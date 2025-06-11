@@ -34,3 +34,7 @@ body:
   - type: textarea
     attributes:
       label: Any additional context or information about the bug
+      description: |
+        If this is an issue with lazy loading, please indicate how the snapshotter pulled the image. See [Determining how an image was pulled](../../docs/debug.md#determining-how-an-image-was-pulled) in the debugging doc for more information.
+    validations:
+      required: false
