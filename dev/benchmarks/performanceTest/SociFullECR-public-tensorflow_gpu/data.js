@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1749665364977,
+  "lastUpdate": 1749674052797,
   "repoUrl": "https://github.com/awslabs/soci-snapshotter",
   "entries": {
     "Soci Benchmark": [
@@ -12342,6 +12342,48 @@ window.BENCHMARK_DATA = {
           {
             "name": "SociFullECR-public-tensorflow_gpu-pullTaskDuration",
             "value": 5.338,
+            "unit": "Seconds",
+            "extra": "P90"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "walster@amazon.com",
+            "name": "Kern Walster",
+            "username": "Kern--"
+          },
+          "committer": {
+            "email": "kern.walster@gmail.com",
+            "name": "Kern Walster",
+            "username": "Kern--"
+          },
+          "distinct": true,
+          "id": "0a23f72a606f1105002c3a52ecbac4658722dff1",
+          "message": "Add pull_modes to example config\n\nSigned-off-by: Kern Walster <walster@amazon.com>",
+          "timestamp": "2025-06-11T13:26:20-07:00",
+          "tree_id": "802320761ff9769e32c89c792369ae02243d4f07",
+          "url": "https://github.com/awslabs/soci-snapshotter/commit/0a23f72a606f1105002c3a52ecbac4658722dff1"
+        },
+        "date": 1749674051327,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "SociFullECR-public-tensorflow_gpu-lazyTaskDuration",
+            "value": 12.739,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-tensorflow_gpu-localTaskDuration",
+            "value": 2.632,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-tensorflow_gpu-pullTaskDuration",
+            "value": 2.122,
             "unit": "Seconds",
             "extra": "P90"
           }
