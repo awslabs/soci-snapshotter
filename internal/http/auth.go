@@ -20,6 +20,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"net/url"
 	"sync"
 
 	rhttp "github.com/hashicorp/go-retryablehttp"
@@ -64,9 +65,8 @@ var DefaultAuthReqContext = func(reqCtx context.Context) context.Context {
 // for preparing valid responses/answers to challenges as well authenticating
 // requests. It wraps an inner retryable client, that is uses to send requests.
 //
-// Note: The AuthClient does not directly provide a mechanism for caching
-// credentials/tokens. Ideally, this should be handled by the underlying
-// AuthHandler.
+// Note: The AuthClient does provide a mechanism for caching credentials/tokens,
+// but these can expire. Ideally, this should be handled by the underlying AuthHandler.
 type AuthClient struct {
 	client     *rhttp.Client
 	handler    AuthHandler
@@ -74,6 +74,9 @@ type AuthClient struct {
 	getAuthCtx AuthReqContextFunc
 	header     http.Header
 	init       sync.Once
+	redirMap   map[string]string
+	redirMu    sync.Mutex
+	cacheRedir bool
 }
 
 type AuthClientOpt func(*AuthClient)
@@ -155,9 +158,18 @@ func (ac *AuthClient) Do(req *http.Request) (*http.Response, error) {
 		if err != nil {
 			return nil, err
 		}
+
+		if ac.shouldCache(req, resp) {
+			ac.redirMu.Lock()
+			defer ac.redirMu.Unlock()
+			ac.redirMap[req.URL.String()] = resp.Request.URL.String()
+		}
 		return resp, nil
 	}
 
+	if rd := ac.redirected(req); rd != nil {
+		req = rd
+	}
 	resp, err := roundTrip(req)
 	if err != nil {
 		return nil, err
@@ -193,17 +205,25 @@ func (ac *AuthClient) RoundTrip(req *http.Request) (*http.Response, error) {
 // retryable client. The new AuthClient will share the same headers, auth handler
 // and auth policy.
 func (ac *AuthClient) CloneWithNewClient(client *rhttp.Client) *AuthClient {
-	return &AuthClient{
+	nc := &AuthClient{
 		client:  client,
 		policy:  ac.policy,
 		handler: ac.handler,
 		header:  ac.header,
 	}
+	nc.init.Do(nc.initClient)
+	return nc
 }
 
 // Client returns the inner retryable client.
 func (ac *AuthClient) Client() *rhttp.Client {
 	return ac.client
+}
+
+// CacheRedirects tells the client whether or not it should cache any future requests.
+// It does NOT affect any existing items in the cache.
+func (ac *AuthClient) CacheRedirects(b bool) {
+	ac.cacheRedir = b
 }
 
 // initClient populates the AuthClient with a set of default values if they aren't already set.
@@ -217,4 +237,51 @@ func (ac *AuthClient) initClient() {
 	if ac.getAuthCtx == nil {
 		ac.getAuthCtx = DefaultAuthReqContext
 	}
+	ac.redirMap = make(map[string]string)
+}
+
+func (ac *AuthClient) redirected(req *http.Request) *http.Request {
+	if req.Method != http.MethodGet {
+		return nil
+	}
+
+	ac.redirMu.Lock()
+	u, ok := ac.redirMap[req.URL.String()]
+	ac.redirMu.Unlock()
+	if !ok {
+		return nil
+	}
+
+	newURL, err := url.Parse(u)
+	if err != nil {
+		return nil
+	}
+	r := req.Clone(ac.getAuthCtx(req.Context()))
+	r.URL = newURL
+	r.Host = newURL.Host
+	return r
+}
+
+func (ac *AuthClient) shouldCache(req *http.Request, resp *http.Response) bool {
+	if !ac.cacheRedir {
+		return false
+	}
+
+	// We only want to cache GET requests, as those are used to fetch content
+	if req.Method != http.MethodGet {
+		return false
+	}
+
+	if req.URL.String() == resp.Request.URL.String() {
+		return false
+	}
+
+	// Avoid caching non-200/206 responses.
+	switch resp.StatusCode {
+	case http.StatusOK, http.StatusPartialContent:
+	default:
+		return false
+	}
+
+	return true
 }
