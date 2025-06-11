@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1749665366568,
+  "lastUpdate": 1749674059116,
   "repoUrl": "https://github.com/awslabs/soci-snapshotter",
   "entries": {
     "Soci Benchmark": [
@@ -12424,6 +12424,48 @@ window.BENCHMARK_DATA = {
           {
             "name": "SociFullECR-public-mongo-pullTaskDuration",
             "value": 1.169,
+            "unit": "Seconds",
+            "extra": "P90"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "walster@amazon.com",
+            "name": "Kern Walster",
+            "username": "Kern--"
+          },
+          "committer": {
+            "email": "kern.walster@gmail.com",
+            "name": "Kern Walster",
+            "username": "Kern--"
+          },
+          "distinct": true,
+          "id": "0a23f72a606f1105002c3a52ecbac4658722dff1",
+          "message": "Add pull_modes to example config\n\nSigned-off-by: Kern Walster <walster@amazon.com>",
+          "timestamp": "2025-06-11T13:26:20-07:00",
+          "tree_id": "802320761ff9769e32c89c792369ae02243d4f07",
+          "url": "https://github.com/awslabs/soci-snapshotter/commit/0a23f72a606f1105002c3a52ecbac4658722dff1"
+        },
+        "date": 1749674053457,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "SociFullECR-public-mongo-lazyTaskDuration",
+            "value": 1.508,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-mongo-localTaskDuration",
+            "value": 0.298,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-mongo-pullTaskDuration",
+            "value": 1.2685,
             "unit": "Seconds",
             "extra": "P90"
           }
