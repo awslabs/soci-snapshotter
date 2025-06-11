@@ -527,8 +527,8 @@ func (fs *filesystem) premount(ctx context.Context, desc ocispec.Descriptor, ref
 	}()
 
 	archive := NewLayerArchive()
-
-	fetcher, err := newArtifactFetcher(refspec, fs.contentStore, remoteStore)
+	chunkSize := fs.pullModes.ParallelPullUnpack.ConcurrentDownloadChunkSize
+	fetcher, err := newParallelArtifactFetcher(refspec, fs.contentStore, remoteStore, layerJob, chunkSize)
 	if err != nil {
 		log.G(ctx).WithError(err).Error("cannot create fetcher")
 		return err
