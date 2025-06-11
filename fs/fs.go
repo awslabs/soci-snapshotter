@@ -474,8 +474,12 @@ func (fs *filesystem) findSociIndexDesc(ctx context.Context, imageManifestDigest
 	if fs.pullModes.SOCIv2.Enable {
 		log.G(ctx).Debug("checking for soci v2 index annotation")
 		desc, err := findSociIndexDescAnnotation(ctx, imgDigest, remoteStore)
-		if err == nil || !errors.Is(err, errdefs.ErrNotFound) {
-			return desc, err
+		if err == nil {
+			log.G(ctx).Debug("using soci v2 index annotation")
+			return desc, nil
+		}
+		if !errors.Is(err, errdefs.ErrNotFound) {
+			return ocispec.Descriptor{}, err
 		}
 		log.G(ctx).Debug("soci v2 index annotation not found")
 	} else {
@@ -486,8 +490,12 @@ func (fs *filesystem) findSociIndexDesc(ctx context.Context, imageManifestDigest
 	if fs.pullModes.SOCIv1.Enable {
 		log.G(ctx).Debug("checking for soci v1 index via referrers API")
 		desc, err := findSociIndexDescReferrer(ctx, imgDigest, remoteStore)
-		if err == nil || !errors.Is(err, ErrNoReferrers) {
-			return desc, err
+		if err == nil {
+			log.G(ctx).Debug("using soci v1 index via referrers API")
+			return desc, nil
+		}
+		if !errors.Is(err, ErrNoReferrers) {
+			return ocispec.Descriptor{}, err
 		}
 		log.G(ctx).Debug("soci v1 referrers not found")
 	} else {

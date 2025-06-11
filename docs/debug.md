@@ -12,6 +12,11 @@ This document outlines where to find/access logs and metrics for the snapshotter
     - [Metrics Emitted](#metrics-emitted)
 - [Common Scenarios](#common-scenarios)
   - [Pulling an Image](#pulling-an-image)
+    - [Determining How an Image Was Pulled](#determining-how-an-image-was-pulled)
+      - [Explicit Index Digest](#explicit-index-digest)
+      - [SOCI Index Manifest v2 via SOCI-Enabled Images](#soci-index-manifest-v2-via-soci-enabled-images)
+      - [SOCI Index Manifest v1 via The Referrers API](#soci-index-manifest-v1-via-the-referrers-api)
+      - [Ahead of Time Without a SOCI Index](#ahead-of-time-without-a-soci-index)
     - [No lazy-loading](#no-lazy-loading)
     - [Pull Taking An Abnormal Amount Of Time](#pull-taking-an-abnormal-amount-of-time)
     - [Background Fetching](#background-fetching)
@@ -102,6 +107,57 @@ Below are some common scenarios that may occur during pulling and the lifetime o
 While pulling, the image manifest, config, and layers without zTOCs' are fetched from the remote registry directly. Layers that have a zTOC are mounted as a `FUSE` file system and will be pulled lazily when launching a container.
 
 Below are a list of common error paths that may occur in this phase:
+
+### Determining How an Image Was Pulled
+
+The SOCI snapshotter can pull an image using one of four modes:
+1) Lazily using an explicitly provided SOCI index digest
+2) Lazily using a SOCI index manifest v2 via SOCI-enabled images
+3) Lazily using a SOCI index manifest v1 via the Referrers API
+4) Ahead of time without a SOCI index
+
+Determining which of these mode was used is often a good first step for debugging image pull issues.
+
+When the SOCI snapshotter starts to pull an image, it will emit a set of debug logs to indicate which modes were tried and which was ultimately used.
+
+#### Explicit Index Digest
+If the SOCI snapshotter finds an explicit index digest, it will use it and log the following message:
+```
+using provided soci index digest
+```
+
+#### SOCI Index Manifest v2 via SOCI-Enabled Images
+If an explicit index digest was not provided. The SOCI snapshotter will try to use a SOCI-enabled image.
+
+If `pull_modes.soci_v2.enabled` is `false`, the snapshotter will log:
+```
+soci v2 is disabled
+```
+
+Otherwise, if it find that the image is SOCI-enabled, it will log:
+```
+using soci v2 index annotation
+```
+
+#### SOCI Index Manifest v1 via The Referrers API
+If the image is not SOCI-enabled, the SOCI snapshotter will try to use the referrers API.
+
+If `pull_modes.soci_v1.enabled` is `false` (it is false by default), the SOCI snapshotter will log:
+```
+soci v1 is disabled
+```
+
+Otherwise, if it finds a SOCI index via the referrers API, it will log:
+```
+using soci v1 index via referrers API
+```
+
+#### Ahead of Time Without a SOCI Index
+If none of the above apply, the SOCI snapshotter will pull the image ahead of time and log:
+
+```
+deferring to container runtime
+```
 
 ### No lazy-loading
 
