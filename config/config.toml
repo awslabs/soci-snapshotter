@@ -39,6 +39,16 @@ ResponseHeaderTimeoutMsec=0
 RequestTimeoutMsec=0
 
 #
+## config/pull_modes.go
+#
+[pull_modes]
+  [pull_modes.soci_v1]
+    enable = false
+
+  [pull_modes.soci_v2]
+    enable = true
+
+#
 ## config/fs.go
 #
 
