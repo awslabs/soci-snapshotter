@@ -24,9 +24,11 @@ import (
 	"io"
 	"mime"
 	"net/http"
+	"net/url"
 	"strconv"
 
 	sociremote "github.com/awslabs/soci-snapshotter/fs/remote"
+	socihttp "github.com/awslabs/soci-snapshotter/internal/http"
 	"github.com/awslabs/soci-snapshotter/soci"
 	"github.com/awslabs/soci-snapshotter/soci/store"
 	"github.com/awslabs/soci-snapshotter/util/ioutils"
@@ -40,6 +42,7 @@ import (
 	"oras.land/oras-go/v2/errdef"
 	"oras.land/oras-go/v2/registry"
 	"oras.land/oras-go/v2/registry/remote"
+	"oras.land/oras-go/v2/registry/remote/errcode"
 )
 
 type Fetcher interface {
@@ -119,6 +122,26 @@ func (r *orasBlobStore) Resolve(ctx context.Context, reference string) (ocispec.
 	}, nil
 }
 
+// We use our own Fetch function to ensure sensitive information gets redacted from any Fetch calls
+func (r *orasBlobStore) Fetch(ctx context.Context, target ocispec.Descriptor) (io.ReadCloser, error) {
+	rc, err := r.Repository.Fetch(ctx, target)
+	if err != nil {
+		switch retErr := err.(type) {
+		// Redact URLs from ORAS errors, as they might have sensitive info cached
+		case *errcode.ErrorResponse:
+			socihttp.RedactHTTPQueryValuesFromURL(retErr.URL)
+			return nil, retErr
+		// Eat URL errors as a malformed URL might still have credentials.
+		case *url.Error:
+			return nil, errors.New("URL error during fetch")
+		// Otherwise it should be safe to print
+		default:
+			return nil, err
+		}
+	}
+	return rc, nil
+}
+
 // This wrapper is to allow a [remote.Client] to implement the
 // [http.RoundTripper] interface by calling Client.Do() in place of RoundTrip.
 type clientWrapper struct {
@@ -156,7 +179,11 @@ func newArtifactFetcher(refspec reference.Spec, localStore store.BasicStore, rem
 // Takes in a descriptor and returns the associated ref to fetch from remote.
 // i.e. <hostname>/<repo>@<digest>
 func (f *artifactFetcher) constructRef(desc ocispec.Descriptor) string {
-	return fmt.Sprintf("%s@%s", f.refspec.Locator, desc.Digest.String())
+	return constructRef(f.refspec, desc)
+}
+
+func constructRef(refspec reference.Spec, desc ocispec.Descriptor) string {
+	return fmt.Sprintf("%s@%s", refspec.Locator, desc.Digest.String())
 }
 
 // Fetches the artifact identified by the descriptor.

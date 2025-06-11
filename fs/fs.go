@@ -68,7 +68,9 @@ import (
 	"github.com/awslabs/soci-snapshotter/fs/source"
 	"github.com/awslabs/soci-snapshotter/idtools"
 	"github.com/awslabs/soci-snapshotter/internal/archive/compression"
+	socihttp "github.com/awslabs/soci-snapshotter/internal/http"
 	"github.com/awslabs/soci-snapshotter/metadata"
+	"github.com/awslabs/soci-snapshotter/service/resolver"
 	"github.com/awslabs/soci-snapshotter/snapshot"
 	"github.com/awslabs/soci-snapshotter/soci"
 	"github.com/awslabs/soci-snapshotter/soci/store"
@@ -478,11 +480,33 @@ func (fs *filesystem) preloadAllLayers(ctx context.Context, desc ocispec.Descrip
 	if !ok {
 		return errors.New("namespace not attached to context")
 	}
-
+	// Clone client if it's our internal [socihttp.AuthClient]
+	// so that this image pull request has an isolated client reference.
 	client := cachedClient
+	if authClient, ok := cachedClient.Transport.(*socihttp.AuthClient); ok {
+		retryClient := resolver.CloneRetryableClient(authClient.Client())
+		// The clone will have a cleaned cache
+		newAuthClient := authClient.CloneWithNewClient(retryClient)
+		// It's worth noting we don't ever directly clear the cache after this.
+		// This client is used to create the remoteStore, which falls
+		// out of scope after all layers are finished premounting,
+		// which should trigger Go's garbage collector, so it should
+		// be safe to never clear the cache and let Go handle it.
+		newAuthClient.CacheRedirects(true)
+		client = &http.Client{
+			Transport: newAuthClient,
+		}
+	}
 	remoteStore, err := newRemoteBlobStore(refspec, client)
 	if err != nil {
 		return fmt.Errorf("cannot create remote store: %w", err)
+	}
+	// // We don't have to preauthorize if we only do one request at a time
+	if fs.inProgressImageUnpacks.imagePullCfg.MaxConcurrentDownloadsPerImage != 1 {
+		err = doInitialFetch(ctx, remoteStore, refspec, desc)
+		if err != nil {
+			return fmt.Errorf("error doing initial client fetch: %w", err)
+		}
 	}
 
 	premountCtx, cancel := context.WithCancelCause(context.Background())
@@ -672,6 +696,26 @@ func (fs *filesystem) getImageManifest(ctx context.Context, dgst string) (*ocisp
 	}
 
 	return &manifest, nil
+}
+
+// doInitialFetch makes a dummy call to the specified content, allowing the authClient
+// to make a single request to pre-populate fields for future requests for the same content.
+// This is only called in the ParallelPull path as sparse index cases will only ever call each layer sequentially.
+func doInitialFetch(ctx context.Context, remoteStore resolverStorage, refspec reference.Spec, desc ocispec.Descriptor) error {
+	var err error
+	if desc.Size == 0 {
+		desc, err = remoteStore.Resolve(ctx, constructRef(refspec, desc))
+		if err != nil {
+			return fmt.Errorf("error resolving descriptor: %w", err)
+		}
+	}
+
+	rc, err := remoteStore.Fetch(ctx, desc)
+	if err != nil {
+		return fmt.Errorf("error doing fetch call: %w", err)
+	}
+	rc.Close()
+	return nil
 }
 
 // CleanImage stops all parallel operations for the specific image.
