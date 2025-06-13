@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1749674055976,
+  "lastUpdate": 1749857347570,
   "repoUrl": "https://github.com/awslabs/soci-snapshotter",
   "entries": {
     "Soci Benchmark": [
@@ -12343,6 +12343,48 @@ window.BENCHMARK_DATA = {
           {
             "name": "SociFullECR-public-rabbitmq-pullTaskDuration",
             "value": 1.3465,
+            "unit": "Seconds",
+            "extra": "P90"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "walster@amazon.com",
+            "name": "Kern Walster",
+            "username": "Kern--"
+          },
+          "committer": {
+            "email": "kern.walster@gmail.com",
+            "name": "Kern Walster",
+            "username": "Kern--"
+          },
+          "distinct": true,
+          "id": "edb6dcfebbc00731896935d1701c5177a3e7069b",
+          "message": "Add debug documentation for pull mode\n\nThis change adds information to debug how the SOCI snapshotter pulls an\nimage.\n\nSigned-off-by: Kern Walster <walster@amazon.com>",
+          "timestamp": "2025-06-13T16:20:58-07:00",
+          "tree_id": "00fc359dc03c99912c8e3e3d995fb7c661c8bc69",
+          "url": "https://github.com/awslabs/soci-snapshotter/commit/edb6dcfebbc00731896935d1701c5177a3e7069b"
+        },
+        "date": 1749857341063,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "SociFullECR-public-rabbitmq-lazyTaskDuration",
+            "value": 11.6525,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-rabbitmq-localTaskDuration",
+            "value": 9.184999999999999,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-rabbitmq-pullTaskDuration",
+            "value": 1.2955,
             "unit": "Seconds",
             "extra": "P90"
           }
