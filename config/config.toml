@@ -43,10 +43,6 @@ discard_unpacked_layers=false
 path = "/usr/bin/gzip"
 args = ["-d", "-c"]
 
-[pull_modes.parallel_pull_unpack.decompress_streams."zstd"]
-path = "/usr/bin/zstd"
-args = ["-d", "-c"]
-
 [http]
 MaxRetries=0
 MinWaitMsec=0

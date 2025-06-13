@@ -353,6 +353,37 @@ func withPullModes(pullModes config.PullModes) snapshotterConfigOpt {
 	}
 }
 
+func withParallelPullMode() snapshotterConfigOpt {
+	return withPullModes(config.PullModes{
+		SOCIv1: config.V1{
+			Enable: false,
+		},
+		SOCIv2: config.V2{
+			Enable: false,
+		},
+
+		ParallelPullUnpack: config.ParallelPullUnpack{
+			Enable: true,
+		},
+	})
+}
+
+func withUnboundedPullUnpack() snapshotterConfigOpt {
+	return func(c *config.Config) {
+		c.PullModes.ParallelPullUnpack.MaxConcurrentDownloads = -1
+		c.PullModes.ParallelPullUnpack.MaxConcurrentDownloadsPerImage = -1
+		c.PullModes.ParallelPullUnpack.ConcurrentDownloadChunkSize = 8 * 1024 * 1024 // 8 MiB
+		c.PullModes.ParallelPullUnpack.MaxConcurrentUnpacks = -1
+		c.PullModes.ParallelPullUnpack.MaxConcurrentUnpacksPerImage = -1
+	}
+}
+
+func withDiscardUnpackedLayers() snapshotterConfigOpt {
+	return func(c *config.Config) {
+		c.PullModes.ParallelPullUnpack.DiscardUnpackedLayers = true
+	}
+}
+
 func withContainerdContentStore() snapshotterConfigOpt {
 	return func(c *config.Config) {
 		c.ContentStoreConfig.Type = store.ContainerdContentStoreType
