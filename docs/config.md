@@ -48,7 +48,7 @@ This set of variables must be at the top of your TOML file due to not belonging 
 - `MaxWaitMsec` (int) — Max time between network request attempts. Default: 300000.
 - `DialTimeoutMsec` (int) — Max time for a connection before timeout. Default: 3000.
 - `ResponseHeaderTimeoutMsec` (int) — Maximum duration waiting for response headers before timeout. Default: 3000.
-- `RequestTimeoutMsec` (int) — Maximum duration waiting for entire request before timeout. Default: 30000.
+- `RequestTimeoutMsec` (int) — Maximum duration waiting for entire request before timeout. Default: 300000.
 
 ### [blob]
 - `valid_interval` (int) — Checks blob regularly at this interval in seconds. Default: 60.
