@@ -29,42 +29,25 @@ const sensitiveInfoMonitorKey = "sensitive-info-monitor"
 func TestSnapshotterDoesNotLogSensitiveInformation(t *testing.T) {
 	image := rabbitmqImage
 
-	disableLazyLoading := `
-	 [snapshotter]
-	 disable_lazy_loading = true
-	 `
-
 	testCases := []struct {
-		name                     string
-		getSnapshotterConfigToml func(*testing.T, bool) string
+		name string
+		opts []snapshotterConfigOpt
 	}{
 		{
 			name: "basic image pull",
-			getSnapshotterConfigToml: func(t *testing.T, disableVerification bool) string {
-				return getSnapshotterConfigToml(t, disableVerification)
-			},
+			opts: []snapshotterConfigOpt{},
 		},
 		{
 			name: "default parallel image pull",
-			getSnapshotterConfigToml: func(t *testing.T, disableVerification bool) string {
-				cfg := getDefaultImagePullConfig()
-				return getSnapshotterConfigToml(t, disableVerification, disableLazyLoading, getImagePullToml(t, cfg))
-			},
+			opts: []snapshotterConfigOpt{withContainerdContentStore(), withParallelPullMode()},
 		},
 		{
 			name: "unbounded parallel image pull",
-			getSnapshotterConfigToml: func(t *testing.T, disableVerification bool) string {
-				cfg := getUnboundedImagePullConfig()
-				return getSnapshotterConfigToml(t, disableVerification, disableLazyLoading, getImagePullToml(t, cfg))
-			},
+			opts: []snapshotterConfigOpt{withContainerdContentStore(), withParallelPullMode(), withUnboundedPullUnpack()},
 		},
 		{
 			name: "discard unpacked layers",
-			getSnapshotterConfigToml: func(t *testing.T, disableVerification bool) string {
-				cfg := getDefaultImagePullConfig()
-				cfg.DiscardUnpackedLayers = true
-				return getSnapshotterConfigToml(t, disableVerification, disableLazyLoading, getImagePullToml(t, cfg))
-			},
+			opts: []snapshotterConfigOpt{withContainerdContentStore(), withDiscardUnpackedLayers()},
 		},
 	}
 
@@ -76,7 +59,7 @@ func TestSnapshotterDoesNotLogSensitiveInformation(t *testing.T) {
 				done()
 			})
 
-			logMonitor := rebootContainerd(t, sh, getContainerdConfigToml(t, false), tc.getSnapshotterConfigToml(t, false))
+			logMonitor := rebootContainerd(t, sh, getContainerdConfigToml(t, false), getSnapshotterConfigToml(t, tc.opts...))
 			logMonitor.Add(sensitiveInfoMonitorKey, sensitiveInfoMonitor(t, sensitivePatterns...))
 			t.Cleanup(func() {
 				logMonitor.Remove(sensitiveInfoMonitorKey)

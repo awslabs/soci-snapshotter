@@ -872,3 +872,134 @@ func TestFullLayerRead(t *testing.T) {
 		t.Fatalf("Expected 100%% fetchedPercent, found %v", layers.FetchedPercent)
 	}
 }
+
+func TestPullWithParallelism(t *testing.T) {
+	img := rabbitmqImage
+
+	fetchCases := []struct {
+		name string
+		opts []snapshotterConfigOpt
+	}{
+		{
+			name: "no parallel fetching",
+		},
+		{
+			name: "set chunk size",
+			opts: []snapshotterConfigOpt{
+				func(cfg *config.Config) {
+					cfg.PullModes.ParallelPullUnpack.ConcurrentDownloadChunkSize = 1_000_000
+				},
+			},
+		},
+	}
+
+	unpackCases := []struct {
+		name string
+		opts []snapshotterConfigOpt
+	}{
+		{
+			name: "no parallel unpacking",
+		},
+		{
+			name: "parallel unpacking",
+			opts: []snapshotterConfigOpt{
+				func(cfg *config.Config) {
+					cfg.PullModes.ParallelPullUnpack.MaxConcurrentUnpacks = 3
+				},
+			},
+		},
+	}
+
+	for _, fetch := range fetchCases {
+		for _, unpack := range unpackCases {
+			testName := fmt.Sprintf("run fetch with %s run unpack with %s", fetch.name, unpack.name)
+			t.Run(testName, func(t *testing.T) {
+				regConfig := newRegistryConfig()
+				sh, done := newShellWithRegistry(t, regConfig)
+				defer done()
+
+				opts := append([]snapshotterConfigOpt{withParallelPullMode(), withTCPMetrics, withContainerdContentStore()}, fetch.opts...)
+				opts = append(opts, unpack.opts...)
+
+				rebootContainerd(t, sh, getContainerdConfigToml(t, false), getSnapshotterConfigToml(t, opts...))
+
+				copyImage(sh, dockerhub(img), regConfig.mirror(img))
+				imgRef := regConfig.mirror(img).ref
+				sh.X(append(imagePullCmd, imgRef)...)
+
+				curlOutput := string(sh.O("curl", tcpMetricsAddress+metricsPath))
+				checkLocalMountFailureMetrics(t, curlOutput, 0)
+			})
+		}
+	}
+}
+
+// TestPullWithDecompressStreams asserts the snapshotter can be configured to use custom decompress streams.
+func TestPullWithDecompressStreams(t *testing.T) {
+	img := rabbitmqImage
+
+	tests := []struct {
+		name string
+		opts []snapshotterConfigOpt
+	}{
+		{
+			name: "no decompression streams",
+			opts: []snapshotterConfigOpt{},
+		},
+		{
+			name: "rapidgzip",
+			opts: []snapshotterConfigOpt{
+				func(cfg *config.Config) {
+					cfg.PullModes.ParallelPullUnpack.DecompressStreams = make(map[string]config.DecompressStream, 1)
+					cfg.PullModes.ParallelPullUnpack.DecompressStreams["gzip"] = config.DecompressStream{
+						Path: "/usr/local/bin/rapidgzip",
+						Args: []string{"-d", "-c"},
+					}
+				},
+			},
+		},
+		{
+			name: "igzip",
+			opts: []snapshotterConfigOpt{
+				func(cfg *config.Config) {
+					cfg.PullModes.ParallelPullUnpack.DecompressStreams = make(map[string]config.DecompressStream, 1)
+					cfg.PullModes.ParallelPullUnpack.DecompressStreams["gzip"] = config.DecompressStream{
+						Path: "/usr/local/bin/igzip",
+						Args: []string{"-d", "-c"},
+					}
+				},
+			},
+		},
+		{
+			name: "pigz",
+			opts: []snapshotterConfigOpt{
+				func(cfg *config.Config) {
+					cfg.PullModes.ParallelPullUnpack.DecompressStreams = make(map[string]config.DecompressStream, 1)
+					cfg.PullModes.ParallelPullUnpack.DecompressStreams["gzip"] = config.DecompressStream{
+						Path: "/usr/bin/unpigz",
+						Args: []string{"-d", "-c"},
+					}
+				},
+			},
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			regConfig := newRegistryConfig()
+			sh, done := newShellWithRegistry(t, regConfig)
+			defer done()
+
+			opts := append([]snapshotterConfigOpt{withContainerdContentStore(), withParallelPullMode(), withTCPMetrics}, test.opts...)
+
+			rebootContainerd(t, sh, getContainerdConfigToml(t, false), getSnapshotterConfigToml(t, opts...))
+
+			copyImage(sh, dockerhub(img), regConfig.mirror(img))
+			imgRef := regConfig.mirror(img).ref
+			sh.X(append(imagePullCmd, imgRef)...)
+
+			curlOutput := string(sh.O("curl", tcpMetricsAddress+metricsPath))
+			checkLocalMountFailureMetrics(t, curlOutput, 0)
+		})
+	}
+}

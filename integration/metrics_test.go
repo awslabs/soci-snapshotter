@@ -469,3 +469,23 @@ func checkMetricExists(output, metric string) bool {
 	}
 	return false
 }
+
+// checkLocalMountFailureMetrics checks if the local mount failure metric is emitted the specified number of times
+func checkLocalMountFailureMetrics(t *testing.T, output string, expectedCount int) {
+	metricCountSum := 0
+
+	lines := strings.Split(output, "\n")
+	for _, line := range lines {
+		if strings.Contains(line, commonmetrics.LocalMountFailureCount) {
+			parts := strings.Split(line, " ")
+			if metricCount, err := strconv.Atoi(parts[len(parts)-1]); err == nil && metricCount != 0 {
+				metricCountSum += metricCount
+				break
+			}
+		}
+	}
+
+	if metricCountSum != expectedCount {
+		t.Fatalf("incorrect local mount failure metric count: expected %v; got %v", expectedCount, metricCountSum)
+	}
+}
