@@ -19,6 +19,7 @@ package fs
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/containerd/containerd/archive"
 	"github.com/containerd/containerd/mount"
@@ -77,6 +78,7 @@ func (lu *parallelLayerUnpacker) Unpack(ctx context.Context, desc ocispec.Descri
 		})
 	}
 
+	startTime := time.Now()
 	opts := []archive.ApplyOpt{
 		archive.WithConvertWhiteout(archive.OverlayConvertWhiteout),
 	}
@@ -98,6 +100,7 @@ func (lu *parallelLayerUnpacker) Unpack(ctx context.Context, desc ocispec.Descri
 		return fmt.Errorf("cannot apply layer: %w", err)
 	}
 
-	log.G(ctx).WithField("digest", desc.Digest).WithField("mountpoint", mountpoint).Debug("Layer successfully unpacked")
+	log.G(ctx).WithFields(log.Fields{"digest": desc.Digest.String(), "size": desc.Size,
+		"mountpoint": mountpoint, "latency_ms": time.Since(startTime).Milliseconds()}).Debug("Layer successfully unpacked")
 	return errGroup.Wait()
 }
