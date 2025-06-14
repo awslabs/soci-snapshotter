@@ -465,6 +465,11 @@ func (o *snapshotter) Prepare(ctx context.Context, key, parent string, opts ...s
 		return nil, err
 	}
 	log.G(lCtx).WithField(remoteSnapshotLogKey, prepareFailed).WithError(err).Debug("skipped preparing remote snapshot")
+	if o.parallelPullUnpack {
+		// If parallel pull/unpack fails, then we should not defer to the container runtime
+		// and just return the error.
+		return nil, err
+	}
 
 	// Local snapshot setup failed. Generally means something critical has gone wrong.
 	log.G(lCtx).WithField(deferredSnapshotLogKey, prepareSucceeded).

@@ -25,6 +25,7 @@ import (
 	"os"
 	"sync"
 	"sync/atomic"
+	"time"
 
 	"github.com/awslabs/soci-snapshotter/soci/store"
 	"github.com/containerd/containerd/reference"
@@ -62,7 +63,6 @@ func newParallelArtifactFetcher(refspec reference.Spec, localStore store.BasicSt
 // If not found, if constructs the ref and writes to a temporary file on disk,
 // then returns the readcloser for that file.
 func (f *parallelArtifactFetcher) Fetch(ctx context.Context, desc ocispec.Descriptor) (io.ReadCloser, bool, error) {
-
 	// Check local store first
 	rc, err := f.localStore.Fetch(ctx, desc)
 	if err == nil {
@@ -70,6 +70,7 @@ func (f *parallelArtifactFetcher) Fetch(ctx context.Context, desc ocispec.Descri
 	}
 
 	log.G(ctx).WithField("digest", desc.Digest.String()).Infof("fetching artifact from remote")
+	startTime := time.Now()
 	if desc.Size == 0 {
 		// Digest verification fails is desc.Size == 0
 		// Therefore, we try to use the resolver to resolve the descriptor
@@ -89,6 +90,12 @@ func (f *parallelArtifactFetcher) Fetch(ctx context.Context, desc ocispec.Descri
 		return nil, false, fmt.Errorf("unable to fetch descriptor (%v) from remote store: %w", desc.Digest, err)
 	}
 
+	log.G(ctx).WithFields(
+		log.Fields{
+			"digest":     desc.Digest.String(),
+			"size":       desc.Size,
+			"latency_ms": time.Since(startTime).Milliseconds(),
+		}).Debug("Artifact successfully fetched from remote")
 	return rc, false, nil
 }
 
