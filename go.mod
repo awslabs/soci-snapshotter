@@ -16,7 +16,7 @@ require (
 	github.com/google/go-cmp v0.7.0
 	github.com/google/uuid v1.6.0
 	github.com/hanwen/go-fuse/v2 v2.7.3-0.20250115180623-d6170d09d743
-	github.com/hashicorp/go-retryablehttp v0.7.7
+	github.com/hashicorp/go-retryablehttp v0.7.8
 	github.com/klauspost/compress v1.18.0
 	github.com/moby/sys/mountinfo v0.7.2
 	github.com/montanaflynn/stats v0.7.1
