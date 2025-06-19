@@ -517,7 +517,7 @@ func (fs *filesystem) preloadAllLayers(ctx context.Context, desc ocispec.Descrip
 
 				// We don't have to preauthorize if we only do one request at a time
 				if fs.inProgressImageUnpacks.imagePullCfg.MaxConcurrentDownloadsPerImage != 1 {
-					err = doInitialFetch(ctx, remoteStore, refspec, desc)
+					err = remoteStore.doInitialFetch(ctx, constructRef(refspec, desc))
 					if err != nil {
 						return fmt.Errorf("error doing initial client fetch: %w", err)
 					}
@@ -697,26 +697,6 @@ func (fs *filesystem) getImageManifest(ctx context.Context, dgst string) (*ocisp
 	}
 
 	return &manifest, nil
-}
-
-// doInitialFetch makes a dummy call to the specified content, allowing the authClient
-// to make a single request to pre-populate fields for future requests for the same content.
-// This is only called in the ParallelPull path as sparse index cases will only ever call each layer sequentially.
-func doInitialFetch(ctx context.Context, remoteStore resolverStorage, refspec reference.Spec, desc ocispec.Descriptor) error {
-	var err error
-	if desc.Size == 0 {
-		desc, err = remoteStore.Resolve(ctx, constructRef(refspec, desc))
-		if err != nil {
-			return fmt.Errorf("error resolving descriptor: %w", err)
-		}
-	}
-
-	rc, err := remoteStore.Fetch(ctx, desc)
-	if err != nil {
-		return fmt.Errorf("error doing fetch call: %w", err)
-	}
-	rc.Close()
-	return nil
 }
 
 // CleanImage stops all parallel operations for the specific image.

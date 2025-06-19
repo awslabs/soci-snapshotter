@@ -184,10 +184,13 @@ func (f *parallelArtifactFetcher) fetchFromRemoteAndWriteToTempDir(ctx context.C
 		}
 
 		// Do initial fetch call to cache the redirected URL
+		// as long as we're using our blob store implementation.
 		if i == 0 && numLoops > 1 {
-			err = doInitialFetch(ctx, f.remoteStore, f.refspec, desc)
-			if err != nil {
-				return nil, fmt.Errorf("error doing initial authorization for layer: %w", err)
+			if rs, ok := f.remoteStore.(*orasBlobStore); ok {
+				err = rs.doInitialFetch(ctx, f.constructRef(desc))
+				if err != nil {
+					return nil, fmt.Errorf("error doing initial authorization for layer: %w", err)
+				}
 			}
 		}
 

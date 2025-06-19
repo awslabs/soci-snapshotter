@@ -142,6 +142,26 @@ func (r *orasBlobStore) Fetch(ctx context.Context, target ocispec.Descriptor) (i
 	return rc, nil
 }
 
+// doInitialFetch makes a dummy call to the specified content, allowing the authClient
+// to make a single request to pre-populate fields for future requests for the same content.
+// This is only called in the ParallelPull path as sparse index cases will only ever call each layer sequentially.
+func (r *orasBlobStore) doInitialFetch(ctx context.Context, reference string) error {
+	ref, err := registry.ParseReference(reference)
+	if err != nil {
+		return err
+	}
+
+	tr := &clientWrapper{r.Client}
+	url := sociremote.CraftBlobURL(reference, ref)
+	rc, err := sociremote.GetHeaderWithGet(ctx, url, tr)
+	if err != nil {
+		return fmt.Errorf("error getting header info: %v", err)
+	}
+	socihttp.Drain(rc.Body)
+
+	return nil
+}
+
 // This wrapper is to allow a [remote.Client] to implement the
 // [http.RoundTripper] interface by calling Client.Do() in place of RoundTrip.
 type clientWrapper struct {

@@ -71,6 +71,8 @@ func Drain(body io.ReadCloser) {
 
 	// We want to consume response bodies to maintain HTTP connections,
 	// but also want to limit the size read. 4KiB is arbitrary but reasonable.
+	// Anything bigger would likely get better performance from
+	// just closing the connection and establishing a new one.
 	const responseReadLimit = int64(4096)
 	_, _ = io.Copy(io.Discard, io.LimitReader(body, responseReadLimit))
 }
