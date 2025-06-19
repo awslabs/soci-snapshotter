@@ -501,13 +501,6 @@ func (fs *filesystem) preloadAllLayers(ctx context.Context, desc ocispec.Descrip
 	if err != nil {
 		return fmt.Errorf("cannot create remote store: %w", err)
 	}
-	// // We don't have to preauthorize if we only do one request at a time
-	if fs.inProgressImageUnpacks.imagePullCfg.MaxConcurrentDownloadsPerImage != 1 {
-		err = doInitialFetch(ctx, remoteStore, refspec, desc)
-		if err != nil {
-			return fmt.Errorf("error doing initial client fetch: %w", err)
-		}
-	}
 
 	premountCtx, cancel := context.WithCancelCause(context.Background())
 	premountCtx = namespaces.WithNamespace(premountCtx, ns)
@@ -521,6 +514,14 @@ func (fs *filesystem) preloadAllLayers(ctx context.Context, desc ocispec.Descrip
 		if images.IsLayerType(l.MediaType) {
 			if l.Digest.String() == desc.Digest.String() {
 				startPremounting = true
+
+				// We don't have to preauthorize if we only do one request at a time
+				if fs.inProgressImageUnpacks.imagePullCfg.MaxConcurrentDownloadsPerImage != 1 {
+					err = doInitialFetch(ctx, remoteStore, refspec, desc)
+					if err != nil {
+						return fmt.Errorf("error doing initial client fetch: %w", err)
+					}
+				}
 			}
 			if startPremounting {
 				layerJob, err := fs.inProgressImageUnpacks.AddLayerJob(imageJob, l.Digest.String())
