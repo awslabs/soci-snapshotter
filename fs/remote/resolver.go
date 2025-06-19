@@ -457,18 +457,29 @@ func CraftBlobURL(reference string, ref registry.Reference) string {
 }
 
 func GetHeader(ctx context.Context, realURL string, rt http.RoundTripper) (*http.Response, error) {
-	statusCodes := []int{0, 0}
+	statusCodes := []int{0, 0, 0}
 
 	// Some repos do not allow us to make HEAD calls (e.g.
-	// ECR Public does not allow HEAD calls with default credentials),
-	// so try twice — once with HEAD, once with GET.
-	methods := []string{http.MethodHead, http.MethodGet}
+	// ECR Public does not allow HEAD calls with default credentials).
+	// Additionally, some repos do not support ranged GET requests
+	// (though some will still return a 200 OK anyway).
+	// To try and catch all of these edge cases, we try 3 times
+	// and return on the first successful attempt.
+
+	//      The first attempt will be a HEAD request.
+	//      The second attempt will be a ranged GET request for 1 byte.
+	//              This will allow us to reuse the connection.
+	//
+	//      The third attempt will be a normal GET request, which
+	//              is a last-resort as it will fetch the whole blob. This will
+	//              usually result in having to establish a new connection after this call.
+	methods := []string{http.MethodHead, http.MethodGet, http.MethodGet}
 	for i, method := range methods {
 		req, err := http.NewRequestWithContext(ctx, method, realURL, nil)
 		if err != nil {
 			return nil, err
 		}
-		if method == http.MethodGet {
+		if i == 1 {
 			req.Header.Set("Range", "bytes=0-1")
 		}
 
@@ -485,8 +496,8 @@ func GetHeader(ctx context.Context, realURL string, rt http.RoundTripper) (*http
 		}
 	}
 
-	return nil, fmt.Errorf("failed to get header with code (HEAD=%v, GET=%v)",
-		statusCodes[0], statusCodes[1])
+	return nil, fmt.Errorf("failed to get header with code (HEAD=%v, range GET=%v, GET=%v)",
+		statusCodes[0], statusCodes[1], statusCodes[2])
 }
 
 // getLayerSize gets the size of a layer by sending a request to the registry
