@@ -500,6 +500,35 @@ func GetHeader(ctx context.Context, realURL string, rt http.RoundTripper) (*http
 		statusCodes[0], statusCodes[1], statusCodes[2])
 }
 
+// GetHeaderWithGet is identical to GetHeader, but strictly uses GET requests in its attempts
+func GetHeaderWithGet(ctx context.Context, realURL string, rt http.RoundTripper) (*http.Response, error) {
+	statusCodes := []int{0, 0}
+
+	for i := range 2 {
+		req, err := http.NewRequestWithContext(ctx, http.MethodGet, realURL, nil)
+		if err != nil {
+			return nil, err
+		}
+		if i == 0 {
+			req.Header.Set("Range", "bytes=0-1")
+		}
+
+		resp, err := rt.RoundTrip(req)
+		if err != nil {
+			return nil, err
+		}
+		socihttp.Drain(resp.Body)
+
+		statusCodes[i] = resp.StatusCode
+		if resp.StatusCode == http.StatusOK || resp.StatusCode == http.StatusPartialContent {
+			return resp, nil
+		}
+	}
+
+	return nil, fmt.Errorf("failed to get header via GET with code (range GET=%v, GET=%v)",
+		statusCodes[0], statusCodes[1])
+}
+
 // getLayerSize gets the size of a layer by sending a request to the registry
 // and examining the Content-Length or Content-Range headers.
 func getLayerSize(ctx context.Context, hf *httpFetcher) (int64, error) {
