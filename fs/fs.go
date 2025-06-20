@@ -423,30 +423,7 @@ func (fs *filesystem) MountParallel(ctx context.Context, mountpoint string, labe
 	if err != nil {
 		return fmt.Errorf("cannot parse image ref (%s): %w", imageRef, err)
 	}
-	remoteStore, err := newRemoteBlobStore(refspec, client)
-	if err != nil {
-		return fmt.Errorf("cannot create remote store: %w", err)
-	}
-	if err != nil {
-		return fmt.Errorf("cannot create fetcher: %w", err)
-	}
 	desc := s.Target
-
-	// If the descriptor size is zero, the artifact fetcher will resolve it.
-	// However, it never returns this resolved descriptor.
-	// Since the unpacker is also in charge of storing the content and the
-	// ORAS store requires an expected size, we need to resolve here.
-	if desc.Size == 0 {
-		// In remoteStore.Reference, Registry and Target should be correct.
-		// However, we need Reference to point to the current layer.
-		blobRef := remoteStore.Reference
-		blobRef.Reference = s.Target.Digest.String()
-		desc, err = remoteStore.Resolve(ctx, blobRef.String())
-		if err != nil {
-			return fmt.Errorf("cannot resolve size of layer (%s): %w", blobRef.String(), err)
-		}
-	}
-
 	imageDigest, ok := labels[ctdsnapshotters.TargetManifestDigestLabel]
 	if !ok {
 		return errors.New("layer has no image manifest attached")
