@@ -436,7 +436,7 @@ func (fs *filesystem) MountParallel(ctx context.Context, mountpoint string, labe
 		}
 	}
 
-	err = fs.rebase(ctx, desc, imageDigest, mountpoint)
+	err = fs.rebase(ctx, desc.Digest, imageDigest, mountpoint)
 	if err != nil {
 		return fmt.Errorf("failed to rebase layer %s: %w", desc.Digest, err)
 	}
@@ -561,8 +561,8 @@ func (fs *filesystem) premount(ctx context.Context, desc ocispec.Descriptor, ref
 	return err
 }
 
-func (fs *filesystem) rebase(ctx context.Context, desc ocispec.Descriptor, imageDigest, mountpoint string) error {
-	layerJob, err := fs.inProgressImageUnpacks.Claim(imageDigest, desc.Digest.String())
+func (fs *filesystem) rebase(ctx context.Context, dgst digest.Digest, imageDigest, mountpoint string) error {
+	layerJob, err := fs.inProgressImageUnpacks.Claim(imageDigest, dgst.String())
 	if err != nil {
 		return fmt.Errorf("error attempting to claim job to rebase: %w", err)
 	}
@@ -575,7 +575,7 @@ func (fs *filesystem) rebase(ctx context.Context, desc ocispec.Descriptor, image
 		}
 	}()
 
-	log.G(ctx).WithField("digest", desc.Digest).Debug("claimed layer")
+	log.G(ctx).WithField("digest", dgst).Debug("claimed layer")
 
 	select {
 	case <-ctx.Done():
