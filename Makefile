@@ -71,6 +71,7 @@ NERDCTL_PATCH = $(SOCI_SNAPSHOTTER_PROJECT_ROOT)/integration/config/nerdctl.patc
 .PHONY: all build check flatc add-ltag install uninstall tidy vendor clean clean-coverage \
 	clean-integration test test-with-coverage show-test-coverage show-test-coverage-html nerdctl-with-idmapping \
 	integration integration-with-coverage show-integration-coverage show-integration-coverage-html \
+	total-coverage show-total-coverage show-total-coverage-html \
 	release benchmarks build-benchmarks benchmarks-perf-test benchmarks-comparison-test
 
 all: build
@@ -144,62 +145,77 @@ test:
 	@echo "$@"
 	@GO111MODULE=$(GO111MODULE_VALUE) go test $(GO_TEST_FLAGS) $(GO_LD_FLAGS) -race `go list ./... | grep -v benchmark` -args $(GO_TEST_ARGS)
 
-show-test-coverage: test-with-coverage
+test-with-coverage: $(COVDIR)/unit/coverage.out
+
+show-test-coverage: $(COVDIR)/unit/coverage.out
 	go tool covdata percent -i $(COVDIR)/unit
 
-show-test-coverage-html: test-with-coverage $(COVDIR)/html
-	go tool covdata textfmt -i $(COVDIR)/unit -o $(COVDIR)/unit/unit.out
-	go tool cover -html=$(COVDIR)/unit/unit.out -o $(COVDIR)/html/unit.html
+show-test-coverage-html: $(COVDIR)/unit/coverage.out $(COVDIR)/html
+	go tool cover -html=$(COVDIR)/unit/coverage.out -o $(COVDIR)/html/unit.html
 
-test-with-coverage: $(COVDIR)/unit
-
-$(COVDIR):
+$(COVDIR)/unit:
 	@mkdir -p $@
 
-$(COVDIR)/html:
-	@mkdir -p $@
-
-$(COVDIR)/unit: $(COVDIR)
-	@mkdir -p $@
+$(COVDIR)/unit/coverage.out: $(COVDIR)/unit
 	GO_TEST_FLAGS="$(GO_TEST_FLAGS) -cover" \
 	GO_TEST_ARGS="-test.gocoverdir=$(COVDIR)/unit" \
 	GO_BUILD_FLAGS="$(GO_BUILD_FLAGS) -coverpkg=$(SOCI_LIBRARY_PACKAGE_LIST)"\
 		$(MAKE) test
+	go tool covdata textfmt -i $(COVDIR)/unit -o $(COVDIR)/unit/coverage.out
+
+$(COVDIR)/html:
+	@mkdir -p $@
 
 integration: build nerdctl-with-idmapping
 	@echo "$@"
 	@echo "SOCI_SNAPSHOTTER_PROJECT_ROOT=$(SOCI_SNAPSHOTTER_PROJECT_ROOT)"
 	@GO111MODULE=$(GO111MODULE_VALUE) SOCI_SNAPSHOTTER_PROJECT_ROOT=$(SOCI_SNAPSHOTTER_PROJECT_ROOT) ENABLE_INTEGRATION_TEST=true go test $(GO_TEST_FLAGS) -v -timeout=0 ./integration
 
-show-integration-coverage: integration-with-coverage
+integration-with-coverage: $(COVDIR)/integration/coverage.out
+
+show-integration-coverage: $(COVDIR)/integration/coverage.out
 	go tool covdata percent -i $(COVDIR)/integration
 
-show-integration-coverage-html: integration-with-coverage $(COVDIR)/html
-	go tool covdata textfmt -i $(COVDIR)/integration -o $(COVDIR)/integration/integration.out
-	go tool cover -html=$(COVDIR)/integration/integration.out -o $(COVDIR)/html/integration.html
+show-integration-coverage-html: $(COVDIR)/integration/coverage.out $(COVDIR)/html
+	go tool cover -html=$(COVDIR)/integration/coverage.out -o $(COVDIR)/html/integration.html
 
-integration-with-coverage: $(COVDIR)/integration
-
-$(COVDIR)/integration: $(COVDIR)
+$(COVDIR)/integration:
 	@mkdir -p $@
+
+$(COVDIR)/integration/coverage.out: $(COVDIR)/integration
 	GO_TEST_FLAGS="$(GO_TEST_FLAGS)" \
 	GO_BUILD_FLAGS="$(GO_BUILD_FLAGS) -coverpkg=$(SOCI_CLI_PACKAGE_LIST),$(SOCI_GRPC_PACKAGE_LIST)" \
 		$(MAKE) integration
+	go tool covdata textfmt -i $(COVDIR)/integration -o $(COVDIR)/integration/coverage.out
+
+total-coverage: $(COVDIR)/total/coverage.out
+
+show-total-coverage: $(COVDIR)/total/coverage.out
+	@go tool cover -func=$(COVDIR)/total/coverage.out
+
+show-total-coverage-html: $(COVDIR)/total/coverage.out $(COVDIR)/html
+	@go tool cover -html=$(COVDIR)/total/coverage.out -o $(COVDIR)/html/total.html
+
+$(COVDIR)/total/coverage.out: $(COVDIR)/unit/coverage.out $(COVDIR)/integration/coverage.out $(COVDIR)/total
+	@go run $(CURDIR)/scripts/merge_cov.go -unit=$(COVDIR)/unit -integration=$(COVDIR)/integration -out=$@
+
+$(COVDIR)/total:
+	@mkdir -p $@
 
 nerdctl-with-idmapping: $(OUTDIR)/nerdctl-with-idmapping
 
+TMP_DIR:=$(shell mktemp -d)
 $(OUTDIR)/nerdctl-with-idmapping:
-    # Use a custom patch for testing ID-mapping as nerdctl doesn't fully support this yet.
-	rm -rf $(SOCI_SNAPSHOTTER_PROJECT_ROOT)/tempfolder
-
-	git clone $(NERDCTL_REPO) $(SOCI_SNAPSHOTTER_PROJECT_ROOT)/tempfolder
-	cd $(SOCI_SNAPSHOTTER_PROJECT_ROOT)/tempfolder && \
+	mkdir -p $(TMP_DIR)
+	bash -c "pushd $(TMP_DIR) && \
+	git clone $(NERDCTL_REPO) && \
+	cd nerdctl && \
 	git checkout $(NERDCTL_TAG) && \
 	git apply $(NERDCTL_PATCH) && \
 	make && \
-	cp _output/nerdctl $(OUTDIR)/nerdctl-with-idmapping && \
-	cd ../
-	rm -rf $(SOCI_SNAPSHOTTER_PROJECT_ROOT)/tempfolder
+	cp _output/nerdctl $@ && \
+	popd"
+	rm -rf $(TMP_DIR)
 
 release:
 	@echo "$@"
