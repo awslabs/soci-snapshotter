@@ -43,6 +43,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"os"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -56,6 +57,8 @@ import (
 	"github.com/awslabs/soci-snapshotter/ztoc/compression"
 	digest "github.com/opencontainers/go-digest"
 )
+
+var errReaderClosed = errors.New("reader is already closed")
 
 type Reader interface {
 	OpenFile(id uint32) (io.ReaderAt, error)
@@ -71,6 +74,7 @@ func NewReader(r metadata.Reader, layerSha digest.Digest, spanManager *spanmanag
 		r:                   r,
 		layerSha:            layerSha,
 		disableVerification: disableVerification,
+		closedC:             make(chan struct{}),
 	}, nil
 }
 
@@ -83,6 +87,7 @@ type reader struct {
 	lastReadTimeMu sync.Mutex
 
 	closed   bool
+	closedC  chan struct{}
 	closedMu sync.Mutex
 
 	disableVerification bool
@@ -90,6 +95,38 @@ type reader struct {
 
 func (gr *reader) Metadata() metadata.Reader {
 	return gr.r
+}
+
+func (gr *reader) Verify() error {
+	if gr.disableVerification {
+		return nil
+	}
+	queue := []uint32{gr.r.RootID()}
+	for len(queue) > 0 && !gr.closed {
+		current := queue[0]
+		queue = queue[1:]
+		gr.r.ForeachChild(current, func(_ string, id uint32, _ os.FileMode) bool {
+			queue = append(queue, id)
+			return true
+		})
+		if current == gr.r.RootID() {
+			// The RootID does not map to a real file in the layer, so we don't verify it.
+			continue
+		}
+		f, err := gr.openFile(current)
+		if err != nil {
+			if errors.Is(err, errReaderClosed) {
+				// we're in cleanup, this is fine
+				return nil
+			}
+			return err
+		}
+		err = f.Verify()
+		if err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func (gr *reader) setLastReadTime(lastReadTime time.Time) {
@@ -106,8 +143,12 @@ func (gr *reader) LastOnDemandReadTime() time.Time {
 }
 
 func (gr *reader) OpenFile(id uint32) (io.ReaderAt, error) {
+	return gr.openFile(id)
+}
+
+func (gr *reader) openFile(id uint32) (*file, error) {
 	if gr.isClosed() {
-		return nil, fmt.Errorf("reader is already closed")
+		return nil, errReaderClosed
 	}
 	var fr metadata.File
 	fr, err := gr.r.OpenFile(id)
@@ -128,6 +169,7 @@ func (gr *reader) Close() (retErr error) {
 		return nil
 	}
 	gr.closed = true
+	close(gr.closedC)
 	if err := gr.r.Close(); err != nil {
 		retErr = errors.Join(retErr, err)
 	}
@@ -202,6 +244,8 @@ func (sf *file) Verify() (retErr error) {
 	defer func() {
 		if retErr == nil {
 			sf.verified.Store(true)
+		} else {
+			commonmetrics.IncOperationCount(commonmetrics.FileVerificationFailureCount, sf.gr.layerSha)
 		}
 	}()
 
