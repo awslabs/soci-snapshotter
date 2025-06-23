@@ -67,7 +67,7 @@ var infoCommand = cli.Command{
 		if err != nil {
 			return err
 		}
-		if entry.MediaType == soci.SociIndexArtifactType {
+		if entry.Type == soci.ArtifactEntryTypeIndex {
 			return fmt.Errorf("the provided digest belongs to a SOCI index. Use `soci index info` to get the detailed information about it")
 		}
 		ctx, cancel := internal.AppContext(cliContext)
