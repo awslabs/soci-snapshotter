@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1749857345013,
+  "lastUpdate": 1750710867264,
   "repoUrl": "https://github.com/awslabs/soci-snapshotter",
   "entries": {
     "Soci Benchmark": [
@@ -12384,6 +12384,48 @@ window.BENCHMARK_DATA = {
           {
             "name": "SociFullECR-public-node-pullTaskDuration",
             "value": 1.964,
+            "unit": "Seconds",
+            "extra": "P90"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "davbson@amazon.com",
+            "name": "David Son",
+            "username": "sondavidb"
+          },
+          "committer": {
+            "email": "55555210+sondavidb@users.noreply.github.com",
+            "name": "David Son",
+            "username": "sondavidb"
+          },
+          "distinct": true,
+          "id": "63e5cf953dd1e5c680d81af21e2702ad84db3314",
+          "message": "Fix incorrect type check for soci ztoc info\n\nWe used to check the artifact's MediaType to determine if the artifact\nbeing passed to the command was a SOCI index or a zTOC, but the\nMediaType will always be the same regardless of the artifact type. This\nfixes the check to look for the artifact type instead of the MediaType.\n\nSigned-off-by: David Son <davbson@amazon.com>",
+          "timestamp": "2025-06-23T13:26:24-07:00",
+          "tree_id": "06584353512fe588ae9d3a06e00e0134b941ac2c",
+          "url": "https://github.com/awslabs/soci-snapshotter/commit/63e5cf953dd1e5c680d81af21e2702ad84db3314"
+        },
+        "date": 1750710865644,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "SociFullECR-public-node-lazyTaskDuration",
+            "value": 1.456,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-node-localTaskDuration",
+            "value": 0.483,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-node-pullTaskDuration",
+            "value": 1.501,
             "unit": "Seconds",
             "extra": "P90"
           }
