@@ -124,40 +124,98 @@ func (r *orasBlobStore) Resolve(ctx context.Context, reference string) (ocispec.
 func (r *orasBlobStore) Fetch(ctx context.Context, target ocispec.Descriptor) (io.ReadCloser, error) {
 	rc, err := r.Repository.Fetch(ctx, target)
 	if err != nil {
-		switch retErr := err.(type) {
-		// Redact URLs from ORAS errors, as they might have sensitive info cached
-		case *errcode.ErrorResponse:
-			socihttp.RedactHTTPQueryValuesFromURL(retErr.URL)
-			return nil, retErr
-		// Eat URL errors as a malformed URL might still have credentials.
-		case *url.Error:
-			return nil, errors.New("URL error during fetch")
-		// Otherwise it should be safe to print
-		default:
-			return nil, err
-		}
+		return nil, cleanFetchErrors(err)
 	}
 	return rc, nil
+}
+
+// GetContentWithRange gets the requested content in the byte range [lower, upper]
+func GetContentWithRange(ctx context.Context, realURL string, rt http.RoundTripper, lower, upper int64) (*http.Response, error) {
+	if lower < 0 || upper < lower {
+		return nil, fmt.Errorf("illogical content range [%d, %d]", lower, upper)
+	}
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, realURL, nil)
+	if err != nil {
+		return nil, err
+	}
+	r := fmt.Sprintf("bytes=%d-%d", lower, upper)
+	req.Header.Set("Range", r)
+
+	resp, err := rt.RoundTrip(req)
+	if err != nil {
+		return nil, err
+	}
+
+	if resp.StatusCode == http.StatusOK || resp.StatusCode == http.StatusPartialContent {
+		return resp, nil
+	}
+	return nil, fmt.Errorf("error getting range: %v", err)
+}
+
+// FetchRange returns the response body of the range requested.
+// This assumes the upstream repo supports ranged GET calls.
+// If it does not, return an error.
+// TODO: Unify this with the artifact fetching done in fs/remote/resolver.go
+func (r *orasBlobStore) FetchRange(ctx context.Context, reference string, lower, upper int64) (io.ReadCloser, error) {
+	ref, err := registry.ParseReference(reference)
+	if err != nil {
+		return nil, err
+	}
+
+	tr := &clientWrapper{r.Client}
+	realURL := sociremote.CraftBlobURL(reference, ref)
+	resp, err := GetContentWithRange(ctx, realURL, tr, lower, upper)
+	if err != nil {
+		return nil, cleanFetchErrors(err)
+	}
+
+	// Check if upstream allows for ranged GET requests
+	if rangeUnit := resp.Header.Get("Accept-Ranges"); rangeUnit != "bytes" {
+		resp.Body.Close()
+		return nil, fmt.Errorf("upstream repo does not support ranged GET requests")
+	}
+	return resp.Body, nil
+}
+
+func cleanFetchErrors(err error) error {
+	switch retErr := err.(type) {
+	// Redact URLs from ORAS errors, as they might have sensitive info cached
+	case *errcode.ErrorResponse:
+		socihttp.RedactHTTPQueryValuesFromURL(retErr.URL)
+		return retErr
+	// Eat URL errors as a malformed URL might still have credentials.
+	case *url.Error:
+		return errors.New("URL error during fetch")
+	// Otherwise it should be safe to print
+	default:
+		return err
+	}
 }
 
 // doInitialFetch makes a dummy call to the specified content, allowing the authClient
 // to make a single request to pre-populate fields for future requests for the same content.
 // This is only called in the ParallelPull path as sparse index cases will only ever call each layer sequentially.
-func (r *orasBlobStore) doInitialFetch(ctx context.Context, reference string) error {
+func (r *orasBlobStore) doInitialFetch(ctx context.Context, reference string) (bool, error) {
 	ref, err := registry.ParseReference(reference)
 	if err != nil {
-		return err
+		return false, err
 	}
 
 	tr := &clientWrapper{r.Client}
 	url := sociremote.CraftBlobURL(reference, ref)
-	rc, err := sociremote.GetHeaderWithGet(ctx, url, tr)
+	resp, err := sociremote.GetHeaderWithGet(ctx, url, tr)
 	if err != nil {
-		return fmt.Errorf("error getting header info: %v", err)
-	}
-	socihttp.Drain(rc.Body)
+		return false, fmt.Errorf("error getting header info: %v", err)
 
-	return nil
+	}
+	socihttp.Drain(resp.Body)
+
+	// Check if upstream allows for ranged GET requests
+	if rangeUnit := resp.Header.Get("Accept-Ranges"); rangeUnit == "bytes" {
+		return true, nil
+	}
+	return false, nil
 }
 
 // This wrapper is to allow a [remote.Client] to implement the
