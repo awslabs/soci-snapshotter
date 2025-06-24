@@ -23,8 +23,6 @@ import (
 	"io"
 	"io/fs"
 	"os"
-	"sync"
-	"sync/atomic"
 	"time"
 
 	"github.com/awslabs/soci-snapshotter/soci/store"
@@ -153,16 +151,9 @@ func (f *parallelArtifactFetcher) fetchFromRemoteAndWriteToTempDir(ctx context.C
 		return nil, fmt.Errorf("error creating temp ingest file at %s: %w", ingestPath, err)
 	}
 
-	// We want to close this file descriptor as soon as we run into an error.
-	// This can either be during the goroutine or if the context is cancelled.
-	// Closing a file descriptor multiple times is undefined behavior,
-	// so this will enforce that the file is only closed once.
-	closeFileOnce := sync.OnceFunc(func() {
-		file.Close()
-	})
 	defer func() {
 		if err != nil {
-			closeFileOnce()
+			file.Close()
 		}
 	}()
 
@@ -171,100 +162,22 @@ func (f *parallelArtifactFetcher) fetchFromRemoteAndWriteToTempDir(ctx context.C
 		return nil, fmt.Errorf("error truncating temp ingest file at %s: %w", ingestPath, err)
 	}
 
-	eg, egCtx := errgroup.WithContext(ctx)
-	var isSeekable atomic.Bool
-	isSeekable.Store(true)
+	doMultipleFetches := false
 	numLoops := f.calcNumLoops(desc.Size)
-
-	for i := range numLoops {
-		if !isSeekable.Load() {
-			// This val only gets set after the whole readcloser has been
-			// written to file, so safe to stop attempting this again.
-			break
-		}
-
-		err := f.layerUnpackJob.AcquireDownload(ctx, 1)
-		if err != nil {
-			return nil, fmt.Errorf("error acquiring semaphore: %w", err)
-		}
-
-		// Do initial fetch call to cache the redirected URL
-		// as long as we're using our blob store implementation.
-		if i == 0 && numLoops > 1 {
-			if rs, ok := f.remoteStore.(*orasBlobStore); ok {
-				err = rs.doInitialFetch(ctx, f.constructRef(desc))
-				if err != nil {
-					return nil, fmt.Errorf("error doing initial authorization for layer: %w", err)
-				}
-			}
-		}
-
-		eg.Go(func() error {
-			defer f.layerUnpackJob.ReleaseDownload(1)
-
-			var err error
-			defer func() {
-				if err != nil {
-					closeFileOnce()
-				}
-			}()
-
-			rc, err := f.remoteStore.Fetch(egCtx, desc)
+	if numLoops > 1 {
+		if rs, ok := f.remoteStore.(*orasBlobStore); ok {
+			// If this layer does not support ranged GET, it is very likely
+			// all other layers of this image do not either.
+			doMultipleFetches, err = rs.doInitialFetch(ctx, f.constructRef(desc))
 			if err != nil {
-				return err
+				return nil, fmt.Errorf("error doing initial authorization for layer: %w", err)
 			}
-
-			errCh := make(chan error, 1)
-			defer close(errCh)
-			var copyFunc func() <-chan error
-
-			rsc, ok := rc.(io.ReadSeekCloser)
-			if numLoops == 1 {
-				copyFunc = func() <-chan error {
-					defer rc.Close()
-					errCh <- writeToEntireFile(file, rc)
-					return errCh
-				}
-			} else if !ok { // Upstream reader is not seekable
-				log.G(egCtx).Debug("upstream reader is not seekable, reading entire descriptor")
-				copyFunc = func() <-chan error {
-					defer rc.Close()
-					if !isSeekable.CompareAndSwap(true, false) {
-						errCh <- nil
-					} else {
-						errCh <- writeToEntireFile(file, rc)
-					}
-					return errCh
-				}
-			} else {
-				copyFunc = func() <-chan error {
-					defer rsc.Close()
-
-					lower, upper := f.getRange(i, desc.Size)
-					errCh <- writeToFileRange(file, rsc, lower, upper)
-					return errCh
-				}
-			}
-
-			select {
-			case <-egCtx.Done():
-				err = egCtx.Err()
-			case err = <-copyFunc():
-			}
-			return err
-		})
+		}
 	}
-
-	errCh := make(chan error, 1)
-	go func() {
-		errCh <- eg.Wait()
-		close(errCh)
-	}()
-
-	select {
-	case <-ctx.Done():
-		err = ctx.Err()
-	case err = <-errCh:
+	if doMultipleFetches {
+		err = f.multiRequestFetchWrite(ctx, desc, file, numLoops)
+	} else {
+		err = f.oneRequestFetchWrite(ctx, desc, file)
 	}
 
 	if err != nil {
@@ -287,6 +200,81 @@ func (f *parallelArtifactFetcher) fetchFromRemoteAndWriteToTempDir(ctx context.C
 	return file, nil
 }
 
+// oneRequestFetchWrite does a normal fetch for the content from the repo and writes it to the given file descriptor
+func (f *parallelArtifactFetcher) oneRequestFetchWrite(ctx context.Context, desc ocispec.Descriptor, file *os.File) error {
+	err := f.layerUnpackJob.AcquireDownload(ctx, 1)
+	if err != nil {
+		return fmt.Errorf("error acquiring semaphore: %w", err)
+	}
+	defer f.layerUnpackJob.ReleaseDownload(1)
+
+	rc, err := f.remoteStore.Fetch(ctx, desc)
+	if err != nil {
+		return fmt.Errorf("error fetching from remote: %v", err)
+	}
+	return writeToEntireFile(file, rc)
+}
+
+// multiRequestFetchWrite will make parallel calls to the upstream repo for chunks of the file and buffer it from the given file descriptor.
+// This assumes that we will be fetching multiple chunks of the file and that we are using our own blob store implementation.
+func (f *parallelArtifactFetcher) multiRequestFetchWrite(ctx context.Context, desc ocispec.Descriptor, file *os.File, numLoops int64) error {
+	eg, egCtx := errgroup.WithContext(ctx)
+	reference := f.constructRef(desc)
+
+	blobStore, ok := f.remoteStore.(*orasBlobStore)
+	if !ok {
+		return errors.New("did not pass orasBlobStore type to parallel fetcher")
+	}
+
+	for i := range numLoops {
+		err := f.layerUnpackJob.AcquireDownload(ctx, 1)
+		if err != nil {
+			return fmt.Errorf("error acquiring semaphore: %w", err)
+		}
+
+		eg.Go(func() error {
+			defer f.layerUnpackJob.ReleaseDownload(1)
+
+			lower, upper := f.getRange(i, desc.Size)
+			rc, err := blobStore.FetchRange(egCtx, reference, lower, upper)
+			if err != nil {
+				return err
+			}
+
+			errCh := make(chan error, 1)
+			defer close(errCh)
+
+			copyFunc := func() <-chan error {
+				defer rc.Close()
+
+				errCh <- writeToFileRange(file, rc, lower, upper)
+				return errCh
+			}
+
+			select {
+			case <-egCtx.Done():
+				err = egCtx.Err()
+			case err = <-copyFunc():
+			}
+			return err
+		})
+	}
+
+	errCh := make(chan error, 1)
+	go func() {
+		errCh <- eg.Wait()
+		close(errCh)
+	}()
+
+	var err error
+	select {
+	case <-ctx.Done():
+		err = ctx.Err()
+	case err = <-errCh:
+	}
+	return err
+}
+
 func (f *parallelArtifactFetcher) asyncVerifyBlobDigest(ctx context.Context, path string) error {
 	file, err := os.Open(path)
 	if err != nil {
@@ -306,18 +294,13 @@ func writeToEntireFile(file *os.File, rc io.ReadCloser) error {
 	return nil
 }
 
-func writeToFileRange(file *os.File, rsc io.ReadSeekCloser, lower, upper int64) error {
+func writeToFileRange(file *os.File, rsc io.ReadCloser, lower, upper int64) error {
 	w := io.NewOffsetWriter(file, lower)
-
-	_, err := rsc.Seek(lower, io.SeekStart)
-	if err != nil {
-		return fmt.Errorf("failed to seek readcloser: %w", err)
-	}
 
 	readSize := upper - lower + 1
 	// Reading any more or less will result in an incorrect file being created,
 	// so use io.CopyN to guarantee we read exactly lower - upper + 1 bytes.
-	_, err = io.CopyN(w, rsc, readSize)
+	_, err := io.CopyN(w, rsc, readSize)
 	if err != nil {
 		return fmt.Errorf("failed to write to temp file %s at offset %d: %w", file.Name(), lower, err)
 	}
