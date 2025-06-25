@@ -74,7 +74,6 @@ import (
 	"github.com/awslabs/soci-snapshotter/snapshot"
 	"github.com/awslabs/soci-snapshotter/soci"
 	"github.com/awslabs/soci-snapshotter/soci/store"
-	"github.com/containerd/containerd"
 	"github.com/containerd/containerd/content"
 	"github.com/containerd/containerd/images"
 	"github.com/containerd/containerd/mount"
@@ -245,10 +244,8 @@ func NewFilesystem(ctx context.Context, root string, cfg config.FSConfig, opts .
 		!pullModes.ParallelPullUnpack.DiscardUnpackedLayers {
 		return nil, errors.New("parallel_pull_unpack mode requires containerd content store (type=\"containerd\" under [content_store])")
 	}
-	client, err := containerd.New(cfg.ContentStoreConfig.ContainerdAddress)
-	if err != nil {
-		return nil, store.ErrCouldNotCreateClient(cfg.ContentStoreConfig.ContainerdAddress)
-	}
+	client := store.NewContainerdClient(cfg.ContentStoreConfig.ContainerdAddress)
+
 	store, err := store.NewContentStore(
 		store.WithType(cfg.ContentStoreConfig.Type),
 		store.WithContainerdAddress(cfg.ContentStoreConfig.ContainerdAddress),
@@ -339,7 +336,7 @@ func NewFilesystem(ctx context.Context, root string, cfg config.FSConfig, opts .
 		fuseMetricsEmitWaitDuration: fuseMetricsEmitWaitDuration,
 		pr:                          pr,
 		pullModes:                   pullModes,
-		client:                      client,
+		containerd:                  client,
 		inProgressImageUnpacks:      unpackJobs,
 		discardUnpackedLayers:       pullModes.ParallelPullUnpack.DiscardUnpackedLayers,
 	}, nil
@@ -399,7 +396,7 @@ type filesystem struct {
 	fuseMetricsEmitWaitDuration time.Duration
 	pr                          *preresolver
 	pullModes                   config.PullModes
-	client                      *containerd.Client
+	containerd                  *store.ContainerdClient
 	inProgressImageUnpacks      *unpackJobs
 	discardUnpackedLayers       bool
 }
@@ -633,7 +630,12 @@ func (fs *filesystem) rebase(ctx context.Context, dgst digest.Digest, imageDiges
 }
 
 func (fs *filesystem) getDiffIDMap(ctx context.Context, imageManifest *ocispec.Manifest) (map[string]digest.Digest, error) {
-	buf, err := content.ReadBlob(ctx, fs.client.ContentStore(), imageManifest.Config)
+	client, err := fs.containerd.Client()
+	if err != nil {
+		return nil, err
+	}
+
+	buf, err := content.ReadBlob(ctx, client.ContentStore(), imageManifest.Config)
 	if err != nil {
 		return nil, err
 	}
@@ -659,11 +661,16 @@ func (fs *filesystem) getDiffIDMap(ctx context.Context, imageManifest *ocispec.M
 }
 
 func (fs *filesystem) getImageManifest(ctx context.Context, dgst string) (*ocispec.Manifest, error) {
+	client, err := fs.containerd.Client()
+	if err != nil {
+		return nil, err
+	}
+
 	manifestDigest, _ := digest.Parse(dgst)
 	manifestDesc := ocispec.Descriptor{
 		Digest: manifestDigest,
 	}
-	buf, err := content.ReadBlob(ctx, fs.client.ContentStore(), manifestDesc)
+	buf, err := content.ReadBlob(ctx, client.ContentStore(), manifestDesc)
 	if err != nil {
 		return nil, err
 	}
