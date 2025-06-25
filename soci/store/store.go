@@ -21,6 +21,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"sync"
 	"time"
 
 	"github.com/awslabs/soci-snapshotter/config"
@@ -81,9 +82,40 @@ func ErrCouldNotCreateClient(address string) error {
 	return fmt.Errorf("could not create containerd client at %s", address)
 }
 
+// This struct allows SOCI to create a connection to the containerd on-demand
+// instead of on startup, allowing the daemon to start without containerd
+type ContainerdClient struct {
+	containerdAddress string
+	ctdClient         *containerd.Client
+	ctdClientLock     *sync.Mutex
+}
+
+func NewContainerdClient(containerdAddress string) *ContainerdClient {
+	return &ContainerdClient{
+		containerdAddress: containerdAddress,
+		ctdClientLock:     &sync.Mutex{},
+	}
+}
+
+func (c *ContainerdClient) Client() (*containerd.Client, error) {
+	if c.ctdClient != nil {
+		return c.ctdClient, nil
+	}
+	c.ctdClientLock.Lock()
+	defer c.ctdClientLock.Unlock()
+	if c.ctdClient == nil {
+		var err error
+		c.ctdClient, err = containerd.New(c.containerdAddress)
+		if err != nil {
+			return nil, ErrCouldNotCreateClient(c.containerdAddress)
+		}
+	}
+	return c.ctdClient, nil
+}
+
 type ContentStoreConfig struct {
 	config.ContentStoreConfig
-	Client *containerd.Client
+	ctdClient *ContainerdClient
 }
 
 func NewStoreConfig(opts ...Option) ContentStoreConfig {
@@ -114,9 +146,9 @@ func WithContainerdAddress(address string) Option {
 	}
 }
 
-func WithClient(client *containerd.Client) Option {
+func WithClient(client *ContainerdClient) Option {
 	return func(sc *ContentStoreConfig) {
-		sc.Client = client
+		sc.ctdClient = client
 	}
 }
 
@@ -209,12 +241,8 @@ func NewContainerdStore(storeConfig ContentStoreConfig) (*ContainerdStore, error
 		ContentStoreConfig: storeConfig,
 	}
 
-	if storeConfig.Client == nil {
-		client, err := containerd.New(storeConfig.ContainerdAddress)
-		if err != nil {
-			return nil, ErrCouldNotCreateClient(storeConfig.ContainerdAddress)
-		}
-		containerdStore.Client = client
+	if containerdStore.ctdClient == nil {
+		containerdStore.ctdClient = NewContainerdClient(containerdStore.ContainerdAddress)
 	}
 
 	return &containerdStore, nil
@@ -222,8 +250,12 @@ func NewContainerdStore(storeConfig ContentStoreConfig) (*ContainerdStore, error
 
 // Exists returns true iff the described content exists.
 func (s *ContainerdStore) Exists(ctx context.Context, target ocispec.Descriptor) (bool, error) {
-	cs := s.Client.ContentStore()
-	_, err := cs.Info(ctx, target.Digest)
+	client, err := s.client()
+	if err != nil {
+		return false, err
+	}
+	cs := client.ContentStore()
+	_, err = cs.Info(ctx, target.Digest)
 	if errors.Is(err, errdefs.ErrNotFound) {
 		return false, nil
 	}
@@ -240,7 +272,11 @@ type sectionReaderAt struct {
 
 // Fetch fetches the content identified by the descriptor.
 func (s *ContainerdStore) Fetch(ctx context.Context, target ocispec.Descriptor) (io.ReadCloser, error) {
-	cs := s.Client.ContentStore()
+	client, err := s.client()
+	if err != nil {
+		return nil, err
+	}
+	cs := client.ContentStore()
 	ra, err := cs.ReaderAt(ctx, target)
 	if err != nil {
 		return nil, err
@@ -260,7 +296,11 @@ func (s *ContainerdStore) Push(ctx context.Context, expected ocispec.Descriptor,
 		return nil
 	}
 
-	writer, err := content.OpenWriter(ctx, s.Client.ContentStore(), content.WithRef(expected.Digest.String()))
+	client, err := s.client()
+	if err != nil {
+		return err
+	}
+	writer, err := content.OpenWriter(ctx, client.ContentStore(), content.WithRef(expected.Digest.String()))
 	if err != nil {
 		return err
 	}
@@ -313,13 +353,17 @@ func LabelGCRefContent(ctx context.Context, store Store, target ocispec.Descript
 
 // Label creates or updates the named label with the given value.
 func (s *ContainerdStore) Label(ctx context.Context, target ocispec.Descriptor, name string, value string) error {
-	cs := s.Client.ContentStore()
+	client, err := s.client()
+	if err != nil {
+		return err
+	}
+	cs := client.ContentStore()
 	info := content.Info{
 		Digest: target.Digest,
 		Labels: map[string]string{name: value},
 	}
 	paths := []string{"labels." + name}
-	_, err := cs.Update(ctx, info, paths...)
+	_, err = cs.Update(ctx, info, paths...)
 	if err != nil {
 		return err
 	}
@@ -328,16 +372,28 @@ func (s *ContainerdStore) Label(ctx context.Context, target ocispec.Descriptor, 
 
 // Delete removes the described content.
 func (s *ContainerdStore) Delete(ctx context.Context, dgst digest.Digest) error {
-	cs := s.Client.ContentStore()
+	client, err := s.client()
+	if err != nil {
+		return err
+	}
+	cs := client.ContentStore()
 	return cs.Delete(ctx, dgst)
 }
 
 // BatchOpen creates a lease, ensuring that no content created within the batch will be garbage collected.
 // It returns a cleanup function that ends the lease, which should be called after content is created and labeled.
 func (s *ContainerdStore) BatchOpen(ctx context.Context) (context.Context, CleanupFunc, error) {
-	ctx, leaseDone, err := s.Client.WithLease(ctx)
+	client, err := s.client()
+	if err != nil {
+		return ctx, nil, err
+	}
+	ctx, leaseDone, err := client.WithLease(ctx)
 	if err != nil {
 		return ctx, NopCleanup, fmt.Errorf("unable to open batch: %w", err)
 	}
 	return ctx, leaseDone, nil
+}
+
+func (s *ContainerdStore) client() (*containerd.Client, error) {
+	return s.ctdClient.Client()
 }
