@@ -29,6 +29,7 @@ This set of variables must be at the top of your TOML file due to not belonging 
 
 ## config/config.go
 ### Config
+- `imports` - A list of additional configuration files to include. See [Imports](#imports) for more information.
 - `metrics_address` (string) — If empty, no metrics will be polled. Default: "".
 - `metrics_network` (string) — Chooses protocol to send metrics over (e.g. tcp, unix, etc). Default: "tcp".
 - `no_prometheus` — Defined [above](#configfsgofsconfig), cannot be redeclared.
@@ -96,3 +97,19 @@ This set of variables must be at the top of your TOML file due to not belonging 
 ### [snapshotter]
 - `min_layer_size` (int) — Sets the minimum threshold for lazy loading a layer. Any layer smaller than this value will ignore the zTOC for the layer and pull the entire layer ahead of time. We generally recommend setting it to 10MiB (10000000). Default: 0.
 - `allow_invalid_mounts_on_restart` (bool) — Allows the snapshotter to start even if preexisting snapshots cannot connect to their data source on startup. Useful on unexpected daemon crashes/corruption. Default: false.
+
+## Imports
+
+Imports allow users to split their configuration across multiple files. Configuration file imports are processed in order
+and any explicit configuration will override the configuration value for the snapshotter.
+
+### Configuration processing order
+
+1. Default snapshotter configuration
+2. Root configuration
+3. Imported configuration (processed in order)
+4. Default snapshotter configuration**
+
+**Note: default snapshotter configuration is processed twice so that any explicit configuration from root or imported
+configuration is correctly handled. For example, the explicit configuration `metrics_network = ""` can be used to configure
+the snapshotter to use a TCP network connection for sending metrics and is equivalent to `metrics_network = "tcp"`.
