@@ -121,7 +121,7 @@ func NewSociSnapshotterService(ctx context.Context, root string, serviceCfg *con
 	if serviceCfg.SnapshotterConfig.AllowInvalidMountsOnRestart {
 		snOpts = append(snOpts, snbase.AllowInvalidMountsOnRestart)
 	}
-	if serviceCfg.PullModes.ParallelPullUnpack.Enable {
+	if serviceCfg.PullModes.Parallel.Enable {
 		snOpts = append(snOpts, snbase.ParallelPullUnpack)
 	}
 

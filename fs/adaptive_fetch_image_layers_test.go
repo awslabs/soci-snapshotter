@@ -46,7 +46,7 @@ var (
 func TestParallelPullUnpackValidation(t *testing.T) {
 	tc := []struct {
 		name       string
-		cfg        config.ParallelPullUnpack
+		cfg        config.ParallelConfig
 		expectFail bool
 	}{
 		{
@@ -54,7 +54,7 @@ func TestParallelPullUnpackValidation(t *testing.T) {
 		},
 		{
 			name: "logical image pull config is valid",
-			cfg: config.ParallelPullUnpack{
+			cfg: config.ParallelConfig{
 				MaxConcurrentDownloads:         9,
 				MaxConcurrentDownloadsPerImage: 3,
 				MaxConcurrentUnpacks:           3,
@@ -63,7 +63,7 @@ func TestParallelPullUnpackValidation(t *testing.T) {
 		},
 		{
 			name: "illogical image pull config is not valid",
-			cfg: config.ParallelPullUnpack{
+			cfg: config.ParallelConfig{
 				MaxConcurrentDownloads:         1,
 				MaxConcurrentDownloadsPerImage: 3,
 				MaxConcurrentUnpacks:           1,
@@ -77,7 +77,7 @@ func TestParallelPullUnpackValidation(t *testing.T) {
 			testCtx, cancel := context.WithCancel(context.Background())
 			defer cancel()
 
-			_, err := newUnpackJobs(testCtx, tt.cfg, newVirtualDisk())
+			_, err := newUnpackJobs(testCtx, &tt.cfg, newVirtualDisk())
 			if (err != nil) != tt.expectFail {
 				if tt.expectFail {
 					t.Fatalf("expected bad image config to fail but succeeded")
@@ -97,7 +97,7 @@ func TestNoGoroutinesAreLeakedWhenGarbageCollectionIsCancelled(t *testing.T) {
 	testCtx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	_, _ = newUnpackJobs(testCtx, config.ParallelPullUnpack{}, newVirtualDisk())
+	_, _ = newUnpackJobs(testCtx, &config.ParallelConfig{}, newVirtualDisk())
 	await(3 * ticks)
 }
 
@@ -112,7 +112,7 @@ func TestSystemResourcesAreGarbageCollectedForCompletedJobs(t *testing.T) {
 	disk := newVirtualDisk()
 	disk.CreateCompletedImageUnpackJobs(3 * jobs)
 
-	inProgressJobs, _ := newUnpackJobs(testCtx, config.ParallelPullUnpack{}, disk)
+	inProgressJobs, _ := newUnpackJobs(testCtx, &config.ParallelConfig{}, disk)
 	await(3 * ticks)
 
 	disk.AssertAllUnusedResourcesHaveBeenGarbageCollected(t, inProgressJobs)
@@ -129,7 +129,7 @@ func TestInProgressJobsAreNotGarbageCollected(t *testing.T) {
 	disk := newVirtualDisk()
 	disk.CreateCompletedImageUnpackJobs(3 * jobs)
 
-	inProgressJobs, _ := newUnpackJobs(testCtx, config.ParallelPullUnpack{}, disk)
+	inProgressJobs, _ := newUnpackJobs(testCtx, &config.ParallelConfig{}, disk)
 	createEphemeralInProgressImageUnpackJob(t, inProgressJobs)
 	await(3 * ticks)
 
@@ -146,7 +146,7 @@ func TestExpiredJobsAreGarbageCollected(t *testing.T) {
 	defer cancel()
 
 	disk := newVirtualDisk()
-	inProgressJobs, _ := newUnpackJobs(testCtx, config.ParallelPullUnpack{}, disk)
+	inProgressJobs, _ := newUnpackJobs(testCtx, &config.ParallelConfig{}, disk)
 	createExpiredInProgressImageUnpackJob(t, inProgressJobs)
 
 	await(3 * ticks)
@@ -470,7 +470,7 @@ func TestLayerUnpackJob(t *testing.T) {
 	defer cancel()
 
 	disk := newVirtualDisk()
-	inProgressJobs, err := newUnpackJobs(testCtx, config.ParallelPullUnpack{}, disk)
+	inProgressJobs, err := newUnpackJobs(testCtx, &config.ParallelConfig{}, disk)
 	if err != nil {
 		t.Fatalf("Expected no setup error, got %v", err)
 	}
