@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1750710873050,
+  "lastUpdate": 1750963209089,
   "repoUrl": "https://github.com/awslabs/soci-snapshotter",
   "entries": {
     "Soci Benchmark": [
@@ -12468,6 +12468,48 @@ window.BENCHMARK_DATA = {
           {
             "name": "SociFullECR-public-tensorflow_gpu-pullTaskDuration",
             "value": 1.7245,
+            "unit": "Seconds",
+            "extra": "P90"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "walster@amazon.com",
+            "name": "Kern Walster",
+            "username": "Kern--"
+          },
+          "committer": {
+            "email": "kern.walster@gmail.com",
+            "name": "Kern Walster",
+            "username": "Kern--"
+          },
+          "distinct": true,
+          "id": "f08749521a52434456a9affe32848f0bb5778bf4",
+          "message": "Update go in CI to 1.24.4\n\nSigned-off-by: Kern Walster <walster@amazon.com>",
+          "timestamp": "2025-06-26T11:30:16-07:00",
+          "tree_id": "9bd1d5377cd85c857f71f1d85b33d67017092b1f",
+          "url": "https://github.com/awslabs/soci-snapshotter/commit/f08749521a52434456a9affe32848f0bb5778bf4"
+        },
+        "date": 1750963206483,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "SociFullECR-public-tensorflow_gpu-lazyTaskDuration",
+            "value": 29.9675,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-tensorflow_gpu-localTaskDuration",
+            "value": 2.8155,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-tensorflow_gpu-pullTaskDuration",
+            "value": 2.5774999999999997,
             "unit": "Seconds",
             "extra": "P90"
           }
