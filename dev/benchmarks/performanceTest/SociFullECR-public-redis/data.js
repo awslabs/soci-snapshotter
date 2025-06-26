@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1750710870075,
+  "lastUpdate": 1750963207866,
   "repoUrl": "https://github.com/awslabs/soci-snapshotter",
   "entries": {
     "Soci Benchmark": [
@@ -12632,6 +12632,48 @@ window.BENCHMARK_DATA = {
           {
             "name": "SociFullECR-public-redis-pullTaskDuration",
             "value": 0.877,
+            "unit": "Seconds",
+            "extra": "P90"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "walster@amazon.com",
+            "name": "Kern Walster",
+            "username": "Kern--"
+          },
+          "committer": {
+            "email": "kern.walster@gmail.com",
+            "name": "Kern Walster",
+            "username": "Kern--"
+          },
+          "distinct": true,
+          "id": "f08749521a52434456a9affe32848f0bb5778bf4",
+          "message": "Update go in CI to 1.24.4\n\nSigned-off-by: Kern Walster <walster@amazon.com>",
+          "timestamp": "2025-06-26T11:30:16-07:00",
+          "tree_id": "9bd1d5377cd85c857f71f1d85b33d67017092b1f",
+          "url": "https://github.com/awslabs/soci-snapshotter/commit/f08749521a52434456a9affe32848f0bb5778bf4"
+        },
+        "date": 1750963200243,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "SociFullECR-public-redis-lazyTaskDuration",
+            "value": 1.7934999999999999,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-redis-localTaskDuration",
+            "value": 0.024,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-redis-pullTaskDuration",
+            "value": 1.51,
             "unit": "Seconds",
             "extra": "P90"
           }
