@@ -24,6 +24,7 @@ import (
 
 	"github.com/awslabs/soci-snapshotter/config"
 	shell "github.com/awslabs/soci-snapshotter/util/dockershell"
+	"github.com/rs/xid"
 )
 
 // Use a custom metrics config to test that the snapshotter
@@ -124,12 +125,14 @@ func TestSnapshotterSystemdStartup(t *testing.T) {
 			sh.X("containerd", "--version")
 			// We're not using `rebootContainerd` here because that also restarts the soci-snapshotter
 			sh.Gox("containerd", "--log-level", containerdLogLevel)
+			// wait for contaienrd to start up
+			sh.Retry(100, "ctr", "snapshots", "prepare", "connectiontest-dummy-"+xid.New().String(), "")
 			tc.init(sh)
 			// 2s timeout is arbitrary so that the negative test doesn't take too long. It does mean that
 			// the snapshotter has to start up and prepare a snapshot within 2s in the socket activation case.
 			output, err := sh.CombinedOLog("ctr", "--timeout", "2s", "snapshot", "--snapshotter", "soci", "prepare", "test")
 			if !isExpectedError(output, err, tc.expectedErrorMatcher) {
-				tt.Fatalf("unexpected error preparing snapshot: %v", output)
+				tt.Fatalf("unexpected error preparing snapshot: %v", string(output))
 			}
 		})
 	}
