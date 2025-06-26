@@ -887,7 +887,7 @@ func TestPullWithParallelism(t *testing.T) {
 			name: "set chunk size",
 			opts: []snapshotterConfigOpt{
 				func(cfg *config.Config) {
-					cfg.PullModes.ParallelPullUnpack.ConcurrentDownloadChunkSize = 1_000_000
+					cfg.PullModes.Parallel.ConcurrentDownloadChunkSize = 1_000_000
 				},
 			},
 		},
@@ -904,7 +904,7 @@ func TestPullWithParallelism(t *testing.T) {
 			name: "parallel unpacking",
 			opts: []snapshotterConfigOpt{
 				func(cfg *config.Config) {
-					cfg.PullModes.ParallelPullUnpack.MaxConcurrentUnpacks = 3
+					cfg.PullModes.Parallel.MaxConcurrentUnpacks = 3
 				},
 			},
 		},
@@ -950,8 +950,8 @@ func TestPullWithDecompressStreams(t *testing.T) {
 			name: "rapidgzip",
 			opts: []snapshotterConfigOpt{
 				func(cfg *config.Config) {
-					cfg.PullModes.ParallelPullUnpack.DecompressStreams = make(map[string]config.DecompressStream, 1)
-					cfg.PullModes.ParallelPullUnpack.DecompressStreams["gzip"] = config.DecompressStream{
+					cfg.PullModes.Parallel.DecompressStreams = make(map[string]config.DecompressStream, 1)
+					cfg.PullModes.Parallel.DecompressStreams["gzip"] = config.DecompressStream{
 						Path: "/usr/local/bin/rapidgzip",
 						Args: []string{"-d", "-c"},
 					}
@@ -962,8 +962,8 @@ func TestPullWithDecompressStreams(t *testing.T) {
 			name: "igzip",
 			opts: []snapshotterConfigOpt{
 				func(cfg *config.Config) {
-					cfg.PullModes.ParallelPullUnpack.DecompressStreams = make(map[string]config.DecompressStream, 1)
-					cfg.PullModes.ParallelPullUnpack.DecompressStreams["gzip"] = config.DecompressStream{
+					cfg.PullModes.Parallel.DecompressStreams = make(map[string]config.DecompressStream, 1)
+					cfg.PullModes.Parallel.DecompressStreams["gzip"] = config.DecompressStream{
 						Path: "/usr/local/bin/igzip",
 						Args: []string{"-d", "-c"},
 					}
@@ -974,8 +974,8 @@ func TestPullWithDecompressStreams(t *testing.T) {
 			name: "pigz",
 			opts: []snapshotterConfigOpt{
 				func(cfg *config.Config) {
-					cfg.PullModes.ParallelPullUnpack.DecompressStreams = make(map[string]config.DecompressStream, 1)
-					cfg.PullModes.ParallelPullUnpack.DecompressStreams["gzip"] = config.DecompressStream{
+					cfg.PullModes.Parallel.DecompressStreams = make(map[string]config.DecompressStream, 1)
+					cfg.PullModes.Parallel.DecompressStreams["gzip"] = config.DecompressStream{
 						Path: "/usr/bin/unpigz",
 						Args: []string{"-d", "-c"},
 					}

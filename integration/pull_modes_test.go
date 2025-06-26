@@ -165,7 +165,7 @@ func testPullModes(t *testing.T, imgName string) {
 				SOCIv2: config.V2{
 					Enable: false,
 				},
-				ParallelPullUnpack: config.ParallelPullUnpack{
+				Parallel: config.Parallel{
 					Enable: true,
 				},
 			},
@@ -220,7 +220,7 @@ func testPullModes(t *testing.T, imgName string) {
 			sh.X(args...)
 			if test.expectedDigest != "" {
 				rsm.CheckAllRemoteSnapshots(t)
-			} else if test.pullModes.ParallelPullUnpack.Enable {
+			} else if test.pullModes.Parallel.Enable {
 				rsm.CheckAllLocalSnapshots(t)
 			} else {
 				rsm.CheckAllDeferredSnapshots(t)

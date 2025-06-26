@@ -44,7 +44,7 @@ func TestConfigDefaults(t *testing.T) {
 		{
 			name:     "parallel pull enabled",
 			expected: DefaultParallelPullUnpackEnable,
-			actual:   cfg.PullModes.ParallelPullUnpack.Enable,
+			actual:   cfg.PullModes.Parallel.Enable,
 		},
 		{
 			name:     "metrics network",
@@ -162,6 +162,31 @@ func TestConfigDefaults(t *testing.T) {
 			expected: SociContentStoreType,
 			actual:   cfg.ContentStoreConfig.Type,
 		},
+		{
+			name:     "max concurrent downloads",
+			expected: int64(defaultMaxConcurrentDownloads),
+			actual:   cfg.PullModes.Parallel.MaxConcurrentDownloads,
+		},
+		{
+			name:     "max concurrent downloads per image",
+			expected: int64(defaultMaxConcurrentDownloadsPerImage),
+			actual:   cfg.PullModes.Parallel.MaxConcurrentDownloadsPerImage,
+		},
+		{
+			name:     "concurrent download chunk size",
+			expected: int64(defaultConcurrentDownloadChunkSize),
+			actual:   cfg.PullModes.Parallel.ConcurrentDownloadChunkSize,
+		},
+		{
+			name:     "max concurrent unpack",
+			expected: int64(defaultMaxConcurrentUnpacks),
+			actual:   cfg.PullModes.Parallel.MaxConcurrentUnpacks,
+		},
+		{
+			name:     "max concurrent unpack per image",
+			expected: int64(defaultMaxConcurrentUnpacksPerImage),
+			actual:   cfg.PullModes.Parallel.MaxConcurrentUnpacksPerImage,
+		},
 	}
 
 	for _, tc := range tests {
@@ -208,20 +233,20 @@ args = ["-d", "-c"]
 				if err != nil {
 					t.Errorf("Expected no error, got %v", err)
 				}
-				if len(actual.PullModes.ParallelPullUnpack.DecompressStreams) != 2 {
-					t.Errorf("Expected 2 decompression streams, got %d", len(actual.PullModes.ParallelPullUnpack.DecompressStreams))
+				if len(actual.PullModes.Parallel.DecompressStreams) != 2 {
+					t.Errorf("Expected 2 decompression streams, got %d", len(actual.PullModes.Parallel.DecompressStreams))
 				}
-				if actual.PullModes.ParallelPullUnpack.DecompressStreams["gzip"].Path != "/usr/bin/gzip" {
-					t.Errorf("Expected gzip path to be /usr/bin/gzip, got %s", actual.PullModes.ParallelPullUnpack.DecompressStreams["gzip"].Path)
+				if actual.PullModes.Parallel.DecompressStreams["gzip"].Path != "/usr/bin/gzip" {
+					t.Errorf("Expected gzip path to be /usr/bin/gzip, got %s", actual.PullModes.Parallel.DecompressStreams["gzip"].Path)
 				}
-				if len(actual.PullModes.ParallelPullUnpack.DecompressStreams["gzip"].Args) != 2 {
-					t.Errorf("Expected two args, got %d", len(actual.PullModes.ParallelPullUnpack.DecompressStreams["gzip"].Args))
+				if len(actual.PullModes.Parallel.DecompressStreams["gzip"].Args) != 2 {
+					t.Errorf("Expected two args, got %d", len(actual.PullModes.Parallel.DecompressStreams["gzip"].Args))
 				}
-				if actual.PullModes.ParallelPullUnpack.DecompressStreams["zstd"].Path != "/usr/bin/zstd" {
-					t.Errorf("Expected zstd path to be /usr/bin/zstd, got %s", actual.PullModes.ParallelPullUnpack.DecompressStreams["zstd"].Path)
+				if actual.PullModes.Parallel.DecompressStreams["zstd"].Path != "/usr/bin/zstd" {
+					t.Errorf("Expected zstd path to be /usr/bin/zstd, got %s", actual.PullModes.Parallel.DecompressStreams["zstd"].Path)
 				}
-				if len(actual.PullModes.ParallelPullUnpack.DecompressStreams["zstd"].Args) != 2 {
-					t.Errorf("Expected two args, got %d", len(actual.PullModes.ParallelPullUnpack.DecompressStreams["zstd"].Args))
+				if len(actual.PullModes.Parallel.DecompressStreams["zstd"].Args) != 2 {
+					t.Errorf("Expected two args, got %d", len(actual.PullModes.Parallel.DecompressStreams["zstd"].Args))
 				}
 			},
 		},
@@ -235,8 +260,8 @@ concurrent_download_chunk_size = "1MB"
 				if err != nil {
 					t.Errorf("Expected no error, got %v", err)
 				}
-				if actual.PullModes.ParallelPullUnpack.ConcurrentDownloadChunkSize != 1*1024*1024 {
-					t.Errorf("Expected concurrent_download_chunk_size to be %d, got %d", 1*1024*1024, actual.PullModes.ParallelPullUnpack.ConcurrentDownloadChunkSize)
+				if actual.PullModes.Parallel.ConcurrentDownloadChunkSize != 1*1024*1024 {
+					t.Errorf("Expected concurrent_download_chunk_size to be %d, got %d", 1*1024*1024, actual.PullModes.Parallel.ConcurrentDownloadChunkSize)
 				}
 			},
 		},

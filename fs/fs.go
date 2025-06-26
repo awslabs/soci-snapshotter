@@ -239,9 +239,9 @@ func NewFilesystem(ctx context.Context, root string, cfg config.FSConfig, opts .
 
 	pullModes := fsOpts.pullModes
 	// disable_lazy_loading should only work for containerd content store, unless we skip content store ingestion entirely
-	if pullModes.ParallelPullUnpack.Enable &&
+	if pullModes.Parallel.Enable &&
 		cfg.ContentStoreConfig.Type != config.ContainerdContentStoreType &&
-		!pullModes.ParallelPullUnpack.DiscardUnpackedLayers {
+		!pullModes.Parallel.DiscardUnpackedLayers {
 		return nil, errors.New("parallel_pull_unpack mode requires containerd content store (type=\"containerd\" under [content_store])")
 	}
 	client := store.NewContainerdClient(cfg.ContentStoreConfig.ContainerdAddress)
@@ -303,11 +303,11 @@ func NewFilesystem(ctx context.Context, root string, cfg config.FSConfig, opts .
 		return nil, fmt.Errorf("error creating unpack directory on disk: %w", err)
 	}
 
-	if err := compression.InitializeDecompressStreams(pullModes.ParallelPullUnpack.DecompressStreams); err != nil {
+	if err := compression.InitializeDecompressStreams(pullModes.Parallel.DecompressStreams); err != nil {
 		return nil, fmt.Errorf("error initializing decompress streams: %w", err)
 	}
 
-	unpackJobs, err := newUnpackJobs(ctx, pullModes.ParallelPullUnpack, storage)
+	unpackJobs, err := newUnpackJobs(ctx, &pullModes.Parallel.ParallelConfig, storage)
 	if err != nil {
 		return nil, fmt.Errorf("error creating unpack jobs: %w", err)
 	}
@@ -338,7 +338,6 @@ func NewFilesystem(ctx context.Context, root string, cfg config.FSConfig, opts .
 		pullModes:                   pullModes,
 		containerd:                  client,
 		inProgressImageUnpacks:      unpackJobs,
-		discardUnpackedLayers:       pullModes.ParallelPullUnpack.DiscardUnpackedLayers,
 	}, nil
 }
 
@@ -398,7 +397,6 @@ type filesystem struct {
 	pullModes                   config.PullModes
 	containerd                  *store.ContainerdClient
 	inProgressImageUnpacks      *unpackJobs
-	discardUnpackedLayers       bool
 }
 
 func (fs *filesystem) MountParallel(ctx context.Context, mountpoint string, labels map[string]string, mounts []mount.Mount) error {
@@ -537,19 +535,19 @@ func (fs *filesystem) premount(ctx context.Context, desc ocispec.Descriptor, ref
 
 	// If we discard unpacked layers, we must verify layer integrity ourselves.
 	var compressedVerifier digest.Verifier
-	if fs.discardUnpackedLayers {
+	if fs.pullModes.Parallel.DiscardUnpackedLayers {
 		compressedVerifier = desc.Digest.Verifier()
 	}
 
 	archive := NewLayerArchive(compressedVerifier, uncompressedDigest.Verifier(), decompressStream)
-	chunkSize := fs.pullModes.ParallelPullUnpack.ConcurrentDownloadChunkSize
+	chunkSize := fs.pullModes.Parallel.ConcurrentDownloadChunkSize
 	fetcher, err := newParallelArtifactFetcher(refspec, fs.contentStore, remoteStore, layerJob, chunkSize)
 	if err != nil {
 		log.G(ctx).WithError(err).Error("cannot create fetcher")
 		return err
 	}
 
-	unpacker := NewParallelLayerUnpacker(fetcher, archive, layerJob, fs.discardUnpackedLayers)
+	unpacker := NewParallelLayerUnpacker(fetcher, archive, layerJob, fs.pullModes.Parallel.DiscardUnpackedLayers)
 	fsPath := layerJob.GetUnpackUpperPath()
 	err = unpacker.Unpack(ctx, desc, fsPath, []mount.Mount{})
 	if err != nil {

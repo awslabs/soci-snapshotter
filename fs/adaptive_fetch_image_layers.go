@@ -103,7 +103,7 @@ func (s *SemaphoreWithNil) Release(n int64) {
 }
 
 type unpackJobs struct {
-	imagePullCfg config.ParallelPullUnpack
+	imagePullCfg *config.ParallelConfig
 
 	globalConcurrentDownloadsLimiter *SemaphoreWithNil
 	globalConcurrentUnpacksLimiter   *SemaphoreWithNil
@@ -114,34 +114,35 @@ type unpackJobs struct {
 	mu     sync.Mutex
 }
 
-func newUnpackJobs(ctx context.Context, ParallelPullUnpack config.ParallelPullUnpack, storage LayerUnpackJobStorage) (*unpackJobs, error) {
+func newUnpackJobs(ctx context.Context, parallelConfig *config.ParallelConfig, storage LayerUnpackJobStorage) (*unpackJobs, error) {
 	var (
-		globalConcurrentDownloadsLimit = ParallelPullUnpack.MaxConcurrentDownloads
-		globalConcurrentUnpacksLimit   = ParallelPullUnpack.MaxConcurrentUnpacks
+		globalConcurrentDownloadsLimit = parallelConfig.MaxConcurrentDownloads
+		globalConcurrentUnpacksLimit   = parallelConfig.MaxConcurrentUnpacks
 	)
 
-	if err := checkParallelPullUnpack(ParallelPullUnpack); err != nil {
+	if err := checkParallelPullUnpack(parallelConfig); err != nil {
 		return nil, fmt.Errorf("error validating image pull config: %w", err)
 	}
 
 	log.G(ctx).WithFields(log.Fields{
-		"max_concurrent_downloads":           ParallelPullUnpack.MaxConcurrentDownloads,
-		"max_concurrent_downloads_per_image": ParallelPullUnpack.MaxConcurrentDownloadsPerImage,
-		"max_concurrent_unpacks":             ParallelPullUnpack.MaxConcurrentUnpacks,
-		"max_concurrent_unpacks_per_image":   ParallelPullUnpack.MaxConcurrentUnpacksPerImage,
-		"discard_unpack_layers":              ParallelPullUnpack.DiscardUnpackedLayers,
+		"max_concurrent_downloads":           parallelConfig.MaxConcurrentDownloads,
+		"max_concurrent_downloads_per_image": parallelConfig.MaxConcurrentDownloadsPerImage,
+		"max_concurrent_unpacks":             parallelConfig.MaxConcurrentUnpacks,
+		"max_concurrent_unpacks_per_image":   parallelConfig.MaxConcurrentUnpacksPerImage,
+		"discard_unpack_layers":              parallelConfig.DiscardUnpackedLayers,
+		"concurrent_download_chunk_size":     parallelConfig.ConcurrentDownloadChunkSize,
 	}).Info("Parallel image pull enabled")
 
-	if ParallelPullUnpack.MaxConcurrentDownloads == config.Unbounded {
+	if parallelConfig.MaxConcurrentDownloads == config.Unbounded {
 		globalConcurrentDownloadsLimit = unlimited
 	}
 
-	if ParallelPullUnpack.MaxConcurrentUnpacks == config.Unbounded {
+	if parallelConfig.MaxConcurrentUnpacks == config.Unbounded {
 		globalConcurrentUnpacksLimit = unlimited
 	}
 
 	jobs := &unpackJobs{
-		imagePullCfg:                     ParallelPullUnpack,
+		imagePullCfg:                     parallelConfig,
 		globalConcurrentDownloadsLimiter: NewSemaphoreWithNil(globalConcurrentDownloadsLimit),
 		globalConcurrentUnpacksLimiter:   NewSemaphoreWithNil(globalConcurrentUnpacksLimit),
 		images:                           make(map[string]*imageUnpackJob),
@@ -155,7 +156,7 @@ func newUnpackJobs(ctx context.Context, ParallelPullUnpack config.ParallelPullUn
 	return jobs, nil
 }
 
-func checkParallelPullUnpack(cfg config.ParallelPullUnpack) error {
+func checkParallelPullUnpack(cfg *config.ParallelConfig) error {
 	// If global concurrent downloads/unpacks are unlimited, any value for per-image concurrent downloads/unpacks are valid
 	var err error
 	if cfg.MaxConcurrentDownloads > unlimited && cfg.MaxConcurrentDownloadsPerImage > cfg.MaxConcurrentDownloads {
