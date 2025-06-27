@@ -96,6 +96,28 @@ can run these tests using the following `Makefile` targets:
 - `make test`: run all unit tests.
 - `make integration`: run all integration tests.
 
+### Code Coverage
+
+- `make total-coverage`: generate total code coverage data from unit and integration tests.
+- `make show-total-coverage`: print total test coverage to terminal.
+- `make show-total-coverage-html`: generate HTML total code coverage report.
+
+#### Unit Test Code Coverage Report
+
+Test coverage from SOCI's unit tests can be generated using:
+
+- `make test-with-coverage`: generate test coverage data.
+- `make show-test-coverage`: print unit test coverage to terminal.
+- `make show-test-coverage-html`: generate HTML code coverage report.
+
+#### Integration Test Code Coverage Report
+
+Test coverage from SOCI's integration tests can be generated using:
+
+- `make integration-with-coverage`: generate test coverage data.
+- `make show-integration-test-coverage`: print integration test coverage to terminal.
+- `make show-integration-test-coverage-html`: generate HTML code coverage report.
+
 ### Benchmark SOCI
 We now have a benchmark framework available at [SOCI Benchmarking](/docs/benchmark.md)
 
