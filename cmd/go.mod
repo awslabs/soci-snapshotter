@@ -9,13 +9,13 @@ require (
 	github.com/containerd/log v0.1.0
 	github.com/containerd/platforms v0.2.1
 	github.com/coreos/go-systemd/v22 v22.5.0
-	github.com/docker/cli v28.2.2+incompatible
+	github.com/docker/cli v28.3.0+incompatible
 	github.com/docker/go-metrics v0.0.1
 	github.com/opencontainers/go-digest v1.0.0
 	github.com/opencontainers/image-spec v1.1.1
 	github.com/sirupsen/logrus v1.9.3
-	github.com/urfave/cli v1.22.16
-	go.etcd.io/bbolt v1.4.1
+	github.com/urfave/cli v1.22.17
+	go.etcd.io/bbolt v1.4.2
 	golang.org/x/sys v0.33.0
 	google.golang.org/grpc v1.59.0
 	k8s.io/cri-api v0.28.2
@@ -35,7 +35,7 @@ require (
 	github.com/containerd/fifo v1.1.0 // indirect
 	github.com/containerd/ttrpc v1.2.7 // indirect
 	github.com/containerd/typeurl/v2 v2.1.1 // indirect
-	github.com/cpuguy83/go-md2man/v2 v2.0.5 // indirect
+	github.com/cpuguy83/go-md2man/v2 v2.0.7 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/distribution/reference v0.6.0 // indirect
 	github.com/docker/docker-credential-helpers v0.7.0 // indirect
@@ -55,9 +55,9 @@ require (
 	github.com/google/go-cmp v0.7.0 // indirect
 	github.com/google/gofuzz v1.2.0 // indirect
 	github.com/google/uuid v1.6.0 // indirect
-	github.com/hanwen/go-fuse/v2 v2.7.3-0.20250115180623-d6170d09d743 // indirect
+	github.com/hanwen/go-fuse/v2 v2.8.0 // indirect
 	github.com/hashicorp/go-cleanhttp v0.5.2 // indirect
-	github.com/hashicorp/go-retryablehttp v0.7.7 // indirect
+	github.com/hashicorp/go-retryablehttp v0.7.8 // indirect
 	github.com/imdario/mergo v0.3.13 // indirect
 	github.com/josharian/intern v1.0.0 // indirect
 	github.com/json-iterator/go v1.1.12 // indirect

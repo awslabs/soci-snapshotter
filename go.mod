@@ -9,14 +9,14 @@ require (
 	github.com/containerd/log v0.1.0
 	github.com/containerd/platforms v0.2.1
 	github.com/distribution/reference v0.6.0
-	github.com/docker/cli v28.2.2+incompatible
+	github.com/docker/cli v28.3.0+incompatible
 	github.com/docker/go-metrics v0.0.1
 	github.com/golang/groupcache v0.0.0-20241129210726-2c02b8208cf8
 	github.com/google/flatbuffers v25.2.10+incompatible
 	github.com/google/go-cmp v0.7.0
 	github.com/google/uuid v1.6.0
-	github.com/hanwen/go-fuse/v2 v2.7.3-0.20250115180623-d6170d09d743
-	github.com/hashicorp/go-retryablehttp v0.7.7
+	github.com/hanwen/go-fuse/v2 v2.8.0
+	github.com/hashicorp/go-retryablehttp v0.7.8
 	github.com/klauspost/compress v1.18.0
 	github.com/moby/sys/mountinfo v0.7.2
 	github.com/montanaflynn/stats v0.7.1
@@ -28,8 +28,8 @@ require (
 	github.com/rs/xid v1.6.0
 	github.com/sirupsen/logrus v1.9.3
 	github.com/stretchr/testify v1.10.0
-	go.etcd.io/bbolt v1.4.1
-	go.uber.org/goleak v1.1.12
+	go.etcd.io/bbolt v1.4.2
+	go.uber.org/goleak v1.3.0
 	golang.org/x/crypto v0.39.0
 	golang.org/x/sync v0.15.0
 	golang.org/x/sys v0.33.0
