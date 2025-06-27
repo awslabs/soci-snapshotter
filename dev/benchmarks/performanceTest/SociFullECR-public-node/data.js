@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1750971019849,
+  "lastUpdate": 1751048915436,
   "repoUrl": "https://github.com/awslabs/soci-snapshotter",
   "entries": {
     "Soci Benchmark": [
@@ -12552,6 +12552,48 @@ window.BENCHMARK_DATA = {
           {
             "name": "SociFullECR-public-node-pullTaskDuration",
             "value": 1.4905,
+            "unit": "Seconds",
+            "extra": "P90"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "henwang@amazon.com",
+            "name": "Henry Wang",
+            "username": "henry118"
+          },
+          "committer": {
+            "email": "55555210+sondavidb@users.noreply.github.com",
+            "name": "David Son",
+            "username": "sondavidb"
+          },
+          "distinct": true,
+          "id": "4a78fc699fb41ca6401ac9b457b11bde4014b257",
+          "message": "refactor parallel pull mode configs\n\nSigned-off-by: Henry Wang <henwang@amazon.com>",
+          "timestamp": "2025-06-27T11:20:02-07:00",
+          "tree_id": "2593c5bc40b4cfabc52bbd6d4ae070eaa51fd393",
+          "url": "https://github.com/awslabs/soci-snapshotter/commit/4a78fc699fb41ca6401ac9b457b11bde4014b257"
+        },
+        "date": 1751048910763,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "SociFullECR-public-node-lazyTaskDuration",
+            "value": 1.306,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-node-localTaskDuration",
+            "value": 0.4815,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-node-pullTaskDuration",
+            "value": 3.9315,
             "unit": "Seconds",
             "extra": "P90"
           }
