@@ -28,7 +28,7 @@ require (
 	github.com/rs/xid v1.6.0
 	github.com/sirupsen/logrus v1.9.3
 	github.com/stretchr/testify v1.10.0
-	go.etcd.io/bbolt v1.4.1
+	go.etcd.io/bbolt v1.4.2
 	go.uber.org/goleak v1.1.12
 	golang.org/x/crypto v0.39.0
 	golang.org/x/sync v0.15.0
