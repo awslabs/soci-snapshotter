@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1751309312903,
+  "lastUpdate": 1751392145993,
   "repoUrl": "https://github.com/awslabs/soci-snapshotter",
   "entries": {
     "Soci Benchmark": [
@@ -12721,6 +12721,48 @@ window.BENCHMARK_DATA = {
           {
             "name": "SociFullECR-public-rabbitmq-pullTaskDuration",
             "value": 1.574,
+            "unit": "Seconds",
+            "extra": "P90"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "walster@amazon.com",
+            "name": "Kern Walster",
+            "username": "Kern--"
+          },
+          "committer": {
+            "email": "55555210+sondavidb@users.noreply.github.com",
+            "name": "David Son",
+            "username": "sondavidb"
+          },
+          "distinct": true,
+          "id": "53b432fd5886653c3cea800bc01ba073f5041aa5",
+          "message": "Fix snapshotter startup when config is missing\n\nIf the default config file is missing, the snapshotter should start up\nand use the default parsed config file. If the user explicitly passes a\nconfig file with `--config` that's different than the default, then that\nsnapshotter will not start if it is missing.\n\nSigned-off-by: Kern Walster <walster@amazon.com>",
+          "timestamp": "2025-07-01T10:41:02-07:00",
+          "tree_id": "0fc95c28b6a6287b387098c1e2e88f00bfc86072",
+          "url": "https://github.com/awslabs/soci-snapshotter/commit/53b432fd5886653c3cea800bc01ba073f5041aa5"
+        },
+        "date": 1751392138798,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "SociFullECR-public-rabbitmq-lazyTaskDuration",
+            "value": 10.9995,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-rabbitmq-localTaskDuration",
+            "value": 9.322,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-rabbitmq-pullTaskDuration",
+            "value": 0.935,
             "unit": "Seconds",
             "extra": "P90"
           }
