@@ -52,7 +52,7 @@ directory (`/usr/local/bin`):
 > You can find other download link in the release page that matches your machine.
 
 ```shell
-version="0.10.0"
+version="0.10.1"
 wget https://github.com/awslabs/soci-snapshotter/releases/download/v${version}/soci-snapshotter-${version}-linux-amd64.tar.gz
 sudo tar -C /usr/local/bin -xvf soci-snapshotter-${version}-linux-amd64.tar.gz soci soci-snapshotter-grpc
 ```
