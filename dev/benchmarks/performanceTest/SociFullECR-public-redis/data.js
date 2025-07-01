@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1751309303315,
+  "lastUpdate": 1751392139524,
   "repoUrl": "https://github.com/awslabs/soci-snapshotter",
   "entries": {
     "Soci Benchmark": [
@@ -12926,6 +12926,48 @@ window.BENCHMARK_DATA = {
           {
             "name": "SociFullECR-public-redis-pullTaskDuration",
             "value": 1.62,
+            "unit": "Seconds",
+            "extra": "P90"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "walster@amazon.com",
+            "name": "Kern Walster",
+            "username": "Kern--"
+          },
+          "committer": {
+            "email": "55555210+sondavidb@users.noreply.github.com",
+            "name": "David Son",
+            "username": "sondavidb"
+          },
+          "distinct": true,
+          "id": "53b432fd5886653c3cea800bc01ba073f5041aa5",
+          "message": "Fix snapshotter startup when config is missing\n\nIf the default config file is missing, the snapshotter should start up\nand use the default parsed config file. If the user explicitly passes a\nconfig file with `--config` that's different than the default, then that\nsnapshotter will not start if it is missing.\n\nSigned-off-by: Kern Walster <walster@amazon.com>",
+          "timestamp": "2025-07-01T10:41:02-07:00",
+          "tree_id": "0fc95c28b6a6287b387098c1e2e88f00bfc86072",
+          "url": "https://github.com/awslabs/soci-snapshotter/commit/53b432fd5886653c3cea800bc01ba073f5041aa5"
+        },
+        "date": 1751392136714,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "SociFullECR-public-redis-lazyTaskDuration",
+            "value": 1.564,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-redis-localTaskDuration",
+            "value": 0.023,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-redis-pullTaskDuration",
+            "value": 1.2229999999999999,
             "unit": "Seconds",
             "extra": "P90"
           }
