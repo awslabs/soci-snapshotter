@@ -303,13 +303,9 @@ func NewFilesystem(ctx context.Context, root string, cfg config.FSConfig, opts .
 		return nil, fmt.Errorf("error creating unpack directory on disk: %w", err)
 	}
 
-	if err := compression.InitializeDecompressStreams(pullModes.Parallel.DecompressStreams); err != nil {
-		return nil, fmt.Errorf("error initializing decompress streams: %w", err)
-	}
-
-	unpackJobs, err := newUnpackJobs(ctx, &pullModes.Parallel.ParallelConfig, storage)
+	unpackJobs, err := createParallelPullStructs(ctx, storage, &pullModes.Parallel)
 	if err != nil {
-		return nil, fmt.Errorf("error creating unpack jobs: %w", err)
+		return nil, err
 	}
 
 	return &filesystem{
@@ -339,6 +335,22 @@ func NewFilesystem(ctx context.Context, root string, cfg config.FSConfig, opts .
 		containerd:                  client,
 		inProgressImageUnpacks:      unpackJobs,
 	}, nil
+}
+
+func createParallelPullStructs(ctx context.Context, storage LayerUnpackJobStorage, parallelConfig *config.Parallel) (*unpackJobs, error) {
+	if !parallelConfig.Enable {
+		return nil, nil
+	}
+
+	if err := compression.InitializeDecompressStreams(parallelConfig.DecompressStreams); err != nil {
+		return nil, fmt.Errorf("error initializing decompress streams: %w", err)
+	}
+
+	unpackJobs, err := newUnpackJobs(ctx, parallelConfig, storage)
+	if err != nil {
+		return nil, fmt.Errorf("error creating unpack jobs: %w", err)
+	}
+	return unpackJobs, nil
 }
 
 type sociContext struct {
@@ -400,6 +412,10 @@ type filesystem struct {
 }
 
 func (fs *filesystem) MountParallel(ctx context.Context, mountpoint string, labels map[string]string, mounts []mount.Mount) error {
+	if !fs.pullModes.Parallel.Enable {
+		return ErrParallelPullIsDisabled
+	}
+
 	imageRef, ok := labels[ctdsnapshotters.TargetRefLabel]
 	if !ok {
 		return fmt.Errorf("unable to get image ref from labels")
@@ -693,6 +709,10 @@ func (fs *filesystem) getImageManifest(ctx context.Context, dgst string) (*ocisp
 // CleanImage stops all parallel operations for the specific image.
 // Generally this will be called when removing a snapshot for an image.
 func (fs *filesystem) CleanImage(ctx context.Context, imgDigest string) error {
+	if !fs.pullModes.Parallel.Enable {
+		return nil
+	}
+
 	err := fs.inProgressImageUnpacks.RemoveImageWithError(imgDigest, context.Canceled)
 	if !errors.Is(err, ErrImageUnpackJobNotFound) && err != nil {
 		return fmt.Errorf("error removing image: %w", err)
