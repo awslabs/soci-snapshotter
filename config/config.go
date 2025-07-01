@@ -94,6 +94,9 @@ func NewConfig() *Config {
 func NewConfigFromToml(cfgPath string) (*Config, error) {
 	f, err := os.Open(cfgPath)
 	if err != nil {
+		if os.IsNotExist(err) && cfgPath == DefaultConfigPath {
+			return NewConfig(), nil
+		}
 		return nil, fmt.Errorf("failed to open config file %q: %w", cfgPath, err)
 	}
 	defer f.Close()
