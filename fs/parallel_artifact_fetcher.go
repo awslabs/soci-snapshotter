@@ -24,7 +24,6 @@ import (
 	"io/fs"
 	"os"
 	"sync"
-	"sync/atomic"
 	"time"
 
 	"github.com/awslabs/soci-snapshotter/soci/store"
@@ -167,14 +166,14 @@ func (f *parallelArtifactFetcher) fetchFromRemoteAndWriteToTempDir(ctx context.C
 	}
 
 	eg, egCtx := errgroup.WithContext(ctx)
-	var isSeekable atomic.Bool
-	isSeekable.Store(true)
+	supportRangeGet := true
 	numLoops := f.calcNumLoops(desc.Size)
+	reference := f.constructRef(desc)
 
 	for i := range numLoops {
-		if !isSeekable.Load() {
-			// This val only gets set after the whole readcloser has been
-			// written to file, so safe to stop attempting this again.
+		// If upstream repo does not support ranged GET request,
+		// we can break after just one iteration of the loop
+		if i > 0 && !supportRangeGet {
 			break
 		}
 
@@ -185,18 +184,22 @@ func (f *parallelArtifactFetcher) fetchFromRemoteAndWriteToTempDir(ctx context.C
 
 		// Do initial fetch call to cache the redirected URL
 		// as long as we're using our blob store implementation.
-		if i == 0 && numLoops > 1 {
+		if i == 0 && supportRangeGet {
 			if rs, ok := f.remoteStore.(*orasBlobStore); ok {
-				err = rs.doInitialFetch(ctx, f.constructRef(desc))
+				var err error
+				// If this layer does not support ranged GET, it is very likely
+				// all other layers of this image do not either.
+				supportRangeGet, err = rs.doInitialFetch(ctx, f.constructRef(desc))
 				if err != nil {
 					return nil, fmt.Errorf("error doing initial authorization for layer: %w", err)
 				}
+			} else {
+				supportRangeGet = false
 			}
 		}
 
 		eg.Go(func() error {
 			defer f.layerUnpackJob.ReleaseDownload(1)
-
 			var err error
 			defer func() {
 				if err != nil {
@@ -204,39 +207,38 @@ func (f *parallelArtifactFetcher) fetchFromRemoteAndWriteToTempDir(ctx context.C
 				}
 			}()
 
-			rc, err := f.remoteStore.Fetch(egCtx, desc)
-			if err != nil {
-				return err
+			var rc io.ReadCloser
+			lower, upper := f.getRange(i, desc.Size)
+			if !supportRangeGet {
+				rc, err = f.remoteStore.Fetch(ctx, desc)
+				if err != nil {
+					return err
+				}
+			} else {
+				// We can only be here if we are using our blob store
+				blobStore := f.remoteStore.(*orasBlobStore)
+				rc, err = blobStore.FetchRange(egCtx, reference, lower, upper)
+				if err != nil {
+					return err
+				}
 			}
 
 			errCh := make(chan error, 1)
 			defer close(errCh)
 			var copyFunc func() <-chan error
 
-			rsc, ok := rc.(io.ReadSeekCloser)
-			if numLoops == 1 {
+			if numLoops == 1 || !supportRangeGet {
 				copyFunc = func() <-chan error {
 					defer rc.Close()
+
 					errCh <- writeToEntireFile(file, rc)
-					return errCh
-				}
-			} else if !ok { // Upstream reader is not seekable
-				log.G(egCtx).Debug("upstream reader is not seekable, reading entire descriptor")
-				copyFunc = func() <-chan error {
-					defer rc.Close()
-					if !isSeekable.CompareAndSwap(true, false) {
-						errCh <- nil
-					} else {
-						errCh <- writeToEntireFile(file, rc)
-					}
 					return errCh
 				}
 			} else {
 				copyFunc = func() <-chan error {
-					defer rsc.Close()
+					defer rc.Close()
 
-					lower, upper := f.getRange(i, desc.Size)
-					errCh <- writeToFileRange(file, rsc, lower, upper)
+					errCh <- writeToFileRange(file, rc, lower, upper)
 					return errCh
 				}
 			}
@@ -285,18 +287,13 @@ func writeToEntireFile(file *os.File, rc io.ReadCloser) error {
 	return nil
 }
 
-func writeToFileRange(file *os.File, rsc io.ReadSeekCloser, lower, upper int64) error {
+func writeToFileRange(file *os.File, rsc io.ReadCloser, lower, upper int64) error {
 	w := io.NewOffsetWriter(file, lower)
-
-	_, err := rsc.Seek(lower, io.SeekStart)
-	if err != nil {
-		return fmt.Errorf("failed to seek readcloser: %w", err)
-	}
 
 	readSize := upper - lower + 1
 	// Reading any more or less will result in an incorrect file being created,
 	// so use io.CopyN to guarantee we read exactly lower - upper + 1 bytes.
-	_, err = io.CopyN(w, rsc, readSize)
+	_, err := io.CopyN(w, rsc, readSize)
 	if err != nil {
 		return fmt.Errorf("failed to write to temp file %s at offset %d: %w", file.Name(), lower, err)
 	}
