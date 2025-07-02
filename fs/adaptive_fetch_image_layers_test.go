@@ -504,3 +504,44 @@ func TestLayerUnpackJob(t *testing.T) {
 		t.Fatalf("Expected unpack upper path to be %s, but got %s", expectedUnpackUpperPath, upperPath)
 	}
 }
+
+func TestParallelStructCreation(t *testing.T) {
+	defer goleak.VerifyNone(t)
+
+	disk := newVirtualDisk()
+	testCtx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	tests := []struct {
+		name      string
+		cfg       *config.Parallel
+		expectNil bool
+	}{
+		{
+			name: "with parallel pull enabled",
+			cfg: &config.Parallel{
+				Enable: true,
+			},
+		},
+		{
+			name: "with parallel pull disabled",
+			cfg: &config.Parallel{
+				Enable: false,
+			},
+			expectNil: true,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			unpackJobs, err := createParallelPullStructs(testCtx, disk, *tc.cfg)
+			if err != nil {
+				t.Fatalf("unexpected error creating pull struct: %v", err)
+			}
+			if (unpackJobs == nil) != tc.expectNil {
+				t.Fatalf("expected unpackJobs == nil to be %t, but got %t", tc.expectNil, unpackJobs == nil)
+			}
+		})
+	}
+
+}

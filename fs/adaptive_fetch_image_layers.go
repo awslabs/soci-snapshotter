@@ -157,6 +157,9 @@ func newUnpackJobs(ctx context.Context, parallelConfig *config.ParallelConfig, s
 }
 
 func checkParallelPullUnpack(cfg *config.ParallelConfig) error {
+	if cfg == nil {
+		return errors.New("parallel pull config is nil")
+	}
 	// If global concurrent downloads/unpacks are unlimited, any value for per-image concurrent downloads/unpacks are valid
 	var err error
 	if cfg.MaxConcurrentDownloads > unlimited && cfg.MaxConcurrentDownloadsPerImage > cfg.MaxConcurrentDownloads {
