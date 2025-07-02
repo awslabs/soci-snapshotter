@@ -45,8 +45,9 @@ There are some use-cases where the dynamic nature of SOCI Index Manifest v1 adds
 If you would like to enable SOCI v1, you can add the following to the soci snapshotter config (located at `/var/lib/soci-snapshotter-grpc/config.toml`):
 
 ```
-[pull_modes.soci_v1]
-enable = true
+[pull_modes]
+  [pull_modes.soci_v1]
+    enable = true
 ```
 
 ## Comparing SOCI Index Manifest v1 and SOCI Index Manifest v2
