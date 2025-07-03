@@ -29,6 +29,9 @@ import (
 	"github.com/rs/xid"
 )
 
+// example toml file
+const defaultConfigFileLocation = "../config/config.toml"
+
 // Use a custom metrics config to test that the snapshotter
 // correctly starts up when the metrics address is next to the socket address.
 // This tests a regression with the first implementation of systemd socket activation
@@ -182,4 +185,18 @@ func TestSnapshotterStartupWithBadConfig(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestStartWithDefaultConfig(t *testing.T) {
+	defaultConfigToml, err := os.ReadFile(defaultConfigFileLocation)
+	if err != nil {
+		t.Fatalf("error fetching example toml: %w", err)
+	}
+
+	sh, c := newSnapshotterBaseShell(t)
+	defer c()
+
+	rebootContainerd(t, sh, getContainerdConfigToml(t, false), string(defaultConfigToml))
+	// This will error internally if it fails to boot. If it boots successfully,
+	// the config was successfully parsed and snapshotter is running
 }
