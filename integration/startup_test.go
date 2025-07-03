@@ -17,7 +17,9 @@
 package integration
 
 import (
+	"encoding/json"
 	"os"
+	"path/filepath"
 	"regexp"
 	"strings"
 	"testing"
@@ -190,7 +192,7 @@ func TestSnapshotterStartupWithBadConfig(t *testing.T) {
 func TestStartWithDefaultConfig(t *testing.T) {
 	defaultConfigToml, err := os.ReadFile(defaultConfigFileLocation)
 	if err != nil {
-		t.Fatalf("error fetching example toml: %w", err)
+		t.Fatalf("error fetching example toml: %v", err)
 	}
 
 	sh, c := newSnapshotterBaseShell(t)
@@ -199,4 +201,119 @@ func TestStartWithDefaultConfig(t *testing.T) {
 	rebootContainerd(t, sh, getContainerdConfigToml(t, false), string(defaultConfigToml))
 	// This will error internally if it fails to boot. If it boots successfully,
 	// the config was successfully parsed and snapshotter is running
+}
+
+// TestStartWithoutConfig checks that SOCI can start with specified config paths
+func TestStartWithConfigPaths(t *testing.T) {
+	sh, done := newSnapshotterBaseShell(t)
+	defer done()
+
+	snapshotterSocket := "/run/soci-snapshotter-grpc/soci-snapshotter-grpc.sock"
+
+	tests := []struct {
+		name             string
+		defaultPath      bool
+		fileExists       bool
+		expectedErrorStr string
+	}{
+		{
+			name:        "should start if config file is present in default location",
+			defaultPath: true,
+			fileExists:  true,
+		},
+		{
+			name:        "should start if config file is not present in default location",
+			defaultPath: true,
+			fileExists:  false,
+		},
+		{
+			name:        "should start if config file is present in non-default specified location",
+			defaultPath: false,
+			fileExists:  true,
+		},
+		{
+			name:             "should not start if config file is not present in non-default specified location",
+			defaultPath:      false,
+			fileExists:       false,
+			expectedErrorStr: "failed to open config file",
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			// rebootContainerd would be ideal here, but that always uses a config,
+			// so we just manually start SOCI with/without a config file.
+			err := testutil.KillMatchingProcess(sh, "soci-snapshotter-grpc")
+			if err != nil {
+				sh.Fatal("failed to kill soci: %v", err)
+			}
+
+			snRunCmd := []string{"/usr/local/bin/soci-snapshotter-grpc", "--log-level", sociLogLevel,
+				"--address", snapshotterSocket}
+
+			var configPath string
+			if tc.defaultPath {
+				configPath = defaultSnapshotterConfigPath
+			} else {
+				dir, err := testutil.TempDir(sh)
+				if err != nil {
+					t.Fatalf("error creating temp dir: %v", err)
+				}
+				defer func() {
+					sh.X("rm", "-rf", dir)
+				}()
+
+				configPath = filepath.Join(dir, "config.toml")
+				snRunCmd = append(snRunCmd, "--config", configPath)
+			}
+
+			sh.X("rm", "-rf", configPath)
+			if tc.fileExists {
+				sh.X("touch", configPath)
+			}
+
+			outR, errR, err := sh.R(snRunCmd...)
+			if err != nil {
+				t.Fatalf("failed to create pipe: %v", err)
+			}
+			reporter := testutil.NewTestingReporter(t)
+			m := testutil.NewLogMonitor(reporter, outR, errR)
+			errMatch := false
+			errStr := ""
+			if tc.expectedErrorStr != "" {
+				m.Add("config", func(rawL string) {
+					if i := strings.Index(rawL, "{"); i > 0 {
+						rawL = rawL[i:] // trim garbage chars; expects "{...}"-styled JSON log
+					}
+					var logline testutil.LevelLogLine
+					if err := json.Unmarshal([]byte(rawL), &logline); err == nil {
+						if logline.Level == "fatal" {
+							if strings.Contains(logline.Msg, tc.expectedErrorStr) {
+								errMatch = true
+							} else {
+								errStr = logline.Msg
+							}
+						}
+					}
+				})
+				defer m.Remove("config")
+			}
+
+			err = testutil.LogConfirmStartup(m)
+			// LogConfirmStartup has a 10 second timeout, so we can reasonably expect the LogMonitor func above
+			// to have caught the config at this point, and if not we can assume it failed.
+
+			if err == nil {
+				if tc.expectedErrorStr != "" {
+					t.Fatalf("snapshotter startup expected to fail with string \"%v\" but incorrectly succeeded", tc.expectedErrorStr)
+				}
+			} else {
+				if tc.expectedErrorStr == "" {
+					t.Fatalf("snapshotter unexpectedly failed: %v", err)
+				} else if !errMatch {
+					t.Fatalf("snapshotter startup expected to fail with string \"%v\" but got %s", tc.expectedErrorStr, errStr)
+				}
+			}
+		})
+	}
 }
