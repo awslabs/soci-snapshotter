@@ -18,12 +18,14 @@ package integration
 
 import (
 	"os"
+	"path/filepath"
 	"regexp"
 	"strings"
 	"testing"
 
 	"github.com/awslabs/soci-snapshotter/config"
 	shell "github.com/awslabs/soci-snapshotter/util/dockershell"
+	"github.com/awslabs/soci-snapshotter/util/testutil"
 	"github.com/rs/xid"
 )
 
@@ -153,4 +155,88 @@ func TestStartWithDefaultConfig(t *testing.T) {
 	rebootContainerd(t, sh, getContainerdConfigToml(t, false), string(defaultConfigToml))
 	// This will error internally if it fails to boot. If it boots successfully,
 	// the config was successfully parsed and snapshotter is running
+}
+
+// TestStartWithoutConfig checks that SOCI can start with specified config paths
+func TestStartWithConfigPaths(t *testing.T) {
+	sh, done := newSnapshotterBaseShell(t)
+	defer done()
+
+	snapshotterSocket := "/run/soci-snapshotter-grpc/soci-snapshotter-grpc.sock"
+
+	tests := []struct {
+		name        string
+		defaultPath bool
+		fileExists  bool
+		expectErr   bool
+	}{
+		{
+			name:        "should start if config file is present in default location",
+			defaultPath: true,
+			fileExists:  true,
+		},
+		{
+			name:        "should start if config file is not present in default location",
+			defaultPath: true,
+			fileExists:  false,
+		},
+		{
+			name:        "should start if config file is present in non-default specified location",
+			defaultPath: false,
+			fileExists:  true,
+		},
+		{
+			name:        "should not start if config file is not present in non-default specified location",
+			defaultPath: false,
+			fileExists:  false,
+			expectErr:   true,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			// rebootContainerd would be ideal here, but that always uses a config,
+			// so we just manually start SOCI with/without a config file.
+			err := testutil.KillMatchingProcess(sh, "soci-snapshotter-grpc")
+			if err != nil {
+				sh.Fatal("failed to kill soci: %v", err)
+			}
+
+			snRunCmd := []string{"/usr/local/bin/soci-snapshotter-grpc", "--log-level", sociLogLevel,
+				"--address", snapshotterSocket}
+
+			var configPath string
+			if tc.defaultPath {
+				configPath = defaultSnapshotterConfigPath
+			} else {
+				dir, err := testutil.TempDir(sh)
+				if err != nil {
+					t.Fatalf("error creating temp dir: %v", err)
+				}
+				configPath = filepath.Join(dir, "config.toml")
+				snRunCmd = append(snRunCmd, "--config", configPath)
+			}
+
+			sh.X("rm", "-rf", configPath)
+			if tc.fileExists {
+				sh.X("touch", configPath)
+			}
+
+			outR, errR, err := sh.R(snRunCmd...)
+			if err != nil {
+				t.Fatalf("failed to create pipe: %v", err)
+			}
+			reporter := testutil.NewTestingReporter(t)
+			m := testutil.NewLogMonitor(reporter, outR, errR)
+
+			err = testutil.LogConfirmStartup(m)
+			if (err != nil) != tc.expectErr {
+				if tc.expectErr {
+					t.Fatalf("snapshotter startup expected to fail but did not")
+				} else {
+					t.Fatalf("snapshotter startup unexpectedly failed: %v", err)
+				}
+			}
+		})
+	}
 }
