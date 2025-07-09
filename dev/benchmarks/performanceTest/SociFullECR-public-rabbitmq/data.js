@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1751392145993,
+  "lastUpdate": 1752102434241,
   "repoUrl": "https://github.com/awslabs/soci-snapshotter",
   "entries": {
     "Soci Benchmark": [
@@ -12763,6 +12763,48 @@ window.BENCHMARK_DATA = {
           {
             "name": "SociFullECR-public-rabbitmq-pullTaskDuration",
             "value": 0.935,
+            "unit": "Seconds",
+            "extra": "P90"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "davbson@amazon.com",
+            "name": "David Son",
+            "username": "sondavidb"
+          },
+          "committer": {
+            "email": "55555210+sondavidb@users.noreply.github.com",
+            "name": "David Son",
+            "username": "sondavidb"
+          },
+          "distinct": true,
+          "id": "8b2bf80a852b68e7bdc24fcb5d35772566376ada",
+          "message": "Remove image if rebase or initial fetch fails\n\nIf an image is unable to be claimed, the associated image pull with this\nrequest will fail, so it would make sense to also remove the rest of the\njobs associated with this image.\n\nAdditionally, if the initial authorization fetch fails, we should also\nremove the image from unpackJobs to avoid blocking future image pulls.\n\nSigned-off-by: David Son <davbson@amazon.com>",
+          "timestamp": "2025-07-09T15:57:56-07:00",
+          "tree_id": "5e695f026412da4546dcde51c6f53a237a06c413",
+          "url": "https://github.com/awslabs/soci-snapshotter/commit/8b2bf80a852b68e7bdc24fcb5d35772566376ada"
+        },
+        "date": 1752102432692,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "SociFullECR-public-rabbitmq-lazyTaskDuration",
+            "value": 14.123000000000001,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-rabbitmq-localTaskDuration",
+            "value": 9.3215,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-rabbitmq-pullTaskDuration",
+            "value": 4.2885,
             "unit": "Seconds",
             "extra": "P90"
           }
