@@ -37,6 +37,7 @@ import (
 	"github.com/containerd/containerd/remotes/docker"
 	"github.com/containerd/log"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
+	"go.opentelemetry.io/otel"
 	"golang.org/x/sync/errgroup"
 	"oras.land/oras-go/v2/content"
 	"oras.land/oras-go/v2/errdef"
@@ -257,6 +258,9 @@ func (f *artifactFetcher) Store(ctx context.Context, desc ocispec.Descriptor, re
 }
 
 func FetchSociArtifacts(ctx context.Context, refspec reference.Spec, indexDesc ocispec.Descriptor, localStore store.Store, remoteStore resolverStorage) (*soci.Index, error) {
+	ctx, span := otel.Tracer("").Start(ctx, "soci-snapshotter.fs.artifact_fetcher.FetchSociArtifacts")
+	defer span.End()
+
 	fetcher, err := newArtifactFetcher(refspec, localStore, remoteStore)
 	if err != nil {
 		return nil, fmt.Errorf("could not create an artifact fetcher: %w", err)

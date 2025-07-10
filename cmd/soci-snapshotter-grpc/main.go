@@ -56,6 +56,8 @@ import (
 	"github.com/awslabs/soci-snapshotter/service/keychain/cri/v1"
 	crialpha "github.com/awslabs/soci-snapshotter/service/keychain/cri/v1alpha"
 	"github.com/awslabs/soci-snapshotter/soci"
+	"github.com/awslabs/soci-snapshotter/tracing"
+	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
 
 	"github.com/awslabs/soci-snapshotter/service/keychain/dockerconfig"
 	"github.com/awslabs/soci-snapshotter/service/keychain/kubeconfig"
@@ -137,6 +139,7 @@ func main() {
 	}
 
 	serverOpts := []grpc.ServerOption{
+		grpc.StatsHandler(otelgrpc.NewServerHandler()),
 		grpc.ChainUnaryInterceptor(unaryNamespaceInterceptor),
 		grpc.ChainStreamInterceptor(streamNamespaceInterceptor),
 	}
@@ -193,6 +196,20 @@ func main() {
 		service.WithCredsFuncs(credsFuncs...), service.WithFilesystemOptions(fsOpts...))
 	if err != nil {
 		log.G(ctx).WithError(err).Fatalf("failed to configure snapshotter")
+	}
+
+	log.G(ctx).Info("setting up otel tracing")
+	if shutDownTracing, err := tracing.Init(ctx); err != nil {
+		log.G(ctx).WithError(err).Info("failed to initialize otel tracing")
+	} else {
+		defer func() {
+			if err := shutDownTracing(ctx); err != nil {
+				log.G(ctx).WithError(err).Errorf("failed to shutdown traceing")
+			} else {
+				log.G(ctx).Info("otel tracing shutdown successfully")
+			}
+		}()
+		log.G(ctx).Info("otel tracing initialized successfully")
 	}
 
 	cleanup, err := serve(ctx, rpc, *address, rs, *cfg)
