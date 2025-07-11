@@ -201,6 +201,7 @@ func main() {
 	log.G(ctx).Debug("setting up otel tracing")
 	tracingDisabled, err := tracing.IsDisabled()
 	if err != nil {
+		// this check only fails if otel env vars are set incorrectly
 		log.G(ctx).WithError(err).Fatal("failed to check if tracing is disabled")
 		log.G(ctx).Info("Exiting")
 		return
