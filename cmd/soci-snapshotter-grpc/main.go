@@ -199,12 +199,24 @@ func main() {
 	}
 
 	log.G(ctx).Debug("setting up otel tracing")
-	tracingDisabled, shutDownTracing, err := tracing.Init(ctx)
+	tracingDisabled, err := tracing.IsDisabled()
 	if err != nil {
-		log.G(ctx).WithError(err).Info("failed to initialize otel tracing")
-	} else if tracingDisabled {
+		log.G(ctx).WithError(err).Fatal("failed to check if tracing is disabled")
+		log.G(ctx).Info("Exiting")
+		return
+	}
+
+	if tracingDisabled {
 		log.G(ctx).Info("otel tracing is disabled by env")
 	} else {
+		shutDownTracing, err := tracing.Init(ctx)
+		if err != nil {
+			log.G(ctx).WithError(err).Fatal("failed to initialize otel tracing")
+			log.G(ctx).Info("Exiting")
+			return
+		}
+
+		log.G(ctx).Info("otel tracing initialized successfully")
 		defer func() {
 			if err := shutDownTracing(ctx); err != nil {
 				log.G(ctx).WithError(err).Error("failed to shutdown tracing")
@@ -212,12 +224,11 @@ func main() {
 				log.G(ctx).Debug("otel tracing shutdown successfully")
 			}
 		}()
-		log.G(ctx).Info("otel tracing initialized successfully")
 	}
 
 	cleanup, err := serve(ctx, rpc, *address, rs, *cfg)
 	if err != nil {
-		log.G(ctx).WithError(err).Fatalf("failed to serve snapshotter")
+		log.G(ctx).WithError(err).Fatal("failed to serve snapshotter")
 	}
 
 	if cleanup {

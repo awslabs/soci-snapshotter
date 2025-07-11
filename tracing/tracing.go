@@ -42,23 +42,15 @@ const (
 	defaultServiceName    = "soci-snapshotter"
 )
 
-func Init(ctx context.Context) (bool, func(context.Context) error, error) {
-	disabled, err := isDisabled()
-	if err != nil {
-		return true, nil, err
-	}
-	if disabled {
-		return true, nil, nil
-	}
-
+func Init(ctx context.Context) (func(context.Context) error, error) {
 	exp, err := newExporter(ctx)
 	if err != nil {
-		return false, nil, err
+		return nil, err
 	}
-	return false, setupTracer(exp), nil
+	return setupTracer(exp), nil
 }
 
-func isDisabled() (bool, error) {
+func IsDisabled() (bool, error) {
 	v := os.Getenv(sdkDisabledEnv)
 	if v != "" {
 		disabled, err := strconv.ParseBool(v)
@@ -70,8 +62,9 @@ func isDisabled() (bool, error) {
 		}
 	}
 
+	// not configuring an endpoint is considered as disabling tracing
 	if os.Getenv(otlpEndpointEnv) == "" && os.Getenv(otlpTracesEndpointEnv) == "" {
-		return true, fmt.Errorf("tracing endpoint not configured")
+		return true, nil
 	}
 	return false, nil
 }
