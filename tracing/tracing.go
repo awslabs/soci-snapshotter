@@ -87,8 +87,7 @@ func newExporter(ctx context.Context) (*otlptrace.Exporter, error) {
 		v = os.Getenv(otlpProtocolEnv)
 	}
 
-	const timeout = 5 * time.Second
-	ctx, cancel := context.WithTimeout(ctx, timeout)
+	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
 
 	switch v {
