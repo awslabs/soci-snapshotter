@@ -199,12 +199,15 @@ func main() {
 	}
 
 	log.G(ctx).Info("setting up otel tracing")
-	if shutDownTracing, err := tracing.Init(ctx); err != nil {
+	tracingDisabled, shutDownTracing, err := tracing.Init(ctx)
+	if err != nil {
 		log.G(ctx).WithError(err).Info("failed to initialize otel tracing")
+	} else if tracingDisabled {
+		log.G(ctx).Info("otel tracing is disabled by env")
 	} else {
 		defer func() {
 			if err := shutDownTracing(ctx); err != nil {
-				log.G(ctx).WithError(err).Errorf("failed to shutdown traceing")
+				log.G(ctx).WithError(err).Errorf("failed to shutdown tracing")
 			} else {
 				log.G(ctx).Info("otel tracing shutdown successfully")
 			}

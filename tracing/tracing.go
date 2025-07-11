@@ -42,34 +42,38 @@ const (
 	defaultServiceName    = "soci-snapshotter"
 )
 
-func Init(ctx context.Context) (func(context.Context) error, error) {
-	if err := isDisabled(); err != nil {
-		return nil, err
+func Init(ctx context.Context) (bool, func(context.Context) error, error) {
+	disabled, err := isDisabled()
+	if err != nil {
+		return true, nil, err
+	}
+	if disabled {
+		return true, nil, nil
 	}
 
 	exp, err := newExporter(ctx)
 	if err != nil {
-		return nil, err
+		return false, nil, err
 	}
-	return setupTracer(exp), nil
+	return false, setupTracer(exp), nil
 }
 
-func isDisabled() error {
+func isDisabled() (bool, error) {
 	v := os.Getenv(sdkDisabledEnv)
 	if v != "" {
 		disabled, err := strconv.ParseBool(v)
 		if err != nil {
-			return fmt.Errorf("invalid value for env %s: %w", sdkDisabledEnv, err)
+			return true, fmt.Errorf("invalid value for env %s: %w", sdkDisabledEnv, err)
 		}
 		if disabled {
-			return fmt.Errorf("tracing disabled by env")
+			return true, nil
 		}
 	}
 
 	if os.Getenv(otlpEndpointEnv) == "" && os.Getenv(otlpTracesEndpointEnv) == "" {
-		return fmt.Errorf("tracing endpoint not configured")
+		return true, fmt.Errorf("tracing endpoint not configured")
 	}
-	return nil
+	return false, nil
 }
 
 func newExporter(ctx context.Context) (*otlptrace.Exporter, error) {
