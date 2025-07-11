@@ -258,7 +258,8 @@ func (f *artifactFetcher) Store(ctx context.Context, desc ocispec.Descriptor, re
 }
 
 func FetchSociArtifacts(ctx context.Context, refspec reference.Spec, indexDesc ocispec.Descriptor, localStore store.Store, remoteStore resolverStorage) (*soci.Index, error) {
-	ctx, span := otel.Tracer("").Start(ctx, "soci-snapshotter.fs.artifact_fetcher.FetchSociArtifacts")
+	spanName := "soci-snapshotter.fs.artifact_fetcher.FetchSociArtifacts"
+	ctx, span := otel.Tracer("").Start(ctx, spanName)
 	defer span.End()
 
 	fetcher, err := newArtifactFetcher(refspec, localStore, remoteStore)

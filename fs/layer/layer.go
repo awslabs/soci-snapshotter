@@ -229,7 +229,8 @@ func newCache(root string, cacheType string, cfg config.FSConfig) (cache.BlobCac
 
 // Resolve resolves a layer based on the passed layer blob information.
 func (r *Resolver) Resolve(ctx context.Context, hosts []docker.RegistryHost, refspec reference.Spec, desc, sociDesc ocispec.Descriptor, opCounter *FuseOperationCounter, disableVerification bool, metadataOpts ...metadata.Option) (_ Layer, retErr error) {
-	ctx, span := otel.Tracer("").Start(ctx, "soci-snapshotter.fs.layer.Resolver.Resolve")
+	spanName := "soci-snapshotter.fs.layer.Resolver.Resolve"
+	ctx, span := otel.Tracer("").Start(ctx, spanName)
 	defer span.End()
 
 	name := refspec.String() + "/" + desc.Digest.String()
