@@ -198,7 +198,7 @@ func main() {
 		log.G(ctx).WithError(err).Fatalf("failed to configure snapshotter")
 	}
 
-	log.G(ctx).Info("setting up otel tracing")
+	log.G(ctx).Debug("setting up otel tracing")
 	tracingDisabled, shutDownTracing, err := tracing.Init(ctx)
 	if err != nil {
 		log.G(ctx).WithError(err).Info("failed to initialize otel tracing")
@@ -207,9 +207,9 @@ func main() {
 	} else {
 		defer func() {
 			if err := shutDownTracing(ctx); err != nil {
-				log.G(ctx).WithError(err).Errorf("failed to shutdown tracing")
+				log.G(ctx).WithError(err).Error("failed to shutdown tracing")
 			} else {
-				log.G(ctx).Info("otel tracing shutdown successfully")
+				log.G(ctx).Debug("otel tracing shutdown successfully")
 			}
 		}()
 		log.G(ctx).Info("otel tracing initialized successfully")
