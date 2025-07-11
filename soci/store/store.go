@@ -334,7 +334,11 @@ func (s *ContainerdStore) Push(ctx context.Context, expected ocispec.Descriptor,
 		return fmt.Errorf("unexpected copy size %d, expected %d: %w", totalWritten, expected.Size, errdefs.ErrFailedPrecondition)
 	}
 
-	return writer.Commit(ctx, expected.Size, expected.Digest)
+	err = writer.Commit(ctx, expected.Size, expected.Digest)
+	if err != nil && !errors.Is(err, errdefs.ErrAlreadyExists) {
+		return err
+	}
+	return nil
 }
 
 // LabelGCRoot labels the target resource to prevent garbage collection of itself.
