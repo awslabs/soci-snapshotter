@@ -59,6 +59,8 @@ var (
 )
 
 var (
+	ErrParallelPullIsDisabled = errors.New("the given config does not allow parallel pulling")
+
 	ErrImageUnpackJobNotFound    = errors.New("image unpack job not found")
 	ErrImageUnpackJobHasNoLayers = errors.New("image unpack job has no layers")
 	ErrImageUnpackJobExpired     = errors.New("image unpack job has expired")
@@ -114,7 +116,7 @@ type unpackJobs struct {
 	mu     sync.Mutex
 }
 
-func newUnpackJobs(ctx context.Context, parallelConfig *config.ParallelConfig, storage LayerUnpackJobStorage) (*unpackJobs, error) {
+func newUnpackJobs(ctx context.Context, parallelConfig *config.Parallel, storage LayerUnpackJobStorage) (*unpackJobs, error) {
 	var (
 		globalConcurrentDownloadsLimit = parallelConfig.MaxConcurrentDownloads
 		globalConcurrentUnpacksLimit   = parallelConfig.MaxConcurrentUnpacks
@@ -142,7 +144,7 @@ func newUnpackJobs(ctx context.Context, parallelConfig *config.ParallelConfig, s
 	}
 
 	jobs := &unpackJobs{
-		imagePullCfg:                     parallelConfig,
+		imagePullCfg:                     &parallelConfig.ParallelConfig,
 		globalConcurrentDownloadsLimiter: NewSemaphoreWithNil(globalConcurrentDownloadsLimit),
 		globalConcurrentUnpacksLimiter:   NewSemaphoreWithNil(globalConcurrentUnpacksLimit),
 		images:                           make(map[string]*imageUnpackJob),
@@ -156,7 +158,13 @@ func newUnpackJobs(ctx context.Context, parallelConfig *config.ParallelConfig, s
 	return jobs, nil
 }
 
-func checkParallelPullUnpack(cfg *config.ParallelConfig) error {
+func checkParallelPullUnpack(cfg *config.Parallel) error {
+	if cfg == nil {
+		return errors.New("parallel pull config is nil")
+	}
+	if !cfg.Enable {
+		return ErrParallelPullIsDisabled
+	}
 	// If global concurrent downloads/unpacks are unlimited, any value for per-image concurrent downloads/unpacks are valid
 	var err error
 	if cfg.MaxConcurrentDownloads > unlimited && cfg.MaxConcurrentDownloadsPerImage > cfg.MaxConcurrentDownloads {

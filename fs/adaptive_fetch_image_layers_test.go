@@ -43,31 +43,44 @@ var (
 	helloWorldLayerDigest = "sha256:e6590344b1a5dc518829d6ea1524fc12f8bcd14ee9a02aa6ad8360cce3a9a9e9"
 )
 
+func newEnableParallelPullConfig() *config.Parallel {
+	return &config.Parallel{
+		Enable: true,
+	}
+}
+
 func TestParallelPullUnpackValidation(t *testing.T) {
 	tc := []struct {
 		name       string
-		cfg        config.ParallelConfig
+		cfg        *config.Parallel
 		expectFail bool
 	}{
 		{
 			name: "empty image pull config is valid",
+			cfg:  newEnableParallelPullConfig(),
 		},
 		{
 			name: "logical image pull config is valid",
-			cfg: config.ParallelConfig{
-				MaxConcurrentDownloads:         9,
-				MaxConcurrentDownloadsPerImage: 3,
-				MaxConcurrentUnpacks:           3,
-				MaxConcurrentUnpacksPerImage:   1,
+			cfg: &config.Parallel{
+				Enable: true,
+				ParallelConfig: config.ParallelConfig{
+					MaxConcurrentDownloads:         9,
+					MaxConcurrentDownloadsPerImage: 3,
+					MaxConcurrentUnpacks:           3,
+					MaxConcurrentUnpacksPerImage:   1,
+				},
 			},
 		},
 		{
 			name: "illogical image pull config is not valid",
-			cfg: config.ParallelConfig{
-				MaxConcurrentDownloads:         1,
-				MaxConcurrentDownloadsPerImage: 3,
-				MaxConcurrentUnpacks:           1,
-				MaxConcurrentUnpacksPerImage:   3,
+			cfg: &config.Parallel{
+				Enable: true,
+				ParallelConfig: config.ParallelConfig{
+					MaxConcurrentDownloads:         1,
+					MaxConcurrentDownloadsPerImage: 3,
+					MaxConcurrentUnpacks:           1,
+					MaxConcurrentUnpacksPerImage:   3,
+				},
 			},
 			expectFail: true,
 		},
@@ -77,7 +90,7 @@ func TestParallelPullUnpackValidation(t *testing.T) {
 			testCtx, cancel := context.WithCancel(context.Background())
 			defer cancel()
 
-			_, err := newUnpackJobs(testCtx, &tt.cfg, newVirtualDisk())
+			_, err := newUnpackJobs(testCtx, tt.cfg, newVirtualDisk())
 			if (err != nil) != tt.expectFail {
 				if tt.expectFail {
 					t.Fatalf("expected bad image config to fail but succeeded")
@@ -97,7 +110,7 @@ func TestNoGoroutinesAreLeakedWhenGarbageCollectionIsCancelled(t *testing.T) {
 	testCtx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	_, _ = newUnpackJobs(testCtx, &config.ParallelConfig{}, newVirtualDisk())
+	_, _ = newUnpackJobs(testCtx, newEnableParallelPullConfig(), newVirtualDisk())
 	await(3 * ticks)
 }
 
@@ -112,7 +125,7 @@ func TestSystemResourcesAreGarbageCollectedForCompletedJobs(t *testing.T) {
 	disk := newVirtualDisk()
 	disk.CreateCompletedImageUnpackJobs(3 * jobs)
 
-	inProgressJobs, _ := newUnpackJobs(testCtx, &config.ParallelConfig{}, disk)
+	inProgressJobs, _ := newUnpackJobs(testCtx, newEnableParallelPullConfig(), disk)
 	await(3 * ticks)
 
 	disk.AssertAllUnusedResourcesHaveBeenGarbageCollected(t, inProgressJobs)
@@ -129,7 +142,7 @@ func TestInProgressJobsAreNotGarbageCollected(t *testing.T) {
 	disk := newVirtualDisk()
 	disk.CreateCompletedImageUnpackJobs(3 * jobs)
 
-	inProgressJobs, _ := newUnpackJobs(testCtx, &config.ParallelConfig{}, disk)
+	inProgressJobs, _ := newUnpackJobs(testCtx, newEnableParallelPullConfig(), disk)
 	createEphemeralInProgressImageUnpackJob(t, inProgressJobs)
 	await(3 * ticks)
 
@@ -146,7 +159,7 @@ func TestExpiredJobsAreGarbageCollected(t *testing.T) {
 	defer cancel()
 
 	disk := newVirtualDisk()
-	inProgressJobs, _ := newUnpackJobs(testCtx, &config.ParallelConfig{}, disk)
+	inProgressJobs, _ := newUnpackJobs(testCtx, newEnableParallelPullConfig(), disk)
 	createExpiredInProgressImageUnpackJob(t, inProgressJobs)
 
 	await(3 * ticks)
@@ -470,7 +483,7 @@ func TestLayerUnpackJob(t *testing.T) {
 	defer cancel()
 
 	disk := newVirtualDisk()
-	inProgressJobs, err := newUnpackJobs(testCtx, &config.ParallelConfig{}, disk)
+	inProgressJobs, err := newUnpackJobs(testCtx, newEnableParallelPullConfig(), disk)
 	if err != nil {
 		t.Fatalf("Expected no setup error, got %v", err)
 	}
@@ -503,4 +516,45 @@ func TestLayerUnpackJob(t *testing.T) {
 	if upperPath != expectedUnpackUpperPath {
 		t.Fatalf("Expected unpack upper path to be %s, but got %s", expectedUnpackUpperPath, upperPath)
 	}
+}
+
+func TestParallelStructCreation(t *testing.T) {
+	defer goleak.VerifyNone(t)
+
+	disk := newVirtualDisk()
+	testCtx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	tests := []struct {
+		name      string
+		cfg       *config.Parallel
+		expectNil bool
+	}{
+		{
+			name: "with parallel pull enabled",
+			cfg: &config.Parallel{
+				Enable: true,
+			},
+		},
+		{
+			name: "with parallel pull disabled",
+			cfg: &config.Parallel{
+				Enable: false,
+			},
+			expectNil: true,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			unpackJobs, err := createParallelPullStructs(testCtx, disk, tc.cfg)
+			if err != nil {
+				t.Fatalf("unexpected error creating pull struct: %v", err)
+			}
+			if (unpackJobs == nil) != tc.expectNil {
+				t.Fatalf("expected unpackJobs == nil to be %t, but got %t", tc.expectNil, unpackJobs == nil)
+			}
+		})
+	}
+
 }
