@@ -32,6 +32,7 @@ import (
 	"github.com/opencontainers/go-digest"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"oras.land/oras-go/v2/content/oci"
+	"oras.land/oras-go/v2/errdef"
 )
 
 // BasicStore describes the functionality common to oras-go oci.Store, oras-go memory.Store, and containerd ContentStore.
@@ -80,6 +81,12 @@ func ErrUnknownContentStoreType(contentStoreType ContentStoreType) error {
 
 func ErrCouldNotCreateClient(address string) error {
 	return fmt.Errorf("could not create containerd client at %s", address)
+}
+
+// IsErrAlreadyExists is a store-type-agnostic way to check if the content exists in the store.
+func IsErrAlreadyExists(err error) bool {
+	return errors.Is(err, errdefs.ErrAlreadyExists) || // containerd error
+		errors.Is(err, errdef.ErrAlreadyExists) // ORAS error
 }
 
 // This struct allows SOCI to create a connection to the containerd on-demand
@@ -292,8 +299,8 @@ func (s *ContainerdStore) Push(ctx context.Context, expected ocispec.Descriptor,
 		return err
 	}
 	if exists {
-		// To be consistent with content.Copy, return nil if content already exists.
-		return nil
+		// To be consistent with writer.Commit, return ErrAlreadyExists if content already exists.
+		return errdefs.ErrAlreadyExists
 	}
 
 	client, err := s.client()
@@ -334,11 +341,7 @@ func (s *ContainerdStore) Push(ctx context.Context, expected ocispec.Descriptor,
 		return fmt.Errorf("unexpected copy size %d, expected %d: %w", totalWritten, expected.Size, errdefs.ErrFailedPrecondition)
 	}
 
-	err = writer.Commit(ctx, expected.Size, expected.Digest)
-	if err != nil && !errors.Is(err, errdefs.ErrAlreadyExists) {
-		return err
-	}
-	return nil
+	return writer.Commit(ctx, expected.Size, expected.Digest)
 }
 
 // LabelGCRoot labels the target resource to prevent garbage collection of itself.
