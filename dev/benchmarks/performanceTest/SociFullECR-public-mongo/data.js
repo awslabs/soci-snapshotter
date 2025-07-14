@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1752102423266,
+  "lastUpdate": 1752527467992,
   "repoUrl": "https://github.com/awslabs/soci-snapshotter",
   "entries": {
     "Soci Benchmark": [
@@ -12928,6 +12928,48 @@ window.BENCHMARK_DATA = {
           {
             "name": "SociFullECR-public-mongo-pullTaskDuration",
             "value": 1.7279999999999998,
+            "unit": "Seconds",
+            "extra": "P90"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "sbora@amazon.com",
+            "name": "Swagat Bora",
+            "username": "swagatbora90"
+          },
+          "committer": {
+            "email": "swagatbora90@gmail.com",
+            "name": "Swagat Bora",
+            "username": "swagatbora90"
+          },
+          "distinct": true,
+          "id": "8d8d1200b8eba2daf31a95ce8585a44a553d91cc",
+          "message": "handle failures while commiting duplicate layer ztocs\n\nSigned-off-by: Swagat Bora <sbora@amazon.com>",
+          "timestamp": "2025-07-14T14:01:43-07:00",
+          "tree_id": "2faeda2ade27fc8e9196a8b17f8dc0988618ba0e",
+          "url": "https://github.com/awslabs/soci-snapshotter/commit/8d8d1200b8eba2daf31a95ce8585a44a553d91cc"
+        },
+        "date": 1752527459866,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "SociFullECR-public-mongo-lazyTaskDuration",
+            "value": 5.013,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-mongo-localTaskDuration",
+            "value": 0.2955,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-mongo-pullTaskDuration",
+            "value": 1.5625,
             "unit": "Seconds",
             "extra": "P90"
           }
