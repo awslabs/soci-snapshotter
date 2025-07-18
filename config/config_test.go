@@ -265,6 +265,18 @@ concurrent_download_chunk_size = "1MB"
 				}
 			},
 		},
+		{
+			name: "IncorrectChunkConfig",
+			config: []byte(`
+[pull_modes.parallel_pull_unpack]
+concurrent_download_chunk_size = "badchunksize"
+`),
+			assert: func(t *testing.T, actual *Config, err error) {
+				if err == nil {
+					t.Error("Expected error, got none")
+				}
+			},
+		},
 	}
 
 	for _, test := range tests {
