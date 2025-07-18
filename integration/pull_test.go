@@ -885,11 +885,7 @@ func TestPullWithParallelism(t *testing.T) {
 		},
 		{
 			name: "set chunk size",
-			opts: []snapshotterConfigOpt{
-				func(cfg *config.Config) {
-					cfg.PullModes.Parallel.ConcurrentDownloadChunkSize = 1_000_000
-				},
-			},
+			opts: []snapshotterConfigOpt{withConcurrentDownloadChunkSize(1_000_000)},
 		},
 	}
 
@@ -902,11 +898,7 @@ func TestPullWithParallelism(t *testing.T) {
 		},
 		{
 			name: "parallel unpacking",
-			opts: []snapshotterConfigOpt{
-				func(cfg *config.Config) {
-					cfg.PullModes.Parallel.MaxConcurrentUnpacks = 3
-				},
-			},
+			opts: []snapshotterConfigOpt{withConcurrentUnpacks(3)},
 		},
 	}
 
