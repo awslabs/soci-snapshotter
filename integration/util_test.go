@@ -383,6 +383,12 @@ func withConcurrentDownloadChunkSize(chunkSize int64) snapshotterConfigOpt {
 	}
 }
 
+func withConcurrentDownloadChunkSizeStr(chunkSizeStr string) snapshotterConfigOpt {
+	return func(c *config.Config) {
+		c.PullModes.Parallel.ConcurrentDownloadChunkSizeStr = chunkSizeStr
+	}
+}
+
 func withConcurrentUnpacks(n int64) snapshotterConfigOpt {
 	return func(c *config.Config) {
 		c.PullModes.Parallel.MaxConcurrentUnpacks = n
