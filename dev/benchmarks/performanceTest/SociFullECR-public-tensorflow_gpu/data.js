@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1752527461471,
+  "lastUpdate": 1753122977391,
   "repoUrl": "https://github.com/awslabs/soci-snapshotter",
   "entries": {
     "Soci Benchmark": [
@@ -12888,6 +12888,48 @@ window.BENCHMARK_DATA = {
           {
             "name": "SociFullECR-public-tensorflow_gpu-pullTaskDuration",
             "value": 2.4705,
+            "unit": "Seconds",
+            "extra": "P90"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "davbson@amazon.com",
+            "name": "David Son",
+            "username": "sondavidb"
+          },
+          "committer": {
+            "email": "55555210+sondavidb@users.noreply.github.com",
+            "name": "David Son",
+            "username": "sondavidb"
+          },
+          "distinct": true,
+          "id": "73dd46eed7a77f5f5b454eaeb1c227fb5efab320",
+          "message": "Hard-fail on config parsing errors\n\nSigned-off-by: David Son <davbson@amazon.com>",
+          "timestamp": "2025-07-21T11:27:20-07:00",
+          "tree_id": "8001452945121a6ee88368ec2794c0b4079fd070",
+          "url": "https://github.com/awslabs/soci-snapshotter/commit/73dd46eed7a77f5f5b454eaeb1c227fb5efab320"
+        },
+        "date": 1753122973755,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "SociFullECR-public-tensorflow_gpu-lazyTaskDuration",
+            "value": 13.893,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-tensorflow_gpu-localTaskDuration",
+            "value": 2.959,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-tensorflow_gpu-pullTaskDuration",
+            "value": 2.316,
             "unit": "Seconds",
             "extra": "P90"
           }
