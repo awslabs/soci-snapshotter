@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1752527467992,
+  "lastUpdate": 1753122983169,
   "repoUrl": "https://github.com/awslabs/soci-snapshotter",
   "entries": {
     "Soci Benchmark": [
@@ -12970,6 +12970,48 @@ window.BENCHMARK_DATA = {
           {
             "name": "SociFullECR-public-mongo-pullTaskDuration",
             "value": 1.5625,
+            "unit": "Seconds",
+            "extra": "P90"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "davbson@amazon.com",
+            "name": "David Son",
+            "username": "sondavidb"
+          },
+          "committer": {
+            "email": "55555210+sondavidb@users.noreply.github.com",
+            "name": "David Son",
+            "username": "sondavidb"
+          },
+          "distinct": true,
+          "id": "73dd46eed7a77f5f5b454eaeb1c227fb5efab320",
+          "message": "Hard-fail on config parsing errors\n\nSigned-off-by: David Son <davbson@amazon.com>",
+          "timestamp": "2025-07-21T11:27:20-07:00",
+          "tree_id": "8001452945121a6ee88368ec2794c0b4079fd070",
+          "url": "https://github.com/awslabs/soci-snapshotter/commit/73dd46eed7a77f5f5b454eaeb1c227fb5efab320"
+        },
+        "date": 1753122975514,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "SociFullECR-public-mongo-lazyTaskDuration",
+            "value": 2.0484999999999998,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-mongo-localTaskDuration",
+            "value": 0.312,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-mongo-pullTaskDuration",
+            "value": 1.6965,
             "unit": "Seconds",
             "extra": "P90"
           }
