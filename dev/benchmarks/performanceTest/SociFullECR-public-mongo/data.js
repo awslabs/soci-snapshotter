@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1753122983169,
+  "lastUpdate": 1753221853140,
   "repoUrl": "https://github.com/awslabs/soci-snapshotter",
   "entries": {
     "Soci Benchmark": [
@@ -13012,6 +13012,48 @@ window.BENCHMARK_DATA = {
           {
             "name": "SociFullECR-public-mongo-pullTaskDuration",
             "value": 1.6965,
+            "unit": "Seconds",
+            "extra": "P90"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "davbson@amazon.com",
+            "name": "David Son",
+            "username": "sondavidb"
+          },
+          "committer": {
+            "email": "55555210+sondavidb@users.noreply.github.com",
+            "name": "David Son",
+            "username": "sondavidb"
+          },
+          "distinct": true,
+          "id": "790a445854406da5b174b267104be43a01bd37ec",
+          "message": "Only instantiate parallel pull structs if enabled\n\nSigned-off-by: David Son <davbson@amazon.com>",
+          "timestamp": "2025-07-22T14:54:15-07:00",
+          "tree_id": "554d7fb68d9252d04c2f4f941376a403be1d0df7",
+          "url": "https://github.com/awslabs/soci-snapshotter/commit/790a445854406da5b174b267104be43a01bd37ec"
+        },
+        "date": 1753221851511,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "SociFullECR-public-mongo-lazyTaskDuration",
+            "value": 7.6585,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-mongo-localTaskDuration",
+            "value": 0.304,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-mongo-pullTaskDuration",
+            "value": 1.162,
             "unit": "Seconds",
             "extra": "P90"
           }
