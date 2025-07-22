@@ -39,6 +39,7 @@
 package config
 
 import (
+	"errors"
 	"fmt"
 	"os"
 
@@ -84,8 +85,8 @@ func NewConfig() *Config {
 
 	// Set any defaults which do not align with Go zero values.
 	var initParsers = []configParser{defaultPullModes, defaultDirectoryCacheConfig}
-	for _, p := range append(initParsers, parsers...) {
-		p(cfg)
+	if err := parseConfig(cfg, append(initParsers, parsers...)); err != nil {
+		return nil
 	}
 
 	return cfg
@@ -102,18 +103,26 @@ func NewConfigFromToml(cfgPath string) (*Config, error) {
 	defer f.Close()
 
 	cfg := NewConfig()
+	if cfg == nil {
+		return nil, errors.New("error creating default config")
+	}
 	// Get configuration from specified file
 	if err = toml.NewDecoder(f).Decode(cfg); err != nil {
 		return nil, fmt.Errorf("failed to load config file %q: %w", cfgPath, err)
 	}
-	parseConfig(cfg)
+	if err := parseConfig(cfg, parsers); err != nil {
+		return nil, fmt.Errorf("config file at %q: %w", cfgPath, err)
+	}
 	return cfg, nil
 }
 
-func parseConfig(cfg *Config) {
-	for _, p := range parsers {
-		p(cfg)
+func parseConfig(cfg *Config, cfgParsers []configParser) error {
+	for _, p := range cfgParsers {
+		if err := p(cfg); err != nil {
+			return fmt.Errorf("failed to parse config: %v", err)
+		}
 	}
+	return nil
 }
 
 func parseRootConfig(cfg *Config) error {

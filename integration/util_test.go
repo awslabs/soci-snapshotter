@@ -377,6 +377,24 @@ func withUnboundedPullUnpack() snapshotterConfigOpt {
 	}
 }
 
+func withConcurrentDownloadChunkSize(chunkSize int64) snapshotterConfigOpt {
+	return func(c *config.Config) {
+		c.PullModes.Parallel.ConcurrentDownloadChunkSize = chunkSize
+	}
+}
+
+func withConcurrentDownloadChunkSizeStr(chunkSizeStr string) snapshotterConfigOpt {
+	return func(c *config.Config) {
+		c.PullModes.Parallel.ConcurrentDownloadChunkSizeStr = chunkSizeStr
+	}
+}
+
+func withConcurrentUnpacks(n int64) snapshotterConfigOpt {
+	return func(c *config.Config) {
+		c.PullModes.Parallel.MaxConcurrentUnpacks = n
+	}
+}
+
 func withDiscardUnpackedLayers() snapshotterConfigOpt {
 	return func(c *config.Config) {
 		c.PullModes.Parallel.DiscardUnpackedLayers = true

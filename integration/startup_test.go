@@ -21,9 +21,11 @@ import (
 	"regexp"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/awslabs/soci-snapshotter/config"
 	shell "github.com/awslabs/soci-snapshotter/util/dockershell"
+	"github.com/awslabs/soci-snapshotter/util/testutil"
 	"github.com/rs/xid"
 )
 
@@ -133,6 +135,50 @@ func TestSnapshotterSystemdStartup(t *testing.T) {
 			output, err := sh.CombinedOLog("ctr", "--timeout", "2s", "snapshot", "--snapshotter", "soci", "prepare", "test")
 			if !isExpectedError(output, err, tc.expectedErrorMatcher) {
 				tt.Fatalf("unexpected error preparing snapshot: %v", string(output))
+			}
+		})
+	}
+}
+
+// TestSnapshotterStartupWithBadConfig ensures snapshotter does not start if snapshotter values are incorrect.
+// Note that incorrect fields are ignored by TOML and thus are expected to work
+func TestSnapshotterStartupWithBadConfig(t *testing.T) {
+	tests := []struct {
+		name           string
+		opts           []snapshotterConfigOpt
+		expectedErrStr string
+	}{
+		{
+			name:           "Bad parallel pull size",
+			opts:           []snapshotterConfigOpt{withParallelPullMode(), withConcurrentDownloadChunkSizeStr("badstring")},
+			expectedErrStr: "invalid size format",
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(tt *testing.T) {
+			sh, cleanup := newSnapshotterBaseShell(t)
+			defer cleanup()
+			// rebootContainerd would be ideal here, but that always uses a config,
+			// so we just manually start SOCI with/without a config file.
+			err := testutil.KillMatchingProcess(sh, "soci-snapshotter-grpc")
+			if err != nil {
+				sh.Fatal("failed to kill soci: %v", err)
+			}
+			configToml := getSnapshotterConfigToml(t, tc.opts...)
+			snRunCmd := []string{"/usr/local/bin/soci-snapshotter-grpc", "--log-level", sociLogLevel}
+			snRunCmd = addConfig(t, sh, configToml, snRunCmd...)
+
+			errCh := make(chan error, 1)
+			go func() {
+				_, err := sh.OLog(snRunCmd...)
+				errCh <- err
+			}()
+
+			select {
+			case <-errCh:
+			case <-time.After(2 * time.Second):
+				t.Fatalf("expected err %s but snapshotter did not fail within 2 seconds", tc.expectedErrStr)
 			}
 		})
 	}
