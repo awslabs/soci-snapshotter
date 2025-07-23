@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1753221856036,
+  "lastUpdate": 1753302273633,
   "repoUrl": "https://github.com/awslabs/soci-snapshotter",
   "entries": {
     "Soci Benchmark": [
@@ -13095,6 +13095,48 @@ window.BENCHMARK_DATA = {
           {
             "name": "SociFullECR-public-ffmpeg-pullTaskDuration",
             "value": 1.7285,
+            "unit": "Seconds",
+            "extra": "P90"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "erezz@amazon.com",
+            "name": "Erez Zarum",
+            "username": "erezzarum"
+          },
+          "committer": {
+            "email": "55555210+sondavidb@users.noreply.github.com",
+            "name": "David Son",
+            "username": "sondavidb"
+          },
+          "distinct": true,
+          "id": "45def2dcf87781de75634f5e2744b73fdb2dd8aa",
+          "message": "script to setup SOCI parallel mode\n\nSigned-off-by: Erez Zarum <erezz@amazon.com>",
+          "timestamp": "2025-07-23T13:14:55-07:00",
+          "tree_id": "c240bf5ca72c2e69e5c4f7ab0045d374ee924da9",
+          "url": "https://github.com/awslabs/soci-snapshotter/commit/45def2dcf87781de75634f5e2744b73fdb2dd8aa"
+        },
+        "date": 1753302271192,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "SociFullECR-public-ffmpeg-lazyTaskDuration",
+            "value": 0.393,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-ffmpeg-localTaskDuration",
+            "value": 0.007,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-ffmpeg-pullTaskDuration",
+            "value": 1.3645,
             "unit": "Seconds",
             "extra": "P90"
           }
