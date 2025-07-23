@@ -43,6 +43,7 @@ import (
 	"sync"
 	"syscall"
 
+	"github.com/awslabs/soci-snapshotter/config"
 	commonmetrics "github.com/awslabs/soci-snapshotter/fs/metrics/common"
 	"github.com/awslabs/soci-snapshotter/fs/source"
 	"github.com/awslabs/soci-snapshotter/idtools"
@@ -124,7 +125,7 @@ type SnapshotterConfig struct {
 	// minLayerSize skips remote mounting of smaller layers
 	minLayerSize                int64
 	allowInvalidMountsOnRestart bool
-	parallelPullUnpack          bool
+	pullModes                   *config.PullModes
 }
 
 // Opt is an option to configure the remote snapshotter
@@ -152,9 +153,11 @@ func AllowInvalidMountsOnRestart(config *SnapshotterConfig) error {
 	return nil
 }
 
-func ParallelPullUnpack(config *SnapshotterConfig) error {
-	config.parallelPullUnpack = true
-	return nil
+func WithPullModes(pullModes *config.PullModes) Opt {
+	return func(config *SnapshotterConfig) error {
+		config.pullModes = pullModes
+		return nil
+	}
 }
 
 type snapshotter struct {
@@ -167,7 +170,7 @@ type snapshotter struct {
 	userxattr                   bool  // whether to enable "userxattr" mount option
 	minLayerSize                int64 // minimum layer size for remote mounting
 	allowInvalidMountsOnRestart bool
-	parallelPullUnpack          bool
+	pullModes                   *config.PullModes
 	idmapped                    *sync.Map
 }
 
@@ -222,7 +225,14 @@ func NewSnapshotter(ctx context.Context, root string, targetFs FileSystem, opts 
 		minLayerSize:                config.minLayerSize,
 		allowInvalidMountsOnRestart: config.allowInvalidMountsOnRestart,
 		idmapped:                    idMap,
-		parallelPullUnpack:          config.parallelPullUnpack,
+		pullModes:                   config.pullModes,
+	}
+
+	if o.pullModes != nil {
+		if !o.lazyPullModesDisabled() && o.pullModes.Parallel.Enable {
+			o.pullModes.Parallel.Enable = false
+			log.G(ctx).Warn("Parallel pull and lazy-loaded modes cannot be used together; disabling parallel pull mode")
+		}
 	}
 
 	if err := o.restoreRemoteSnapshot(ctx); err != nil {
@@ -394,7 +404,7 @@ func (o *snapshotter) Prepare(ctx context.Context, key, parent string, opts ...s
 	var deferToContainerRuntime bool
 
 	// remote snapshot prepare
-	// skip if parallel pull is enabled
+	// skip if parallel pull is enabled and lazy-loading modes are disabled
 	if !o.skipRemoteSnapshotPrepare(lCtx, base.Labels) {
 		err := o.prepareRemoteSnapshot(lCtx, key, base.Labels)
 		if err == nil {
@@ -440,7 +450,7 @@ func (o *snapshotter) Prepare(ctx context.Context, key, parent string, opts ...s
 		return mounts, nil
 	}
 
-	if o.parallelPullUnpack {
+	if o.lazyPullModesDisabled() && o.pullModes.Parallel.Enable {
 		log.G(ctx).WithField("layerDigest", base.Labels[ctdsnapshotters.TargetLayerDigestLabel]).Info("preparing snapshot with parallel pull/unpack")
 		err = o.prepareParallelPullSnapshot(lCtx, key, base.Labels, mounts)
 	} else {
@@ -465,7 +475,7 @@ func (o *snapshotter) Prepare(ctx context.Context, key, parent string, opts ...s
 		return nil, err
 	}
 	log.G(lCtx).WithField(remoteSnapshotLogKey, prepareFailed).WithError(err).Debug("skipped preparing remote snapshot")
-	if o.parallelPullUnpack {
+	if o.pullModes.Parallel.Enable {
 		// If parallel pull/unpack fails, then we should not defer to the container runtime
 		// and just return the error.
 		return nil, err
@@ -478,8 +488,15 @@ func (o *snapshotter) Prepare(ctx context.Context, key, parent string, opts ...s
 	return mounts, nil
 }
 
+func (o *snapshotter) lazyPullModesDisabled() bool {
+	if o.pullModes == nil {
+		return false
+	}
+	return !o.pullModes.SOCIv2.Enable && !o.pullModes.SOCIv1.Enable
+}
+
 func (o *snapshotter) skipRemoteSnapshotPrepare(ctx context.Context, labels map[string]string) bool {
-	if o.parallelPullUnpack {
+	if o.lazyPullModesDisabled() {
 		return true
 	}
 

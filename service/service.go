@@ -114,15 +114,12 @@ func NewSociSnapshotterService(ctx context.Context, root string, serviceCfg *con
 
 	var snapshotter snapshots.Snapshotter
 
-	snOpts := []snbase.Opt{snbase.WithAsynchronousRemove}
+	snOpts := []snbase.Opt{snbase.WithAsynchronousRemove, snbase.WithPullModes(&serviceCfg.PullModes)}
 	if serviceCfg.MinLayerSize > -1 {
 		snOpts = append(snOpts, snbase.WithMinLayerSize(serviceCfg.MinLayerSize))
 	}
 	if serviceCfg.SnapshotterConfig.AllowInvalidMountsOnRestart {
 		snOpts = append(snOpts, snbase.AllowInvalidMountsOnRestart)
-	}
-	if serviceCfg.PullModes.Parallel.Enable {
-		snOpts = append(snOpts, snbase.ParallelPullUnpack)
 	}
 
 	snapshotter, err = snbase.NewSnapshotter(ctx, snapshotterRoot(root), fs, snOpts...)
