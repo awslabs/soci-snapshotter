@@ -39,11 +39,15 @@ type parallelArtifactFetcher struct {
 	*artifactFetcher
 	layerUnpackJob *layerUnpackJob
 	chunkSize      int64
+	verifier       *asyncVerifier
 }
 
 // Constructs a new artifact fetcher
 // Takes in the image reference, the local store and the resolver
-func newParallelArtifactFetcher(refspec reference.Spec, localStore store.BasicStore, remoteStore resolverStorage, layerUnpackJob *layerUnpackJob, chunkSize int64) (*parallelArtifactFetcher, error) {
+func newParallelArtifactFetcher(
+	refspec reference.Spec, localStore store.BasicStore, remoteStore resolverStorage,
+	layerUnpackJob *layerUnpackJob, chunkSize int64, verifier *asyncVerifier,
+) (*parallelArtifactFetcher, error) {
 	if chunkSize <= 0 {
 		chunkSize = unlimited
 	}
@@ -55,6 +59,7 @@ func newParallelArtifactFetcher(refspec reference.Spec, localStore store.BasicSt
 		},
 		layerUnpackJob: layerUnpackJob,
 		chunkSize:      chunkSize,
+		verifier:       verifier,
 	}, nil
 }
 
@@ -273,7 +278,23 @@ func (f *parallelArtifactFetcher) fetchFromRemoteAndWriteToTempDir(ctx context.C
 	if err != nil {
 		return nil, fmt.Errorf("error reopening file at %s after writing: %w", ingestPath, err)
 	}
+
+	// start async verification of the blob digest
+	if err = f.asyncVerifyBlobDigest(ctx, ingestPath); err != nil {
+		return nil, fmt.Errorf("error starting async verification of blob digest: %w", err)
+	}
+
 	return file, nil
+}
+
+func (f *parallelArtifactFetcher) asyncVerifyBlobDigest(ctx context.Context, path string) error {
+	file, err := os.Open(path)
+	if err != nil {
+		log.G(ctx).WithError(err).Errorf("failed to open file %s for digest verification", path)
+		return err
+	}
+	f.verifier.AsyncVerify(file)
+	return err
 }
 
 func writeToEntireFile(file *os.File, rc io.ReadCloser) error {
