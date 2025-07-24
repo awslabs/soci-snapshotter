@@ -505,7 +505,8 @@ type imageUnpackJob struct {
 	concurrentDownloadsLimiter       *SemaphoreWithNil
 	concurrentUnpacksLimiter         *SemaphoreWithNil
 
-	layers map[string][]*layerUnpackJob
+	layers     map[string][]*layerUnpackJob
+	bufferPool *bufferPool
 }
 
 type imageUnpackOption func(*imageUnpackJob)
@@ -563,6 +564,7 @@ func newImageUnpackJob(imageDigest string, opts ...imageUnpackOption) *imageUnpa
 		concurrentDownloadsLimiter:       NewSemaphoreWithNil(unlimited),
 		concurrentUnpacksLimiter:         NewSemaphoreWithNil(unlimited),
 		layers:                           make(map[string][]*layerUnpackJob),
+		bufferPool:                       newbufferPool(64 * 1024),
 	}
 
 	for _, opt := range opts {
@@ -609,6 +611,7 @@ type layerUnpackJob struct {
 	concurrentDownloadsLimiter       *SemaphoreWithNil
 	concurrentUnpacksLimiter         *SemaphoreWithNil
 	creationTimestamp                int64
+	bufferPool                       *bufferPool
 
 	// Unique to layerUnpackJob struct
 	layerUnpackID string
@@ -628,6 +631,7 @@ func withImageUnpackJob(image *imageUnpackJob) layerUnpackJobOption {
 		luj.concurrentDownloadsLimiter = image.concurrentDownloadsLimiter
 		luj.concurrentUnpacksLimiter = image.concurrentUnpacksLimiter
 		luj.creationTimestamp = image.creationTimestamp
+		luj.bufferPool = image.bufferPool
 	}
 }
 
