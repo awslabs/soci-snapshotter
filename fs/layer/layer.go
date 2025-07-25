@@ -51,6 +51,7 @@ import (
 
 	"github.com/awslabs/soci-snapshotter/cache"
 	"github.com/awslabs/soci-snapshotter/config"
+	"go.opentelemetry.io/otel"
 
 	backgroundfetcher "github.com/awslabs/soci-snapshotter/fs/backgroundfetcher"
 	commonmetrics "github.com/awslabs/soci-snapshotter/fs/metrics/common"
@@ -228,6 +229,10 @@ func newCache(root string, cacheType string, cfg config.FSConfig) (cache.BlobCac
 
 // Resolve resolves a layer based on the passed layer blob information.
 func (r *Resolver) Resolve(ctx context.Context, hosts []docker.RegistryHost, refspec reference.Spec, desc, sociDesc ocispec.Descriptor, opCounter *FuseOperationCounter, disableVerification bool, metadataOpts ...metadata.Option) (_ Layer, retErr error) {
+	spanName := "soci-snapshotter.fs.layer.Resolver.Resolve"
+	ctx, span := otel.Tracer("").Start(ctx, spanName)
+	defer span.End()
+
 	name := refspec.String() + "/" + desc.Digest.String()
 
 	// Wait if resolving this layer is already running. The result
