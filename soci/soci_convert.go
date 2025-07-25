@@ -33,7 +33,6 @@ import (
 	"github.com/opencontainers/go-digest"
 	"github.com/opencontainers/image-spec/specs-go"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
-	"oras.land/oras-go/v2/errdef"
 )
 
 type ConvertOption func(*convertConfig) error
@@ -353,7 +352,7 @@ func (b *IndexBuilder) pushOCIObject(ctx context.Context, obj any) (ocispec.Desc
 		Size:   int64(len(bs)),
 	}
 	err = b.blobStore.Push(ctx, desc, bytes.NewReader(bs))
-	if err != nil && !errors.Is(err, errdef.ErrAlreadyExists) {
+	if err != nil && !store.IsErrAlreadyExists(err) {
 		return ocispec.Descriptor{}, err
 	}
 	return desc, nil

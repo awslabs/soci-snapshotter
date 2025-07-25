@@ -32,14 +32,12 @@ import (
 	"github.com/awslabs/soci-snapshotter/soci"
 	"github.com/awslabs/soci-snapshotter/soci/store"
 	"github.com/awslabs/soci-snapshotter/util/ioutils"
-	"github.com/containerd/containerd/errdefs"
 	"github.com/containerd/containerd/reference"
 	"github.com/containerd/containerd/remotes/docker"
 	"github.com/containerd/log"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"golang.org/x/sync/errgroup"
 	"oras.land/oras-go/v2/content"
-	"oras.land/oras-go/v2/errdef"
 	"oras.land/oras-go/v2/registry"
 	"oras.land/oras-go/v2/registry/remote"
 	"oras.land/oras-go/v2/registry/remote/errcode"
@@ -250,7 +248,7 @@ func (f *artifactFetcher) resolve(ctx context.Context, desc ocispec.Descriptor) 
 // Store takes in an descriptor and io.Reader and stores it in the local store.
 func (f *artifactFetcher) Store(ctx context.Context, desc ocispec.Descriptor, reader io.Reader) error {
 	err := f.localStore.Push(ctx, desc, reader)
-	if err != nil && !errdefs.IsAlreadyExists(err) && !errors.Is(err, errdef.ErrAlreadyExists) {
+	if err != nil && !store.IsErrAlreadyExists(err) {
 		return fmt.Errorf("unable to push to local store: %w", err)
 	}
 	return nil
@@ -297,7 +295,7 @@ func FetchSociArtifacts(ctx context.Context, refspec reference.Spec, indexDesc o
 		}
 
 		err = localStore.Push(ctx, desc, bytes.NewReader(b))
-		if err != nil && !errors.Is(err, errdef.ErrAlreadyExists) {
+		if err != nil && !store.IsErrAlreadyExists(err) {
 			return nil, fmt.Errorf("unable to store index in local store: %w", err)
 		}
 
@@ -320,7 +318,7 @@ func FetchSociArtifacts(ctx context.Context, refspec reference.Spec, indexDesc o
 			if local {
 				return nil
 			}
-			if err := fetcher.Store(ctx, blob, rc); err != nil && !errors.Is(err, errdef.ErrAlreadyExists) {
+			if err := fetcher.Store(ctx, blob, rc); err != nil && !store.IsErrAlreadyExists(err) {
 				return fmt.Errorf("unable to store ztoc in local store: %w", err)
 			}
 			return store.LabelGCRefContent(ctx, localStore, desc, "ztoc."+strconv.Itoa(i), blob.Digest.String())

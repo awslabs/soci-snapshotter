@@ -35,7 +35,6 @@ import (
 	"github.com/awslabs/soci-snapshotter/ztoc/compression"
 	"github.com/containerd/containerd/content"
 	"github.com/containerd/errdefs"
-	"oras.land/oras-go/v2/errdef"
 
 	"github.com/containerd/containerd/images"
 	"github.com/containerd/log"
@@ -486,7 +485,7 @@ func (b *IndexBuilder) Build(ctx context.Context, img images.Image, opts ...Buil
 
 	// Label zTOCs and push SOCI index
 	index.Desc, err = b.writeSociIndex(ctx, index, buildCfg.gcRoot)
-	if err != nil && !errors.Is(err, errdef.ErrAlreadyExists) {
+	if err != nil && !store.IsErrAlreadyExists(err) {
 		return nil, err
 	}
 
@@ -652,7 +651,7 @@ func (b *IndexBuilder) buildSociLayer(ctx context.Context, desc ocispec.Descript
 	}
 
 	err = b.blobStore.Push(ctx, ztocDesc, ztocReader)
-	if err != nil && !errors.Is(err, errdef.ErrAlreadyExists) {
+	if err != nil && !store.IsErrAlreadyExists(err) {
 		return nil, fmt.Errorf("cannot push ztoc to local store: %w", err)
 	}
 
@@ -754,7 +753,7 @@ func (b *IndexBuilder) writeSociIndex(ctx context.Context, indexWithMetadata *In
 	// registry later.
 	if indexWithMetadata.Index.MediaType == ocispec.MediaTypeImageManifest {
 		err = b.blobStore.Push(ctx, indexWithMetadata.Index.Config, bytes.NewReader(defaultConfigContent))
-		if err != nil && !errors.Is(err, errdef.ErrAlreadyExists) {
+		if err != nil && !store.IsErrAlreadyExists(err) {
 			return ocispec.Descriptor{}, fmt.Errorf("error creating OCI 1.0 empty config: %w", err)
 		}
 	}
@@ -769,7 +768,7 @@ func (b *IndexBuilder) writeSociIndex(ctx context.Context, indexWithMetadata *In
 	}
 
 	err = b.blobStore.Push(ctx, desc, bytes.NewReader(manifest))
-	if err != nil && !errors.Is(err, errdef.ErrAlreadyExists) {
+	if err != nil && !store.IsErrAlreadyExists(err) {
 		return ocispec.Descriptor{}, fmt.Errorf("cannot write SOCI index to local store: %w", err)
 	}
 
