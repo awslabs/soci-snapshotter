@@ -3,27 +3,21 @@ updates:
 
   # Automatic upgrade for go modules.
   - package-ecosystem: "gomod"
-    directory: "/"
+    directories: ["/", "/cmd"]
+    groups:
+      go:
+        # Group all of our updates in one PR.
+        # This is mostly because this is the best way we could find
+        # to group both go.mod and cmd/go.mod updates in one PR,
+        # but ideally we should have one PR per unique dependency.
+        patterns:
+          - '*'
     schedule:
       interval: "daily"
     ignore:
       # skip grpc because the current latest not compatible with containerd 1.7
       # skip k8s deps since they use the latest go version/features that may
       # not be in the go version soci uses
-      # Also ignored in /scripts/bump-deps.sh
-      - dependency-name: "google.golang.org/grpc"
-      - dependency-name: "k8s.io/*"
-
-  # Automatic upgrade for go modules of cmd package.
-  - package-ecosystem: "gomod"
-    directory: "/cmd"
-    schedule:
-      interval: "daily"
-    ignore:
-      # skip grpc because the current latest not compatible with containerd 1.7
-      # skip k8s deps since they use the latest go version/features that may
-      # not be in the go version soci uses
-      # Also ignored in /scripts/bump-deps.sh
       - dependency-name: "github.com/awslabs/soci-snapshotter"
       - dependency-name: "google.golang.org/grpc"
       - dependency-name: "k8s.io/*"
