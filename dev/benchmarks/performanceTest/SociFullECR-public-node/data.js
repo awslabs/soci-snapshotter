@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1753828582643,
+  "lastUpdate": 1753896575340,
   "repoUrl": "https://github.com/awslabs/soci-snapshotter",
   "entries": {
     "Soci Benchmark": [
@@ -13014,6 +13014,48 @@ window.BENCHMARK_DATA = {
           {
             "name": "SociFullECR-public-node-pullTaskDuration",
             "value": 2.165,
+            "unit": "Seconds",
+            "extra": "P90"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "walster@amazon.com",
+            "name": "Kern Walster",
+            "username": "Kern--"
+          },
+          "committer": {
+            "email": "kern.walster@gmail.com",
+            "name": "Kern Walster",
+            "username": "Kern--"
+          },
+          "distinct": true,
+          "id": "f698d94a448f4dd4152bc8695ce846e68bab30ad",
+          "message": "Move the snapshotter to urfave\n\nBefore this change, the SOCI CLI used urfave CLI, but the snapshotter\nused go's flag package. This moved the snapshotter to urfave as well.\n\nSigned-off-by: Kern Walster <walster@amazon.com>",
+          "timestamp": "2025-07-30T10:21:35-07:00",
+          "tree_id": "9dfb8fe5cd1914660894cc025edca15a69533493",
+          "url": "https://github.com/awslabs/soci-snapshotter/commit/f698d94a448f4dd4152bc8695ce846e68bab30ad"
+        },
+        "date": 1753896571305,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "SociFullECR-public-node-lazyTaskDuration",
+            "value": 1.5950000000000002,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-node-localTaskDuration",
+            "value": 0.485,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-node-pullTaskDuration",
+            "value": 1.423,
             "unit": "Seconds",
             "extra": "P90"
           }
