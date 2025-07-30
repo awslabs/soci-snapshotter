@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1753914641064,
+  "lastUpdate": 1753914648075,
   "repoUrl": "https://github.com/awslabs/soci-snapshotter",
   "entries": {
     "Soci Benchmark": [
@@ -13222,6 +13222,48 @@ window.BENCHMARK_DATA = {
           {
             "name": "SociFullECR-public-mongo-pullTaskDuration",
             "value": 0.881,
+            "unit": "Seconds",
+            "extra": "P90"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "davbson@amazon.com",
+            "name": "David Son",
+            "username": "sondavidb"
+          },
+          "committer": {
+            "email": "55555210+sondavidb@users.noreply.github.com",
+            "name": "David Son",
+            "username": "sondavidb"
+          },
+          "distinct": true,
+          "id": "f94b989ab5fdd473e7afac45151f3d229a035285",
+          "message": "Use common IsErrAlreadyExists for Push errors\n\ncontainerd and ORAS both return a var named ErrAlreadyExists when\npushing to their respective local content stores. This leads to some\npretty cumbersome error checking cases. This change should make it a\nlittle easier to work with.\n\nThis also changes the push behavior to return an error if content\nalready exists. This is to match the ORAS behavior for if content\nalready exists and relies on the caller to catch this error.\n\nSigned-off-by: David Son <davbson@amazon.com>",
+          "timestamp": "2025-07-30T15:22:22-07:00",
+          "tree_id": "313b3feed38c71823f6b96326015526e0b361d0f",
+          "url": "https://github.com/awslabs/soci-snapshotter/commit/f94b989ab5fdd473e7afac45151f3d229a035285"
+        },
+        "date": 1753914643175,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "SociFullECR-public-mongo-lazyTaskDuration",
+            "value": 2.363,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-mongo-localTaskDuration",
+            "value": 0.3065,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-mongo-pullTaskDuration",
+            "value": 1.3535,
             "unit": "Seconds",
             "extra": "P90"
           }
