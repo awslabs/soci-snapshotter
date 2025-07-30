@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1753828591680,
+  "lastUpdate": 1753896573070,
   "repoUrl": "https://github.com/awslabs/soci-snapshotter",
   "entries": {
     "Soci Benchmark": [
@@ -13220,6 +13220,48 @@ window.BENCHMARK_DATA = {
           {
             "name": "SociFullECR-public-redis-pullTaskDuration",
             "value": 1.8125,
+            "unit": "Seconds",
+            "extra": "P90"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "walster@amazon.com",
+            "name": "Kern Walster",
+            "username": "Kern--"
+          },
+          "committer": {
+            "email": "kern.walster@gmail.com",
+            "name": "Kern Walster",
+            "username": "Kern--"
+          },
+          "distinct": true,
+          "id": "f698d94a448f4dd4152bc8695ce846e68bab30ad",
+          "message": "Move the snapshotter to urfave\n\nBefore this change, the SOCI CLI used urfave CLI, but the snapshotter\nused go's flag package. This moved the snapshotter to urfave as well.\n\nSigned-off-by: Kern Walster <walster@amazon.com>",
+          "timestamp": "2025-07-30T10:21:35-07:00",
+          "tree_id": "9dfb8fe5cd1914660894cc025edca15a69533493",
+          "url": "https://github.com/awslabs/soci-snapshotter/commit/f698d94a448f4dd4152bc8695ce846e68bab30ad"
+        },
+        "date": 1753896571316,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "SociFullECR-public-redis-lazyTaskDuration",
+            "value": 0.7050000000000001,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-redis-localTaskDuration",
+            "value": 0.023,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-redis-pullTaskDuration",
+            "value": 0.8644999999999999,
             "unit": "Seconds",
             "extra": "P90"
           }
