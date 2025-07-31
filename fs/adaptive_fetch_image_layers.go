@@ -23,7 +23,7 @@ import (
 	"io"
 	"io/fs"
 	"maps"
-	rand "math/rand/v2"
+	"math/rand/v2"
 	"os"
 	"path/filepath"
 	"slices"

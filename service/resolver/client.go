@@ -23,7 +23,7 @@ import (
 	"encoding/xml"
 	"fmt"
 	"io"
-	"math/rand"
+	"math/rand/v2"
 	"net"
 	"net/http"
 	"strings"
@@ -116,7 +116,7 @@ func CloneRetryableClient(retryClient *rhttp.Client) *rhttp.Client {
 
 // jitter returns a number in the range duration to duration+(duration/divisor)-1, inclusive
 func jitter(duration time.Duration, divisor int64) time.Duration {
-	return time.Duration(rand.Int63n(int64(duration)/divisor) + int64(duration))
+	return time.Duration(rand.Int64N(int64(duration)/divisor) + int64(duration))
 }
 
 // backoffStrategy extends retryablehttp's DefaultBackoff to add a random jitter to avoid

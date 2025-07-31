@@ -52,7 +52,8 @@ func TestSpanManager(t *testing.T) {
 			maxSpans: 100,
 			sectionReader: io.NewSectionReader(readerFn(func(b []byte, _ int64) (int, error) {
 				sz := compression.Offset(len(b))
-				copy(b, testutil.RandomByteData(int64(sz)))
+				r := testutil.NewTestRand(t)
+				copy(b, r.RandomByteData(int64(sz))) // populate with garbage data
 				return len(b), nil
 			}), 0, 10000000),
 			expectedError: ErrIncorrectSpanDigest,
@@ -69,8 +70,9 @@ func TestSpanManager(t *testing.T) {
 			}()
 
 			fileContent := []byte{}
+			tRand := testutil.NewTestRand(t)
 			for i := 0; i < int(tc.maxSpans); i++ {
-				fileContent = append(fileContent, testutil.RandomByteData(int64(spanSize))...)
+				fileContent = append(fileContent, tRand.RandomByteData(int64(spanSize))...)
 			}
 			tarEntries := []testutil.TarEntry{
 				testutil.File(fileName, string(fileContent)),
@@ -119,8 +121,9 @@ func TestSpanManager(t *testing.T) {
 }
 
 func TestSpanManagerCache(t *testing.T) {
+	tRand := testutil.NewTestRand(t)
 	var spanSize compression.Offset = 65536 // 64 KiB
-	content := testutil.RandomByteData(int64(spanSize))
+	content := tRand.RandomByteData(int64(spanSize))
 	tarEntries := []testutil.TarEntry{
 		testutil.File("span-manager-cache-test", string(content)),
 	}
@@ -173,8 +176,9 @@ func TestSpanManagerCache(t *testing.T) {
 }
 
 func TestStateTransition(t *testing.T) {
+	tRand := testutil.NewTestRand(t)
 	var spanSize compression.Offset = 65536 // 64 KiB
-	content := testutil.RandomByteData(int64(spanSize))
+	content := tRand.RandomByteData(int64(spanSize))
 	tarEntries := []testutil.TarEntry{
 		testutil.File("set-span-test", string(content)),
 	}
@@ -342,8 +346,9 @@ func TestSpanManagerRetries(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
+			r := testutil.NewTestRand(t)
 			entries := []testutil.TarEntry{
-				testutil.File("test", string(testutil.RandomByteData(10000000))),
+				testutil.File("test", string(r.RandomByteData(10000000))),
 			}
 			ztoc, sr, err := ztoc.BuildZtocReader(t, entries, gzip.DefaultCompression, 100000)
 			if err != nil {

@@ -68,6 +68,7 @@ func TestBackgroundFetcherPause(t *testing.T) {
 }
 
 func TestBackgroundFetcherRun(t *testing.T) {
+	r := testutil.NewTestRand(t)
 	testCases := []struct {
 		name     string
 		waitTime time.Duration
@@ -78,7 +79,7 @@ func TestBackgroundFetcherRun(t *testing.T) {
 			waitTime: 1 * time.Second,
 			entries: [][]testutil.TarEntry{
 				{
-					testutil.File("test", string(testutil.RandomByteData(10000000))),
+					testutil.File("test", string(r.RandomByteData(10000000))),
 				},
 			},
 		},
@@ -87,10 +88,10 @@ func TestBackgroundFetcherRun(t *testing.T) {
 			waitTime: 3 * time.Second,
 			entries: [][]testutil.TarEntry{
 				{
-					testutil.File("test1", string(testutil.RandomByteData(10000000))),
+					testutil.File("test1", string(r.RandomByteData(10000000))),
 				},
 				{
-					testutil.File("test2", string(testutil.RandomByteData(20000000))),
+					testutil.File("test2", string(r.RandomByteData(20000000))),
 				},
 			},
 		},

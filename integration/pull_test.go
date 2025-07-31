@@ -541,9 +541,10 @@ func TestPullWithAribtraryBlobInvalidZtocFormat(t *testing.T) {
 			return nil, nil, err
 		}
 
+		r := testutil.NewTestRand(t)
 		var ztocDescs []ocispec.Descriptor
 		for _, layer := range manifest.Layers {
-			ztocBytes := testutil.RandomByteData(1000000)
+			ztocBytes := r.RandomByteData(1000000)
 			ztocDgst := digest.FromBytes(ztocBytes)
 			desc := ocispec.Descriptor{
 				MediaType: soci.SociLayerMediaType,
