@@ -594,8 +594,8 @@ func hasStateFile(t *testing.T, id string) check {
 		}
 
 		// wanted data
-		r := testutil.NewThreadsafeRandom()
-		wantErr := fmt.Errorf("test-%d", r.Int63())
+		r := testutil.NewTestRand(t)
+		wantErr := fmt.Errorf("test-%d", r.Int64())
 
 		// report the data
 		root.fs.s.report(wantErr)

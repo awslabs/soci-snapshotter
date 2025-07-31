@@ -29,6 +29,7 @@ import (
 )
 
 func TestSequentialResolver(t *testing.T) {
+	r := testutil.NewTestRand(t)
 	testCases := []struct {
 		name    string
 		entries []testutil.TarEntry
@@ -36,7 +37,7 @@ func TestSequentialResolver(t *testing.T) {
 		{
 			name: "resolver fetches spans sequentially",
 			entries: []testutil.TarEntry{
-				testutil.File("test", string(testutil.RandomByteData(10000000))),
+				testutil.File("test", string(r.RandomByteData(10000000))),
 			},
 		},
 	}
