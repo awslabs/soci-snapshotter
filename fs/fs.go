@@ -558,14 +558,14 @@ func (fs *filesystem) premount(ctx context.Context, desc ocispec.Descriptor, ref
 	}
 
 	// If we discard unpacked layers, we must verify layer integrity ourselves.
-	var compressedVerifier digest.Verifier
+	var compressedVerifier *asyncVerifier
 	if fs.pullModes.Parallel.DiscardUnpackedLayers {
-		compressedVerifier = desc.Digest.Verifier()
+		compressedVerifier = newAsyncVerifier(desc.Digest.Verifier())
 	}
 
-	archive := NewLayerArchive(compressedVerifier, uncompressedDigest.Verifier(), decompressStream)
+	archive := NewLayerArchive(compressedVerifier, newAsyncVerifier(uncompressedDigest.Verifier()), decompressStream, layerJob.bufferPool)
 	chunkSize := fs.pullModes.Parallel.ConcurrentDownloadChunkSize
-	fetcher, err := newParallelArtifactFetcher(refspec, fs.contentStore, remoteStore, layerJob, chunkSize)
+	fetcher, err := newParallelArtifactFetcher(refspec, fs.contentStore, remoteStore, layerJob, chunkSize, compressedVerifier)
 	if err != nil {
 		log.G(ctx).WithError(err).Error("cannot create fetcher")
 		return err
@@ -782,7 +782,7 @@ func (fs *filesystem) MountLocal(ctx context.Context, mountpoint string, labels 
 		return fmt.Errorf("digest %s not found in image manifest", desc.Digest.String())
 	}
 
-	archive := NewLayerArchive(nil, uncompressedDigest.Verifier(), nil)
+	archive := NewLayerArchive(nil, newAsyncVerifier(uncompressedDigest.Verifier()), nil, nil)
 	unpacker := NewLayerUnpacker(fetcher, archive)
 
 	err = unpacker.Unpack(ctx, desc, mountpoint, mounts)

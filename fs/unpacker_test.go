@@ -19,9 +19,12 @@ package fs
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"io"
+	"strings"
 	"testing"
+	"time"
 
 	"github.com/containerd/containerd/archive"
 	"github.com/containerd/containerd/mount"
@@ -208,5 +211,144 @@ func getFakeMounts() []mount.Mount {
 				"lowerdir=somedir3:somedir4",
 			},
 		},
+	}
+}
+
+// Test that AsyncTeeReader copies data to both the returned reader and the writer.
+func TestAsyncTeeReaderBasic(t *testing.T) {
+	src := strings.NewReader("hello world")
+	bp := newbufferPool(32)
+	w := newTestWriter(0)
+	r := AsyncTeeReader(src, w, bp)
+
+	out, err := io.ReadAll(r)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if string(out) != "hello world" {
+		t.Errorf("unexpected output: %q", out)
+	}
+	w.Wait()
+	if w.Written() != int64(len(out)) {
+		t.Errorf("tee writer did not receive correct data: %q", w.Written())
+	}
+}
+
+// Test that AsyncTeeReader handles empty input.
+func TestAsyncTeeReaderEmpty(t *testing.T) {
+	src := strings.NewReader("")
+	bp := newbufferPool(32)
+	w := newTestWriter(0)
+	r := AsyncTeeReader(src, w, bp)
+
+	out, err := io.ReadAll(r)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(out) != 0 {
+		t.Errorf("expected empty output, got: %q", out)
+	}
+	w.Wait()
+	if w.Written() != 0 {
+		t.Errorf("expected empty tee writer, got: %q", w.Written())
+	}
+}
+
+// Test that AsyncTeeReader propagates errors from the source reader.
+type errorReader struct{}
+
+func (e *errorReader) Read(p []byte) (int, error) {
+	return 0, errors.New("test error")
+}
+
+func TestAsyncTeeReaderError(t *testing.T) {
+	src := &errorReader{}
+	bp := newbufferPool(32)
+	w := newTestWriter(0)
+	r := AsyncTeeReader(src, w, bp)
+
+	_, err := io.ReadAll(r)
+	if err == nil {
+		t.Fatal("expected error, got nil")
+	}
+	w.Wait()
+	if w.Written() != 0 {
+		t.Errorf("expected empty tee writer, got: %q", w.Written())
+	}
+}
+
+type testWriter struct {
+	count int64
+	delay time.Duration
+	ch    chan struct{}
+}
+
+func newTestWriter(delay time.Duration) *testWriter {
+	return &testWriter{
+		delay: delay,
+		ch:    make(chan struct{}),
+	}
+}
+
+func (sw *testWriter) Write(p []byte) (n int, err error) {
+	sw.count += int64(len(p))
+	if sw.delay > 0 {
+		time.Sleep(sw.delay)
+	}
+	return len(p), nil
+}
+
+func (sw *testWriter) Close() error {
+	close(sw.ch)
+	return nil
+}
+
+func (sw *testWriter) Wait() {
+	<-sw.ch
+}
+
+func (sw *testWriter) Written() int64 {
+	return sw.count
+}
+
+func BenchmarkAsyncTeeReader(b *testing.B) {
+	const dataSize = 1 * 1024 * 1024
+	bf := newbufferPool(1024)
+	data := bytes.Repeat([]byte("x"), dataSize)
+	for i := 0; i < b.N; i++ {
+		src := bytes.NewReader(data)
+		w := newTestWriter(3 * time.Millisecond)
+		r := AsyncTeeReader(src, w, bf)
+		for {
+			n, err := io.CopyN(io.Discard, r, 256)
+			if n > 0 {
+				time.Sleep(1 * time.Millisecond) // faster
+			}
+			if err != nil {
+				break
+			}
+		}
+		w.Wait()
+	}
+}
+
+func BenchmarkTeeReader(b *testing.B) {
+	const dataSize = 1 * 1024 * 1024
+	data := bytes.Repeat([]byte("x"), dataSize)
+	for i := 0; i < b.N; i++ {
+		src := bytes.NewReader(data)
+		w := newTestWriter(3 * time.Millisecond)
+		r := io.TeeReader(src, w)
+		for {
+			n, err := io.CopyN(io.Discard, r, 256)
+			if n > 0 {
+				time.Sleep(1 * time.Millisecond)
+			}
+			if err != nil {
+				break
+			}
+		}
+		w.Close()
+		w.Wait()
 	}
 }
