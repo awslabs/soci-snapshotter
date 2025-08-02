@@ -44,16 +44,8 @@ import (
 	"github.com/awslabs/soci-snapshotter/version"
 	"github.com/containerd/containerd/defaults"
 	"github.com/containerd/containerd/namespaces"
-
-	//nolint:staticcheck
-	"github.com/containerd/containerd/pkg/seed"
 	"github.com/urfave/cli"
 )
-
-func init() {
-	//nolint:staticcheck
-	seed.WithTimeAndRand() //lint:ignore SA1019, WithTimeAndRand is deprecated and we should remove it.
-}
 
 func main() {
 	app := cli.NewApp()

@@ -182,6 +182,7 @@ func TestSociZtocInfo(t *testing.T) {
 	}
 
 	for _, img := range testImages {
+		r := testutil.NewTestRand(t)
 		img := img
 		tests := []struct {
 			name       string
@@ -205,7 +206,7 @@ func TestSociZtocInfo(t *testing.T) {
 			},
 			{
 				name:       "Ztoc digest does not exist",
-				ztocDigest: testutil.RandomDigest(),
+				ztocDigest: r.RandomDigest(),
 				expectErr:  true,
 			},
 			{
@@ -257,15 +258,16 @@ func TestSociZtocGetFile(t *testing.T) {
 	rebootContainerd(t, sh, "", "")
 
 	testImages := prepareSociIndices(t, sh)
+	initRandom := testutil.NewTestRand(t)
 
 	var (
 		tempOutputStream = "test.txt"
-		randomFile       = base64.StdEncoding.EncodeToString(testutil.RandomByteData(12))
-		randomZtocDigest = testutil.RandomDigest()
+		randomFile       = base64.StdEncoding.EncodeToString(initRandom.RandomByteData(12))
+		randomZtocDigest = initRandom.RandomDigest()
 	)
 
-	getRandomFilePathsWithinZtoc := func(ztocDigest string, numFilesPerSpan int) []string {
-		r := testutil.NewThreadsafeRandom()
+	getRandomFilePathsWithinZtoc := func(t *testing.T, ztocDigest string, numFilesPerSpan int) []string {
+		r := testutil.NewTestRand(t)
 		var (
 			zinfo     Info
 			randPaths []string
@@ -280,7 +282,7 @@ func TestSociZtocGetFile(t *testing.T) {
 		}
 		for _, regPaths := range regPathsBySpan {
 			for i := 0; i < numFilesPerSpan; i++ {
-				randPaths = append(randPaths, regPaths[r.Intn(len(regPaths))])
+				randPaths = append(randPaths, regPaths[r.IntN(len(regPaths))])
 			}
 		}
 		return randPaths
@@ -314,7 +316,7 @@ func TestSociZtocGetFile(t *testing.T) {
 			t.Fatalf("cannot parse digest: %v", err)
 		}
 		layerContents := sh.O("cat", filepath.Join(containerdStoreBlobPath, dgst.Encoded()))
-		files := getRandomFilePathsWithinZtoc(ztocDigest, 1)
+		files := getRandomFilePathsWithinZtoc(t, ztocDigest, 1)
 
 		testCases := []struct {
 			name        string

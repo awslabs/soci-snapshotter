@@ -30,9 +30,10 @@ import (
 func TestTocBuilder(t *testing.T) {
 	t.Parallel()
 
+	r := testutil.NewTestRand(t)
 	tarEntries := []testutil.TarEntry{
-		testutil.File("test1", string(testutil.RandomByteData(10000000))),
-		testutil.File("test2", string(testutil.RandomByteData(20000000))),
+		testutil.File("test1", string(r.RandomByteData(10000000))),
+		testutil.File("test2", string(r.RandomByteData(20000000))),
 	}
 
 	tarReader := func(entries []testutil.TarEntry) io.Reader {
