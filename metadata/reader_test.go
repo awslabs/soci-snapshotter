@@ -124,7 +124,6 @@ func TestPartition(t *testing.T) {
 		},
 	}
 	for _, tc := range testCases {
-		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			checkEquivalence := func(have, want [][]int) error {
 				if len(have) != len(want) {

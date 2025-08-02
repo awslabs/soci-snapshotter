@@ -133,7 +133,6 @@ func TestSociIndexInfo(t *testing.T) {
 			},
 		}
 		for _, tt := range tests {
-			tt := tt
 			t.Run(tt.name, func(t *testing.T) {
 				sociIndex, err := sociIndexFromDigest(sh, tt.digest)
 				if !tt.expectErr {
@@ -224,7 +223,6 @@ func TestSociIndexList(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
 			output := string(sh.O(tt.command...))
 			for _, img := range testImages {

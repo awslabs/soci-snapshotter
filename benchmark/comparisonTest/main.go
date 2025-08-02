@@ -78,7 +78,6 @@ func main() {
 
 	var drivers []framework.BenchmarkTestDriver
 	for _, image := range imageList {
-		image := image
 		shortName := image.ShortName
 		drivers = append(drivers, framework.BenchmarkTestDriver{
 			TestName:      "OverlayFSFull" + shortName,

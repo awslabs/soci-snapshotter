@@ -95,7 +95,6 @@ func TestPositiveTOCRoundtrip(t *testing.T) {
 	}
 
 	for _, tc := range tests {
-		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			actualTOC, err := roundtrip(&tc.toc)
 			if err != nil {
@@ -150,7 +149,6 @@ func TestNegativeTOCRoundtrip(t *testing.T) {
 	}
 
 	for _, tc := range tests {
-		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			_, err := roundtrip(&tc.toc)
 			if err == nil {

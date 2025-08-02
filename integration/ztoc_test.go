@@ -182,7 +182,6 @@ func TestSociZtocInfo(t *testing.T) {
 	}
 
 	for _, img := range testImages {
-		img := img
 		tests := []struct {
 			name       string
 			ztocDigest string
@@ -215,7 +214,6 @@ func TestSociZtocInfo(t *testing.T) {
 			},
 		}
 		for _, tt := range tests {
-			tt := tt
 			t.Run(tt.name, func(t *testing.T) {
 				var zinfo Info
 				output, err := sh.OLog("soci", "ztoc", "info", tt.ztocDigest)
@@ -295,7 +293,6 @@ func TestSociZtocGetFile(t *testing.T) {
 	}
 
 	for _, img := range testImages {
-		img := img
 		ztocDigest := img.ztocDigests[0]
 		var layerDigest string
 		sociIndex, err := sociIndexFromDigest(sh, img.sociIndexDigest)
@@ -348,7 +345,6 @@ func TestSociZtocGetFile(t *testing.T) {
 			},
 		}
 		for _, tt := range testCases {
-			tt := tt
 			t.Run(tt.name, func(t *testing.T) {
 				if !tt.expectedErr {
 					for _, f := range files {

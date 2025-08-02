@@ -232,7 +232,6 @@ func (s *Shell) Pipe(out io.Writer, commands ...[]string) *Shell {
 	var err error
 	var cmds []*dexec.Cmd
 	for i, args := range commands {
-		i, args := i, args
 		if len(args) < 1 {
 			return s.Fatal("no command to run")
 		}

@@ -646,9 +646,7 @@ func TestRunWithIdMap(t *testing.T) {
 	}
 
 	for _, mode := range modes {
-		mode := mode
 		for _, tt := range tests {
-			tt := tt
 			t.Run(tt.name+" "+mode.name, func(t *testing.T) {
 				regConfig := newRegistryConfig()
 				sh, done := newShellWithRegistry(t, regConfig)
