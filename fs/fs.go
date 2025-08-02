@@ -1040,7 +1040,6 @@ func (fs *filesystem) Mount(ctx context.Context, mountpoint string, labels map[s
 	// Also resolve and cache other layers in parallel
 	preResolve := src[0] // TODO: should we pre-resolve blobs in other sources as well?
 	for _, desc := range neighboringLayers(preResolve.Manifest, preResolve.Target) {
-		desc := desc
 		imgNameAndDigest := preResolve.Name.String() + "/" + desc.Digest.String()
 		fs.pr.Enqueue(imgNameAndDigest, func(ctx context.Context) string {
 			// Use context from the preresolver, but append namespace from current ctx
