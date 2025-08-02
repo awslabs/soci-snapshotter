@@ -307,8 +307,6 @@ func FetchSociArtifacts(ctx context.Context, refspec reference.Spec, indexDesc o
 
 	eg, ctx := errgroup.WithContext(ctx)
 	for i, blob := range index.Blobs {
-		blob := blob
-		i := i
 		eg.Go(func() error {
 			rc, local, err := fetcher.Fetch(ctx, blob)
 			if err != nil {

@@ -97,7 +97,6 @@ func TestTocBuilder(t *testing.T) {
 	builder.RegisterTarProvider(compression.Uncompressed, TarProviderTar)
 
 	for _, tt := range testCases {
-		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
 			tarReader := tt.makeTarReader(tt.tarEntries)
 			tarFile, _, err := testutil.WriteTarToTempFile("toc_builder", tarReader)

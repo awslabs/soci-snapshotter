@@ -153,7 +153,6 @@ func TestLegacyOCI(t *testing.T) {
 		},
 	}
 	for _, tc := range tests {
-		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			regConfig := newRegistryConfig()
 			sh, done := newShellWithRegistry(t, regConfig, withRegistryImageRef(tc.registryImage))

@@ -134,7 +134,6 @@ func testDecompress(t *testing.T, compressionAlgo string, generator tarGenerator
 	defer os.Remove(tarFilePath)
 
 	for _, tc := range tests {
-		tc := tc
 		ztoc, err := ztocBuilder.BuildZtoc(tarFilePath, tc.spanSize, WithCompression(compressionAlgo))
 		if err != nil {
 			t.Fatalf("%s: can't build ztoc: %v", tc.name, err)
@@ -201,7 +200,6 @@ func TestDecompressWithGzipHeaders(t *testing.T) {
 		},
 	}
 	for _, tc := range testcases {
-		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			data := testutil.RandomByteData(100)
 			ztoc, sr, err := BuildZtocReader(t,
@@ -265,7 +263,6 @@ func testZtocGenerationConsistency(t *testing.T, compressionAlgo string, generat
 	ztocBuilder := NewBuilder("test")
 
 	for _, tc := range testcases {
-		tc := tc
 		t.Run(fmt.Sprintf("%s-%s", compressionAlgo, tc.name), func(t *testing.T) {
 			tarFilePath, _, fileNames := generator(t, tc.tarName, tc.tarEntries)
 			defer os.Remove(tarFilePath)
@@ -387,7 +384,6 @@ func testZtocGeneration(t *testing.T, compressionAlgo string, generator tarGener
 	}
 
 	for _, tc := range testcases {
-		tc := tc
 		t.Run(fmt.Sprintf("%s-%s", compressionAlgo, tc.name), func(t *testing.T) {
 			tarBuffer := bytes.NewBuffer([]byte{})
 			rawTarFileSize, err := io.Copy(tarBuffer, testutil.BuildTar(tc.tarEntries))
@@ -505,7 +501,6 @@ func benchmarkZtocGeneration(b *testing.B, algo string, generator tarGenerator) 
 		},
 	}
 	for _, tc := range testcases {
-		tc := tc
 		tarfile, _, _ := generator(b, algo, ztocGenBenchmarkFiles(tc.fileSize, tc.fileSizeVariance, tc.fileCount))
 		builder := NewBuilder("benchmark")
 		b.Run(tc.name, func(b *testing.B) {
@@ -559,7 +554,6 @@ func testZtocSerialization(t *testing.T, compressionAlgo string, generator tarGe
 	}
 
 	for _, tc := range testcases {
-		tc := tc
 		t.Run(fmt.Sprintf("%s-%s", compressionAlgo, tc.name), func(t *testing.T) {
 			tarFilePath, m, fileNames := generator(t, tc.tarName, tc.tarEntries)
 			defer os.Remove(tarFilePath)

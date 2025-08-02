@@ -189,8 +189,7 @@ func (zt Ztoc) ExtractFile(r *io.SectionReader, filename string) ([]byte, error)
 	checkpoints := make([]compression.Offset, numSpans+1)
 	checkpoints[0] = zinfo.StartCompressedOffset(spanStart)
 
-	var i compression.SpanID
-	for i = 0; i < numSpans; i++ {
+	for i := compression.SpanID(0); i < numSpans; i++ {
 		checkpoints[i+1] = zinfo.EndCompressedOffset(spanStart+i, zt.CompressedArchiveSize)
 	}
 
@@ -199,8 +198,7 @@ func (zt Ztoc) ExtractFile(r *io.SectionReader, filename string) ([]byte, error)
 	eg, _ := errgroup.WithContext(context.Background())
 
 	// Fetch all span data in parallel
-	for i = 0; i < numSpans; i++ {
-		i := i
+	for i := compression.SpanID(0); i < numSpans; i++ {
 		eg.Go(func() error {
 			rangeStart := checkpoints[i]
 			rangeEnd := checkpoints[i+1]

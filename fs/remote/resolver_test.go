@@ -157,7 +157,6 @@ func TestMirror(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			var regHosts []docker.RegistryHost
 			for _, m := range tt.mirrors {
-				m := m
 				regHosts = append(regHosts, docker.RegistryHost{
 					Client:       &http.Client{Transport: tt.tr},
 					Host:         m,
