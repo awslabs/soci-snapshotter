@@ -71,7 +71,7 @@ func TestCreateConvertParameterValidation(t *testing.T) {
 	defer done()
 	rebootContainerd(t, sh, "", "")
 	image := dockerhub(alpineImage)
-	sh.X("nerdctl", "pull", image.ref)
+	sh.X("nerdctl", "pull", "-q", image.ref)
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			t.Run("create", func(t *testing.T) {

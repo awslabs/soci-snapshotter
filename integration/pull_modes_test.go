@@ -34,7 +34,7 @@ var (
 )
 
 func createAndPushV2Index(t *testing.T, sh *dockershell.Shell, srcInfo imageInfo, dstInfo imageInfo) string {
-	sh.X("nerdctl", "pull", "--all-platforms", srcInfo.ref)
+	sh.X("nerdctl", "pull", "-q", "--all-platforms", srcInfo.ref)
 	sh.X("soci", "convert", "--all-platforms", "--min-layer-size", "0", srcInfo.ref, dstInfo.ref)
 	sh.X("nerdctl", "push", "--all-platforms", dstInfo.ref)
 
@@ -54,7 +54,7 @@ func createAndPushV2Index(t *testing.T, sh *dockershell.Shell, srcInfo imageInfo
 }
 
 func createAndPushV1Index(sh *dockershell.Shell, dstInfo imageInfo) string {
-	sh.X("nerdctl", "pull", dstInfo.ref)
+	sh.X("nerdctl", "pull", "-q", dstInfo.ref)
 	indexDigest := buildIndex(sh, dstInfo, withMinLayerSize(0))
 	sh.X("soci", "push", "--user", dstInfo.creds, dstInfo.ref)
 	return indexDigest
@@ -212,7 +212,7 @@ func testPullModes(t *testing.T, imgName string) {
 					indexDigestUsed = structuredLog["digest"]
 				}
 			})
-			args := []string{"nerdctl", "pull", "--snapshotter", "soci"}
+			args := imagePullCmd
 			if test.pullDigest != "" {
 				args = append(args, "--soci-index-digest", test.pullDigest)
 			}
@@ -266,7 +266,7 @@ func testV1IsNotUsedWhenDisabled(t *testing.T, imgName string) {
 	defer doneRsm()
 	idm := testutil.NewIndexDigestMonitor(m)
 	defer idm.Close()
-	sh.X("nerdctl", "pull", "--snapshotter", "soci", dstInfo.ref)
+	sh.X(append(imagePullCmd, dstInfo.ref)...)
 	rsm.CheckAllDeferredSnapshots(t)
 	if idm.IndexDigest != "" {
 		t.Fatalf("expected no digest, got %s", idm.IndexDigest)
@@ -291,7 +291,7 @@ func testDanglingV2Annotation(t *testing.T, imgName string) {
 	srcInfo := dockerhub(imgName)
 	dstInfo := regConfig.mirror(imgName)
 
-	sh.X("nerdctl", "pull", "--all-platforms", srcInfo.ref)
+	sh.X("nerdctl", "pull", "-q", "--all-platforms", srcInfo.ref)
 	sh.X("soci", "convert", "--all-platforms", "--min-layer-size", "0", srcInfo.ref, dstInfo.ref)
 
 	manifest, err := getManifestDigest(sh, dstInfo.ref, platforms.DefaultSpec())
@@ -332,7 +332,7 @@ func testDanglingV2Annotation(t *testing.T, imgName string) {
 
 	sh.X("nerdctl", "login", "--username", regConfig.user, "--password", regConfig.pass, platformManifestRef.String())
 	sh.X("nerdctl", "push", "--platform", platforms.DefaultString(), dstInfo.ref)
-	sh.X("nerdctl", "pull", platformManifestRef.String())
+	sh.X("nerdctl", "pull", "-q", platformManifestRef.String())
 	sh.X("nerdctl", "image", "tag", platformManifestRef.String(), danglingRef.String())
 	// Push a v1 index as well to verify that we do not fall back if we don't find the SOCI v2 index
 	sh.X("nerdctl", "push", "--snapshotter", "soci", "--soci-min-layer-size", "0", danglingRef.String())
@@ -356,7 +356,7 @@ func testDanglingV2Annotation(t *testing.T, imgName string) {
 			indexDigestUsed = structuredLog["digest"]
 		}
 	})
-	sh.X("nerdctl", "pull", "--snapshotter", "soci", danglingRef.String())
+	sh.X(append(imagePullCmd, danglingRef.String())...)
 	rsm.CheckAllDeferredSnapshots(t)
 	if !foundNoIndexMessage {
 		t.Fatalf("did not find the message that no index was found")
