@@ -83,7 +83,7 @@ const (
 // Commonly used CLI commands
 var (
 	runSociCmd   = []string{"nerdctl", "run", "--pull", "never", "--net", "none", "--snapshotter", "soci"}
-	imagePullCmd = []string{"nerdctl", "pull", "--snapshotter", "soci"}
+	imagePullCmd = []string{"nerdctl", "pull", "-q", "--snapshotter", "soci"}
 )
 
 // These are images that we use in our integration tests

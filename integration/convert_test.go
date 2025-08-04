@@ -146,7 +146,7 @@ func TestConvert(t *testing.T) {
 				imgRef := dockerhub(imageName).ref
 				convertedRef := imgRef + "-soci"
 
-				sh.X("nerdctl", "pull", "--all-platforms", imgRef)
+				sh.X("nerdctl", "pull", "-q", "--all-platforms", imgRef)
 				sh.X("soci", "convert", "--all-platforms", "--min-layer-size", "0", imgRef, convertedRef)
 
 				imgDigest := getImageDigest(sh, imgRef)
@@ -164,7 +164,7 @@ func TestConvert(t *testing.T) {
 				imgRef := dockerhub(imageName).ref
 				convertedRef := imgRef + "-soci"
 
-				sh.X("nerdctl", "pull", imgRef)
+				sh.X("nerdctl", "pull", "-q", imgRef)
 				sh.X("soci", "convert", "--min-layer-size", "0", imgRef, convertedRef)
 
 				imgDigest := getImageDigest(sh, imgRef)
@@ -183,7 +183,7 @@ func TestConvert(t *testing.T) {
 				convertedRef1 := imgRef + "-soci"
 				convertedRef2 := imgRef + "-soci-2"
 
-				sh.X("nerdctl", "pull", "--all-platforms", imgRef)
+				sh.X("nerdctl", "pull", "-q", "--all-platforms", imgRef)
 				sh.X("soci", "convert", "--all-platforms", imgRef, convertedRef1)
 				sh.X("soci", "convert", "--all-platforms", convertedRef1, convertedRef2)
 
@@ -203,7 +203,7 @@ func TestConvert(t *testing.T) {
 				rebootContainerd(t, sh, "", "")
 				convertedRef := imgRef + "-soci"
 
-				sh.X("nerdctl", "pull", "--platform", "linux/amd64", imgRef)
+				sh.X("nerdctl", "pull", "-q", "--platform", "linux/amd64", imgRef)
 				sh.X("soci", "convert", imgRef, convertedRef)
 
 				imgDigest := getImageDigest(sh, imgRef)
@@ -222,7 +222,7 @@ func TestConvert(t *testing.T) {
 
 				originalDigest := getImageDigest(sh, imgRef)
 
-				sh.X("nerdctl", "pull", "--all-platforms", imgRef)
+				sh.X("nerdctl", "pull", "-q", "--all-platforms", imgRef)
 				sh.X("soci", "convert", imgRef, imgRef)
 
 				imgDigest := getImageDigest(sh, imgRef)
@@ -281,7 +281,7 @@ func TestConvertAndPush(t *testing.T) {
 					img := dockerhub(imageName)
 					convertedImg := registryConfig.mirror(imageName)
 
-					pull := []string{"nerdctl", "pull"}
+					pull := []string{"nerdctl", "pull", "-q"}
 					convert := []string{"soci", "convert"}
 					push := []string{"nerdctl", "push"}
 
@@ -365,7 +365,7 @@ func TestInvalidConversion(t *testing.T) {
 			rebootContainerd(t, sh, "", "")
 			img := dockerhub(imageName)
 
-			sh.X("nerdctl", "pull", "--all-platforms", img.ref)
+			sh.X("nerdctl", "pull", "-q", "--all-platforms", img.ref)
 
 			for _, test := range tests {
 				t.Run(test.name, func(t *testing.T) {
