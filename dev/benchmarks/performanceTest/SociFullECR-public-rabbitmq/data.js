@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1754431166921,
+  "lastUpdate": 1754434256380,
   "repoUrl": "https://github.com/awslabs/soci-snapshotter",
   "entries": {
     "Soci Benchmark": [
@@ -13309,6 +13309,48 @@ window.BENCHMARK_DATA = {
           {
             "name": "SociFullECR-public-rabbitmq-pullTaskDuration",
             "value": 1.763,
+            "unit": "Seconds",
+            "extra": "P90"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "davbson@amazon.com",
+            "name": "David Son",
+            "username": "sondavidb"
+          },
+          "committer": {
+            "email": "kern.walster@gmail.com",
+            "name": "Kern Walster",
+            "username": "Kern--"
+          },
+          "distinct": true,
+          "id": "bdd630e2f63811782606ddfce57cf4cab783663b",
+          "message": "Move to math/rand/v2 and remove containerd/seed\n\nGo 1.22 introduced math/rand/v2, which introduced breaking changes from\nthe math/rand library. Notably, it removed ambiguity on who seeds the\nRNG used for global random number calls. By moving away from this\nlibrary we can remove our usage of containerd/seed, which has been\ndeprecated anyway.\n\nThis process included moving away from ThreadsafeRandom in our testutil\npackage. The idea made sense (we want to seed the RNG but make it\nthreadsafe) but in practice it never really worked properly since the\norder the tests run in aren't really deterministic, and if it's not\ndeterministic then there's no reason to seed it to begin with. By\nleveraging the new rand.Source and ensuring we create a new Random\nvariable for every instance we need it, we can achieve the actual end\ngoal of deterministic randomness in our testing suite.\n\nPart of this change also included ensuring all of our calls to TestRand\nare tied to a TestRand object, which removes the ambiguity present in\nsome of our other functions (some would just use the global rand while\nothers created a new ThreadsafeRandom in place) and allows the caller\nto control the amount of randomness they wish.\n\nWith that said, I did make a best effort to ensure that we are always\ncreating new TestRand calls within single-threaded operations, but it's\npossible that I missed a couple cases.\n\nThere's still a couple of considerations even after this commit:\n\n1. We still use the global RNG in two places: jitter() which is used for\n   our HTTP backoff strategy, and generateUniqueString(), which is used\n   for our parallel pull mode. I can't imagine either is particularly\n   impactful, but it's still worth noting that we are not making that\n   deterministic within our tests.\n2. If we consume any libraries that still use math/rand, we might lose\n   reproducible behavior as Go 1.20 has math/rand calls be\n   nondeterministic unless it is seeded, which we always did.\n\nIn spite of these caveats, this is hopefully still a net positive :)\n\nSigned-off-by: David Son <davbson@amazon.com>",
+          "timestamp": "2025-08-05T15:42:08-07:00",
+          "tree_id": "ade9bc937fb757f8ca36d7022acadba2021302d2",
+          "url": "https://github.com/awslabs/soci-snapshotter/commit/bdd630e2f63811782606ddfce57cf4cab783663b"
+        },
+        "date": 1754434252552,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "SociFullECR-public-rabbitmq-lazyTaskDuration",
+            "value": 11.527000000000001,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-rabbitmq-localTaskDuration",
+            "value": 9.455,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-rabbitmq-pullTaskDuration",
+            "value": 1.612,
             "unit": "Seconds",
             "extra": "P90"
           }
