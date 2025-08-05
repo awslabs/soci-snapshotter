@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1754431147861,
+  "lastUpdate": 1754431160324,
   "repoUrl": "https://github.com/awslabs/soci-snapshotter",
   "entries": {
     "Soci Benchmark": [
@@ -13389,6 +13389,48 @@ window.BENCHMARK_DATA = {
           {
             "name": "SociFullECR-public-busybox-pullTaskDuration",
             "value": 1.35,
+            "unit": "Seconds",
+            "extra": "P90"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "davbson@amazon.com",
+            "name": "David Son",
+            "username": "sondavidb"
+          },
+          "committer": {
+            "email": "kern.walster@gmail.com",
+            "name": "Kern Walster",
+            "username": "Kern--"
+          },
+          "distinct": true,
+          "id": "5570f817ea39b5c4d73f8fce3efaa80cbb1f2074",
+          "message": "Enable copyloopvar rule in Go linter\n\nSigned-off-by: David Son <davbson@amazon.com>",
+          "timestamp": "2025-08-05T14:50:46-07:00",
+          "tree_id": "cb554bad5677b5e696d3b197f813b2e6d03f55c2",
+          "url": "https://github.com/awslabs/soci-snapshotter/commit/5570f817ea39b5c4d73f8fce3efaa80cbb1f2074"
+        },
+        "date": 1754431155067,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "SociFullECR-public-busybox-lazyTaskDuration",
+            "value": 0.019,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-busybox-localTaskDuration",
+            "value": 0.0055,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-busybox-pullTaskDuration",
+            "value": 1.33,
             "unit": "Seconds",
             "extra": "P90"
           }
