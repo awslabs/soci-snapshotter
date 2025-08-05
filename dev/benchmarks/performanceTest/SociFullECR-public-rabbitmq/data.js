@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1754418240729,
+  "lastUpdate": 1754431138965,
   "repoUrl": "https://github.com/awslabs/soci-snapshotter",
   "entries": {
     "Soci Benchmark": [
@@ -13183,6 +13183,48 @@ window.BENCHMARK_DATA = {
           {
             "name": "SociFullECR-public-rabbitmq-pullTaskDuration",
             "value": 1.5975000000000001,
+            "unit": "Seconds",
+            "extra": "P90"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "davbson@amazon.com",
+            "name": "David Son",
+            "username": "sondavidb"
+          },
+          "committer": {
+            "email": "kern.walster@gmail.com",
+            "name": "Kern Walster",
+            "username": "Kern--"
+          },
+          "distinct": true,
+          "id": "3008f273c357b986dbd571fdd709d7d4b6921881",
+          "message": "Use -q flag when pulling with nerdctl in tests\n\nThis should hopefully greatly reduce the number of log lines we get.\n\nSigned-off-by: David Son <davbson@amazon.com>",
+          "timestamp": "2025-08-05T14:50:23-07:00",
+          "tree_id": "60f1ba9189bb5598a12ec25147fc8095872585d8",
+          "url": "https://github.com/awslabs/soci-snapshotter/commit/3008f273c357b986dbd571fdd709d7d4b6921881"
+        },
+        "date": 1754431132898,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "SociFullECR-public-rabbitmq-lazyTaskDuration",
+            "value": 11.315000000000001,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-rabbitmq-localTaskDuration",
+            "value": 9.4635,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-rabbitmq-pullTaskDuration",
+            "value": 1.58,
             "unit": "Seconds",
             "extra": "P90"
           }
