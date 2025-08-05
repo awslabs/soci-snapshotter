@@ -65,44 +65,45 @@ const (
 
 // TestingReporter is an implementation of dockershell.Reporter backed by testing.T and TestingL.
 type TestingReporter struct {
+	w *BufferedWriter
 	t *testing.T
 }
 
 // NewTestingReporter returns a new TestingReporter instance for the specified testing.T.
 func NewTestingReporter(t *testing.T) *TestingReporter {
-	return &TestingReporter{t}
+	w := NewBufferedWriter(NewTestWriter(t))
+	t.Cleanup(func() {
+		if t.Failed() {
+			w.Flush()
+		}
+	})
+	return &TestingReporter{w, t}
 }
 
-// Errorf prints the provided message to TestingL and stops the test using testing.T.Fatalf.
+// Errorf prints the provided message to the test output and stops the test using testing.T.Fatalf.
 func (r *TestingReporter) Errorf(format string, v ...interface{}) {
-	msg := fmt.Sprintf(format, v...)
-	_, file, lineNum, ok := runtime.Caller(2)
-	if ok {
-		r.t.Fatalf("%s:%d: %s", file, lineNum, msg)
-	} else {
-		r.t.Fatalf(format, v...)
-	}
+	r.Logf(format, v...)
+	r.t.FailNow()
 }
 
-// Logf prints the provided message to TestingL testing.T.
+// Logf prints the provided message to the test output if the test fails.
 func (r *TestingReporter) Logf(format string, v ...interface{}) {
 	msg := fmt.Sprintf(format, v...)
 	_, file, lineNum, ok := runtime.Caller(2)
 	if ok {
-		r.t.Logf("%s:%d: %s", file, lineNum, msg)
-	} else {
-		r.t.Logf(format, v...)
+		msg = fmt.Sprintf("%s:%d: %s", file, lineNum, msg)
 	}
+	io.Copy(r.w, strings.NewReader(msg))
 }
 
-// Stdout returns the writer to TestingL as stdout. This enables to print command logs realtime.
+// Stdout returns the underlying writer as stdout. This enables to print command logs realtime.
 func (r *TestingReporter) Stdout() io.Writer {
-	return TestingL.Writer()
+	return r.w
 }
 
-// Stderr returns the writer to TestingL as stderr. This enables to print command logs realtime.
+// Stderr returns the underlying writer as stderr. This enables to print command logs realtime.
 func (r *TestingReporter) Stderr() io.Writer {
-	return TestingL.Writer()
+	return r.w
 }
 
 // LogMonitor manages a list of functions that should scan lines coming from stdout and stderr Readers

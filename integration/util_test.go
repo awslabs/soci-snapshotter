@@ -586,6 +586,8 @@ func withRegistryImageRef(ref string) registryOpt {
 }
 
 func newShellWithRegistry(t *testing.T, r registryConfig, opts ...registryOpt) (sh *shell.Shell, done func() error) {
+	reporter := testutil.NewTestingReporter(t)
+
 	rOpts := defaultRegistryOptions()
 	for _, o := range opts {
 		o(&rOpts)
@@ -633,7 +635,7 @@ func newShellWithRegistry(t *testing.T, r registryConfig, opts ...registryOpt) (
 	// Run testing environment on docker compose
 	cOpts := []compose.Option{
 		compose.WithBuildArgs(buildArgs...),
-		compose.WithStdio(testutil.TestingLogDest()),
+		compose.WithStdio(reporter.Stdout(), reporter.Stderr()),
 	}
 	networkConfig := ""
 	var cleanups []func() error
@@ -685,7 +687,7 @@ networks:
 	if !ok {
 		t.Fatalf("failed to get shell of service %v", serviceName)
 	}
-	sh = shell.New(de, testutil.NewTestingReporter(t))
+	sh = shell.New(de, reporter)
 
 	// Install cert and login to the registry
 	crtPath := filepath.Join(caCertDir, "domain.crt")
@@ -710,7 +712,7 @@ networks:
 }
 
 func newSnapshotterBaseShell(t *testing.T, opts ...composeDefaultTemplateOpt) (*shell.Shell, func() error) {
-
+	reporter := testutil.NewTestingReporter(t)
 	serviceName := "testing"
 	buildArgs, err := getBuildArgsFromEnv()
 	if err != nil {
@@ -734,7 +736,7 @@ func newSnapshotterBaseShell(t *testing.T, opts ...composeDefaultTemplateOpt) (*
 	if err != nil {
 		t.Fatal(err)
 	}
-	c, err := compose.Up(s, compose.WithBuildArgs(buildArgs...), compose.WithStdio(testutil.TestingLogDest()))
+	c, err := compose.Up(s, compose.WithBuildArgs(buildArgs...), compose.WithStdio(reporter.Stdout(), reporter.Stderr()))
 	if err != nil {
 		t.Fatalf("failed to prepare compose: %v", err)
 	}
@@ -742,7 +744,7 @@ func newSnapshotterBaseShell(t *testing.T, opts ...composeDefaultTemplateOpt) (*
 	if !ok {
 		t.Fatalf("failed to get shell of service %v", serviceName)
 	}
-	sh := shell.New(de, testutil.NewTestingReporter(t))
+	sh := shell.New(de, reporter)
 	if !isTestingBuiltinSnapshotter() {
 		if err := testutil.WriteFileContents(sh, defaultContainerdConfigPath, []byte(getContainerdConfigToml(t, false)), 0600); err != nil {
 			t.Fatalf("failed to write containerd config %v: %v", defaultContainerdConfigPath, err)

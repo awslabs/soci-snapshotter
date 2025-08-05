@@ -672,7 +672,7 @@ func TestMirror(t *testing.T) {
 	}
 	c, err := compose.Up(s,
 		compose.WithBuildArgs(buildArgs...),
-		compose.WithStdio(testutil.TestingLogDest()))
+		compose.WithStdio(reporter.Stdout(), reporter.Stderr()))
 	if err != nil {
 		t.Fatalf("failed to prepare compose: %v", err)
 	}
