@@ -129,12 +129,18 @@ func setup() ([]func() error, error) {
 	if err != nil {
 		return nil, err
 	}
+	stdout, stderr := testutil.BufferedTestingLogDest()
 	cOpts := []compose.Option{
 		compose.WithBuildArgs(buildArgs...),
-		compose.WithStdio(testutil.TestingLogDest()),
+		compose.WithStdio(stdout, stderr),
 	}
 
-	return compose.Build(composeYaml, cOpts...)
+	cleanup, err := compose.Build(composeYaml, cOpts...)
+	if err != nil {
+		stdout.Flush()
+		stderr.Flush()
+	}
+	return cleanup, err
 
 }
 
