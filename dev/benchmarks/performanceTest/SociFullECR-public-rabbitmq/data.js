@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1754431138965,
+  "lastUpdate": 1754431152998,
   "repoUrl": "https://github.com/awslabs/soci-snapshotter",
   "entries": {
     "Soci Benchmark": [
@@ -13225,6 +13225,48 @@ window.BENCHMARK_DATA = {
           {
             "name": "SociFullECR-public-rabbitmq-pullTaskDuration",
             "value": 1.58,
+            "unit": "Seconds",
+            "extra": "P90"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "davbson@amazon.com",
+            "name": "David Son",
+            "username": "sondavidb"
+          },
+          "committer": {
+            "email": "kern.walster@gmail.com",
+            "name": "Kern Walster",
+            "username": "Kern--"
+          },
+          "distinct": true,
+          "id": "a998022a174bc2ddc6c258c6d880f663c9664b2a",
+          "message": "Update dependabot.yml and remove custom workflow\n\nSince June 25 2024, dependabot has added multi-directory support for\ndependencies. As the existing bump-deps.yml was meant as a workaround\nfor this, we can safely remove it and rely solely on dependabot instead.\n\nSigned-off-by: David Son <davbson@amazon.com>",
+          "timestamp": "2025-08-05T14:49:51-07:00",
+          "tree_id": "ad979db0e6230edc269950a46486bbfe9aa8fdce",
+          "url": "https://github.com/awslabs/soci-snapshotter/commit/a998022a174bc2ddc6c258c6d880f663c9664b2a"
+        },
+        "date": 1754431140213,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "SociFullECR-public-rabbitmq-lazyTaskDuration",
+            "value": 11.905,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-rabbitmq-localTaskDuration",
+            "value": 9.6065,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-rabbitmq-pullTaskDuration",
+            "value": 1.634,
             "unit": "Seconds",
             "extra": "P90"
           }
