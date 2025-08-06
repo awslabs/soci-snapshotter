@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1754434256380,
+  "lastUpdate": 1754517922333,
   "repoUrl": "https://github.com/awslabs/soci-snapshotter",
   "entries": {
     "Soci Benchmark": [
@@ -13351,6 +13351,48 @@ window.BENCHMARK_DATA = {
           {
             "name": "SociFullECR-public-rabbitmq-pullTaskDuration",
             "value": 1.612,
+            "unit": "Seconds",
+            "extra": "P90"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "walster@amazon.com",
+            "name": "Kern Walster",
+            "username": "Kern--"
+          },
+          "committer": {
+            "email": "kern.walster@gmail.com",
+            "name": "Kern Walster",
+            "username": "Kern--"
+          },
+          "distinct": true,
+          "id": "45a548c076b82d883b887e87a014af0f8fe2871a",
+          "message": "Reduce integration test log noise\n\nThis change reduces the integration test log volume by only printing\nlogs when a test fails. Even when the tests are run with `go test -v`,\nthe logs from docker compose, soci, and all the shell commands will be\nsurpressed unless the test fails.\n\nSigned-off-by: Kern Walster <walster@amazon.com>",
+          "timestamp": "2025-08-06T14:56:36-07:00",
+          "tree_id": "691aaaa3d1bc0cc95f666d57848cb4bedc1bc403",
+          "url": "https://github.com/awslabs/soci-snapshotter/commit/45a548c076b82d883b887e87a014af0f8fe2871a"
+        },
+        "date": 1754517918302,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "SociFullECR-public-rabbitmq-lazyTaskDuration",
+            "value": 14.053,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-rabbitmq-localTaskDuration",
+            "value": 9.386,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-rabbitmq-pullTaskDuration",
+            "value": 1.1135000000000002,
             "unit": "Seconds",
             "extra": "P90"
           }
