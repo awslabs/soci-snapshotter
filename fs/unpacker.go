@@ -22,6 +22,7 @@ import (
 	"fmt"
 	"io"
 	"strings"
+	"sync"
 
 	socicompression "github.com/awslabs/soci-snapshotter/internal/archive/compression"
 	"github.com/containerd/containerd/archive"
@@ -46,56 +47,177 @@ type Archive interface {
 }
 
 type layerArchive struct {
-	verifier         *layerVerifier
+	compressed       *asyncVerifier
+	uncompressed     *asyncVerifier
 	decompressStream socicompression.DecompressStream
+	bufferPool       *bufferPool
 }
 
-type layerVerifier struct {
-	compressed   digest.Verifier
-	uncompressed digest.Verifier
+type asyncVerifier struct {
+	v       digest.Verifier
+	waitCh  chan struct{}
+	started bool
 }
 
-func NewLayerArchive(compressedVerifier, uncompressedVerifier digest.Verifier, decompressStream socicompression.DecompressStream) Archive {
+func newAsyncVerifier(v digest.Verifier) *asyncVerifier {
+	return &asyncVerifier{
+		v:       v,
+		waitCh:  make(chan struct{}, 1),
+		started: false,
+	}
+}
+
+func (av *asyncVerifier) AsyncVerify(reader io.ReadCloser) {
+	if av == nil || av.v == nil {
+		reader.Close()
+		return
+	}
+	go func() {
+		io.Copy(av.v, reader)
+		close(av.waitCh)
+		reader.Close()
+	}()
+	av.started = true
+}
+
+func (av *asyncVerifier) Verified(ctx context.Context) bool {
+	if av == nil || av.v == nil {
+		return true
+	}
+	if !av.started {
+		return false
+	}
+	select {
+	case <-ctx.Done():
+		return false
+	case <-av.waitCh:
+		return av.v.Verified()
+	}
+}
+
+type bufferPool struct {
+	pool *sync.Pool
+}
+
+func newbufferPool(size int64) *bufferPool {
+	pool := &sync.Pool{
+		New: func() any {
+			buffer := make([]byte, size)
+			return &buffer
+		},
+	}
+	return &bufferPool{
+		pool: pool,
+	}
+}
+
+func (p *bufferPool) Get() *[]byte {
+	buf := p.pool.Get().(*[]byte)
+	return buf
+}
+
+func (p *bufferPool) Put(buffer *[]byte) {
+	p.pool.Put(buffer)
+}
+
+func NewLayerArchive(compressedVerifier, uncompressedVerifier *asyncVerifier, decompressStream socicompression.DecompressStream, bufPool *bufferPool) Archive {
 	// If no layer decompress stream was provided, then use containerd's decompress stream implementation.
 	if decompressStream == nil {
 		decompressStream = compression.DecompressStream
 	}
-	return &layerArchive{
-		verifier: &layerVerifier{
-			compressed:   compressedVerifier,
-			uncompressed: uncompressedVerifier,
-		},
-		decompressStream: decompressStream,
+	if bufPool == nil {
+		bufPool = newbufferPool(64 * 1024)
 	}
+	return &layerArchive{
+		compressed:       compressedVerifier,
+		uncompressed:     uncompressedVerifier,
+		decompressStream: decompressStream,
+		bufferPool:       bufPool,
+	}
+}
+
+func AsyncTeeReader(r io.Reader, w io.WriteCloser, bp *bufferPool) io.Reader {
+	type chunk struct {
+		data *[]byte
+		n    int
+	}
+
+	var (
+		ch     = make(chan *chunk, 16)
+		pr, pw = io.Pipe()
+	)
+
+	// writer goroutine writing chunks to w
+	go func() {
+		for c := range ch {
+			w.Write((*c.data)[:c.n])
+			bp.Put(c.data)
+		}
+		w.Close()
+	}()
+
+	// reader goroutine reading from r and writing to pw
+	go func() {
+		defer close(ch)
+		for {
+			b := bp.Get()
+			n, err := r.Read(*b)
+			if n > 0 {
+				c := &chunk{data: bp.Get(), n: n}
+				copy((*c.data), (*b)[:n])
+				ch <- c
+				_, err = pw.Write((*b)[:n])
+			}
+			if err != nil {
+				if err != io.EOF {
+					pw.CloseWithError(err)
+				} else {
+					pw.Close()
+				}
+				bp.Put(b)
+				return
+			}
+			bp.Put(b)
+		}
+	}()
+
+	return pr
 }
 
 func (la *layerArchive) Apply(ctx context.Context, root string, r io.Reader, opts ...archive.ApplyOpt) (int64, error) {
 	// Decompress first, then apply.
-	if la.verifier.compressed != nil {
-		r = io.TeeReader(r, la.verifier.compressed)
-	}
-
 	decompressReader, err := la.decompressStream(r)
 	if err != nil {
 		return 0, fmt.Errorf("cannot decompress the stream: %w", err)
 	}
-	defer decompressReader.Close()
 
-	verifiyReader := io.TeeReader(decompressReader, la.verifier.uncompressed)
-	n, err := archive.Apply(ctx, root, verifiyReader, opts...)
+	var (
+		reader io.Reader = decompressReader
+	)
+	drain := func() {
+		// Read any trailing data to ensure digest validation
+		io.Copy(io.Discard, reader)
+		decompressReader.Close()
+	}
+
+	if la.uncompressed != nil {
+		pr, pw := io.Pipe()
+		// Benchmark suggests that we should give the larger buffer to the faster consumer.
+		// Digest calculation is faster than untar operation.
+		reader = AsyncTeeReader(decompressReader, pw, la.bufferPool)
+		la.uncompressed.AsyncVerify(pr)
+	}
+
+	n, err := archive.Apply(ctx, root, reader, opts...)
+	drain()
 	if err != nil {
 		return 0, err
 	}
 
-	// Read any trailing data to ensure digest validation
-	if _, err := io.Copy(io.Discard, verifiyReader); err != nil {
-		return 0, err
-	}
-
-	if !la.verifier.uncompressed.Verified() {
+	if !la.uncompressed.Verified(ctx) {
 		return 0, errors.New("uncompressed digests did not match")
 	}
-	if la.verifier.compressed != nil && !la.verifier.compressed.Verified() {
+	if !la.compressed.Verified(ctx) {
 		return 0, errors.New("compressed digests did not match")
 	}
 
