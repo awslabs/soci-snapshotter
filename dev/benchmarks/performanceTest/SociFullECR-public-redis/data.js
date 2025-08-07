@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1754517929508,
+  "lastUpdate": 1754608174484,
   "repoUrl": "https://github.com/awslabs/soci-snapshotter",
   "entries": {
     "Soci Benchmark": [
@@ -13556,6 +13556,48 @@ window.BENCHMARK_DATA = {
           {
             "name": "SociFullECR-public-redis-pullTaskDuration",
             "value": 1.1655,
+            "unit": "Seconds",
+            "extra": "P90"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "austin.vazquez.dev@gmail.com",
+            "name": "Austin Vazquez",
+            "username": "austinvazquez"
+          },
+          "committer": {
+            "email": "kern.walster@gmail.com",
+            "name": "Kern Walster",
+            "username": "Kern--"
+          },
+          "distinct": true,
+          "id": "c8bc2dcc8b596075be5769c3800e3c2ecdd86166",
+          "message": "Migrate soci to urfave/cli/v2\n\nSigned-off-by: Austin Vazquez <austin.vazquez.dev@gmail.com>\nCo-authored-by: Kern Walster <walster@amazon.com>",
+          "timestamp": "2025-08-07T16:01:26-07:00",
+          "tree_id": "f25d6126f42a6754e6858482a642ebde71b091aa",
+          "url": "https://github.com/awslabs/soci-snapshotter/commit/c8bc2dcc8b596075be5769c3800e3c2ecdd86166"
+        },
+        "date": 1754608166612,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "SociFullECR-public-redis-lazyTaskDuration",
+            "value": 0.5375000000000001,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-redis-localTaskDuration",
+            "value": 0.0245,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-redis-pullTaskDuration",
+            "value": 0.7765,
             "unit": "Seconds",
             "extra": "P90"
           }
