@@ -507,7 +507,7 @@ func (fs *filesystem) preloadAllLayers(ctx context.Context, desc ocispec.Descrip
 
 					// We don't have to preauthorize if we only do one request at a time
 					if fs.inProgressImageUnpacks.imagePullCfg.MaxConcurrentDownloadsPerImage != 1 {
-						err = remoteStore.doInitialFetch(ctx, constructRef(refspec, desc))
+						_, err = remoteStore.doInitialFetch(ctx, constructRef(refspec, desc))
 						if err != nil {
 							return fmt.Errorf("error doing initial client fetch: %w", err)
 						}
