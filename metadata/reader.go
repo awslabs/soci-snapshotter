@@ -192,15 +192,15 @@ func (r *reader) initNodes(toc ztoc.TOC) error {
 				if isLink {
 					id, err = getIDByName(md, cleanLinkName, r.rootID)
 					if err != nil {
-						return fmt.Errorf("%q is a hardlink but cannot get link destination %q: %w", ent.Name, ent.Linkname, err)
+						return fmt.Errorf("received a hardlink but cannot get link destination: %w", err)
 					}
 					b, err = getNodeBucketByID(nodes, id)
 					if err != nil {
-						return fmt.Errorf("cannot get hardlink destination %q ==> %q (%d): %w", ent.Name, ent.Linkname, id, err)
+						return fmt.Errorf("cannot get hardlink destination %d: %w", id, err)
 					}
 					numLink, _ := binary.Varint(b.Get(bucketKeyNumLink))
 					if err := putInt(b, bucketKeyNumLink, numLink+1); err != nil {
-						return fmt.Errorf("cannot put NumLink of %q ==> %q: %w", ent.Name, ent.Linkname, err)
+						return fmt.Errorf("cannot put NumLink: %w", err)
 					}
 				} else {
 					// Write node bucket
@@ -234,7 +234,7 @@ func (r *reader) initNodes(toc ztoc.TOC) error {
 					}
 					// Write the new node object to the node bucket.
 					if err := writeNodeEntry(b, attrFromZtocEntry(&ent, &attr)); err != nil {
-						return fmt.Errorf("failed to set attr to %d(%q): %w", id, ent.Name, err)
+						return fmt.Errorf("failed to set attr to %d: %w", id, err)
 					}
 				}
 
@@ -242,7 +242,7 @@ func (r *reader) initNodes(toc ztoc.TOC) error {
 				parentDirectoryName := parentDir(cleanName)
 				parentID, parentBucket, err := r.getOrCreateDir(nodes, md, parentDirectoryName, r.rootID)
 				if err != nil {
-					return fmt.Errorf("failed to create parent directory %q of %q: %w", parentDirectoryName, ent.Name, err)
+					return fmt.Errorf("failed to create parent directory: %w", err)
 				}
 				if err := setChild(md, parentBucket, parentID, filepath.Base(cleanName), id, isDir); err != nil {
 					return err
@@ -323,7 +323,7 @@ func getIDByName(md map[uint32]*metadataEntry, path string, rootID uint32) (uint
 	}
 	c, ok := md[parentID].children[base]
 	if !ok {
-		return 0, fmt.Errorf("not found child %q in %d", base, parentID)
+		return 0, fmt.Errorf("not found child in %d", parentID)
 	}
 	return c.id, nil
 }
@@ -519,7 +519,7 @@ func (r *reader) GetChild(pid uint32, base string) (id uint32, attr Attr, _ erro
 		}
 		id, err = readChild(md, base)
 		if err != nil {
-			return fmt.Errorf("failed to read child %q of %d: %w", base, pid, err)
+			return fmt.Errorf("failed to read child of %d: %w", pid, err)
 		}
 		nodes, err := getNodesBucket(tx, r.fsID)
 		if err != nil {

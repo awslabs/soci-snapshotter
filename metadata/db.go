@@ -239,7 +239,7 @@ func writeNodeEntry(b *bolt.Bucket, attr *Attr) error {
 				}
 			}
 			if err := xbkt.Put([]byte(k), v); err != nil {
-				return fmt.Errorf("failed to set xattr %q=%q: %w", k, string(v), err)
+				return fmt.Errorf("failed to set xattr: %w", err)
 			}
 		}
 		if err := b.Put(bucketKeyXattrKey, []byte(firstK)); err != nil {
@@ -318,7 +318,7 @@ func readChild(md *bolt.Bucket, base string) (uint32, error) {
 	}
 	eid := cbkt.Get([]byte(base))
 	if len(eid) == 0 {
-		return 0, fmt.Errorf("children %q not found", base)
+		return 0, fmt.Errorf("children not found")
 	}
 	return decodeID(eid), nil
 }
@@ -365,10 +365,10 @@ func writeMetadataEntry(md *bolt.Bucket, m *metadataEntry) error {
 			}
 		}
 		if err := md.Put(bucketKeyChildID, encodeID(firstChild.id)); err != nil {
-			return fmt.Errorf("failed to put id of first child %q: %w", firstChildName, err)
+			return fmt.Errorf("failed to put id of first child: %w", err)
 		}
 		if err := md.Put(bucketKeyChildName, []byte(firstChildName)); err != nil {
-			return fmt.Errorf("failed to put name first child %q: %w", firstChildName, err)
+			return fmt.Errorf("failed to put name first child: %w", err)
 		}
 
 	}
