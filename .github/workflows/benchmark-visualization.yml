@@ -26,7 +26,7 @@ jobs:
     runs-on: ubuntu-22.04
     steps:
       - name: Checkout main branch
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           fetch-depth: 0
           submodules: true
@@ -47,7 +47,7 @@ jobs:
     needs: benchmark
     steps:
       - name: Checkout main branch
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
       - name: Download latest benchmark result
         uses: actions/download-artifact@v4
         with:
@@ -81,7 +81,7 @@ jobs:
         file: ${{ fromJson(needs.download-and-convert-benchmark-result-to-visualization-data.outputs.matrix) }}
     steps:
       - name: Checkout main branch
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Create current folder
         run: mkdir ${{github.workspace}}/current
