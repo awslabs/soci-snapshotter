@@ -14,7 +14,7 @@ jobs:
   check:
     runs-on: ubuntu-22.04
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           # check-dco will check the last 20 commits, but commit ranges
           # exclude the start commit in the result, but need that commit
@@ -35,7 +35,7 @@ jobs:
     runs-on: ubuntu-22.04
     steps:
       - name: Pull latest awslabs/git-secrets repo
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           repository: awslabs/git-secrets
           ref: 1.3.0
@@ -44,7 +44,7 @@ jobs:
       - name: Install git secrets from source
         run: sudo make install
         working-directory: git-secrets
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - name: Scan repository for git secrets
         run: |
           git secrets --register-aws
@@ -56,7 +56,7 @@ jobs:
         working_dir: ['.', 'cmd']
     runs-on: ubuntu-22.04
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - uses: golangci/golangci-lint-action@v8
         with:
           version: v${{ env.GOLANGCI_LINT_VERSION }}
@@ -66,12 +66,12 @@ jobs:
     name: yamllint-lint
     runs-on: ubuntu-22.04
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - run: yamllint .
 
   shellcheck:
     runs-on: ubuntu-22.04
     container: koalaman/shellcheck-alpine:v0.10.0
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - run: shellcheck ./**/*.sh
