@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1754608166241,
+  "lastUpdate": 1755104475345,
   "repoUrl": "https://github.com/awslabs/soci-snapshotter",
   "entries": {
     "Soci Benchmark": [
@@ -13476,6 +13476,48 @@ window.BENCHMARK_DATA = {
           {
             "name": "SociFullECR-public-tensorflow_gpu-pullTaskDuration",
             "value": 1.693,
+            "unit": "Seconds",
+            "extra": "P90"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "davbson@amazon.com",
+            "name": "David Son",
+            "username": "sondavidb"
+          },
+          "committer": {
+            "email": "55555210+sondavidb@users.noreply.github.com",
+            "name": "David Son",
+            "username": "sondavidb"
+          },
+          "distinct": true,
+          "id": "6036fdc455e1f778d79b99eae1064d677f923aca",
+          "message": "Revert \"Update dependabot.yml and remove custom workflow\"\n\nThis reverts commit a998022a174bc2ddc6c258c6d880f663c9664b2a.\n\nUnfortunately dependabot does not recursively run go mod tidy for nested\ngomodules (e.g.: https://github.com/awslabs/soci-snapshotter/pull/1673)\n\nThere is currently an issue open for this, once it is resolved we can\nprobably un-revert this.\n\nIssue: https://github.com/dependabot/dependabot-core/issues/11046\n\nSigned-off-by: David Son <davbson@amazon.com>",
+          "timestamp": "2025-08-13T12:53:08-04:00",
+          "tree_id": "39f37dd784bce63bccf61c42e303550420d02bc3",
+          "url": "https://github.com/awslabs/soci-snapshotter/commit/6036fdc455e1f778d79b99eae1064d677f923aca"
+        },
+        "date": 1755104469232,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "SociFullECR-public-tensorflow_gpu-lazyTaskDuration",
+            "value": 12.7045,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-tensorflow_gpu-localTaskDuration",
+            "value": 2.835,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-tensorflow_gpu-pullTaskDuration",
+            "value": 1.5815000000000001,
             "unit": "Seconds",
             "extra": "P90"
           }
