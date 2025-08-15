@@ -17,13 +17,13 @@
 package index
 
 import (
-	"github.com/urfave/cli/v2"
+	"github.com/urfave/cli/v3"
 )
 
 var Command = &cli.Command{
 	Name:  "index",
 	Usage: "manage indices",
-	Subcommands: []*cli.Command{
+	Commands: []*cli.Command{
 		listCommand,
 		infoCommand,
 		rmCommand,

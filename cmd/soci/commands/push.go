@@ -35,7 +35,7 @@ import (
 	"github.com/containerd/platforms"
 	dockercliconfig "github.com/docker/cli/cli/config"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
-	"github.com/urfave/cli/v2"
+	"github.com/urfave/cli/v3"
 	oraslib "oras.land/oras-go/v2"
 	"oras.land/oras-go/v2/registry/remote"
 	"oras.land/oras-go/v2/registry/remote/auth"
@@ -82,14 +82,14 @@ if they are available in the snapshotter's local content store.
 			Usage:   "quiet mode",
 		},
 	),
-	Action: func(cliContext *cli.Context) error {
-		ref := cliContext.Args().First()
-		quiet := cliContext.Bool("quiet")
+	Action: func(ctx context.Context, cmd *cli.Command) error {
+		ref := cmd.Args().First()
 		if ref == "" {
-			return fmt.Errorf("please provide an image reference to push")
+			return errors.New("please provide an image reference to push")
 		}
 
-		client, ctx, cancel, err := internal.NewClient(cliContext)
+		quiet := cmd.Bool("quiet")
+		client, ctx, cancel, err := internal.NewClient(ctx, cmd)
 		if err != nil {
 			return err
 		}
@@ -102,7 +102,7 @@ if they are available in the snapshotter's local content store.
 			return err
 		}
 
-		ps, err := internal.GetPlatforms(ctx, cliContext, img, cs)
+		ps, err := internal.GetPlatforms(ctx, cmd, img, cs)
 		if err != nil {
 			return err
 		}
@@ -110,7 +110,7 @@ if they are available in the snapshotter's local content store.
 			ps = append(ps, platforms.DefaultSpec())
 		}
 
-		artifactsDb, err := soci.NewDB(soci.ArtifactsDbPath(cliContext.String("root")))
+		artifactsDb, err := soci.NewDB(soci.ArtifactsDbPath(cmd.String("root")))
 		if err != nil {
 			return err
 		}
@@ -128,8 +128,8 @@ if they are available in the snapshotter's local content store.
 
 		var username string
 		var secret string
-		if cliContext.IsSet("user") {
-			username = cliContext.String("user")
+		if cmd.IsSet("username") {
+			username = cmd.String("username")
 			if i := strings.IndexByte(username, ':'); i > 0 {
 				secret = username[i+1:]
 				username = username[0:i]
@@ -151,28 +151,29 @@ if they are available in the snapshotter's local content store.
 			}, nil
 		}
 
-		src, err := store.NewContentStore(internal.ContentStoreOptions(cliContext)...)
+		src, err := store.NewContentStore(internal.ContentStoreOptions(ctx, cmd)...)
 		if err != nil {
 			return fmt.Errorf("cannot create local content store: %w", err)
 		}
 
 		dst.Client = authClient
-		dst.PlainHTTP = cliContext.Bool("plain-http")
 
-		debug := cliContext.Bool("debug")
-		if debug {
+		dst.PlainHTTP = cmd.Bool("plain-http")
+
+		if cmd.Bool("debug") {
 			dst.Client = &debugClient{client: authClient}
 		} else {
 			dst.Client = authClient
 		}
-		existingIndexOption := cliContext.String(internal.ExistingIndexFlagName)
+
+		existingIndexOption := cmd.String(internal.ExistingIndexFlagName)
 		if !internal.SupportedArg(existingIndexOption, internal.SupportedExistingIndexOptions) {
 			return fmt.Errorf("unexpected value for flag %s: %s, expected types %v",
 				internal.ExistingIndexFlagName, existingIndexOption, internal.SupportedExistingIndexOptions)
 		}
 
 		options := oraslib.DefaultCopyGraphOptions
-		if value := cliContext.Uint64(maxConcurrentUploadsFlag); value == 0 {
+		if value := cmd.Uint64(maxConcurrentUploadsFlag); value == 0 {
 			options.Concurrency = defaultMaxConcurrentUploads
 		} else if value > math.MaxInt {
 			if !quiet {

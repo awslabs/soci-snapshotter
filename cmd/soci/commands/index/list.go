@@ -17,6 +17,7 @@
 package index
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"io"
@@ -31,7 +32,17 @@ import (
 	"github.com/containerd/containerd/images"
 	"github.com/containerd/platforms"
 	specs "github.com/opencontainers/image-spec/specs-go/v1"
-	"github.com/urfave/cli/v2"
+	"github.com/urfave/cli/v3"
+)
+
+const (
+	refKey = "ref"
+
+	quietKey      = "quiet"
+	quietShortKey = "q"
+
+	platformKey      = "platform"
+	platformShortKey = "p"
 )
 
 type filter func(ae *soci.ArtifactEntry) bool
@@ -73,22 +84,24 @@ var listCommand = &cli.Command{
 			Usage: "filter indices to those that are associated with a specific image ref",
 		},
 		&cli.BoolFlag{
-			Name:    "quiet",
-			Aliases: []string{"q"},
+			Name:    quietKey,
+			Aliases: []string{quietShortKey},
 			Usage:   "only display the index digests",
 		},
 		&cli.StringSliceFlag{
-			Name:    "platform",
-			Aliases: []string{"p"},
+			Name:    platformKey,
+			Aliases: []string{platformShortKey},
 			Usage:   "filter indices to a specific platform",
 		},
 	},
-	Action: func(cliContext *cli.Context) error {
+	Action: func(ctx context.Context, cmd *cli.Command) error {
 		var artifacts []*soci.ArtifactEntry
-		ref := cliContext.String("ref")
-		quiet := cliContext.Bool("quiet")
+
+		ref := cmd.String(refKey)
+		quiet := cmd.Bool(quietKey)
+
 		var plats []specs.Platform
-		for _, p := range cliContext.StringSlice("platform") {
+		for _, p := range cmd.StringSlice(platformKey) {
 			pp, err := platforms.Parse(p)
 			if err != nil {
 				return err
@@ -96,7 +109,7 @@ var listCommand = &cli.Command{
 			plats = append(plats, pp)
 		}
 
-		client, ctx, cancel, err := internal.NewClient(cliContext)
+		client, ctx, cancel, err := internal.NewClient(ctx, cmd)
 		if err != nil {
 			return err
 		}
@@ -139,7 +152,7 @@ var listCommand = &cli.Command{
 			f = anyMatch(filters)
 		}
 
-		db, err := soci.NewDB(soci.ArtifactsDbPath(cliContext.String("root")))
+		db, err := soci.NewDB(soci.ArtifactsDbPath(cmd.String("root")))
 		if err != nil {
 			return err
 		}

@@ -72,7 +72,7 @@ import (
 	sddaemon "github.com/coreos/go-systemd/v22/daemon"
 	metrics "github.com/docker/go-metrics"
 	"github.com/sirupsen/logrus"
-	"github.com/urfave/cli/v2"
+	"github.com/urfave/cli/v3"
 	bolt "go.etcd.io/bbolt"
 	"golang.org/x/sys/unix"
 	"google.golang.org/grpc"
@@ -87,147 +87,146 @@ const (
 )
 
 func main() {
-	app := cli.NewApp()
-	app.Name = "soci-snapshotter-grpc"
-	app.Flags = []cli.Flag{
-		&cli.StringFlag{
-			Name:  "address",
-			Usage: "address for the snapshotter's GRPC server",
-			Value: defaultAddress,
+	app := cli.Command{
+		Name: "soci-snapshotter-grpc",
+		Flags: []cli.Flag{
+			&cli.StringFlag{
+				Name:  "address",
+				Usage: "address for the snapshotter's GRPC server",
+				Value: defaultAddress,
+			},
+			&cli.StringFlag{
+				Name:  "config",
+				Usage: "path to the configuration file",
+				Value: config.DefaultConfigPath,
+			},
+			&cli.StringFlag{
+				Name:  "log-level",
+				Usage: "set the logging level [trace, debug, info, warn, error, fatal, panic]",
+				Value: defaultLogLevel.String(),
+			},
+			&cli.StringFlag{
+				Name:  "root",
+				Usage: "path to the root directory for this snapshotter",
+				Value: config.DefaultSociSnapshotterRootPath,
+			},
 		},
-		&cli.StringFlag{
-			Name:  "config",
-			Usage: "path to the configuration file",
-			Value: config.DefaultConfigPath,
-		},
-		&cli.StringFlag{
-			Name:  "log-level",
-			Usage: "set the logging level [trace, debug, info, warn, error, fatal, panic]",
-			Value: defaultLogLevel.String(),
-		},
-		&cli.StringFlag{
-			Name:  "root",
-			Usage: "path to the root directory for this snapshotter",
-			Value: config.DefaultSociSnapshotterRootPath,
-		},
-	}
+		Version: fmt.Sprintf("%s %s", version.Version, version.Revision),
+		Action: func(ctx context.Context, cmd *cli.Command) error {
+			lvl, err := logrus.ParseLevel(cmd.String("log-level"))
+			if err != nil {
+				return fmt.Errorf("failed to prepare logger: %w", err)
+			}
+			logrus.SetLevel(lvl)
+			logrus.SetFormatter(&logrus.JSONFormatter{
+				TimestampFormat: log.RFC3339NanoFixed,
+			})
 
-	app.Version = fmt.Sprintf("%s %s", version.Version, version.Revision)
+			ctx, cancel := context.WithCancel(log.WithLogger(ctx, log.L))
+			defer cancel()
+			// Streams log of standard lib (go-fuse uses this) into debug log
+			// Snapshotter should use "github.com/containerd/log" otherwise
+			// logs are always printed as "debug" mode.
+			golog.SetOutput(log.G(ctx).WriterLevel(logrus.DebugLevel))
+			log.G(ctx).WithFields(logrus.Fields{
+				"version":  version.Version,
+				"revision": version.Revision,
+			}).Info("starting soci-snapshotter-grpc")
 
-	app.Action = func(cliContext *cli.Context) error {
-		lvl, err := logrus.ParseLevel(cliContext.String("log-level"))
-		if err != nil {
-			return fmt.Errorf("failed to prepare logger: %w", err)
-		}
-		logrus.SetLevel(lvl)
-		logrus.SetFormatter(&logrus.JSONFormatter{
-			TimestampFormat: log.RFC3339NanoFixed,
-		})
-
-		ctx, cancel := context.WithCancel(log.WithLogger(context.Background(), log.L))
-		defer cancel()
-		// Streams log of standard lib (go-fuse uses this) into debug log
-		// Snapshotter should use "github.com/containerd/log" otherwise
-		// logs are always printed as "debug" mode.
-		golog.SetOutput(log.G(ctx).WriterLevel(logrus.DebugLevel))
-		log.G(ctx).WithFields(logrus.Fields{
-			"version":  version.Version,
-			"revision": version.Revision,
-		}).Info("starting soci-snapshotter-grpc")
-
-		cfg, err := config.NewConfigFromToml(cliContext.String("config"))
-		if err != nil {
-			log.G(ctx).WithError(err).Fatal(err)
-			return err
-		}
-
-		rootDir := cliContext.String("root")
-		if !cfg.SkipCheckSnapshotterSupported {
-			if err := service.Supported(rootDir); err != nil {
-				log.G(ctx).WithError(err).Fatalf("snapshotter is not supported")
+			cfg, err := config.NewConfigFromToml(cmd.String("config"))
+			if err != nil {
+				log.G(ctx).WithError(err).Fatal(err)
 				return err
 			}
-			log.G(ctx).Debug("snapshotter is supported")
-		} else {
-			log.G(ctx).Warn("skipped snapshotter is supported check")
-		}
 
-		serverOpts := []grpc.ServerOption{
-			grpc.ChainUnaryInterceptor(unaryNamespaceInterceptor),
-			grpc.ChainStreamInterceptor(streamNamespaceInterceptor),
-		}
-
-		// Create a gRPC server
-		rpc := grpc.NewServer(serverOpts...)
-
-		// Configure keychain
-		credsFuncs := []resolver.Credential{dockerconfig.NewDockerConfigKeychain(ctx)}
-		if cfg.KubeconfigKeychainConfig.EnableKeychain {
-			var opts []kubeconfig.Option
-			if kcp := cfg.KubeconfigKeychainConfig.KubeconfigPath; kcp != "" {
-				opts = append(opts, kubeconfig.WithKubeconfigPath(kcp))
-			}
-			credsFuncs = append(credsFuncs, kubeconfig.NewKubeconfigKeychain(ctx, opts...))
-		}
-		if cfg.CRIKeychainConfig.EnableKeychain {
-
-			connectV1AlphaCRI := func() (runtime_alpha.ImageServiceClient, error) {
-				criConn, err := getCriConn(cfg.CRIKeychainConfig.ImageServicePath)
-				if err != nil {
-					return nil, err
+			rootDir := cmd.String("root")
+			if !cfg.SkipCheckSnapshotterSupported {
+				if err := service.Supported(rootDir); err != nil {
+					log.G(ctx).WithError(err).Fatalf("snapshotter is not supported")
+					return err
 				}
-				return runtime_alpha.NewImageServiceClient(criConn), nil
+				log.G(ctx).Debug("snapshotter is supported")
+			} else {
+				log.G(ctx).Warn("skipped snapshotter is supported check")
 			}
 
-			connectV1CRI := func() (runtime.ImageServiceClient, error) {
-				criConn, err := getCriConn(cfg.CRIKeychainConfig.ImageServicePath)
-				if err != nil {
-					return nil, err
+			serverOpts := []grpc.ServerOption{
+				grpc.ChainUnaryInterceptor(unaryNamespaceInterceptor),
+				grpc.ChainStreamInterceptor(streamNamespaceInterceptor),
+			}
+
+			// Create a gRPC server
+			rpc := grpc.NewServer(serverOpts...)
+
+			// Configure keychain
+			credsFuncs := []resolver.Credential{dockerconfig.NewDockerConfigKeychain(ctx)}
+			if cfg.KubeconfigKeychainConfig.EnableKeychain {
+				var opts []kubeconfig.Option
+				if kcp := cfg.KubeconfigKeychainConfig.KubeconfigPath; kcp != "" {
+					opts = append(opts, kubeconfig.WithKubeconfigPath(kcp))
 				}
-				return runtime.NewImageServiceClient(criConn), nil
+				credsFuncs = append(credsFuncs, kubeconfig.NewKubeconfigKeychain(ctx, opts...))
+			}
+			if cfg.CRIKeychainConfig.EnableKeychain {
+
+				connectV1AlphaCRI := func() (runtime_alpha.ImageServiceClient, error) {
+					criConn, err := getCriConn(cfg.CRIKeychainConfig.ImageServicePath)
+					if err != nil {
+						return nil, err
+					}
+					return runtime_alpha.NewImageServiceClient(criConn), nil
+				}
+
+				connectV1CRI := func() (runtime.ImageServiceClient, error) {
+					criConn, err := getCriConn(cfg.CRIKeychainConfig.ImageServicePath)
+					if err != nil {
+						return nil, err
+					}
+					return runtime.NewImageServiceClient(criConn), nil
+				}
+
+				// register v1alpha2 CRI server with the gRPC server
+				fAlpha, criServerAlpha := crialpha.NewCRIAlphaKeychain(ctx, connectV1AlphaCRI)
+				runtime_alpha.RegisterImageServiceServer(rpc, criServerAlpha)
+				credsFuncs = append(credsFuncs, fAlpha)
+
+				// register v1 CRI server with the gRPC server
+				f, criServer := cri.NewCRIKeychain(ctx, connectV1CRI)
+				runtime.RegisterImageServiceServer(rpc, criServer)
+				credsFuncs = append(credsFuncs, f)
+			}
+			var fsOpts []fs.Option
+			mt, err := getMetadataStore(ctx, rootDir, *cfg)
+			if err != nil {
+				log.G(ctx).WithError(err).Fatalf("failed to configure metadata store")
+				return err
+			}
+			log.G(ctx).Debug("metadata store initialized")
+
+			fsOpts = append(fsOpts, fs.WithMetadataStore(mt))
+			rs, err := service.NewSociSnapshotterService(ctx, rootDir, &cfg.ServiceConfig,
+				service.WithCredsFuncs(credsFuncs...), service.WithFilesystemOptions(fsOpts...))
+			if err != nil {
+				log.G(ctx).WithError(err).Fatalf("failed to configure snapshotter")
+				return err
 			}
 
-			// register v1alpha2 CRI server with the gRPC server
-			fAlpha, criServerAlpha := crialpha.NewCRIAlphaKeychain(ctx, connectV1AlphaCRI)
-			runtime_alpha.RegisterImageServiceServer(rpc, criServerAlpha)
-			credsFuncs = append(credsFuncs, fAlpha)
+			cleanup, err := serve(ctx, rpc, cmd.String("address"), rs, *cfg)
+			if err != nil {
+				log.G(ctx).WithError(err).Fatalf("failed to serve snapshotter")
+				return err
+			}
 
-			// register v1 CRI server with the gRPC server
-			f, criServer := cri.NewCRIKeychain(ctx, connectV1CRI)
-			runtime.RegisterImageServiceServer(rpc, criServer)
-			credsFuncs = append(credsFuncs, f)
-		}
-		var fsOpts []fs.Option
-		mt, err := getMetadataStore(ctx, rootDir, *cfg)
-		if err != nil {
-			log.G(ctx).WithError(err).Fatalf("failed to configure metadata store")
-			return err
-		}
-		log.G(ctx).Debug("metadata store initialized")
-
-		fsOpts = append(fsOpts, fs.WithMetadataStore(mt))
-		rs, err := service.NewSociSnapshotterService(ctx, rootDir, &cfg.ServiceConfig,
-			service.WithCredsFuncs(credsFuncs...), service.WithFilesystemOptions(fsOpts...))
-		if err != nil {
-			log.G(ctx).WithError(err).Fatalf("failed to configure snapshotter")
-			return err
-		}
-
-		cleanup, err := serve(ctx, rpc, cliContext.String("address"), rs, *cfg)
-		if err != nil {
-			log.G(ctx).WithError(err).Fatalf("failed to serve snapshotter")
-			return err
-		}
-
-		if cleanup {
-			log.G(ctx).Debug("Closing the snapshotter")
-			rs.Close()
-		}
-		log.G(ctx).Info("Exiting")
-		return nil
+			if cleanup {
+				log.G(ctx).Debug("Closing the snapshotter")
+				rs.Close()
+			}
+			log.G(ctx).Info("Exiting")
+			return nil
+		},
 	}
 
-	if err := app.Run(os.Args); err != nil {
+	if err := app.Run(context.TODO(), os.Args); err != nil {
 		fmt.Fprintf(os.Stderr, "soci-snapshotter-grpc: %v\n", err)
 		os.Exit(1)
 	}
