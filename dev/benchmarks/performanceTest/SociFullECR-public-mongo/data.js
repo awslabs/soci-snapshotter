@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1755192491091,
+  "lastUpdate": 1755291729948,
   "repoUrl": "https://github.com/awslabs/soci-snapshotter",
   "entries": {
     "Soci Benchmark": [
@@ -13642,6 +13642,48 @@ window.BENCHMARK_DATA = {
           {
             "name": "SociFullECR-public-mongo-pullTaskDuration",
             "value": 1.3125,
+            "unit": "Seconds",
+            "extra": "P90"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "swpnlg@amazon.com",
+            "name": "Swapnanil-Gupta",
+            "username": "Swapnanil-Gupta"
+          },
+          "committer": {
+            "email": "kern.walster@gmail.com",
+            "name": "Kern Walster",
+            "username": "Kern--"
+          },
+          "distinct": true,
+          "id": "6f4ed94a36d94e583749fc0e1e68a1d69ccaed5d",
+          "message": "Changes:\n\n- Remove filenames from `metadata/reader` error logs\n- Remove filenames from `metadata/db` error logs\n\nSigned-off-by: Swapnanil-Gupta <swpnlg@amazon.com>",
+          "timestamp": "2025-08-15T13:54:02-07:00",
+          "tree_id": "0a9ebcb8ede21a877c3475735854f571a78492b5",
+          "url": "https://github.com/awslabs/soci-snapshotter/commit/6f4ed94a36d94e583749fc0e1e68a1d69ccaed5d"
+        },
+        "date": 1755291726971,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "SociFullECR-public-mongo-lazyTaskDuration",
+            "value": 2.19,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-mongo-localTaskDuration",
+            "value": 0.304,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-mongo-pullTaskDuration",
+            "value": 1.361,
             "unit": "Seconds",
             "extra": "P90"
           }
