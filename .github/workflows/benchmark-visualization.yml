@@ -49,7 +49,7 @@ jobs:
       - name: Checkout main branch
         uses: actions/checkout@v5
       - name: Download latest benchmark result
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v5
         with:
           name: benchmark-result-artifact
           path: ${{github.workspace}}
@@ -87,7 +87,7 @@ jobs:
         run: mkdir ${{github.workspace}}/current
 
       - name: Download latest benchmark visualization files
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v5
         with:
           name: benchmark-gh-pages-artifact
           path: ${{github.workspace}}/current
