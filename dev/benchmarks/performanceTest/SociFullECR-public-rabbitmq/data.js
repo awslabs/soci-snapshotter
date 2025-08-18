@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1755541484739,
+  "lastUpdate": 1755550671590,
   "repoUrl": "https://github.com/awslabs/soci-snapshotter",
   "entries": {
     "Soci Benchmark": [
@@ -13645,6 +13645,48 @@ window.BENCHMARK_DATA = {
           {
             "name": "SociFullECR-public-rabbitmq-pullTaskDuration",
             "value": 1.3145,
+            "unit": "Seconds",
+            "extra": "P90"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "henwang@amazon.com",
+            "name": "Henry Wang",
+            "username": "henry118"
+          },
+          "committer": {
+            "email": "wh_henry@hotmail.com",
+            "name": "Henry Wang",
+            "username": "henry118"
+          },
+          "distinct": true,
+          "id": "7d775f472842a9ae96744d8529bbcd6a266971fe",
+          "message": "Async digest verification\n\nSigned-off-by: Henry Wang <henwang@amazon.com>",
+          "timestamp": "2025-08-18T13:49:13-07:00",
+          "tree_id": "102194b97184a9f74ad70280cb393088606f6d08",
+          "url": "https://github.com/awslabs/soci-snapshotter/commit/7d775f472842a9ae96744d8529bbcd6a266971fe"
+        },
+        "date": 1755550668861,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "SociFullECR-public-rabbitmq-lazyTaskDuration",
+            "value": 11.843499999999999,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-rabbitmq-localTaskDuration",
+            "value": 9.455,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-rabbitmq-pullTaskDuration",
+            "value": 1.6785,
             "unit": "Seconds",
             "extra": "P90"
           }
