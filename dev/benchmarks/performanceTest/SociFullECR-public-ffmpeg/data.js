@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1755541490922,
+  "lastUpdate": 1755550678237,
   "repoUrl": "https://github.com/awslabs/soci-snapshotter",
   "entries": {
     "Soci Benchmark": [
@@ -13809,6 +13809,48 @@ window.BENCHMARK_DATA = {
           {
             "name": "SociFullECR-public-ffmpeg-pullTaskDuration",
             "value": 1.5710000000000002,
+            "unit": "Seconds",
+            "extra": "P90"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "henwang@amazon.com",
+            "name": "Henry Wang",
+            "username": "henry118"
+          },
+          "committer": {
+            "email": "wh_henry@hotmail.com",
+            "name": "Henry Wang",
+            "username": "henry118"
+          },
+          "distinct": true,
+          "id": "7d775f472842a9ae96744d8529bbcd6a266971fe",
+          "message": "Async digest verification\n\nSigned-off-by: Henry Wang <henwang@amazon.com>",
+          "timestamp": "2025-08-18T13:49:13-07:00",
+          "tree_id": "102194b97184a9f74ad70280cb393088606f6d08",
+          "url": "https://github.com/awslabs/soci-snapshotter/commit/7d775f472842a9ae96744d8529bbcd6a266971fe"
+        },
+        "date": 1755550672158,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "SociFullECR-public-ffmpeg-lazyTaskDuration",
+            "value": 0.1375,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-ffmpeg-localTaskDuration",
+            "value": 0.007,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-ffmpeg-pullTaskDuration",
+            "value": 1.8795,
             "unit": "Seconds",
             "extra": "P90"
           }
