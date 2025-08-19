@@ -155,6 +155,8 @@ func TestMirror(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			ctx, cancel := context.WithCancel(context.Background())
+			defer cancel()
 			var regHosts []docker.RegistryHost
 			for _, m := range tt.mirrors {
 				regHosts = append(regHosts, docker.RegistryHost{
@@ -173,7 +175,7 @@ func TestMirror(t *testing.T) {
 				Capabilities: docker.HostCapabilityPull,
 			})
 
-			fetcher, err := newHTTPFetcher(context.Background(), &fetcherConfig{
+			fetcher, err := newHTTPFetcher(ctx, &fetcherConfig{
 				hosts:   regHosts,
 				refspec: refspec,
 				desc:    ocispec.Descriptor{Digest: blobDigest},
@@ -283,6 +285,8 @@ func (b *breakRoundTripper) RoundTrip(req *http.Request) (res *http.Response, er
 }
 
 func TestRetry(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
 	tr := &retryRoundTripper{}
 	rclient := rhttp.NewClient()
 	rclient.HTTPClient.Transport = tr
@@ -294,7 +298,7 @@ func TestRetry(t *testing.T) {
 
 	regions := []region{{b: 0, e: 1}}
 
-	_, err := f.fetch(context.Background(), regions, true)
+	_, err := f.fetch(ctx, regions, true)
 
 	if err != nil {
 		t.Fatalf("unexpected error = %v", err)
@@ -351,6 +355,8 @@ func (m *emptyAuthHandler) AuthorizeRequest(ctx context.Context, req *http.Reque
 }
 
 func TestCustomUserAgent(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
 	userAgent := fmt.Sprintf("soci-snapshotter/%s", version.Version)
 	rt := &userAgentRoundTripper{expectedUserAgent: userAgent}
 	header := http.Header{}
@@ -367,7 +373,7 @@ func TestCustomUserAgent(t *testing.T) {
 		roundTripper: ac,
 	}
 	regions := []region{{b: 0, e: 1}}
-	_, err := f.fetch(context.Background(), regions, true)
+	_, err := f.fetch(ctx, regions, true)
 	if err != nil {
 		t.Fatalf("unexpected error = %v", err)
 	}
@@ -510,7 +516,9 @@ func TestGetHeader(t *testing.T) {
 
 	for _, tt := range tc {
 		t.Run(tt.name, func(t *testing.T) {
-			_, err := GetHeader(context.Background(), tt.link, rt)
+			ctx, cancel := context.WithCancel(context.Background())
+			defer cancel()
+			_, err := GetHeader(ctx, tt.link, rt)
 			if err != nil {
 				t.Fatalf("could not fetch header")
 			}
