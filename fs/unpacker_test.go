@@ -66,11 +66,13 @@ func TestFailureModes(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
+			ctx, cancel := context.WithCancel(context.Background())
+			defer cancel()
 			fetcher := newFakeFetcher(false, tc.storeFails, tc.fetchFails)
 			archive := newFakeArchive(tc.unpackedSize, tc.applyFails)
 			unpacker := NewLayerUnpacker(fetcher, archive)
 			mounts := getFakeMounts()
-			err := unpacker.Unpack(context.Background(), tc.desc, tc.mountpoint, mounts)
+			err := unpacker.Unpack(ctx, tc.desc, tc.mountpoint, mounts)
 			if err == nil {
 				t.Fatalf("%v: there should've been an error due to the following cases: fetch=%v, store=%v, apply=%v",
 					tc.name, tc.fetchFails, tc.storeFails, tc.applyFails)
@@ -113,11 +115,13 @@ func TestUnpackHappyPath(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
+			ctx, cancel := context.WithCancel(context.Background())
+			defer cancel()
 			fetcher := newFakeFetcher(tc.hasLocal, false, false)
 			archive := newFakeArchive(tc.unpackedSize, false)
 			unpacker := NewLayerUnpacker(fetcher, archive)
 			mounts := getFakeMounts()
-			err := unpacker.Unpack(context.Background(), tc.desc, tc.mountpoint, mounts)
+			err := unpacker.Unpack(ctx, tc.desc, tc.mountpoint, mounts)
 			if err != nil {
 				t.Fatalf("%v: failed to unpack layer", tc.name)
 			}

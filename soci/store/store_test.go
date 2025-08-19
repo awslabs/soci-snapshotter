@@ -154,7 +154,9 @@ func (s *fakeStore) BatchOpen(ctx context.Context) (context.Context, CleanupFunc
 func TestStoreLabelGCRoot(t *testing.T) {
 	store := newFakeStore()
 	testTarget, _ := digest.Parse("sha256:7b236f6c6ca259a4497e98c204bc1dcf3e653438e74af17bfe39da5329789f4a")
-	LabelGCRoot(context.Background(), store, ocispec.Descriptor{Digest: testTarget})
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	LabelGCRoot(ctx, store, ocispec.Descriptor{Digest: testTarget})
 	if len(store.Labels) != 1 {
 		t.Fatalf("wrong number of labels applied, expected 1, got %d", len(store.Labels))
 	}
@@ -171,7 +173,9 @@ func TestStoreLabelGCRefContent(t *testing.T) {
 	testTarget, _ := digest.Parse("sha256:7b236f6c6ca259a4497e98c204bc1dcf3e653438e74af17bfe39da5329789f4a")
 	testRef := "testRef"
 	testDigest, _ := digest.Parse("sha256:4452aadba3e99771ff3559735dab16279c5a352359d79f38737c6fdca941c6e5")
-	LabelGCRefContent(context.Background(), store, ocispec.Descriptor{Digest: testTarget}, testRef, testDigest.String())
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	LabelGCRefContent(ctx, store, ocispec.Descriptor{Digest: testTarget}, testRef, testDigest.String())
 	if len(store.Labels) != 1 {
 		t.Fatalf("wrong number of labels applied, expected 1, got %d", len(store.Labels))
 	}

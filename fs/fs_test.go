@@ -55,6 +55,8 @@ import (
 )
 
 func TestCheck(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
 	bl := &breakableLayer{}
 	fs := &filesystem{
 		layer: map[string]layer.Layer{
@@ -65,12 +67,12 @@ func TestCheck(t *testing.T) {
 		}),
 	}
 	bl.success = true
-	if err := fs.Check(context.TODO(), "test", nil); err != nil {
+	if err := fs.Check(ctx, "test", nil); err != nil {
 		t.Errorf("connection failed; wanted to succeed: %v", err)
 	}
 
 	bl.success = false
-	if err := fs.Check(context.TODO(), "test", nil); err == nil {
+	if err := fs.Check(ctx, "test", nil); err == nil {
 		t.Errorf("connection succeeded; wanted to fail")
 	}
 }

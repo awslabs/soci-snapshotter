@@ -90,10 +90,12 @@ func TestOCIArtifactClientSelectReferrer(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
+			ctx, cancel := context.WithCancel(context.Background())
+			defer cancel()
 			inner := newFakeInner(tc.descs)
 			client := NewOCIArtifactClient(inner)
 
-			desc, err := client.SelectReferrer(context.Background(), ocispec.Descriptor{}, tc.selectionPolicy)
+			desc, err := client.SelectReferrer(ctx, ocispec.Descriptor{}, tc.selectionPolicy)
 			if err != nil && !errors.Is(err, tc.expectedErr) {
 				t.Fatalf("unexpected error getting descriptor: %v", err)
 			}

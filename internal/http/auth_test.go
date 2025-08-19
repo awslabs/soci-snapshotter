@@ -77,6 +77,8 @@ func (m *basicAuthHandler) AuthorizeRequest(ctx context.Context, req *http.Reque
 }
 
 func TestAuthHandler(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
 	username := "testuser"
 	password := "testpassword"
 	baseEncodedAuth := base64.StdEncoding.EncodeToString([]byte(fmt.Sprintf("%s:%s", username, password)))
@@ -85,7 +87,7 @@ func TestAuthHandler(t *testing.T) {
 	rc.HTTPClient.Transport = authRoundTripper{reqCount: &reqCounter{}, expectedUsername: username, expectedPassword: password}
 	ac, _ := NewAuthClient(&basicAuthHandler{encodedBasic: baseEncodedAuth}, WithRetryableClient(rc))
 
-	req, _ := http.NewRequestWithContext(context.Background(), "GET", "exampleurl", nil)
+	req, _ := http.NewRequestWithContext(ctx, "GET", "exampleurl", nil)
 	_, err := ac.Do(req)
 	if err != nil {
 		t.Fatal(err)
@@ -122,6 +124,8 @@ func (srt statusRoundTripper) RoundTrip(req *http.Request) (*http.Response, erro
 }
 
 func TestCustomAuthPolicy(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
 	rc := rhttp.NewClient()
 	rc.RetryMax = 0
 	rc.HTTPClient.Transport = statusRoundTripper{initialStatus: http.StatusForbidden}
@@ -133,7 +137,7 @@ func TestCustomAuthPolicy(t *testing.T) {
 	}
 	authHandler := &policyAuthHandler{}
 	ac, _ := NewAuthClient(authHandler, WithAuthPolicy(customAuthPolicy), WithRetryableClient(rc))
-	req, _ := http.NewRequestWithContext(context.Background(), "GET", "exampleurl", nil)
+	req, _ := http.NewRequestWithContext(ctx, "GET", "exampleurl", nil)
 	_, err := ac.Do(req)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -169,11 +173,13 @@ func (hrt headerRoundTripper) RoundTrip(req *http.Request) (*http.Response, erro
 }
 
 func TestCustomAuthHeaders(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
 	customHeader := http.Header{}
 	customHeader.Set("User-Agent", "test")
 	customHeader.Set("Accept", "text/html")
 	ac := SimpleMockAuthClient(&headerRoundTripper{expectedHeaders: customHeader}, customHeader)
-	req, _ := http.NewRequestWithContext(context.Background(), "GET", "exampleurl", nil)
+	req, _ := http.NewRequestWithContext(ctx, "GET", "exampleurl", nil)
 	_, err := ac.Do(req)
 	if err != nil {
 		t.Fatal(err)
