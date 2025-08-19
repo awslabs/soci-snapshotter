@@ -978,7 +978,8 @@ func (o *snapshotter) Close() error {
 	log.L.Debug("close")
 	// unmount all mounts including Committed
 	const cleanupCommitted = true
-	ctx := context.Background()
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
 	if err := o.unmountAllSnapshots(ctx, cleanupCommitted); err != nil {
 		log.G(ctx).WithError(err).Warn("failed to unmount snapshots on close")
 	}

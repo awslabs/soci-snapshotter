@@ -136,13 +136,15 @@ func TestAddSociIndexes(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
+			ctx, cancel := context.WithCancel(context.Background())
+			defer cancel()
 			builder := IndexBuilder{}
 			actual := test.ociIndex
 			var indexes []*IndexWithMetadata
 			for _, index := range test.sociIndexes {
 				indexes = append(indexes, &index)
 			}
-			err := builder.addSociIndexes(context.Background(), &actual, indexes)
+			err := builder.addSociIndexes(ctx, &actual, indexes)
 			if err != nil {
 				t.Errorf("unexpected error: %v", err)
 			}

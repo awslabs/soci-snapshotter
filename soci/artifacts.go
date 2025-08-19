@@ -131,13 +131,13 @@ func NewDB(path string) (*ArtifactsDb, error) {
 	once.Do(func() {
 		f, err := os.OpenFile(path, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0600)
 		if err != nil {
-			log.G(context.Background()).WithError(err).WithField("path", path).Error("Cannot create or open file")
+			log.L.WithError(err).WithField("path", path).Error("Cannot create or open file")
 			return
 		}
 		defer f.Close()
 		database, err := bolt.Open(f.Name(), 0600, nil)
 		if err != nil {
-			log.G(context.Background()).WithError(err).Error("Cannot open the db")
+			log.L.WithError(err).Error("Cannot open the db")
 			return
 		}
 		db = &ArtifactsDb{db: database}

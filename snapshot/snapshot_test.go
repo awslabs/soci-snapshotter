@@ -58,7 +58,8 @@ const (
 )
 
 func prepareWithTarget(t *testing.T, sn snapshots.Snapshotter, target, key, parent string, labels map[string]string) string {
-	ctx := context.TODO()
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
 	if labels == nil {
 		labels = make(map[string]string)
 	}
@@ -71,9 +72,10 @@ func prepareWithTarget(t *testing.T, sn snapshots.Snapshotter, target, key, pare
 
 func TestRemotePrepare(t *testing.T) {
 	testutil.RequiresRoot(t)
-	ctx := context.TODO()
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
 	root := t.TempDir()
-	sn, err := NewSnapshotter(context.TODO(), root, bindFileSystem(t))
+	sn, err := NewSnapshotter(ctx, root, bindFileSystem(t))
 	if err != nil {
 		t.Fatalf("failed to make new remote snapshotter: %q", err)
 	}
@@ -118,9 +120,10 @@ func TestRemotePrepare(t *testing.T) {
 
 func TestRemoteOverlay(t *testing.T) {
 	testutil.RequiresRoot(t)
-	ctx := context.TODO()
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
 	root := t.TempDir()
-	sn, err := NewSnapshotter(context.TODO(), root, bindFileSystem(t))
+	sn, err := NewSnapshotter(ctx, root, bindFileSystem(t))
 	if err != nil {
 		t.Fatalf("failed to make new remote snapshotter: %q", err)
 	}
@@ -173,9 +176,10 @@ func TestRemoteOverlay(t *testing.T) {
 
 func TestRemoteCommit(t *testing.T) {
 	testutil.RequiresRoot(t)
-	ctx := context.TODO()
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
 	root := t.TempDir()
-	sn, err := NewSnapshotter(context.TODO(), root, bindFileSystem(t))
+	sn, err := NewSnapshotter(ctx, root, bindFileSystem(t))
 	if err != nil {
 		t.Fatalf("failed to make new remote snapshotter: %q", err)
 	}
@@ -303,10 +307,11 @@ func TestFailureDetection(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			ctx := context.TODO()
+			ctx, cancel := context.WithCancel(context.Background())
+			defer cancel()
 			root := t.TempDir()
 			fi := bindFileSystem(t)
-			sn, err := NewSnapshotter(context.TODO(), root, fi)
+			sn, err := NewSnapshotter(ctx, root, fi)
 			if err != nil {
 				t.Fatalf("failed to make new Snapshotter: %q", err)
 			}
@@ -475,7 +480,7 @@ func (fs *dummyFs) CleanImage(ctx context.Context, digest string) error {
 // Tests backword-comaptibility of overlayfs snapshotter.
 
 func newSnapshotter(ctx context.Context, root string) (snapshots.Snapshotter, func() error, error) {
-	snapshotter, err := NewSnapshotter(context.TODO(), root, dummyFileSystem())
+	snapshotter, err := NewSnapshotter(ctx, root, dummyFileSystem())
 	if err != nil {
 		return nil, nil, err
 	}
@@ -489,7 +494,8 @@ func TestOverlay(t *testing.T) {
 }
 
 func TestOverlayMounts(t *testing.T) {
-	ctx := context.TODO()
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
 	root := t.TempDir()
 	o, _, err := newSnapshotter(ctx, root)
 	if err != nil {
@@ -519,7 +525,8 @@ func TestOverlayMounts(t *testing.T) {
 }
 
 func TestOverlayCommit(t *testing.T) {
-	ctx := context.TODO()
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
 	root := t.TempDir()
 	o, _, err := newSnapshotter(ctx, root)
 	if err != nil {
@@ -540,7 +547,8 @@ func TestOverlayCommit(t *testing.T) {
 }
 
 func TestOverlayOverlayMount(t *testing.T) {
-	ctx := context.TODO()
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
 	root := t.TempDir()
 	o, _, err := newSnapshotter(ctx, root)
 	if err != nil {
@@ -620,7 +628,8 @@ func getParents(ctx context.Context, sn snapshots.Snapshotter, root, key string)
 
 func TestOverlayOverlayRead(t *testing.T) {
 	testutil.RequiresRoot(t)
-	ctx := context.TODO()
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
 	root := t.TempDir()
 	o, _, err := newSnapshotter(ctx, root)
 	if err != nil {
@@ -659,7 +668,8 @@ func TestOverlayOverlayRead(t *testing.T) {
 }
 
 func TestOverlayView(t *testing.T) {
-	ctx := context.TODO()
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
 	root := t.TempDir()
 	o, _, err := newSnapshotter(ctx, root)
 	if err != nil {

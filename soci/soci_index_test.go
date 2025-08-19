@@ -238,7 +238,6 @@ func TestBuildSociIndexNotLayer(t *testing.T) {
 	}
 
 	spanSize := int64(65535)
-	ctx := context.Background()
 	cs := newFakeContentStore()
 	blobStore := NewOrasMemoryStore()
 
@@ -253,6 +252,8 @@ func TestBuildSociIndexNotLayer(t *testing.T) {
 	}
 	for _, tc := range testcases {
 		t.Run(tc.name, func(t *testing.T) {
+			ctx, cancel := context.WithCancel(context.Background())
+			defer cancel()
 			desc := ocispec.Descriptor{
 				MediaType: tc.mediaType,
 				Digest:    "layerdigest",
@@ -306,7 +307,8 @@ func TestBuildSociIndexWithLimits(t *testing.T) {
 
 	for _, tc := range testcases {
 		t.Run(tc.name, func(t *testing.T) {
-			ctx := context.Background()
+			ctx, cancel := context.WithCancel(context.Background())
+			defer cancel()
 			cs := newFakeContentStore()
 			desc := ocispec.Descriptor{
 				MediaType: "application/vnd.oci.image.layer.",

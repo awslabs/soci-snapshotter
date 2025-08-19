@@ -300,7 +300,7 @@ func newLayerUnpackDiskStorage(root string) (LayerUnpackJobStorage, error) {
 		if err := os.RemoveAll(directory); err != nil {
 			return nil, fmt.Errorf("failed to remove existing unpack directory: %w", err)
 		}
-		log.G(context.Background()).WithField("dir", directory).Debug("removed existing unpack directory")
+		log.L.WithField("dir", directory).Debug("removed existing unpack directory")
 	}
 
 	// Create a fresh unpack directory
@@ -333,7 +333,7 @@ func (disk LayerUnpackDiskStorage) generateUniqueKey() (string, error) {
 		if len(key) > 0 && !disk.contains(key) {
 			return key, nil
 		}
-		log.G(context.Background()).WithField("id", key).WithField("attempt", attempt+1).Debug("randomly generated id already exists in storage")
+		log.L.WithField("id", key).WithField("attempt", attempt+1).Debug("randomly generated id already exists in storage")
 	}
 	return "", errUniqueJobIDGenFailure
 }

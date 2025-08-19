@@ -49,12 +49,14 @@ func (c *countingPauser) pause(time.Duration) {
 }
 
 func TestBackgroundFetcherPause(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
 	p := &countingPauser{}
 	bf, err := NewBackgroundFetcher(WithSilencePeriod(0), withPauser(p), WithEmitMetricPeriod(time.Second))
 	if err != nil {
 		t.Fatal(err)
 	}
-	go bf.Run(context.Background())
+	go bf.Run(ctx)
 	defer bf.Close()
 	bf.Pause()
 
@@ -99,6 +101,8 @@ func TestBackgroundFetcherRun(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
+			ctx, cancel := context.WithCancel(context.Background())
+			defer cancel()
 
 			type testInfo struct {
 				sm    *spanmanager.SpanManager
@@ -122,7 +126,7 @@ func TestBackgroundFetcherRun(t *testing.T) {
 				t.Fatalf("unable to construct background fetcher: %v", err)
 			}
 
-			go bf.Run(context.Background())
+			go bf.Run(ctx)
 			defer bf.Close()
 
 			for _, info := range infos {
