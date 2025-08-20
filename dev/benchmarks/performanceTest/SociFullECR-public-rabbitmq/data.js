@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1755550671590,
+  "lastUpdate": 1755711445046,
   "repoUrl": "https://github.com/awslabs/soci-snapshotter",
   "entries": {
     "Soci Benchmark": [
@@ -13687,6 +13687,48 @@ window.BENCHMARK_DATA = {
           {
             "name": "SociFullECR-public-rabbitmq-pullTaskDuration",
             "value": 1.6785,
+            "unit": "Seconds",
+            "extra": "P90"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "davbson@amazon.com",
+            "name": "David Son",
+            "username": "sondavidb"
+          },
+          "committer": {
+            "email": "55555210+sondavidb@users.noreply.github.com",
+            "name": "David Son",
+            "username": "sondavidb"
+          },
+          "distinct": true,
+          "id": "a38ca24b42c245124ed818bbc526243674b430c7",
+          "message": "Use own fetcher for ranged GET + small refactor\n\nTo avoid creating our own fetcher, we have been using the oras-go\nRepository implementation, which handles a lot of the logic of fetching.\nThe parallel pull mode that was introduced additionally leveraged its\nSeek call to seek the file at a specific offset, however its\nimplementation will close the http.Response body, which is both an extra\nround trip and also closes the connection for HTTP 1.1 connections,\nforcing a lot of extra overhead.\n\nBy using our own ranged fetch (which we already have, just abstracted\naway into the lazy-loaded path, which we should really unify...) we can\nreduce the overhead for ahead-of-time pulls.\n\nSigned-off-by: David Son <davbson@amazon.com>",
+          "timestamp": "2025-08-20T13:28:23-04:00",
+          "tree_id": "a75af924e0178e2d4aab0df1ddb8aa25f9d567a2",
+          "url": "https://github.com/awslabs/soci-snapshotter/commit/a38ca24b42c245124ed818bbc526243674b430c7"
+        },
+        "date": 1755711443223,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "SociFullECR-public-rabbitmq-lazyTaskDuration",
+            "value": 12.289000000000001,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-rabbitmq-localTaskDuration",
+            "value": 9.607,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-rabbitmq-pullTaskDuration",
+            "value": 1.7530000000000001,
             "unit": "Seconds",
             "extra": "P90"
           }
