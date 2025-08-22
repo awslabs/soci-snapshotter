@@ -1131,7 +1131,7 @@ func (fs *filesystem) setupFuseServer(ctx context.Context, mountpoint string, no
 		mountOpts.Options = []string{"suid"} // option for fusermount; allow setuid inside container
 	} else {
 		log.G(ctx).WithField("binary", fusermountBin).WithError(err).Info("fusermount binary not installed; trying direct mount")
-		mountOpts.DirectMount = true
+		mountOpts.DirectMountStrict = true
 	}
 	server, err := fuse.NewServer(rawFS, mountpoint, mountOpts)
 	if err != nil {
