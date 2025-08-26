@@ -27,8 +27,8 @@ require (
 	github.com/prometheus/client_golang v1.23.0
 	github.com/rs/xid v1.6.0
 	github.com/sirupsen/logrus v1.9.3
-	github.com/stretchr/testify v1.10.0
-	go.etcd.io/bbolt v1.4.2
+	github.com/stretchr/testify v1.11.0
+	go.etcd.io/bbolt v1.4.3
 	go.uber.org/goleak v1.3.0
 	golang.org/x/crypto v0.41.0
 	golang.org/x/sync v0.16.0
