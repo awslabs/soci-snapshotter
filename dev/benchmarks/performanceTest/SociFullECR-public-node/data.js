@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1755720438885,
+  "lastUpdate": 1756239146740,
   "repoUrl": "https://github.com/awslabs/soci-snapshotter",
   "entries": {
     "Soci Benchmark": [
@@ -13770,6 +13770,48 @@ window.BENCHMARK_DATA = {
           {
             "name": "SociFullECR-public-node-pullTaskDuration",
             "value": 2.157,
+            "unit": "Seconds",
+            "extra": "P90"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "walster@amazon.com",
+            "name": "Kern Walster",
+            "username": "Kern--"
+          },
+          "committer": {
+            "email": "kern.walster@gmail.com",
+            "name": "Kern Walster",
+            "username": "Kern--"
+          },
+          "distinct": true,
+          "id": "86d13d311718704ecd7ca08f0af1669c15036c70",
+          "message": "Use DirectMountStrict if fusermount is missing\n\nWhen `fusermount` isn't found on the path, SOCI used to set\n`DirectMount = true` in the go-fuse options. This will try to direct\nmount, but if it fails, it will fall back to trying fusermount. This\nwill never work if `fusermount` isn't on the path, but it also causes\nthe mount error to log to the go-fuse logger which is connected to\nSOCI's trace log level so the error is lost.\n\nThis change switches to `DirectMountStrict` so that we will get the\nmount error and can debug if this happens.\n\nSigned-off-by: Kern Walster <walster@amazon.com>",
+          "timestamp": "2025-08-26T13:02:28-07:00",
+          "tree_id": "7b1087eb8e17fcd13347789b13abf4af332a6e8e",
+          "url": "https://github.com/awslabs/soci-snapshotter/commit/86d13d311718704ecd7ca08f0af1669c15036c70"
+        },
+        "date": 1756239142639,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "SociFullECR-public-node-lazyTaskDuration",
+            "value": 5.189,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-node-localTaskDuration",
+            "value": 0.4895,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-node-pullTaskDuration",
+            "value": 2.1855,
             "unit": "Seconds",
             "extra": "P90"
           }
