@@ -112,6 +112,9 @@ func main() {
 			},
 		},
 		Version: fmt.Sprintf("%s %s", version.Version, version.Revision),
+		Commands: []*cli.Command{
+			ConfigCommand,
+		},
 		Action: func(ctx context.Context, cmd *cli.Command) error {
 			lvl, err := logrus.ParseLevel(cmd.String("log-level"))
 			if err != nil {
