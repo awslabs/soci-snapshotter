@@ -162,11 +162,13 @@ func (m *SpanManager) resolveSpan(spanID compression.SpanID) error {
 // GetContents returns a reader for the requested contents. The contents may be
 // across multiple spans.
 func (m *SpanManager) GetContents(startUncompOffset, endUncompOffset compression.Offset) (io.ReadCloser, error) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
 	si := m.getSpanInfo(startUncompOffset, endUncompOffset)
 	numSpans := si.spanEnd - si.spanStart + 1
 	spanReaders := make([]io.ReadCloser, numSpans)
 
-	eg, _ := errgroup.WithContext(context.Background())
+	eg, _ := errgroup.WithContext(ctx)
 	var i compression.SpanID
 	for i = 0; i < numSpans; i++ {
 		j := i

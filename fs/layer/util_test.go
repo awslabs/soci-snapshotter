@@ -104,6 +104,8 @@ func testNodeRead(t *testing.T, factory metadata.Store) {
 			for bo, baseo := range baseOffsetCond {
 				for fn, filesize := range fileSizeCond {
 					t.Run(fmt.Sprintf("reading_%s_%s_%s_%s", sn, in, bo, fn), func(t *testing.T) {
+						ctx, cancel := context.WithCancel(context.Background())
+						defer cancel()
 						if filesize > int64(len(sampleData1)) {
 							t.Fatal("sample file size is larger than sample data")
 						}
@@ -131,7 +133,7 @@ func testNodeRead(t *testing.T, factory metadata.Store) {
 						f, closeFn := makeNodeReader(t, []byte(sampleData1)[:filesize], sampleSpanSize, factory)
 						defer closeFn()
 						tmpbuf := make([]byte, size) // fuse library can request bigger than remain
-						rr, errno := f.Read(context.Background(), tmpbuf, offset)
+						rr, errno := f.Read(ctx, tmpbuf, offset)
 						if errno != 0 {
 							t.Errorf("failed to read off=%d, size=%d, filesize=%d: %v", offset, size, filesize, err)
 							return
@@ -158,6 +160,8 @@ func testNodeRead(t *testing.T, factory metadata.Store) {
 }
 
 func makeNodeReader(t *testing.T, contents []byte, spanSize int64, factory metadata.Store) (_ *file, closeFn func() error) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
 	testName := "test"
 	tarEntry := []testutil.TarEntry{testutil.File(testName, string(contents))}
 	ztoc, sr, err := ztoc.BuildZtocReader(t, tarEntry, gzip.DefaultCompression, spanSize)
@@ -176,12 +180,12 @@ func makeNodeReader(t *testing.T, contents []byte, spanSize int64, factory metad
 	}
 	rootNode := getRootNode(t, r, OverlayOpaqueAll)
 	var eo fuse.EntryOut
-	inode, errno := rootNode.Lookup(context.Background(), testName, &eo)
+	inode, errno := rootNode.Lookup(ctx, testName, &eo)
 	if errno != 0 {
 		r.Close()
 		t.Fatalf("failed to lookup test node; errno: %v", errno)
 	}
-	f, _, errno := inode.Operations().(fusefs.NodeOpener).Open(context.Background(), 0)
+	f, _, errno := inode.Operations().(fusefs.NodeOpener).Open(ctx, 0)
 	if errno != 0 {
 		r.Close()
 		t.Fatalf("failed to open test file; errno: %v", errno)
@@ -346,12 +350,14 @@ func testExistenceWithOpaque(t *testing.T, factory metadata.Store, opaque Overla
 
 func hasSize(name string, size int) check {
 	return func(t *testing.T, root *node) {
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
 		_, n, err := getDirentAndNode(t, root, name)
 		if err != nil {
 			t.Fatalf("failed to get node %q: %v", name, err)
 		}
 		var ao fuse.AttrOut
-		if errno := n.Operations().(fusefs.NodeGetattrer).Getattr(context.Background(), nil, &ao); errno != 0 {
+		if errno := n.Operations().(fusefs.NodeGetattrer).Getattr(ctx, nil, &ao); errno != 0 {
 			t.Fatalf("failed to get attributes of node %q: %v", name, errno)
 		}
 		if ao.Attr.Size != uint64(size) {
@@ -408,6 +414,8 @@ func fileNotExist(file string) check {
 
 func hasFileDigest(filename string, digest string) check {
 	return func(t *testing.T, root *node) {
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
 		_, n, err := getDirentAndNode(t, root, filename)
 		if err != nil {
 			t.Fatalf("failed to get node %q: %v", filename, err)
@@ -417,11 +425,11 @@ func hasFileDigest(filename string, digest string) check {
 		if err != nil {
 			t.Fatalf("failed to get attr %q(%d): %v", filename, ni.id, err)
 		}
-		fh, _, errno := ni.Open(context.Background(), 0)
+		fh, _, errno := ni.Open(ctx, 0)
 		if errno != 0 {
 			t.Fatalf("failed to open node %q: %v", filename, errno)
 		}
-		rr, errno := fh.(*file).Read(context.Background(), make([]byte, attr.Size), 0)
+		rr, errno := fh.(*file).Read(ctx, make([]byte, attr.Size), 0)
 		if errno != 0 {
 			t.Fatalf("failed to read node %q: %v", filename, errno)
 		}
@@ -437,12 +445,14 @@ func hasFileDigest(filename string, digest string) check {
 
 func hasExtraMode(name string, mode os.FileMode) check {
 	return func(t *testing.T, root *node) {
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
 		_, n, err := getDirentAndNode(t, root, name)
 		if err != nil {
 			t.Fatalf("failed to get node %q: %v", name, err)
 		}
 		var ao fuse.AttrOut
-		if errno := n.Operations().(fusefs.NodeGetattrer).Getattr(context.Background(), nil, &ao); errno != 0 {
+		if errno := n.Operations().(fusefs.NodeGetattrer).Getattr(ctx, nil, &ao); errno != 0 {
 			t.Fatalf("failed to get attributes of node %q: %v", name, errno)
 		}
 		a := ao.Attr
@@ -456,12 +466,14 @@ func hasExtraMode(name string, mode os.FileMode) check {
 
 func hasValidWhiteout(name string) check {
 	return func(t *testing.T, root *node) {
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
 		ent, n, err := getDirentAndNode(t, root, name)
 		if err != nil {
 			t.Fatalf("failed to get node %q: %v", name, err)
 		}
 		var ao fuse.AttrOut
-		if errno := n.Operations().(fusefs.NodeGetattrer).Getattr(context.Background(), nil, &ao); errno != 0 {
+		if errno := n.Operations().(fusefs.NodeGetattrer).Getattr(ctx, nil, &ao); errno != 0 {
 			t.Fatalf("failed to get attributes of file %q: %v", name, errno)
 		}
 		a := ao.Attr
@@ -492,6 +504,8 @@ func hasValidWhiteout(name string) check {
 
 func hasNodeXattrs(entry, name, value string) check {
 	return func(t *testing.T, root *node) {
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
 		_, n, err := getDirentAndNode(t, root, entry)
 		if err != nil {
 			t.Fatalf("failed to get node %q: %v", entry, err)
@@ -499,7 +513,7 @@ func hasNodeXattrs(entry, name, value string) check {
 
 		// check xattr exists in the xattrs list.
 		buf := make([]byte, 1000)
-		nb, errno := n.Operations().(fusefs.NodeListxattrer).Listxattr(context.Background(), buf)
+		nb, errno := n.Operations().(fusefs.NodeListxattrer).Listxattr(ctx, buf)
 		if errno != 0 {
 			t.Fatalf("failed to get xattrs list of node %q: %v", entry, err)
 		}
@@ -517,7 +531,7 @@ func hasNodeXattrs(entry, name, value string) check {
 
 		// check the xattr has valid value.
 		v := make([]byte, len(value))
-		nv, errno := n.Operations().(fusefs.NodeGetxattrer).Getxattr(context.Background(), name, v)
+		nv, errno := n.Operations().(fusefs.NodeGetxattrer).Getxattr(ctx, name, v)
 		if errno != 0 {
 			t.Fatalf("failed to get xattr %q of node %q: %v", name, entry, err)
 		}
@@ -547,9 +561,11 @@ func hasEntry(t *testing.T, name string, ents fusefs.DirStream) (fuse.DirEntry, 
 
 func hasStateFile(t *testing.T, id string) check {
 	return func(t *testing.T, root *node) {
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
 
 		// Check the state dir is hidden on OpenDir for "/"
-		ents, errno := root.Readdir(context.Background())
+		ents, errno := root.Readdir(ctx)
 		if errno != 0 {
 			t.Errorf("failed to open root directory: %v", errno)
 			return
@@ -561,7 +577,7 @@ func hasStateFile(t *testing.T, id string) check {
 
 		// Check existence of state dir
 		var eo fuse.EntryOut
-		sti, errno := root.Lookup(context.Background(), stateDirName, &eo)
+		sti, errno := root.Lookup(ctx, stateDirName, &eo)
 		if errno != 0 {
 			t.Errorf("failed to lookup directory %q: %v", stateDirName, errno)
 			return
@@ -573,7 +589,7 @@ func hasStateFile(t *testing.T, id string) check {
 		}
 
 		// Check existence of state file
-		ents, errno = st.Readdir(context.Background())
+		ents, errno = st.Readdir(ctx)
 		if errno != 0 {
 			t.Errorf("failed to open directory %q: %v", stateDirName, errno)
 			return
@@ -582,7 +598,7 @@ func hasStateFile(t *testing.T, id string) check {
 			t.Errorf("direntry %q not found in %q", id, stateDirName)
 			return
 		}
-		inode, errno := st.Lookup(context.Background(), id, &eo)
+		inode, errno := st.Lookup(ctx, id, &eo)
 		if errno != 0 {
 			t.Errorf("failed to lookup node %q in %q: %v", id, stateDirName, errno)
 			return
@@ -602,7 +618,7 @@ func hasStateFile(t *testing.T, id string) check {
 
 		// obtain file size (check later)
 		var ao fuse.AttrOut
-		errno = n.Operations().(fusefs.NodeGetattrer).Getattr(context.Background(), nil, &ao)
+		errno = n.Operations().(fusefs.NodeGetattrer).Getattr(ctx, nil, &ao)
 		if errno != 0 {
 			t.Errorf("failed to get attr of state file: %v", errno)
 			return
@@ -611,7 +627,7 @@ func hasStateFile(t *testing.T, id string) check {
 
 		// get data via state file
 		tmp := make([]byte, 4096)
-		res, errno := n.Read(context.Background(), nil, tmp, 0)
+		res, errno := n.Read(ctx, nil, tmp, 0)
 		if errno != 0 {
 			t.Errorf("failed to read state file: %v", errno)
 			return
@@ -641,6 +657,8 @@ func hasStateFile(t *testing.T, id string) check {
 // getDirentAndNode gets dirent and node at the specified path at once and makes
 // sure that the both of them exist.
 func getDirentAndNode(t *testing.T, root *node, path string) (ent fuse.DirEntry, n *fusefs.Inode, err error) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
 	dir, base := filepath.Split(filepath.Clean(path))
 
 	// get the target's parent directory.
@@ -650,7 +668,7 @@ func getDirentAndNode(t *testing.T, root *node, path string) (ent fuse.DirEntry,
 		if len(name) == 0 {
 			continue
 		}
-		di, errno := d.Lookup(context.Background(), name, &eo)
+		di, errno := d.Lookup(ctx, name, &eo)
 		if errno != 0 {
 			err = fmt.Errorf("failed to lookup directory %q: %v", name, errno)
 			return
@@ -664,7 +682,7 @@ func getDirentAndNode(t *testing.T, root *node, path string) (ent fuse.DirEntry,
 	}
 
 	// get the target's direntry.
-	ents, errno := d.Readdir(context.Background())
+	ents, errno := d.Readdir(ctx)
 	if errno != 0 {
 		err = fmt.Errorf("failed to open directory %q: %v", path, errno)
 	}
@@ -674,7 +692,7 @@ func getDirentAndNode(t *testing.T, root *node, path string) (ent fuse.DirEntry,
 	}
 
 	// get the target's node.
-	n, errno = d.Lookup(context.Background(), base, &eo)
+	n, errno = d.Lookup(ctx, base, &eo)
 	if errno != 0 {
 		err = fmt.Errorf("failed to lookup node %q: %v", path, errno)
 	}
