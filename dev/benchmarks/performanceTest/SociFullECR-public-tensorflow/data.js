@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1756331726168,
+  "lastUpdate": 1756413755727,
   "repoUrl": "https://github.com/awslabs/soci-snapshotter",
   "entries": {
     "Soci Benchmark": [
@@ -14060,6 +14060,48 @@ window.BENCHMARK_DATA = {
           {
             "name": "SociFullECR-public-tensorflow-pullTaskDuration",
             "value": 1.692,
+            "unit": "Seconds",
+            "extra": "P90"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "austin.vazquez.dev@gmail.com",
+            "name": "Austin Vazquez",
+            "username": "austinvazquez"
+          },
+          "committer": {
+            "email": "kern.walster@gmail.com",
+            "name": "Kern Walster",
+            "username": "Kern--"
+          },
+          "distinct": true,
+          "id": "a6df487780834e6bb8af2b4c7cfa4a0fd0a6c133",
+          "message": "Migrate soci command to urfave/cli/v3\n\nSigned-off-by: Austin Vazquez <austin.vazquez.dev@gmail.com>\nCo-authored-by: Kern Walster <walster@amazon.com>",
+          "timestamp": "2025-08-28T13:32:59-07:00",
+          "tree_id": "55106c29d7cddd5f26310274ebeab83d5da2faf3",
+          "url": "https://github.com/awslabs/soci-snapshotter/commit/a6df487780834e6bb8af2b4c7cfa4a0fd0a6c133"
+        },
+        "date": 1756413753548,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "SociFullECR-public-tensorflow-lazyTaskDuration",
+            "value": 25.1645,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-tensorflow-localTaskDuration",
+            "value": 2.537,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-tensorflow-pullTaskDuration",
+            "value": 2.263,
             "unit": "Seconds",
             "extra": "P90"
           }
