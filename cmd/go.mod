@@ -14,7 +14,7 @@ require (
 	github.com/opencontainers/go-digest v1.0.0
 	github.com/opencontainers/image-spec v1.1.1
 	github.com/sirupsen/logrus v1.9.3
-	github.com/urfave/cli/v3 v3.3.8
+	github.com/urfave/cli/v3 v3.4.1
 	go.etcd.io/bbolt v1.4.3
 	golang.org/x/sys v0.35.0
 	google.golang.org/grpc v1.59.0
