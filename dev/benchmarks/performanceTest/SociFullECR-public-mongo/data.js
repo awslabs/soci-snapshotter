@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1756921578517,
+  "lastUpdate": 1756939360606,
   "repoUrl": "https://github.com/awslabs/soci-snapshotter",
   "entries": {
     "Soci Benchmark": [
@@ -14062,6 +14062,48 @@ window.BENCHMARK_DATA = {
           {
             "name": "SociFullECR-public-mongo-pullTaskDuration",
             "value": 1.075,
+            "unit": "Seconds",
+            "extra": "P90"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "walster@amazon.com",
+            "name": "Kern Walster",
+            "username": "Kern--"
+          },
+          "committer": {
+            "email": "kern.walster@gmail.com",
+            "name": "Kern Walster",
+            "username": "Kern--"
+          },
+          "distinct": true,
+          "id": "bf29e77745b3d06dce9effe3d5e38496ea009ab4",
+          "message": "Add soci-snapshotter-grpc config dump command\n\nSigned-off-by: Kern Walster <walster@amazon.com>",
+          "timestamp": "2025-09-03T15:33:14-07:00",
+          "tree_id": "c802de11b4954076fba0276c96f36ebecc6a85bc",
+          "url": "https://github.com/awslabs/soci-snapshotter/commit/bf29e77745b3d06dce9effe3d5e38496ea009ab4"
+        },
+        "date": 1756939358074,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "SociFullECR-public-mongo-lazyTaskDuration",
+            "value": 3.784,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-mongo-localTaskDuration",
+            "value": 0.303,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-mongo-pullTaskDuration",
+            "value": 1.0125000000000002,
             "unit": "Seconds",
             "extra": "P90"
           }
