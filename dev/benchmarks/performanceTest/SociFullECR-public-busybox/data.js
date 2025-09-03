@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1756921573876,
+  "lastUpdate": 1756939356248,
   "repoUrl": "https://github.com/awslabs/soci-snapshotter",
   "entries": {
     "Soci Benchmark": [
@@ -14061,6 +14061,48 @@ window.BENCHMARK_DATA = {
           {
             "name": "SociFullECR-public-busybox-pullTaskDuration",
             "value": 0.6565,
+            "unit": "Seconds",
+            "extra": "P90"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "walster@amazon.com",
+            "name": "Kern Walster",
+            "username": "Kern--"
+          },
+          "committer": {
+            "email": "kern.walster@gmail.com",
+            "name": "Kern Walster",
+            "username": "Kern--"
+          },
+          "distinct": true,
+          "id": "bf29e77745b3d06dce9effe3d5e38496ea009ab4",
+          "message": "Add soci-snapshotter-grpc config dump command\n\nSigned-off-by: Kern Walster <walster@amazon.com>",
+          "timestamp": "2025-09-03T15:33:14-07:00",
+          "tree_id": "c802de11b4954076fba0276c96f36ebecc6a85bc",
+          "url": "https://github.com/awslabs/soci-snapshotter/commit/bf29e77745b3d06dce9effe3d5e38496ea009ab4"
+        },
+        "date": 1756939353673,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "SociFullECR-public-busybox-lazyTaskDuration",
+            "value": 0.0155,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-busybox-localTaskDuration",
+            "value": 0.006,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-busybox-pullTaskDuration",
+            "value": 3.3115,
             "unit": "Seconds",
             "extra": "P90"
           }
