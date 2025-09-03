@@ -763,8 +763,7 @@ func (sf *statFile) Statfs(ctx context.Context, out *fuse.StatfsOut) syscall.Err
 // to keep that information accessible for troubleshooting.
 // The entries naming is kept to be consistend with the field naming in statJSON.
 func (sf *statFile) logContents() {
-	ctx := context.Background()
-	log.G(ctx).WithFields(logrus.Fields{
+	log.L.WithFields(logrus.Fields{
 		"digest": sf.statJSON.Digest, "size": sf.statJSON.Size,
 		"fetchedSize": sf.statJSON.FetchedSize, "fetchedPercent": sf.statJSON.FetchedPercent,
 	}).WithError(errors.New(sf.statJSON.Error)).Error("statFile error")

@@ -300,7 +300,7 @@ func (r *Resolver) Resolve(ctx context.Context, hosts []docker.RegistryHost, ref
 	}
 
 	// log ztoc info
-	log.G(context.Background()).WithFields(logrus.Fields{
+	log.G(ctx).WithFields(logrus.Fields{
 		"layer_sha":      desc.Digest,
 		"files_in_layer": len(ztoc.FileMetadata),
 	}).Debugf("[Resolver.Resolve] downloaded layer ZTOC")
