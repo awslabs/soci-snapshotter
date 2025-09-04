@@ -39,8 +39,7 @@ var ConfigCommand = &cli.Command{
 					log.G(ctx).WithError(err).Fatal(err)
 				}
 
-				toml.NewEncoder(os.Stdout).SetIndentTables(true).Encode(cfg)
-				return nil
+				return toml.NewEncoder(os.Stdout).SetIndentTables(true).Encode(cfg)
 			},
 		},
 	},
