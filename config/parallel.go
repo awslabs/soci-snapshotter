@@ -69,6 +69,12 @@ func defaultParallelConfig() ParallelConfig {
 		ConcurrentDownloadChunkSize:    defaultConcurrentDownloadChunkSize,
 		MaxConcurrentUnpacks:           defaultMaxConcurrentUnpacks,
 		MaxConcurrentUnpacksPerImage:   defaultMaxConcurrentUnpacksPerImage,
+		DecompressStreams: map[string]DecompressStream{
+			"gzip": {
+				Path: "/usr/bin/gzip",
+				Args: []string{"-d", "-c"},
+			},
+		},
 	}
 }
 

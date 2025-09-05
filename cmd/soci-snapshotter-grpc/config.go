@@ -39,8 +39,15 @@ var ConfigCommand = &cli.Command{
 					log.G(ctx).WithError(err).Fatal(err)
 				}
 
-				toml.NewEncoder(os.Stdout).SetIndentTables(true).Encode(cfg)
-				return nil
+				return toml.NewEncoder(os.Stdout).SetIndentTables(true).Encode(cfg)
+			},
+		},
+		{
+			Name:  "default",
+			Usage: "Print default configuration",
+			Action: func(ctx context.Context, cmd *cli.Command) error {
+				cfg := config.NewConfig()
+				return toml.NewEncoder(os.Stdout).SetIndentTables(true).Encode(cfg)
 			},
 		},
 	},

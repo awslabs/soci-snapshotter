@@ -68,7 +68,7 @@ NERDCTL_REPO = https://github.com/containerd/nerdctl.git
 NERDCTL_TAG = v1.7.7
 NERDCTL_PATCH = $(SOCI_SNAPSHOTTER_PROJECT_ROOT)/integration/config/nerdctl.patch
 
-.PHONY: all build check flatc add-ltag install uninstall tidy vendor clean clean-coverage \
+.PHONY: all build check flatc add-ltag install uninstall tidy vendor gen-config clean clean-coverage \
 	clean-integration test test-with-coverage show-test-coverage show-test-coverage-html nerdctl-with-idmapping \
 	integration integration-with-coverage show-integration-coverage show-integration-coverage-html \
 	release benchmarks build-benchmarks benchmarks-perf-test benchmarks-comparison-test
@@ -139,6 +139,9 @@ tidy:
 vendor:
 	@GO111MODULE=$(GO111MODULE_VALUE) go mod vendor
 	@cd ./cmd ; GO111MODULE=$(GO111MODULE_VALUE) go mod vendor
+
+gen-config: build
+	@$(OUTDIR)/soci-snapshotter-grpc config default > $(SOCI_SNAPSHOTTER_PROJECT_ROOT)/config/config.toml
 
 test:
 	@echo "$@"

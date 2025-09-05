@@ -75,3 +75,12 @@ jobs:
     steps:
       - uses: actions/checkout@v5
       - run: shellcheck ./**/*.sh
+
+  config:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+      - run: make && ./scripts/check-config.sh
