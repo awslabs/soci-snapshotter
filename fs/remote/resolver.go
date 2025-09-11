@@ -97,7 +97,7 @@ func NewResolver(cfg config.BlobConfig, handlers map[string]Handler) *Resolver {
 	}
 }
 
-func (r *Resolver) Resolve(ctx context.Context, hosts []docker.RegistryHost, refspec reference.Spec, desc ocispec.Descriptor, blobCache cache.BlobCache) (Blob, error) {
+func (r *Resolver) Resolve(ctx context.Context, hosts []docker.RegistryHost, refspec reference.Spec, desc ocispec.Descriptor) (Blob, error) {
 
 	var (
 		validInterval = time.Duration(r.blobConfig.ValidInterval) * time.Second

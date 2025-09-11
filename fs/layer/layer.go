@@ -370,18 +370,8 @@ func (r *Resolver) resolveBlob(ctx context.Context, hosts []docker.RegistryHost,
 		r.blobCacheMu.Unlock()
 	}
 
-	httpCache, err := newCache(filepath.Join(r.rootDir, "httpcache"), r.config.HTTPCacheType, r.config)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create http cache: %w", err)
-	}
-	defer func() {
-		if retErr != nil {
-			httpCache.Close()
-		}
-	}()
-
 	// Resolve the blob and cache the result.
-	b, err := r.resolver.Resolve(ctx, hosts, refspec, desc, httpCache)
+	b, err := r.resolver.Resolve(ctx, hosts, refspec, desc)
 	if err != nil {
 		return nil, fmt.Errorf("failed to resolve the source: %w", err)
 	}
