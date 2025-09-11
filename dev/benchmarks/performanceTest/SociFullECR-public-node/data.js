@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1756939353252,
+  "lastUpdate": 1757613304180,
   "repoUrl": "https://github.com/awslabs/soci-snapshotter",
   "entries": {
     "Soci Benchmark": [
@@ -13980,6 +13980,48 @@ window.BENCHMARK_DATA = {
           {
             "name": "SociFullECR-public-node-pullTaskDuration",
             "value": 1.601,
+            "unit": "Seconds",
+            "extra": "P90"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "davbson@amazon.com",
+            "name": "David Son",
+            "username": "sondavidb"
+          },
+          "committer": {
+            "email": "55555210+sondavidb@users.noreply.github.com",
+            "name": "David Son",
+            "username": "sondavidb"
+          },
+          "distinct": true,
+          "id": "9e23782d4f1752285473511e0c6f3f984d005697",
+          "message": "Bump Go min version to 1.24\n\nSigned-off-by: David Son <davbson@amazon.com>",
+          "timestamp": "2025-09-11T13:46:50-04:00",
+          "tree_id": "116a0ada8944e2a7281af3104281d7b88fc1d86e",
+          "url": "https://github.com/awslabs/soci-snapshotter/commit/9e23782d4f1752285473511e0c6f3f984d005697"
+        },
+        "date": 1757613299492,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "SociFullECR-public-node-lazyTaskDuration",
+            "value": 1.5545,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-node-localTaskDuration",
+            "value": 0.485,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-node-pullTaskDuration",
+            "value": 1.56,
             "unit": "Seconds",
             "extra": "P90"
           }
