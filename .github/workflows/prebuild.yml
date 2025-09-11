@@ -21,7 +21,7 @@ jobs:
           # in order to calculate the range. i.e. HEAD~20..HEAD includes
           # 20 commits, but including HEAD it needs 21 commits.
           fetch-depth: 21
-      - uses: actions/setup-go@v5
+      - uses: actions/setup-go@v6
         with:
           go-version: ${{ env.GO_VERSION }}
       - run: wget https://github.com/google/flatbuffers/releases/download/v22.9.29/Linux.flatc.binary.g++-10.zip
@@ -80,7 +80,7 @@ jobs:
     runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v5
-      - uses: actions/setup-go@v5
+      - uses: actions/setup-go@v6
         with:
           go-version: ${{ env.GO_VERSION }}
       - run: make && ./scripts/check-config.sh
