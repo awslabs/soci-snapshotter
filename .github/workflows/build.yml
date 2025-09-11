@@ -36,7 +36,7 @@ jobs:
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v5
-      - uses: actions/setup-go@v5
+      - uses: actions/setup-go@v6
         with:
           go-version: ${{ env.GO_VERSION }}
       - name: Install zlib static on AL2 ARM instances
@@ -60,7 +60,7 @@ jobs:
       DOCKER_BUILD_ARGS: "CONTAINERD_VERSION=${{ matrix.containerd }}"
     steps:
       - uses: actions/checkout@v5
-      - uses: actions/setup-go@v5
+      - uses: actions/setup-go@v6
         with:
           go-version: ${{ env.GO_VERSION }}
       - name: Install zlib static on AL2 ARM instances
