@@ -44,6 +44,8 @@ func TestSequentialResolver(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
+			ctx, cancel := context.WithCancel(context.Background())
+			defer cancel()
 			ztoc, sr, err := ztoc.BuildZtocReader(t, tc.entries, gzip.DefaultCompression, 1000000)
 			if err != nil {
 				t.Fatalf("error build ztoc and section reader: %v", err)
@@ -54,7 +56,7 @@ func TestSequentialResolver(t *testing.T) {
 			var resolvedSpans []int
 			for {
 				resolvedSpans = append(resolvedSpans, int(sequentialResolver.(*sequentialLayerResolver).nextSpanFetchID))
-				more, err := sequentialResolver.Resolve(context.Background())
+				more, err := sequentialResolver.Resolve(ctx)
 				if !more {
 					break
 				}

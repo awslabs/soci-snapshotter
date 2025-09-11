@@ -88,6 +88,8 @@ func TestArtifactFetcherFetch(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
+			ctx, cancel := context.WithCancel(context.Background())
+			defer cancel()
 			fetcher, err := newFakeArtifactFetcher(imageRef, tc.contents)
 			if err != nil {
 				t.Fatalf("could not create artifact fetcher: %v", err)
@@ -98,7 +100,7 @@ func TestArtifactFetcherFetch(t *testing.T) {
 				Size:   tc.size,
 			}
 
-			reader, _, err := fetcher.Fetch(context.Background(), desc)
+			reader, _, err := fetcher.Fetch(ctx, desc)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -142,7 +144,8 @@ func TestArtifactFetcherResolve(t *testing.T) {
 			desc := ocispec.Descriptor{
 				Digest: dgst,
 			}
-			ctx := context.Background()
+			ctx, cancel := context.WithCancel(context.Background())
+			defer cancel()
 
 			desc2, err := fetcher.resolve(ctx, desc)
 			if err != nil {
@@ -180,7 +183,8 @@ func TestArtifactFetcherFetchOnlyOnce(t *testing.T) {
 				Digest: dgst,
 				Size:   int64(size),
 			}
-			ctx := context.Background()
+			ctx, cancel := context.WithCancel(context.Background())
+			defer cancel()
 
 			reader, local, err := fetcher.Fetch(ctx, desc)
 			if err != nil {
@@ -249,7 +253,8 @@ func TestArtifactFetcherStore(t *testing.T) {
 				Digest: tc.digest,
 				Size:   int64(size),
 			}
-			ctx := context.Background()
+			ctx, cancel := context.WithCancel(context.Background())
+			defer cancel()
 
 			err = fetcher.Store(ctx, desc, bytes.NewReader(tc.contents))
 			if !errors.Is(err, tc.expectedError) {
@@ -365,7 +370,8 @@ func TestFetchSociArtifacts(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			ctx := context.Background()
+			ctx, cancel := context.WithCancel(context.Background())
+			defer cancel()
 			_, err = FetchSociArtifacts(ctx, reference.Spec{}, sociIndexDesc, newFakeLocalStore(), newFakeRemoteStoreWithContents(test.remoteContents))
 			if !errors.Is(err, test.expectedError) {
 				t.Fatalf("unexpected error, got: %v. expected: %v", err, test.expectedError)
