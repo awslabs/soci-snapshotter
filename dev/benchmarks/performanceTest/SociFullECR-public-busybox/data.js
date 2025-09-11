@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1757613306997,
+  "lastUpdate": 1757613354264,
   "repoUrl": "https://github.com/awslabs/soci-snapshotter",
   "entries": {
     "Soci Benchmark": [
@@ -14145,6 +14145,48 @@ window.BENCHMARK_DATA = {
           {
             "name": "SociFullECR-public-busybox-pullTaskDuration",
             "value": 0.7315,
+            "unit": "Seconds",
+            "extra": "P90"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "davbson@amazon.com",
+            "name": "David Son",
+            "username": "sondavidb"
+          },
+          "committer": {
+            "email": "55555210+sondavidb@users.noreply.github.com",
+            "name": "David Son",
+            "username": "sondavidb"
+          },
+          "distinct": true,
+          "id": "690b9c72937ee56594eea38b72eb59e51df09640",
+          "message": "Add soci-snapshotter-grpc config default command\n\nThis feature allows the user to dump the default config used by\nsoci-snapshotter-grpc via \"soci-snapshotter-grpc config default\".\n\nAdding this command also means we no longer need to manually update our\nconfig.toml example in \"config/config.toml\", so this commit also adds a\nMakefile target to generate a new config as well as a workflow to ensure\nthis TOML is kept up to date.\n\nSigned-off-by: David Son <davbson@amazon.com>",
+          "timestamp": "2025-09-11T13:46:59-04:00",
+          "tree_id": "ff4e507a233c7c1da6279342c749ecba2cb0e307",
+          "url": "https://github.com/awslabs/soci-snapshotter/commit/690b9c72937ee56594eea38b72eb59e51df09640"
+        },
+        "date": 1757613352135,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "SociFullECR-public-busybox-lazyTaskDuration",
+            "value": 0.017,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-busybox-localTaskDuration",
+            "value": 0.006,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-busybox-pullTaskDuration",
+            "value": 1.3900000000000001,
             "unit": "Seconds",
             "extra": "P90"
           }
