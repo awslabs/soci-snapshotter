@@ -1230,6 +1230,7 @@ func (fs *filesystem) Unmount(ctx context.Context, mountpoint string) error {
 	// underlying layer, so we cannot call done on it.
 	if !isIDMappedDir(mountpoint) {
 		l.Done()
+		fs.resolver.Evict(l.GetCacheRefKey())
 	}
 	fs.layerMu.Unlock()
 	fs.metricsController.Remove(mountpoint)
