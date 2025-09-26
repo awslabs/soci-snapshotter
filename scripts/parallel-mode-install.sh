@@ -18,7 +18,7 @@ ARCHIVE=soci-snapshotter-${soci_version}-linux-${ARCH}.tar.gz
 pushd /tmp
 curl --silent --location --fail --output "${ARCHIVE}" https://github.com/awslabs/soci-snapshotter/releases/download/v"${soci_version}"/"${ARCHIVE}"
 curl --silent --location --fail --output "${ARCHIVE}".sha256sum https://github.com/awslabs/soci-snapshotter/releases/download/v"${soci_version}"/"${ARCHIVE}".sha256sum
-sha256sum ./"${ARCHIVE}".sha256sum
+sha256sum --check ./"${ARCHIVE}".sha256sum
 tar xzvf ./"${ARCHIVE}" -C /usr/local/bin soci-snapshotter-grpc
 rm ./"${ARCHIVE}"
 rm ./"${ARCHIVE}".sha256sum
