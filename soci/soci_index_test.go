@@ -257,7 +257,7 @@ func TestBuildSociIndexNotLayer(t *testing.T) {
 				MediaType: tc.mediaType,
 				Digest:    "layerdigest",
 			}
-			_, err := builder.buildSociLayer(ctx, desc)
+			_, _, err := builder.buildSociLayer(ctx, desc)
 			if tc.err != nil {
 				if !errors.Is(err, tc.err) {
 					t.Fatalf("%v: should error out as not a layer", tc.name)
@@ -319,7 +319,7 @@ func TestBuildSociIndexWithLimits(t *testing.T) {
 				t.Fatalf("can't create a test db")
 			}
 			builder, _ := NewIndexBuilder(cs, blobStore, WithArtifactsDb(artifactsDb), WithSpanSize(spanSize), WithMinLayerSize(tc.minLayerSize))
-			ztoc, err := builder.buildSociLayer(ctx, desc)
+			ztoc, _, err := builder.buildSociLayer(ctx, desc)
 			if tc.ztocGenerated {
 				// we check only for build skip, which is indicated as nil value for ztoc and nil value for error
 				if ztoc == nil && err == nil {

@@ -54,6 +54,7 @@ type FSConfig struct {
 	NoPrometheus                   bool   `toml:"no_prometheus"`
 	MountTimeoutSec                int64  `toml:"mount_timeout_sec"`
 	FuseMetricsEmitWaitDurationSec int64  `toml:"fuse_metrics_emit_wait_duration_sec"`
+	PrefetchMaxConcurrency         int64  `toml:"prefetch_max_concurrency"`
 
 	RetryableHTTPClientConfig `toml:"http"`
 	BlobConfig                `toml:"blob"`
@@ -199,6 +200,11 @@ func parseFSConfig(cfg *Config) error {
 	if cfg.MaxConcurrency < 0 {
 		cfg.MaxConcurrency = 0
 	}
+	// If PrefetchMaxConcurrency is not set or negative, disable concurrency limits entirely.
+	if cfg.PrefetchMaxConcurrency < 0 {
+		cfg.PrefetchMaxConcurrency = defaultPrefetchMaxConcurrency
+	}
+
 	// Parse nested fs configs
 	parsers := []configParser{parseFuseConfig, parseBackgroundFetchConfig, parseRetryableHTTPClientConfig, parseBlobConfig, parseContentStoreConfig}
 	for _, p := range parsers {

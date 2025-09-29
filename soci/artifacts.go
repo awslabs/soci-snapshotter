@@ -81,6 +81,8 @@ var (
 	ArtifactEntryTypeIndex ArtifactEntryType = "soci_index"
 	// ArtifactEntryTypeLayer indicates that an ArtifactEntry is a SOCI layer artifact
 	ArtifactEntryTypeLayer ArtifactEntryType = "soci_layer"
+	// ArtifactEntryTypePrefetch indicates that an ArtifactEntry is a SOCI prefetch artifact
+	ArtifactEntryTypePrefetch ArtifactEntryType = "soci_prefetch"
 
 	db   *ArtifactsDb
 	once sync.Once

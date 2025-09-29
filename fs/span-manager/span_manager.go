@@ -147,6 +147,34 @@ func (m *SpanManager) FetchSingleSpan(spanID compression.SpanID) error {
 	return err
 }
 
+// ResolveSpan ensures the span exists in cache and is uncompressed by using
+// a safer approach that directly fetches and caches the span without calling getSpanContent.
+func (m *SpanManager) ResolveSpan(spanID compression.SpanID) error {
+	if spanID > m.ztoc.MaxSpanID {
+		return ErrExceedMaxSpan
+	}
+
+	s := m.spans[spanID]
+
+	if s.checkState(uncompressed) {
+		return nil
+	}
+
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	if s.checkState(uncompressed) {
+		return nil
+	}
+
+	_, err := m.fetchAndCacheSpan(spanID, true) // true = uncompress
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
 // resolveSpan ensures the span exists in cache and is uncompressed by calling
 // `getSpanContent`. Only for testing.
 func (m *SpanManager) resolveSpan(spanID compression.SpanID) error {

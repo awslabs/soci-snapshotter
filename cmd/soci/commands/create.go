@@ -49,27 +49,30 @@ var CreateCommand = &cli.Command{
 	Usage:     "create SOCI index",
 	ArgsUsage: "[flags] <image_ref>",
 	Flags: append(
-		internal.PlatformFlags,
-		&cli.Int64Flag{
-			Name:  spanSizeFlag,
-			Usage: "Span size that soci index uses to segment layer data. Default is 4 MiB",
-			Value: 1 << 22,
-		},
-		&cli.Int64Flag{
-			Name:  minLayerSizeFlag,
-			Usage: "Minimum layer size to build zTOC for. Smaller layers won't have zTOC and not lazy pulled. Default is 10 MiB.",
-			Value: 10 << 20,
-		},
-		&cli.StringSliceFlag{
-			Name:  optimizationFlag,
-			Usage: fmt.Sprintf("(Experimental) Enable optional optimizations. Valid values are %v", soci.Optimizations),
-		},
-		&cli.BoolFlag{
-			Name:    forceRecreateZtocsFlag,
-			Usage:   "Force recreate zTOCs for layers even if they already exist. Defaults to false.",
-			Value:   false,
-			Aliases: []string{forceRecreateZtocsFlagShort},
-		},
+		append(
+			internal.PlatformFlags,
+			&cli.Int64Flag{
+				Name:  spanSizeFlag,
+				Usage: "Span size that soci index uses to segment layer data. Default is 4 MiB",
+				Value: 1 << 22,
+			},
+			&cli.Int64Flag{
+				Name:  minLayerSizeFlag,
+				Usage: "Minimum layer size to build zTOC for. Smaller layers won't have zTOC and not lazy pulled. Default is 10 MiB.",
+				Value: 10 << 20,
+			},
+			&cli.StringSliceFlag{
+				Name:  optimizationFlag,
+				Usage: fmt.Sprintf("(Experimental) Enable optional optimizations. Valid values are %v", soci.Optimizations),
+			},
+			&cli.BoolFlag{
+				Name:    forceRecreateZtocsFlag,
+				Usage:   "Force recreate zTOCs for layers even if they already exist. Defaults to false.",
+				Value:   false,
+				Aliases: []string{forceRecreateZtocsFlagShort},
+			},
+		),
+		internal.PrefetchFlags()...,
 	),
 	Action: func(ctx context.Context, cmd *cli.Command) error {
 		srcRef := cmd.Args().Get(0)
@@ -128,6 +131,14 @@ var CreateCommand = &cli.Command{
 			soci.WithOptimizations(optimizations),
 			soci.WithArtifactsDb(artifactsDb),
 			soci.WithForceRecreateZtocs(forceRecreateZtocs),
+		}
+
+		allPrefetchFiles, err := internal.ParsePrefetchFiles(cmd)
+		if err != nil {
+			return fmt.Errorf("failed to parse prefetch files: %w", err)
+		}
+		if len(allPrefetchFiles) > 0 {
+			builderOpts = append(builderOpts, soci.WithPrefetchPaths(allPrefetchFiles))
 		}
 
 		builder, err := soci.NewIndexBuilder(cs, blobStore, builderOpts...)
