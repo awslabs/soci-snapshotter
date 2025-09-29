@@ -4,6 +4,7 @@ resolve_result_entry = 0
 debug = false
 disable_verification = false
 max_concurrency = 100
+prefetch_max_concurrency = 0
 no_prometheus = false
 mount_timeout_sec = 30
 fuse_metrics_emit_wait_duration_sec = 60
