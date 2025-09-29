@@ -51,6 +51,7 @@ import (
 
 	"github.com/awslabs/soci-snapshotter/cache"
 	"github.com/awslabs/soci-snapshotter/config"
+	"golang.org/x/sync/errgroup"
 
 	backgroundfetcher "github.com/awslabs/soci-snapshotter/fs/backgroundfetcher"
 	commonmetrics "github.com/awslabs/soci-snapshotter/fs/metrics/common"
@@ -64,6 +65,7 @@ import (
 	"github.com/awslabs/soci-snapshotter/util/lrucache"
 	"github.com/awslabs/soci-snapshotter/util/namedmutex"
 	"github.com/awslabs/soci-snapshotter/ztoc"
+	"github.com/awslabs/soci-snapshotter/ztoc/compression"
 	"github.com/containerd/containerd/reference"
 	"github.com/containerd/containerd/remotes/docker"
 	"github.com/containerd/log"
@@ -333,6 +335,64 @@ func (r *Resolver) Resolve(ctx context.Context, hosts []docker.RegistryHost, ref
 		bgLayerResolver = backgroundfetcher.NewSequentialResolver(desc.Digest, spanManager)
 		r.bgFetcher.Add(bgLayerResolver)
 	}
+
+	if len(ztoc.PrefetchFiles) > 0 {
+		type spanRange struct {
+			s0 compression.SpanID
+			s1 compression.SpanID
+		}
+		uniq := make(map[spanRange]struct{})
+		currentLayerDigest := desc.Digest.String()
+
+		for _, pf := range ztoc.PrefetchFiles {
+			if pf.LayerDigest != "" && pf.LayerDigest != currentLayerDigest {
+				continue
+			}
+
+			if pf.SpanCount > 0 {
+				uniq[spanRange{s0: pf.StartSpan, s1: pf.EndSpan}] = struct{}{}
+			}
+		}
+
+		var spansToFetch []compression.SpanID
+		for rge := range uniq {
+			for s := rge.s0; s <= rge.s1; s++ {
+				spansToFetch = append(spansToFetch, s)
+			}
+		}
+
+		g, _ := errgroup.WithContext(ctx)
+
+		maxConcurrency := 8
+		g.SetLimit(maxConcurrency)
+
+		var successCount, failCount int64
+		var mu sync.Mutex
+
+		for _, spanID := range spansToFetch {
+			spanID := spanID
+			g.Go(func() error {
+				if err := spanManager.ResolveSpan(spanID); err != nil {
+					mu.Lock()
+					failCount++
+					mu.Unlock()
+				} else {
+					mu.Lock()
+					successCount++
+					mu.Unlock()
+				}
+				return nil
+			})
+		}
+
+		if err := g.Wait(); err != nil {
+			log.G(ctx).WithError(err).Warn("prefetch error")
+		}
+
+		log.G(ctx).Debugf("prefetch completed for layer %s: %d success, %d failed out of %d total spans",
+			desc.Digest, successCount, failCount, len(spansToFetch))
+	}
+
 	vr, err := reader.NewReader(meta, desc.Digest, spanManager, disableVerification)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read layer: %w", err)

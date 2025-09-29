@@ -24,6 +24,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"sort"
 	"strconv"
 	"strings"
 	"sync"
@@ -34,9 +35,8 @@ import (
 	"github.com/awslabs/soci-snapshotter/ztoc"
 	"github.com/awslabs/soci-snapshotter/ztoc/compression"
 	"github.com/containerd/containerd/content"
-	"github.com/containerd/errdefs"
-
 	"github.com/containerd/containerd/images"
+	"github.com/containerd/errdefs"
 	"github.com/containerd/log"
 	"github.com/containerd/platforms"
 	"github.com/opencontainers/go-digest"
@@ -293,6 +293,7 @@ type builderConfig struct {
 	artifactsDb         *ArtifactsDb
 	optimizations       []Optimization
 	forceRecreateZtocs  bool
+	prefetchPaths       []string
 }
 
 func (b *builderConfig) hasOptimization(o Optimization) bool {
@@ -380,6 +381,13 @@ func WithBuildToolIdentifier(tool string) BuilderOption {
 func WithArtifactsDb(db *ArtifactsDb) BuilderOption {
 	return func(c *builderConfig) error {
 		c.artifactsDb = db
+		return nil
+	}
+}
+
+func WithPrefetchPaths(paths []string) BuilderOption {
+	return func(c *builderConfig) error {
+		c.prefetchPaths = paths
 		return nil
 	}
 }
@@ -502,6 +510,13 @@ func (b *IndexBuilder) Build(ctx context.Context, img images.Image, opts ...Buil
 	return index, nil
 }
 
+// ztocWithLayer holds a built ZTOC along with its layer descriptor
+type ztocWithLayer struct {
+	ztoc  *ztoc.Ztoc
+	layer ocispec.Descriptor
+	index int
+}
+
 // build attempts to create a zTOC in each layer and pushes the zTOC to the blob store.
 // It then creates the SOCI index and returns it with some metadata.
 // This should be done within a Batch and followed by writeSociIndex() to prevent garbage collection.
@@ -522,45 +537,66 @@ func (b *IndexBuilder) build(ctx context.Context, img images.Image, buildCfg bui
 		return nil, err
 	}
 
-	// attempt to build a ztoc for each layer
-	sociLayersDesc := make([]*ocispec.Descriptor, len(manifest.Layers))
-	errChan := make(chan error)
+	ztocChan := make(chan *ztocWithLayer, len(manifest.Layers))
+	errChan := make(chan error, len(manifest.Layers))
+
+	var wg sync.WaitGroup
+	for layerIndex, layerDesc := range manifest.Layers {
+		wg.Add(1)
+		go func(layerIndex int, layerDesc ocispec.Descriptor) {
+			defer wg.Done()
+
+			toc, err := b.buildSociLayer(ctx, layerDesc)
+			if err != nil {
+				errChan <- err
+				return
+			}
+			if toc == nil {
+				// layer was skipped
+				return
+			}
+
+			ztocChan <- &ztocWithLayer{
+				ztoc:  toc,
+				layer: layerDesc,
+				index: layerIndex,
+			}
+		}(layerIndex, layerDesc)
+	}
+
 	go func() {
-		var wg sync.WaitGroup
-		for i, l := range manifest.Layers {
-			wg.Add(1)
-			go func(i int, l ocispec.Descriptor) {
-				defer wg.Done()
-				desc, err := b.buildSociLayer(ctx, l)
-				if err != nil {
-					if err != errUnsupportedLayerFormat {
-						errChan <- err
-					}
-					return
-				}
-				if desc != nil {
-					// index layers must be in some deterministic order
-					// actual layer order used for historic consistency
-					sociLayersDesc[i] = desc
-				}
-			}(i, l)
-		}
 		wg.Wait()
+		close(ztocChan)
 		close(errChan)
 	}()
 
-	errs := make([]error, 0, len(manifest.Layers))
-
+	errs := make([]error, 0)
 	for err := range errChan {
 		errs = append(errs, err)
 	}
 
 	if len(errs) > 0 {
-		errWrap := errors.New("errors encountered while building soci layers")
+		errWrap := errors.New("errors encountered while building ztocs")
 		for _, err := range errs {
 			errWrap = fmt.Errorf("%w; %v", errWrap, err)
 		}
 		return nil, errWrap
+	}
+
+	builtZtocs := make([]*ztocWithLayer, 0)
+	for zwl := range ztocChan {
+		builtZtocs = append(builtZtocs, zwl)
+	}
+
+	if len(builtZtocs) == 0 {
+		return nil, ErrEmptyIndex
+	}
+
+	prefetchFiles := b.preparePrefetchFileList(builtZtocs)
+
+	sociLayersDesc, err := b.storeZtocs(ctx, builtZtocs, prefetchFiles, len(manifest.Layers))
+	if err != nil {
+		return nil, err
 	}
 
 	ztocsDesc := make([]ocispec.Descriptor, 0, len(sociLayersDesc))
@@ -598,26 +634,29 @@ func (b *IndexBuilder) build(ctx context.Context, img images.Image, buildCfg bui
 	}, nil
 }
 
-// buildSociLayer builds a ztoc for an image layer (`desc`) and returns ztoc descriptor.
-// It may skip building ztoc (e.g., if layer size < `minLayerSize`) and return nil.
-// This should be done within a Batch and followed by Label calls to prevent garbage collection.
-func (b *IndexBuilder) buildSociLayer(ctx context.Context, desc ocispec.Descriptor) (*ocispec.Descriptor, error) {
-	if !images.IsLayerType(desc.MediaType) {
-		return nil, errNotLayerType
-	}
-	// check if we need to skip building the zTOC
-	if skip, reason := skipBuildingZtoc(desc, b.config); skip {
-		fmt.Printf("ztoc skipped - layer %s (%s) %s\n", desc.Digest, desc.MediaType, reason)
+// buildSociLayer validates a layer and builds a zTOC for it.
+// Returns the built zTOC, or nil if the layer should be skipped.
+// Returns an error if the layer processing fails.
+func (b *IndexBuilder) buildSociLayer(ctx context.Context, layerDesc ocispec.Descriptor) (*ztoc.Ztoc, error) {
+	// Validate layer type
+	if !images.IsLayerType(layerDesc.MediaType) {
+		// not a layer type, skip silently
 		return nil, nil
 	}
 
-	compressionAlgo, err := images.DiffCompression(ctx, desc.MediaType)
+	// Check if we need to skip building the zTOC
+	if skip, reason := skipBuildingZtoc(layerDesc, b.config); skip {
+		fmt.Printf("ztoc skipped - layer %s (%s) %s\n", layerDesc.Digest, layerDesc.MediaType, reason)
+		return nil, nil
+	}
+
+	compressionAlgo, err := images.DiffCompression(ctx, layerDesc.MediaType)
 	if err != nil {
 		return nil, fmt.Errorf("could not determine layer compression: %w", err)
 	}
 
 	if compressionAlgo == "" {
-		switch desc.MediaType {
+		switch layerDesc.MediaType {
 		case ocispec.MediaTypeImageLayer:
 			// for OCI image layers, empty is returned for an uncompressed layer.
 			compressionAlgo = compression.Uncompressed
@@ -626,11 +665,11 @@ func (b *IndexBuilder) buildSociLayer(ctx context.Context, desc ocispec.Descript
 
 	if !b.ztocBuilder.CheckCompressionAlgorithm(compressionAlgo) {
 		fmt.Printf("ztoc skipped - layer %s (%s) is compressed in an unsupported format. expect: [tar, gzip, unknown] but got %q\n",
-			desc.Digest, desc.MediaType, compressionAlgo)
+			layerDesc.Digest, layerDesc.MediaType, compressionAlgo)
 		return nil, errUnsupportedLayerFormat
 	}
 
-	existingZtoc := b.getExistingZtocForLayer(desc)
+	existingZtoc := b.getExistingZtocForLayer(layerDesc)
 	if existingZtoc != nil {
 		reader, err := b.blobStore.Fetch(ctx, *existingZtoc)
 		if err != nil {
@@ -644,34 +683,147 @@ func (b *IndexBuilder) buildSociLayer(ctx context.Context, desc ocispec.Descript
 			return nil, fmt.Errorf("cannot unmarshal existing ztoc: %w", err)
 		}
 
-		fmt.Printf("layer %s -> ztoc %s (already exists)\n", desc.Digest, existingZtoc.Digest)
-		b.addSociLayerAnnotations(&desc, existingZtoc, toc)
-		return existingZtoc, err
+		fmt.Printf("layer %s -> ztoc %s (already exists)\n", layerDesc.Digest, existingZtoc.Digest)
+		return toc, nil
 	}
 
-	ra, err := b.contentStore.ReaderAt(ctx, desc)
+	ra, err := b.contentStore.ReaderAt(ctx, layerDesc)
 	if err != nil {
 		return nil, err
 	}
 	defer ra.Close()
-	sr := io.NewSectionReader(ra, 0, desc.Size)
+	sr := io.NewSectionReader(ra, 0, layerDesc.Size)
 
 	tmpFile, err := os.CreateTemp("", "tmp.*")
 	if err != nil {
 		return nil, err
 	}
-	defer os.Remove(tmpFile.Name())
+	defer func() {
+		tmpFile.Close()
+		os.Remove(tmpFile.Name())
+	}()
+
 	n, err := io.Copy(tmpFile, sr)
 	if err != nil {
 		return nil, err
 	}
-	if n != desc.Size {
+	if n != layerDesc.Size {
 		return nil, errors.New("the size of the temp file doesn't match that of the layer")
 	}
 
+	// Build zTOC
 	toc, err := b.ztocBuilder.BuildZtoc(tmpFile.Name(), b.config.spanSize, ztoc.WithCompression(compressionAlgo))
 	if err != nil {
 		return nil, err
+	}
+
+	return toc, nil
+}
+
+// preparePrefetchFileList finds prefetch files in ZTOCs and prepares the complete prefetch file list
+func (b *IndexBuilder) preparePrefetchFileList(builtZtocs []*ztocWithLayer) []ztoc.PrefetchFileInfo {
+	if len(b.config.prefetchPaths) == 0 {
+		return nil
+	}
+
+	fileToLayerMap := b.findPrefetchFilesInZtocs(builtZtocs, b.config.prefetchPaths)
+	prefetchFiles := make([]ztoc.PrefetchFileInfo, 0, len(b.config.prefetchPaths))
+
+	for _, prefetchPath := range b.config.prefetchPaths {
+		layerDigest := fileToLayerMap[prefetchPath]
+		prefetchFiles = append(prefetchFiles, ztoc.PrefetchFileInfo{
+			Path:        prefetchPath,
+			LayerDigest: layerDigest,
+		})
+	}
+
+	return prefetchFiles
+}
+
+// storeZtocs stores all built ZTOCs with prefetch information in parallel
+func (b *IndexBuilder) storeZtocs(ctx context.Context, builtZtocs []*ztocWithLayer, prefetchFiles []ztoc.PrefetchFileInfo, totalLayers int) ([]*ocispec.Descriptor, error) {
+	sociLayersDesc := make([]*ocispec.Descriptor, totalLayers)
+	errChan := make(chan error, len(builtZtocs))
+
+	var wg sync.WaitGroup
+	for _, zwl := range builtZtocs {
+		wg.Add(1)
+		go func(zwl *ztocWithLayer) {
+			defer wg.Done()
+
+			desc, err := b.storeZtoc(ctx, zwl.ztoc, zwl.layer, prefetchFiles)
+			if err != nil {
+				errChan <- err
+				return
+			}
+			if desc != nil {
+				// index layers must be in some deterministic order
+				// actual layer order used for historic consistency
+				sociLayersDesc[zwl.index] = desc
+			}
+		}(zwl)
+	}
+
+	go func() {
+		wg.Wait()
+		close(errChan)
+	}()
+
+	errs := make([]error, 0)
+	for err := range errChan {
+		errs = append(errs, err)
+	}
+
+	if len(errs) > 0 {
+		errWrap := errors.New("errors encountered while storing ztocs")
+		for _, err := range errs {
+			errWrap = fmt.Errorf("%w; %v", errWrap, err)
+		}
+		return nil, errWrap
+	}
+
+	return sociLayersDesc, nil
+}
+
+// findPrefetchFilesInZtocs searches for prefetch files in already-built ZTOCs
+// Returns a map from file path to layer digest
+func (b *IndexBuilder) findPrefetchFilesInZtocs(builtZtocs []*ztocWithLayer, prefetchPaths []string) map[string]string {
+	if len(prefetchPaths) == 0 {
+		return nil
+	}
+
+	fileToLayerMap := make(map[string]string)
+	targetSet := make(map[string]bool)
+	for _, target := range prefetchPaths {
+		targetSet[target] = true
+	}
+
+	sortedZtocs := make([]*ztocWithLayer, len(builtZtocs))
+	copy(sortedZtocs, builtZtocs)
+	sort.Slice(sortedZtocs, func(i, j int) bool {
+		return sortedZtocs[i].index > sortedZtocs[j].index
+	})
+
+	for _, zwl := range sortedZtocs {
+		for _, metadata := range zwl.ztoc.TOC.FileMetadata {
+			if targetSet[metadata.Name] {
+				if _, exists := fileToLayerMap[metadata.Name]; !exists {
+					fileToLayerMap[metadata.Name] = zwl.layer.Digest.String()
+				}
+			}
+		}
+	}
+
+	return fileToLayerMap
+}
+
+func (b *IndexBuilder) storeZtoc(ctx context.Context, toc *ztoc.Ztoc, desc ocispec.Descriptor, prefetchFiles []ztoc.PrefetchFileInfo) (*ocispec.Descriptor, error) {
+	if len(prefetchFiles) > 0 {
+		updatedPrefetchFiles, err := b.calculatePrefetchSpanInfo(prefetchFiles, toc, desc.Digest.String())
+		if err != nil {
+			return nil, fmt.Errorf("failed to calculate prefetch span info: %w", err)
+		}
+		toc.PrefetchFiles = updatedPrefetchFiles
 	}
 
 	ztocReader, ztocDesc, err := ztoc.Marshal(toc)
@@ -738,6 +890,60 @@ func (b *IndexBuilder) getExistingZtocForLayer(layerDesc ocispec.Descriptor) *oc
 		return nil
 	})
 	return existingZtoc
+}
+
+func (b *IndexBuilder) calculatePrefetchSpanInfo(prefetchFiles []ztoc.PrefetchFileInfo, toc *ztoc.Ztoc, currentLayerDigest string) ([]ztoc.PrefetchFileInfo, error) {
+	if len(prefetchFiles) == 0 {
+		return nil, nil
+	}
+
+	gz, err := toc.Zinfo()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get zinfo from ztoc: %w", err)
+	}
+	defer gz.Close()
+
+	var updatedFiles []ztoc.PrefetchFileInfo
+
+	for _, prefetchFile := range prefetchFiles {
+		if prefetchFile.LayerDigest != "" && prefetchFile.LayerDigest != currentLayerDigest {
+			continue
+		}
+
+		var fileOffset, fileSize int64
+		found := false
+
+		for _, metadata := range toc.TOC.FileMetadata {
+			if metadata.Name == prefetchFile.Path {
+				fileOffset = int64(metadata.UncompressedOffset)
+				fileSize = int64(metadata.UncompressedSize)
+				found = true
+				break
+			}
+		}
+
+		if !found {
+			continue
+		}
+
+		startSpan := gz.UncompressedOffsetToSpanID(compression.Offset(fileOffset))
+		endSpan := gz.UncompressedOffsetToSpanID(compression.Offset(fileOffset + fileSize))
+		if endSpan < startSpan {
+			endSpan = startSpan
+		}
+
+		spanCount := int(endSpan - startSpan + 1)
+
+		updatedFiles = append(updatedFiles, ztoc.PrefetchFileInfo{
+			Path:        prefetchFile.Path,
+			StartSpan:   startSpan,
+			EndSpan:     endSpan,
+			SpanCount:   spanCount,
+			LayerDigest: currentLayerDigest,
+		})
+	}
+
+	return updatedFiles, nil
 }
 
 // NewIndex returns a new index.

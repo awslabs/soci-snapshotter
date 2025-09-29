@@ -39,7 +39,14 @@ type Info struct {
 	NumSpans          compression.SpanID `json:"num_spans"`
 	NumFiles          int                `json:"num_files"`
 	NumMultiSpanFiles int                `json:"num_multi_span_files"`
+	NumPrefetchFiles  int                `json:"num_prefetch_files"`
 	Files             []FileInfo         `json:"files"`
+	PrefetchFiles     []PrefetchFileInfo `json:"prefetch_files,omitempty"`
+}
+
+type PrefetchFileInfo struct {
+	Path        string `json:"path"`
+	LayerDigest string `json:"layer_digest,omitempty"`
 }
 
 type FileInfo struct {
@@ -95,12 +102,13 @@ var infoCommand = &cli.Command{
 
 		multiSpanFiles := 0
 		zinfo := Info{
-			Version:   string(ztoc.Version),
-			BuildTool: ztoc.BuildToolIdentifier,
-			Size:      entry.Size,
-			SpanSize:  gzInfo.SpanSize(),
-			NumSpans:  ztoc.MaxSpanID + 1,
-			NumFiles:  len(ztoc.FileMetadata),
+			Version:          string(ztoc.Version),
+			BuildTool:        ztoc.BuildToolIdentifier,
+			Size:             entry.Size,
+			SpanSize:         gzInfo.SpanSize(),
+			NumSpans:         ztoc.MaxSpanID + 1,
+			NumFiles:         len(ztoc.FileMetadata),
+			NumPrefetchFiles: len(ztoc.PrefetchFiles),
 		}
 		for _, v := range ztoc.FileMetadata {
 			startSpan := gzInfo.UncompressedOffsetToSpanID(v.UncompressedOffset)
@@ -118,6 +126,14 @@ var infoCommand = &cli.Command{
 			})
 		}
 		zinfo.NumMultiSpanFiles = multiSpanFiles
+
+		for _, prefetchFile := range ztoc.PrefetchFiles {
+			zinfo.PrefetchFiles = append(zinfo.PrefetchFiles, PrefetchFileInfo{
+				Path:        prefetchFile.Path,
+				LayerDigest: prefetchFile.LayerDigest,
+			})
+		}
+
 		j, err := json.MarshalIndent(zinfo, "", "  ")
 		if err != nil {
 			return err

@@ -52,6 +52,16 @@ type Ztoc struct {
 	BuildToolIdentifier     string
 	CompressedArchiveSize   compression.Offset
 	UncompressedArchiveSize compression.Offset
+
+	PrefetchFiles []PrefetchFileInfo `json:"prefetchFiles,omitempty"`
+}
+
+type PrefetchFileInfo struct {
+	Path        string             `json:"path"`
+	StartSpan   compression.SpanID `json:"start_span"`
+	EndSpan     compression.SpanID `json:"end_span"`
+	SpanCount   int                `json:"span_count"`
+	LayerDigest string             `json:"layer_digest,omitempty"`
 }
 
 // CompressionInfo is the "zinfo" part of ztoc including the `Checkpoints` data
