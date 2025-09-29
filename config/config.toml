@@ -7,6 +7,7 @@ max_concurrency = 100
 no_prometheus = false
 mount_timeout_sec = 30
 fuse_metrics_emit_wait_duration_sec = 60
+prefetch_max_concurrency = 0
 metrics_address = ''
 metrics_network = 'tcp'
 debug_address = ''
