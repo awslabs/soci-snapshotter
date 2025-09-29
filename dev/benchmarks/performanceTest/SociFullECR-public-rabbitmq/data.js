@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1757962027522,
+  "lastUpdate": 1759169926405,
   "repoUrl": "https://github.com/awslabs/soci-snapshotter",
   "entries": {
     "Soci Benchmark": [
@@ -14107,6 +14107,48 @@ window.BENCHMARK_DATA = {
           {
             "name": "SociFullECR-public-rabbitmq-pullTaskDuration",
             "value": 1.3599999999999999,
+            "unit": "Seconds",
+            "extra": "P90"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "github@adolfo.ochagavia.nl",
+            "name": "Adolfo Ochagavía",
+            "username": "aochagavia"
+          },
+          "committer": {
+            "email": "55555210+sondavidb@users.noreply.github.com",
+            "name": "David Son",
+            "username": "sondavidb"
+          },
+          "distinct": true,
+          "id": "586e301cdbc9fa58e7e05e7e12f30f13b041d7d9",
+          "message": "Actually check the download's sha256 checksum in parallel-mode-install.sh\n\nThe script was mistakingly _calculating_ the sha256 hash of the checksum, instead of _using_ the checksum to check against the downloaded file.\n\nSigned-off-by: Adolfo Ochagavía <github@adolfo.ochagavia.nl>",
+          "timestamp": "2025-09-29T14:06:57-04:00",
+          "tree_id": "ed4aa1beb29849b7b25244bd09f73541c1ccefe1",
+          "url": "https://github.com/awslabs/soci-snapshotter/commit/586e301cdbc9fa58e7e05e7e12f30f13b041d7d9"
+        },
+        "date": 1759169829913,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "SociFullECR-public-rabbitmq-lazyTaskDuration",
+            "value": 12.900500000000001,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-rabbitmq-localTaskDuration",
+            "value": 9.3235,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-rabbitmq-pullTaskDuration",
+            "value": 1.87,
             "unit": "Seconds",
             "extra": "P90"
           }
