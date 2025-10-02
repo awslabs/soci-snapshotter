@@ -7,8 +7,8 @@ on:
     branches: ['main', 'release/**']
 
 env:
-  GO_VERSION: '1.24.4'
-  GOLANGCI_LINT_VERSION: '2.1.6'
+  GO_VERSION: '1.24.9'
+  GOLANGCI_LINT_VERSION: '2.5.0'
 
 jobs:
   check:
@@ -71,7 +71,7 @@ jobs:
 
   shellcheck:
     runs-on: ubuntu-22.04
-    container: koalaman/shellcheck-alpine:v0.10.0
+    container: koalaman/shellcheck-alpine:v0.11.0
     steps:
       - uses: actions/checkout@v5
       - run: shellcheck ./**/*.sh
