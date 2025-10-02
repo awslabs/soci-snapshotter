@@ -12,8 +12,9 @@
 #   See the License for the specific language governing permissions and
 #   limitations under the License.
 
-ARG CONTAINERD_VERSION=1.7.27
-ARG RUNC_VERSION=1.3.0
+
+ARG CONTAINERD_VERSION=1.7.28
+ARG RUNC_VERSION=1.3.1
 ARG NERDCTL_VERSION=2.1.6
 ARG IGZIP_VERSION=2.31.1
 ARG RAPIDGZIP_VERSION=0.14.3
