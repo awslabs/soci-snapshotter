@@ -55,8 +55,9 @@ import (
 func TestRunMultipleContainers(t *testing.T) {
 
 	tests := []struct {
-		name       string
-		containers []containerImageAndTestFunc
+		name               string
+		containers         []containerImageAndTestFunc
+		forceRecreateZtocs bool
 	}{
 		{
 			name: "Run multiple containers from the same image",
@@ -97,6 +98,20 @@ func TestRunMultipleContainers(t *testing.T) {
 				},
 			},
 		},
+		{
+			name: "Run multiple containers from different images with shared layers with --force flag",
+			containers: []containerImageAndTestFunc{
+				{
+					containerImage: nginxAlpineImage,
+					testFunc:       testWebServiceContainer,
+				},
+				{
+					containerImage: nginxAlpineImage2,
+					testFunc:       testWebServiceContainer,
+				},
+			},
+			forceRecreateZtocs: true,
+		},
 	}
 
 	for _, tt := range tests {
@@ -110,7 +125,13 @@ func TestRunMultipleContainers(t *testing.T) {
 				// Mirror image
 				copyImage(sh, dockerhub(container.containerImage), regConfig.mirror(container.containerImage))
 				// Pull image, create SOCI index
-				indexDigest := buildIndex(sh, regConfig.mirror(container.containerImage), withMinLayerSize(0))
+				buildIndexOpts := []indexBuildOption{withMinLayerSize(0)}
+				if tt.forceRecreateZtocs {
+					buildIndexOpts = append(buildIndexOpts, withForceRecreateZtocs(true))
+				} else {
+					buildIndexOpts = append(buildIndexOpts, withRunRebuildDbBeforeCreate())
+				}
+				indexDigest := buildIndex(sh, regConfig.mirror(container.containerImage), buildIndexOpts...)
 				sh.X("soci", "push", "--user", regConfig.mirror(container.containerImage).creds, regConfig.mirror(container.containerImage).ref)
 
 				sh.X(append(imagePullCmd, "--soci-index-digest", indexDigest, regConfig.mirror(container.containerImage).ref)...)

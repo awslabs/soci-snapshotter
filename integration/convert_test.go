@@ -17,21 +17,86 @@
 package integration
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
+	"path/filepath"
 	"slices"
 	"strings"
 	"testing"
 
+	"github.com/awslabs/soci-snapshotter/config"
 	"github.com/awslabs/soci-snapshotter/soci"
 	shell "github.com/awslabs/soci-snapshotter/util/dockershell"
+	"github.com/awslabs/soci-snapshotter/util/testutil"
 	"github.com/containerd/platforms"
+	"github.com/opencontainers/go-digest"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 )
 
 var (
 	convertImages = []string{nginxImage, rabbitmqImage, drupalImage, ubuntuImage}
 )
+
+func TestConvertWithForceRecreateZtocs(t *testing.T) {
+	sh, done := newSnapshotterBaseShell(t)
+	defer done()
+	rebootContainerd(t, sh, "", "")
+
+	// if we build an index for the image first and then convert it
+	// without the --force flag, all ztoc's should be skipped
+	image := dockerhub(nginxAlpineImage)
+	indexDigest := buildIndex(sh, image)
+	if indexDigest == "" {
+		t.Fatal("failed to get soci index for test image")
+	}
+	contentStoreBlobPath, _ := testutil.GetContentStoreBlobPath(config.DefaultContentStoreType)
+	parsedDigest, err := digest.Parse(indexDigest)
+	if err != nil {
+		t.Fatalf("cannot parse digest: %v", err)
+	}
+	checkpoints := fetchContentFromPath(sh, filepath.Join(contentStoreBlobPath, parsedDigest.Encoded()))
+	var index soci.Index
+	err = soci.DecodeIndex(bytes.NewReader(checkpoints), &index)
+	if err != nil {
+		t.Fatalf("cannot get index data: %v", err)
+	}
+
+	testCases := []struct {
+		name                   string
+		forceRecreateZtocsFlag bool
+		numZtocSkipped         int
+	}{
+		{
+			name:                   "test soci convert without --force flag",
+			forceRecreateZtocsFlag: false,
+			numZtocSkipped:         len(index.Blobs),
+		},
+		{
+			name:                   "test soci convert with --force flag",
+			forceRecreateZtocsFlag: true,
+			numZtocSkipped:         0,
+		},
+	}
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			args := []string{"soci", "convert", "--min-layer-size=0", "--platform", platforms.Format(image.platform)}
+			if tc.forceRecreateZtocsFlag {
+				args = append(args, "--force")
+			}
+			args = append(args, image.ref, image.ref+"-soci")
+			b, err := sh.CombinedOLog(args...)
+			if err != nil {
+				t.Fatalf("expected no error, got %v", err)
+			}
+
+			numSkipped := strings.Count(string(b), "already exists")
+			if numSkipped != tc.numZtocSkipped {
+				t.Fatalf("expected %v ztoc to be skipped, got %v", tc.numZtocSkipped, numSkipped)
+			}
+		})
+	}
+}
 
 func validateConversion(t *testing.T, sh *shell.Shell, originalDigest, convertedDigest string) {
 	t.Helper()
