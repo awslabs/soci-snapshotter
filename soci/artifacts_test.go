@@ -157,6 +157,7 @@ func TestArtifactEntry_ReadWrite_Using_ArtifactsDb(t *testing.T) {
 		Type:           ArtifactEntryTypeIndex,
 		ImageDigest:    imageDigest,
 		Platform:       platform,
+		SpanSize:       10,
 	}
 	err = db.WriteArtifactEntry(ae)
 	if err != nil {
@@ -189,6 +190,7 @@ func TestArtifactEntry_ReadWrite_AtomicDbOperations(t *testing.T) {
 		Location:       "/var/soci-snapshotter/test",
 		ImageDigest:    imageDigest,
 		Platform:       platform,
+		SpanSize:       10,
 	}
 	err = db.db.Update(func(tx *bolt.Tx) error {
 		root, err := getArtifactsBucket(tx)
