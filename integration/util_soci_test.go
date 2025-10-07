@@ -60,11 +60,13 @@ const (
 // indexBuildConfig represents the values of the CLI flags that should be used
 // when creating an index with `buildIndex`
 type indexBuildConfig struct {
-	spanSize         int64
-	minLayerSize     int64
-	allowErrors      bool
-	contentStoreType store.ContentStoreType
-	namespace        string
+	spanSize                 int64
+	minLayerSize             int64
+	allowErrors              bool
+	contentStoreType         store.ContentStoreType
+	namespace                string
+	runRebuildDbBeforeCreate bool
+	forceRecreateZtocs       bool
 }
 
 // indexBuildOption is a functional argument to update `indexBuildConfig`
@@ -78,6 +80,28 @@ func withIndexBuildConfig(newIbc indexBuildConfig) indexBuildOption {
 		ibc.allowErrors = newIbc.allowErrors
 		ibc.contentStoreType = newIbc.contentStoreType
 		ibc.namespace = newIbc.namespace
+		ibc.runRebuildDbBeforeCreate = newIbc.runRebuildDbBeforeCreate
+		ibc.forceRecreateZtocs = newIbc.forceRecreateZtocs
+	}
+}
+
+// withForceRecreateZtocs passes the --force flag to "soci create".
+func withForceRecreateZtocs(forceRecreateZtocs bool) indexBuildOption {
+	return func(ibc *indexBuildConfig) {
+		ibc.forceRecreateZtocs = forceRecreateZtocs
+	}
+}
+
+// withRebuildDbBeforeCreate syncs the artifact store with the content store before calling "soci create"
+// We do this because the artifact store could be out of sync with the content store when 'soci create' is called.
+// This is problematic in cases where we create soci indexes for some images, delete those indexes and immediately recreate
+// them (like in TestSociIndexRemove) - as there could be ztoc entries in the artifact store which are not present in the
+// content store, causing 'soci create/convert' without --force flag to throw an error.
+//
+// We can run this by default and probably remove this option in the future when the race condition with rebuild-db is solved.
+func withRunRebuildDbBeforeCreate() indexBuildOption {
+	return func(ibc *indexBuildConfig) {
+		ibc.runRebuildDbBeforeCreate = true
 	}
 }
 
@@ -145,6 +169,9 @@ func buildIndex(sh *shell.Shell, src imageInfo, opt ...indexBuildOption) string 
 		"--platform", platforms.Format(src.platform),
 		src.ref,
 	}
+	if indexBuildConfig.forceRecreateZtocs {
+		createCommand = append(createCommand, "--force")
+	}
 
 	shx := sh.X
 	if indexBuildConfig.allowErrors {
@@ -152,6 +179,11 @@ func buildIndex(sh *shell.Shell, src imageInfo, opt ...indexBuildOption) string 
 	}
 
 	shx(append([]string{"nerdctl", "--namespace", indexBuildConfig.namespace, "pull", "-q", "--platform", platforms.Format(src.platform)}, opts[0]...)...)
+
+	if indexBuildConfig.runRebuildDbBeforeCreate {
+		shx("soci", "--content-store", string(indexBuildConfig.contentStoreType), "rebuild-db")
+	}
+
 	shx(createCommand...)
 	indexDigest, err := sh.OLog("soci",
 		"--namespace", indexBuildConfig.namespace,

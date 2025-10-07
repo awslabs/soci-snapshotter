@@ -58,6 +58,8 @@ const (
 	IndexAnnotationImageLayerMediaType = "com.amazon.soci.image-layer-mediaType"
 	// IndexAnnotationImageLayerDigest is the index annotation for image layer digest
 	IndexAnnotationImageLayerDigest = "com.amazon.soci.image-layer-digest"
+	// IndexAnnotationSpanSize is the span size used to generate a soci artifact
+	IndexAnnotationSociSpanSize = "com.amazon.soci.span-size"
 	// IndexAnnotationBuildToolIdentifier is the index annotation for build tool identifier
 	IndexAnnotationBuildToolIdentifier = "com.amazon.soci.build-tool-identifier"
 	// IndexAnnotationDisableXAttrs is the index annotation if the layer has
@@ -290,6 +292,7 @@ type builderConfig struct {
 	buildToolIdentifier string
 	artifactsDb         *ArtifactsDb
 	optimizations       []Optimization
+	forceRecreateZtocs  bool
 }
 
 func (b *builderConfig) hasOptimization(o Optimization) bool {
@@ -327,6 +330,13 @@ func ParseOptimization(s string) (Optimization, error) {
 // BuilderOption is a functional argument that affects a SOCI index builder
 // and all indexes built with that builder.
 type BuilderOption func(c *builderConfig) error
+
+func WithForceRecreateZtocs(forceRecreateZtocs bool) BuilderOption {
+	return func(c *builderConfig) error {
+		c.forceRecreateZtocs = forceRecreateZtocs
+		return nil
+	}
+}
 
 // WithSpanSize specifies span size.
 func WithSpanSize(spanSize int64) BuilderOption {
@@ -620,6 +630,25 @@ func (b *IndexBuilder) buildSociLayer(ctx context.Context, desc ocispec.Descript
 		return nil, errUnsupportedLayerFormat
 	}
 
+	existingZtoc := b.getExistingZtocForLayer(desc)
+	if existingZtoc != nil {
+		reader, err := b.blobStore.Fetch(ctx, *existingZtoc)
+		if err != nil {
+			if errors.Is(err, errdefs.ErrNotFound) {
+				return nil, fmt.Errorf("a ztoc entry was found in the artifact store but not in the content store (try running \"soci rebuild-db\" first or try again with \"--force\" flag): %w", err)
+			}
+			return nil, fmt.Errorf("failed to fetch existing ztoc: %w", err)
+		}
+		toc, err := ztoc.Unmarshal(reader)
+		if err != nil {
+			return nil, fmt.Errorf("cannot unmarshal existing ztoc: %w", err)
+		}
+
+		fmt.Printf("layer %s -> ztoc %s (already exists)\n", desc.Digest, existingZtoc.Digest)
+		b.addSociLayerAnnotations(&desc, existingZtoc, toc)
+		return existingZtoc, err
+	}
+
 	ra, err := b.contentStore.ReaderAt(ctx, desc)
 	if err != nil {
 		return nil, err
@@ -665,6 +694,7 @@ func (b *IndexBuilder) buildSociLayer(ctx context.Context, desc ocispec.Descript
 		Location:       desc.Digest.String(),
 		MediaType:      SociLayerMediaType,
 		CreatedAt:      time.Now(),
+		SpanSize:       b.config.spanSize,
 	}
 	err = b.config.artifactsDb.WriteArtifactEntry(entry)
 	if err != nil {
@@ -672,14 +702,42 @@ func (b *IndexBuilder) buildSociLayer(ctx context.Context, desc ocispec.Descript
 	}
 
 	fmt.Printf("layer %s -> ztoc %s\n", desc.Digest, ztocDesc.Digest)
+	b.addSociLayerAnnotations(&desc, &ztocDesc, toc)
+	return &ztocDesc, err
+}
 
+func (b *IndexBuilder) addSociLayerAnnotations(layerDesc *ocispec.Descriptor, ztocDesc *ocispec.Descriptor, toc *ztoc.Ztoc) {
 	ztocDesc.MediaType = SociLayerMediaType
 	ztocDesc.Annotations = map[string]string{
-		IndexAnnotationImageLayerMediaType: desc.MediaType,
-		IndexAnnotationImageLayerDigest:    desc.Digest.String(),
+		IndexAnnotationImageLayerMediaType: layerDesc.MediaType,
+		IndexAnnotationImageLayerDigest:    layerDesc.Digest.String(),
+		IndexAnnotationSociSpanSize:        strconv.FormatInt(b.config.spanSize, 10),
 	}
-	b.maybeAddDisableXattrAnnotation(&ztocDesc, toc)
-	return &ztocDesc, err
+	b.maybeAddDisableXattrAnnotation(ztocDesc, toc)
+}
+
+// getExistingZtocForLayer returns a ztoc descriptor for the provided layer if an entry corresponding to the
+// layer already exists in the artifact store.
+func (b *IndexBuilder) getExistingZtocForLayer(layerDesc ocispec.Descriptor) *ocispec.Descriptor {
+	if b.config.forceRecreateZtocs || b.config.artifactsDb == nil {
+		return nil
+	}
+	var existingZtoc *ocispec.Descriptor
+	b.config.artifactsDb.Walk(func(ae *ArtifactEntry) error {
+		if ae.Type == ArtifactEntryTypeLayer &&
+			ae.OriginalDigest == layerDesc.Digest.String() &&
+			ae.SpanSize == b.config.spanSize {
+			existingZtoc = &ocispec.Descriptor{
+				Digest: digest.Digest(ae.Digest),
+				Size:   ae.Size,
+			}
+			// intentionally returning an error here so that "cfg.artifactsDb.Walk" exits early
+			// when a match is found in the artifacts db
+			return fmt.Errorf("found existing ztoc for layer %s", layerDesc.Digest)
+		}
+		return nil
+	})
+	return existingZtoc
 }
 
 // NewIndex returns a new index.
