@@ -110,10 +110,24 @@ func TestGetExistingZtocForLayer(t *testing.T) {
 			}
 			if existingZtoc == nil || tc.existingZtoc == nil {
 				t.Fatalf(
-					"mismatch between expected and returned ztoc descriptor. expected: %v, returned: %v", tc.existingZtoc, existingZtoc)
+					"mismatch between expected and returned ztoc descriptor. expected: %v, returned: %v",
+					tc.existingZtoc,
+					existingZtoc,
+				)
 			}
-			if existingZtoc.Digest != tc.existingZtoc.Digest || existingZtoc.Size != tc.existingZtoc.Size {
-				t.Fatalf("returned ztoc descriptor is invalid")
+			if existingZtoc.Digest != tc.existingZtoc.Digest {
+				t.Fatalf(
+					"mismatch between expected and returned ztoc descriptor digest. expected: %v, returned: %v",
+					tc.existingZtoc.Digest,
+					existingZtoc.Digest,
+				)
+			}
+			if existingZtoc.Size != tc.existingZtoc.Size {
+				t.Fatalf(
+					"mismatch between expected and returned ztoc descriptor size. expected: %v, returned: %v",
+					tc.existingZtoc.Size,
+					existingZtoc.Size,
+				)
 			}
 		})
 	}

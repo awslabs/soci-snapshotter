@@ -634,7 +634,10 @@ func (b *IndexBuilder) buildSociLayer(ctx context.Context, desc ocispec.Descript
 	if existingZtoc != nil {
 		reader, err := b.blobStore.Fetch(ctx, *existingZtoc)
 		if err != nil {
-			return nil, fmt.Errorf("cannot fetch existing ztoc: %w", err)
+			if errors.Is(err, errdefs.ErrNotFound) {
+				return nil, fmt.Errorf("a ztoc entry was found in the artifact store but not in the content store (try tunning \"soci rebuild-db\" first or try again with \"--skip-existing-ztoc-check\" flag): %w", err)
+			}
+			return nil, fmt.Errorf("failed to fetch existing ztoc: %w", err)
 		}
 		toc, err := ztoc.Unmarshal(reader)
 		if err != nil {
@@ -726,6 +729,8 @@ func getExistingZtocForLayer(layerDesc ocispec.Descriptor, cfg *builderConfig) *
 				Digest: digest.Digest(ae.Digest),
 				Size:   ae.Size,
 			}
+			// intentionally returning an error here so that "cfg.artifactsDb.Walk" exits early
+			// when a match is found in the artifacts db
 			return fmt.Errorf("found existing ztoc for layer %s", layerDesc.Digest)
 		}
 		return nil
