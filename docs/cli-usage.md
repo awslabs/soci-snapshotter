@@ -120,7 +120,6 @@ Sub commands:
     - ```--ztoc-digest```:  Filter ztocs by digest
     - ```--image-ref``` : Filter ztocs to those that are associated with a specific image
     - ```--quiet```, ```-q``` : Only display the index digests
-    - ```--verbose```, ```-v``` : Display extra debugging messages
 
     **Example:** 
     ```
