@@ -19,13 +19,13 @@ package ztoc
 import (
 	"context"
 	"fmt"
+	"io"
 	"os"
 	"text/tabwriter"
 
 	"github.com/awslabs/soci-snapshotter/cmd/soci/commands/internal"
 	"github.com/awslabs/soci-snapshotter/soci"
 	"github.com/containerd/containerd/images"
-	"github.com/containerd/platforms"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/urfave/cli/v3"
 )
@@ -44,11 +44,6 @@ var listCommand = &cli.Command{
 			Usage: "filter ztocs to those that are associated with a specific image",
 		},
 		&cli.BoolFlag{
-			Name:    "verbose",
-			Aliases: []string{"v"},
-			Usage:   "display extra debugging messages",
-		},
-		&cli.BoolFlag{
 			Name:    "quiet",
 			Aliases: []string{"q"},
 			Usage:   "only display the index digests",
@@ -62,7 +57,6 @@ var listCommand = &cli.Command{
 
 		ztocDgst := cmd.String("ztoc-digest")
 		imgRef := cmd.String("image-ref")
-		verbose := cmd.Bool("verbose")
 		quiet := cmd.Bool("quiet")
 
 		var artifacts []*soci.ArtifactEntry
@@ -82,52 +76,55 @@ var listCommand = &cli.Command{
 			}
 			defer cancel()
 
+			cs := client.ContentStore()
 			is := client.ImageService()
 			img, err := is.Get(ctx, imgRef)
 			if err != nil {
 				return err
 			}
-			platform, err := images.Platforms(ctx, client.ContentStore(), img.Target)
+
+			supportedPlatforms, err := images.Platforms(ctx, client.ContentStore(), img.Target)
 			if err != nil {
-				return err
+				return fmt.Errorf("failed to get supported platforms for the image: %w", err)
 			}
-			var layers []ocispec.Descriptor
-			for _, p := range platform {
-				manifest, err := images.Manifest(ctx, client.ContentStore(), img.Target, platforms.OnlyStrict(p))
-				if err != nil && verbose {
-					// print a warning message if a manifest can't be resolved
-					// continue looking for manifests of other platforms
-					fmt.Printf("no image manifest for platform %s/%s. err: %v\n", p.Architecture, p.OS, err)
-				} else {
-					layers = append(layers, manifest.Layers...)
-				}
-			}
-			if len(layers) == 0 {
-				return fmt.Errorf("no image layers. could not filter ztoc")
+			indexInfos, _, err := soci.GetIndexDescriptorCollection(ctx, cs, db, img, supportedPlatforms)
+			if err != nil {
+				return fmt.Errorf("failed to get soci indexes for the image: %w", err)
 			}
 
-			db.Walk(func(ae *soci.ArtifactEntry) error {
-				if ae.Type == soci.ArtifactEntryTypeLayer {
-					if ztocDgst == "" {
-						// add all ztocs associated with the image
-						for _, l := range layers {
-							if ae.OriginalDigest == l.Digest.String() {
-								artifacts = append(artifacts, ae)
-							}
-						}
-					} else {
-						// only add the specific ztoc if the ztoc is with an image layer
-						for _, l := range layers {
-							if ae.Digest == ztocDgst && ae.OriginalDigest == l.Digest.String() {
-								artifacts = append(artifacts, ae)
-							}
-						}
-					}
+			var ztocDescs []ocispec.Descriptor
+			for _, indexInfo := range indexInfos {
+				readerAt, err := cs.ReaderAt(ctx, indexInfo.Descriptor)
+				if err != nil {
+					return fmt.Errorf("failed to read a soci index with digest %s from the content store (try running \"soci rebuild-db\" first): %w", indexInfo.Descriptor.Digest, err)
 				}
-				return nil
-			})
+				var sociIndex soci.Index
+				err = soci.DecodeIndex(io.NewSectionReader(readerAt, 0, indexInfo.Descriptor.Size), &sociIndex)
+				if err != nil {
+					return fmt.Errorf("failed to decode a soci index with digest %s: %w", indexInfo.Descriptor.Digest, err)
+				}
+				for _, blob := range sociIndex.Blobs {
+					if blob.MediaType != soci.SociLayerMediaType {
+						continue
+					}
+					ztocDescs = append(ztocDescs, blob)
+				}
+			}
+
+			// at this point we already have the ztoc digests for the image
+			// but we have to query to artifacts db to get the associated layer digests
+			for _, ztocDesc := range ztocDescs {
+				entry, err := db.GetArtifactEntry(string(ztocDesc.Digest))
+				if err != nil {
+					return fmt.Errorf("failed to get ztoc from artifacts store (try running \"soci rebuild-db\" first): %w", err)
+				}
+				if ztocDgst == "" || ztocDgst == entry.Digest {
+					artifacts = append(artifacts, entry)
+				}
+			}
+
 			if ztocDgst != "" && len(artifacts) == 0 {
-				return fmt.Errorf("the specified ztoc doesn't exist or it's not with the specified image")
+				return fmt.Errorf("the specified ztoc doesn't exist or is not associated with the specified image")
 			}
 		}
 
