@@ -253,7 +253,12 @@ func (db *ArtifactsDb) addNewArtifacts(ctx context.Context, blobStorePath string
 			return nil
 		}
 		f, err := os.Open(path)
-		if err != nil {
+		if errors.Is(err, fs.ErrNotExist) {
+			// This check attempts to mitigate a race between finding content and getting said content.
+			// If content is provided there's no guarantee it will still be there by the time we want to fetch it.
+			// Returning should be safe as it's effectively a no-op.
+			return nil
+		} else if err != nil {
 			return err
 		}
 		defer f.Close()
