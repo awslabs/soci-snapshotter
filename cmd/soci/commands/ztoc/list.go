@@ -96,12 +96,12 @@ var listCommand = &cli.Command{
 			for _, indexInfo := range indexInfos {
 				readerAt, err := cs.ReaderAt(ctx, indexInfo.Descriptor)
 				if err != nil {
-					return fmt.Errorf("failed to read a soci index from the content store: %w", err)
+					return fmt.Errorf("failed to read a soci index with digest %s from the content store: %w", indexInfo.Descriptor.Digest, err)
 				}
 				var sociIndex soci.Index
 				err = soci.DecodeIndex(io.NewSectionReader(readerAt, 0, indexInfo.Descriptor.Size), &sociIndex)
 				if err != nil {
-					return fmt.Errorf("failed to decode a soci index: %w", err)
+					return fmt.Errorf("failed to decode a soci index with digest %s: %w", indexInfo.Descriptor.Digest, err)
 				}
 				for _, blob := range sociIndex.Blobs {
 					if blob.MediaType != soci.SociLayerMediaType {
@@ -119,9 +119,9 @@ var listCommand = &cli.Command{
 			for _, ztocDesc := range ztocDescs {
 				entry, err := db.GetArtifactEntry(string(ztocDesc.Digest))
 				if err != nil {
-					return fmt.Errorf("failed to get ztoc from artifacts store: %w", err)
+					return fmt.Errorf("failed to get ztoc from artifacts store (try running \"soci rebuild-db\" first): %w", err)
 				}
-				if ztocDgst == "" || entry.Digest == ztocDgst {
+				if ztocDgst == "" || ztocDgst == entry.Digest {
 					artifacts = append(artifacts, entry)
 				}
 			}

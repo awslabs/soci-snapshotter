@@ -89,19 +89,7 @@ func TestSociZtocList(t *testing.T) {
 				if blob.MediaType != soci.SociLayerMediaType {
 					continue
 				}
-				// if two images share the same ztoc, they will share the same entry in the artifacts db, leading to the ztoc
-				// getting printed only once in the "ztoc ls" output.
-				foundIndex := slices.IndexFunc(ztocBlobs, func(ztocBlob *v1.Descriptor) bool {
-					if ztocBlob.Digest == blob.Digest &&
-						ztocBlob.Size == blob.Size &&
-						ztocBlob.Annotations[soci.IndexAnnotationImageLayerDigest] == blob.Annotations[soci.IndexAnnotationImageLayerDigest] {
-						return true
-					}
-					return false
-				})
-				if foundIndex == -1 {
-					ztocBlobs = append(ztocBlobs, &blob)
-				}
+				ztocBlobs = append(ztocBlobs, &blob)
 			}
 		}
 		verifyZtocListing(t, outputLines, ztocBlobs)
@@ -177,46 +165,33 @@ func TestSociZtocList(t *testing.T) {
 		// for one image does not show up in the listing of the other
 		nginxAlpineImg := dockerhub(nginxAlpineImage)
 		nginxAlpineImg2 := dockerhub(nginxAlpineImage2)
+		imageInfos := []imageInfo{nginxAlpineImg, nginxAlpineImg2}
+
+		// the span sizes are different as we want separate entries in the artifacts db pointing to the same layer
 		nginxAlpineIndexDigest := buildIndex(sh, nginxAlpineImg, withMinLayerSize(0), withSpanSize(10000))
 		nginxAlpine2IndexDigest := buildIndex(sh, nginxAlpineImg2, withMinLayerSize(0), withSpanSize(20000))
-		nginxAlpineSociIndex, err := sociIndexFromDigest(sh, nginxAlpineIndexDigest)
-		if err != nil {
-			t.Fatal(err)
-		}
-		nginxAlpine2SociIndex, err := sociIndexFromDigest(sh, nginxAlpine2IndexDigest)
-		if err != nil {
-			t.Fatal(err)
-		}
+		indexDigests := []string{nginxAlpineIndexDigest, nginxAlpine2IndexDigest}
 
-		t.Run("nginx alpine 1", func(t *testing.T) {
-			output := strings.Trim(string(sh.O("soci", "ztoc", "list", "--image-ref", nginxAlpineImg.ref)), "\n")
-			outputLines := strings.Split(output, "\n")
-			ztocOutput := outputLines[1:]
-
-			var ztcoBlobs []*v1.Descriptor
-			for _, blob := range nginxAlpineSociIndex.Blobs {
-				if blob.MediaType != soci.SociLayerMediaType {
-					continue
-				}
-				ztcoBlobs = append(ztcoBlobs, &blob)
+		for i := 0; i < len(imageInfos); i++ {
+			img := imageInfos[i]
+			indexDigest := indexDigests[i]
+			sociIndex, err := sociIndexFromDigest(sh, indexDigest)
+			if err != nil {
+				t.Fatal(err)
 			}
-			verifyZtocListing(t, ztocOutput, ztcoBlobs)
-		})
-
-		t.Run("nginx alpine 2", func(t *testing.T) {
-			output := strings.Trim(string(sh.O("soci", "ztoc", "list", "--image-ref", nginxAlpineImg2.ref)), "\n")
+			output := strings.Trim(string(sh.O("soci", "ztoc", "list", "--image-ref", img.ref)), "\n")
 			outputLines := strings.Split(output, "\n")
 			ztocOutput := outputLines[1:]
 
 			var ztocBlobs []*v1.Descriptor
-			for _, blob := range nginxAlpine2SociIndex.Blobs {
+			for _, blob := range sociIndex.Blobs {
 				if blob.MediaType != soci.SociLayerMediaType {
 					continue
 				}
 				ztocBlobs = append(ztocBlobs, &blob)
 			}
 			verifyZtocListing(t, ztocOutput, ztocBlobs)
-		})
+		}
 	})
 
 	t.Run("soci ztoc list --image-ref imageRef --ztoc-digest unexpectedZtoc", func(t *testing.T) {
@@ -465,6 +440,9 @@ func verifyZtocListing(t *testing.T, outputLines []string, ztocBlobs []*v1.Descr
 	if len(outputLines) != len(ztocBlobs) {
 		t.Fatalf("invalid number of output lines: expected %v, got %v", len(ztocBlobs), len(outputLines))
 	}
+	// if two images share the same ztoc, they will share the same entry in the artifacts db, leading to the ztoc
+	// getting printed only once in the "ztoc ls" output.
+	ztocBlobs = dedupeZtocBlobs(ztocBlobs)
 	for _, ztocBlob := range ztocBlobs {
 		ztocDigest := ztocBlob.Digest.String()
 		ztocSize := strconv.FormatInt(ztocBlob.Size, 10)
@@ -476,6 +454,24 @@ func verifyZtocListing(t *testing.T, outputLines []string, ztocBlobs []*v1.Descr
 			t.Fatalf("expected ztoc digest %s to be present in the output", ztocDigest)
 		}
 	}
+}
+
+func dedupeZtocBlobs(ztocBlobs []*v1.Descriptor) []*v1.Descriptor {
+	dedupedZtocBlobs := make([]*v1.Descriptor, 0, len(ztocBlobs))
+	for _, ztocBlob := range ztocBlobs {
+		foundIndex := slices.IndexFunc(dedupedZtocBlobs, func(d *v1.Descriptor) bool {
+			if d.Digest == ztocBlob.Digest &&
+				d.Size == ztocBlob.Size &&
+				d.Annotations[soci.IndexAnnotationImageLayerDigest] == ztocBlob.Annotations[soci.IndexAnnotationImageLayerDigest] {
+				return true
+			}
+			return false
+		})
+		if foundIndex == -1 {
+			dedupedZtocBlobs = append(dedupedZtocBlobs, ztocBlob)
+		}
+	}
+	return dedupedZtocBlobs
 }
 
 func verifyInfoOutput(zinfo Info, ztoc *ztoc.Ztoc) error {
