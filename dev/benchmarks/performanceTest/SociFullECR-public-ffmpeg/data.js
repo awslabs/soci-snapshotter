@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1760551290180,
+  "lastUpdate": 1760567328720,
   "repoUrl": "https://github.com/awslabs/soci-snapshotter",
   "entries": {
     "Soci Benchmark": [
@@ -14397,6 +14397,48 @@ window.BENCHMARK_DATA = {
           {
             "name": "SociFullECR-public-ffmpeg-pullTaskDuration",
             "value": 1.2189999999999999,
+            "unit": "Seconds",
+            "extra": "P90"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "davbson@amazon.com",
+            "name": "David Son",
+            "username": "sondavidb"
+          },
+          "committer": {
+            "email": "55555210+sondavidb@users.noreply.github.com",
+            "name": "David Son",
+            "username": "sondavidb"
+          },
+          "distinct": true,
+          "id": "f044f74a8d0b33b259628c9c3ae4fab93979ec05",
+          "message": "ci: Properly check if Docker Compose is installed\n\nSigned-off-by: David Son <davbson@amazon.com>",
+          "timestamp": "2025-10-15T18:19:06-04:00",
+          "tree_id": "6b16d0daa0405e9ceefd82fda38b82ad832b8680",
+          "url": "https://github.com/awslabs/soci-snapshotter/commit/f044f74a8d0b33b259628c9c3ae4fab93979ec05"
+        },
+        "date": 1760567320930,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "SociFullECR-public-ffmpeg-lazyTaskDuration",
+            "value": 0.14150000000000001,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-ffmpeg-localTaskDuration",
+            "value": 0.007,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-ffmpeg-pullTaskDuration",
+            "value": 1.0975,
             "unit": "Seconds",
             "extra": "P90"
           }
