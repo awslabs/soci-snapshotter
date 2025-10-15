@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1760551293406,
+  "lastUpdate": 1760567323045,
   "repoUrl": "https://github.com/awslabs/soci-snapshotter",
   "entries": {
     "Soci Benchmark": [
@@ -14396,6 +14396,48 @@ window.BENCHMARK_DATA = {
           {
             "name": "SociFullECR-public-redis-pullTaskDuration",
             "value": 3.413,
+            "unit": "Seconds",
+            "extra": "P90"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "davbson@amazon.com",
+            "name": "David Son",
+            "username": "sondavidb"
+          },
+          "committer": {
+            "email": "55555210+sondavidb@users.noreply.github.com",
+            "name": "David Son",
+            "username": "sondavidb"
+          },
+          "distinct": true,
+          "id": "f044f74a8d0b33b259628c9c3ae4fab93979ec05",
+          "message": "ci: Properly check if Docker Compose is installed\n\nSigned-off-by: David Son <davbson@amazon.com>",
+          "timestamp": "2025-10-15T18:19:06-04:00",
+          "tree_id": "6b16d0daa0405e9ceefd82fda38b82ad832b8680",
+          "url": "https://github.com/awslabs/soci-snapshotter/commit/f044f74a8d0b33b259628c9c3ae4fab93979ec05"
+        },
+        "date": 1760567320265,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "SociFullECR-public-redis-lazyTaskDuration",
+            "value": 1.5385,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-redis-localTaskDuration",
+            "value": 0.0245,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-redis-pullTaskDuration",
+            "value": 0.9815,
             "unit": "Seconds",
             "extra": "P90"
           }
