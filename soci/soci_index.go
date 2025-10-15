@@ -287,12 +287,12 @@ func GetIndexDescriptorCollection(ctx context.Context, cs content.Store, artifac
 }
 
 type builderConfig struct {
-	spanSize              int64
-	minLayerSize          int64
-	buildToolIdentifier   string
-	artifactsDb           *ArtifactsDb
-	optimizations         []Optimization
-	skipExistingZtocCheck bool
+	spanSize            int64
+	minLayerSize        int64
+	buildToolIdentifier string
+	artifactsDb         *ArtifactsDb
+	optimizations       []Optimization
+	skipExistingZtoc    bool
 }
 
 func (b *builderConfig) hasOptimization(o Optimization) bool {
@@ -331,9 +331,9 @@ func ParseOptimization(s string) (Optimization, error) {
 // and all indexes built with that builder.
 type BuilderOption func(c *builderConfig) error
 
-func WithSkipExistingZtocCheck(skipExistingZtocCheck bool) BuilderOption {
+func WithSkipExistingZtoc(skipExistingZtoc bool) BuilderOption {
 	return func(c *builderConfig) error {
-		c.skipExistingZtocCheck = skipExistingZtocCheck
+		c.skipExistingZtoc = skipExistingZtoc
 		return nil
 	}
 }
@@ -635,7 +635,7 @@ func (b *IndexBuilder) buildSociLayer(ctx context.Context, desc ocispec.Descript
 		reader, err := b.blobStore.Fetch(ctx, *existingZtoc)
 		if err != nil {
 			if errors.Is(err, errdefs.ErrNotFound) {
-				return nil, fmt.Errorf("a ztoc entry was found in the artifact store but not in the content store (try tunning \"soci rebuild-db\" first or try again with \"--skip-existing-ztoc-check\" flag): %w", err)
+				return nil, fmt.Errorf("a ztoc entry was found in the artifact store but not in the content store (try tunning \"soci rebuild-db\" first or try again with \"--skip-existing-ztoc\" flag): %w", err)
 			}
 			return nil, fmt.Errorf("failed to fetch existing ztoc: %w", err)
 		}
@@ -719,7 +719,7 @@ func (b *IndexBuilder) addSociLayerAnnotations(layerDesc *ocispec.Descriptor, zt
 // getExistingZtocForLayer returns a ztoc descriptor for the provided layer if an entry corresponding to the
 // layer already exists in the artifact store.
 func getExistingZtocForLayer(layerDesc ocispec.Descriptor, cfg *builderConfig) *ocispec.Descriptor {
-	if cfg.skipExistingZtocCheck || cfg.artifactsDb == nil {
+	if cfg.skipExistingZtoc || cfg.artifactsDb == nil {
 		return nil
 	}
 	var existingZtoc *ocispec.Descriptor

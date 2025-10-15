@@ -40,7 +40,7 @@ func TestCreateWithExistingZtocCheck(t *testing.T) {
 	rebootContainerd(t, sh, "", "")
 
 	// if we build an index for the image first and then create it again
-	// without the --skip-existing-ztoc-check flag, all ztoc's should be skipped
+	// without the --skip-existing-ztoc flag, all ztoc's should be skipped
 	image := dockerhub(nginxAlpineImage)
 	indexDigest := buildIndex(sh, image)
 	if indexDigest == "" {
@@ -59,26 +59,26 @@ func TestCreateWithExistingZtocCheck(t *testing.T) {
 	}
 
 	testCases := []struct {
-		name                      string
-		skipExistingZtocCheckFlag bool
-		numZtocSkipped            int
+		name                 string
+		skipExistingZtocFlag bool
+		numZtocSkipped       int
 	}{
 		{
-			name:                      "test soci create without --skip-existing-ztoc-check flag",
-			skipExistingZtocCheckFlag: false,
-			numZtocSkipped:            len(index.Blobs),
+			name:                 "test soci create without --skip-existing-ztoc flag",
+			skipExistingZtocFlag: false,
+			numZtocSkipped:       len(index.Blobs),
 		},
 		{
-			name:                      "test soci create with --skip-existing-ztoc-check flag",
-			skipExistingZtocCheckFlag: true,
-			numZtocSkipped:            0,
+			name:                 "test soci create with --skip-existing-ztoc flag",
+			skipExistingZtocFlag: true,
+			numZtocSkipped:       0,
 		},
 	}
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			args := []string{"soci", "create", "--min-layer-size=0", "--platform", platforms.Format(image.platform)}
-			if tc.skipExistingZtocCheckFlag {
-				args = append(args, "--skip-existing-ztoc-check")
+			if tc.skipExistingZtocFlag {
+				args = append(args, "--skip-existing-ztoc")
 			}
 			args = append(args, image.ref)
 			b, err := sh.CombinedOLog(args...)

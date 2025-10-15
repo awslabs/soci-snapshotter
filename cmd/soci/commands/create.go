@@ -31,12 +31,12 @@ import (
 const (
 	// buildToolIdentifier is placed in annotations of the SOCI index
 	// to help identify how a SOCI index was created
-	buildToolIdentifier       = "AWS SOCI CLI v0.2"
-	spanSizeFlag              = "span-size"
-	minLayerSizeFlag          = "min-layer-size"
-	optimizationFlag          = "optimizations"
-	skipExistingZtocCheckFlag = "skip-existing-ztoc-check"
-	sociIndexGCLabel          = "containerd.io/gc.ref.content.soci-index"
+	buildToolIdentifier  = "AWS SOCI CLI v0.2"
+	spanSizeFlag         = "span-size"
+	minLayerSizeFlag     = "min-layer-size"
+	optimizationFlag     = "optimizations"
+	skipExistingZtocFlag = "skip-existing-ztoc"
+	sociIndexGCLabel     = "containerd.io/gc.ref.content.soci-index"
 )
 
 // CreateCommand creates SOCI index for an image
@@ -64,7 +64,7 @@ var CreateCommand = &cli.Command{
 			Usage: fmt.Sprintf("(Experimental) Enable optional optimizations. Valid values are %v", soci.Optimizations),
 		},
 		&cli.BoolFlag{
-			Name:  skipExistingZtocCheckFlag,
+			Name:  skipExistingZtocFlag,
 			Usage: "Skip checking if zTOCs already exist for layers or not. Defaults to false.",
 			Value: false,
 		},
@@ -99,7 +99,7 @@ var CreateCommand = &cli.Command{
 
 		spanSize := cmd.Int64(spanSizeFlag)
 		minLayerSize := cmd.Int64(minLayerSizeFlag)
-		skipExistingZtocCheck := cmd.Bool(skipExistingZtocCheckFlag)
+		skipExistingZtoc := cmd.Bool(skipExistingZtocFlag)
 
 		blobStore, err := store.NewContentStore(internal.ContentStoreOptions(ctx, cmd)...)
 		if err != nil {
@@ -125,7 +125,7 @@ var CreateCommand = &cli.Command{
 			soci.WithBuildToolIdentifier(buildToolIdentifier),
 			soci.WithOptimizations(optimizations),
 			soci.WithArtifactsDb(artifactsDb),
-			soci.WithSkipExistingZtocCheck(skipExistingZtocCheck),
+			soci.WithSkipExistingZtoc(skipExistingZtoc),
 		}
 
 		builder, err := soci.NewIndexBuilder(cs, blobStore, builderOpts...)

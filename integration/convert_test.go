@@ -44,7 +44,7 @@ func TestConvertWithExistingZtocCheck(t *testing.T) {
 	rebootContainerd(t, sh, "", "")
 
 	// if we build an index for the image first and then convert it
-	// without the --skip-existing-ztoc-check flag, all ztoc's should be skipped
+	// without the --skip-existing-ztoc flag, all ztoc's should be skipped
 	image := dockerhub(nginxAlpineImage)
 	indexDigest := buildIndex(sh, image)
 	if indexDigest == "" {
@@ -63,26 +63,26 @@ func TestConvertWithExistingZtocCheck(t *testing.T) {
 	}
 
 	testCases := []struct {
-		name                      string
-		skipExistingZtocCheckFlag bool
-		numZtocSkipped            int
+		name                 string
+		skipExistingZtocFlag bool
+		numZtocSkipped       int
 	}{
 		{
-			name:                      "test soci convert without --skip-existing-ztoc-check flag",
-			skipExistingZtocCheckFlag: false,
-			numZtocSkipped:            len(index.Blobs),
+			name:                 "test soci convert without --skip-existing-ztoc flag",
+			skipExistingZtocFlag: false,
+			numZtocSkipped:       len(index.Blobs),
 		},
 		{
-			name:                      "test soci convert with --skip-existing-ztoc-check flag",
-			skipExistingZtocCheckFlag: true,
-			numZtocSkipped:            0,
+			name:                 "test soci convert with --skip-existing-ztoc flag",
+			skipExistingZtocFlag: true,
+			numZtocSkipped:       0,
 		},
 	}
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			args := []string{"soci", "convert", "--min-layer-size=0", "--platform", platforms.Format(image.platform)}
-			if tc.skipExistingZtocCheckFlag {
-				args = append(args, "--skip-existing-ztoc-check")
+			if tc.skipExistingZtocFlag {
+				args = append(args, "--skip-existing-ztoc")
 			}
 			args = append(args, image.ref, image.ref+"-soci")
 			b, err := sh.CombinedOLog(args...)

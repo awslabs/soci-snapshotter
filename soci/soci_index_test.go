@@ -89,15 +89,15 @@ func TestGetExistingZtocForLayer(t *testing.T) {
 			existingZtoc: nil,
 		},
 		{
-			name: "Should skip existing ztoc check if skipExistingZtocCheck flag is set",
+			name: "Should skip existing ztoc check if skipExistingZtoc flag is set",
 			layerDesc: ocispec.Descriptor{
 				Digest: digest.Digest(layerDigest2),
 				Size:   size,
 			},
 			builderConfig: &builderConfig{
-				spanSize:              spanSize,
-				artifactsDb:           artifactsDb,
-				skipExistingZtocCheck: true,
+				spanSize:         spanSize,
+				artifactsDb:      artifactsDb,
+				skipExistingZtoc: true,
 			},
 			existingZtoc: nil,
 		},

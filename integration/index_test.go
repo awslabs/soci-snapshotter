@@ -79,7 +79,7 @@ func prepareCustomSociIndices(t *testing.T, sh *shell.Shell, images []testImageI
 			}
 		}
 		img.imgInfo = dockerhub(imgName, withPlatform(platform))
-		img.sociIndexDigest = buildIndex(sh, img.imgInfo, withIndexBuildConfig(indexBuildConfig), withMinLayerSize(0), withRunSociRebuildDbBeforeSociCreate())
+		img.sociIndexDigest = buildIndex(sh, img.imgInfo, withIndexBuildConfig(indexBuildConfig), withMinLayerSize(0), withRunRebuildDbBeforeCreate())
 		ztocDigests, err := getZtocDigestsForImage(sh, img.imgInfo)
 		if err != nil {
 			t.Fatalf("could not get ztoc digests: %v", err)
@@ -242,10 +242,10 @@ func TestSociIndexRemove(t *testing.T) {
 	sh, done := newSnapshotterBaseShell(t)
 	defer done()
 	rebootContainerd(t, sh, getContainerdConfigToml(t, false, `
-	[plugins."io.containerd.gc.v1.scheduler"]
-		deletion_threshold = 1
-		startup_delay = "10ms"
-	`), "")
+[plugins."io.containerd.gc.v1.scheduler"]
+	deletion_threshold = 1
+	startup_delay = "10ms"
+`), "")
 
 	t.Run("soci index rm indexDigest removes an index", func(t *testing.T) {
 		testImages := prepareSociIndices(t, sh)
@@ -345,7 +345,7 @@ func TestSociIndexRemoveAndRebuildWithSharedLayers(t *testing.T) {
 		// the following 2 images share layers
 		img1 := dockerhub(nginxAlpineImage)
 		img2 := dockerhub(nginxAlpineImage2)
-		imgDigest := buildIndex(sh, img1, withMinLayerSize(0), withRunSociRebuildDbBeforeSociCreate())
+		imgDigest := buildIndex(sh, img1, withMinLayerSize(0), withRunRebuildDbBeforeCreate())
 		if imgDigest == "" {
 			t.Fatal("failed to get soci index for nginx alpine test image")
 		}
@@ -360,7 +360,7 @@ func TestSociIndexRemoveAndRebuildWithSharedLayers(t *testing.T) {
 		if err != nil {
 			t.Fatalf("could not get ztoc digests before rebuild-db: %v", err)
 		}
-		sh.X("soci", "--content-store", string(store.ContainerdContentStoreType), "rebuild-db")
+		sh.X("soci", "rebuild-db")
 		ztocsAfterRebuild, err := getZtocDigestsForImage(sh, img2)
 		if err != nil {
 			t.Fatalf("could not get ztoc digests after rebuild-db: %v", err)

@@ -55,9 +55,9 @@ import (
 func TestRunMultipleContainers(t *testing.T) {
 
 	tests := []struct {
-		name                  string
-		containers            []containerImageAndTestFunc
-		skipExistingZtocCheck bool
+		name             string
+		containers       []containerImageAndTestFunc
+		skipExistingZtoc bool
 	}{
 		{
 			name: "Run multiple containers from the same image",
@@ -99,7 +99,7 @@ func TestRunMultipleContainers(t *testing.T) {
 			},
 		},
 		{
-			name: "Run multiple containers from different images with shared layers with --skip-existing-ztoc-check flag",
+			name: "Run multiple containers from different images with shared layers with --skip-existing-ztoc flag",
 			containers: []containerImageAndTestFunc{
 				{
 					containerImage: nginxAlpineImage,
@@ -110,7 +110,7 @@ func TestRunMultipleContainers(t *testing.T) {
 					testFunc:       testWebServiceContainer,
 				},
 			},
-			skipExistingZtocCheck: true,
+			skipExistingZtoc: true,
 		},
 	}
 
@@ -126,10 +126,10 @@ func TestRunMultipleContainers(t *testing.T) {
 				copyImage(sh, dockerhub(container.containerImage), regConfig.mirror(container.containerImage))
 				// Pull image, create SOCI index
 				buildIndexOpts := []indexBuildOption{withMinLayerSize(0)}
-				if tt.skipExistingZtocCheck {
-					buildIndexOpts = append(buildIndexOpts, withSkipExistingZtocCheck())
+				if tt.skipExistingZtoc {
+					buildIndexOpts = append(buildIndexOpts, withSkipExistingZtoc())
 				} else {
-					buildIndexOpts = append(buildIndexOpts, withRunSociRebuildDbBeforeSociCreate())
+					buildIndexOpts = append(buildIndexOpts, withRunRebuildDbBeforeCreate())
 				}
 				indexDigest := buildIndex(sh, regConfig.mirror(container.containerImage), buildIndexOpts...)
 				sh.X("soci", "push", "--user", regConfig.mirror(container.containerImage).creds, regConfig.mirror(container.containerImage).ref)

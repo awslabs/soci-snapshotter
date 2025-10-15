@@ -78,7 +78,7 @@ var ConvertCommand = &cli.Command{
 			Usage: fmt.Sprintf("(Experimental) Enable optional optimizations. Valid values are %v", soci.Optimizations),
 		},
 		&cli.BoolFlag{
-			Name:  skipExistingZtocCheckFlag,
+			Name:  skipExistingZtocFlag,
 			Usage: "Skip checking if zTOCs already exist for layers or not. Defaults to false.",
 			Value: false,
 		},
@@ -123,7 +123,7 @@ var ConvertCommand = &cli.Command{
 
 		spanSize := cmd.Int64(spanSizeFlag)
 		minLayerSize := cmd.Int64(minLayerSizeFlag)
-		skipExistingZtocCheck := cmd.Bool(skipExistingZtocCheckFlag)
+		skipExistingZtoc := cmd.Bool(skipExistingZtocFlag)
 
 		blobStore, err := store.NewContentStore(internal.ContentStoreOptions(ctx, cmd)...)
 		if err != nil {
@@ -141,7 +141,7 @@ var ConvertCommand = &cli.Command{
 			soci.WithBuildToolIdentifier(buildToolIdentifier),
 			soci.WithOptimizations(optimizations),
 			soci.WithArtifactsDb(artifactsDb),
-			soci.WithSkipExistingZtocCheck(skipExistingZtocCheck),
+			soci.WithSkipExistingZtoc(skipExistingZtoc),
 		}
 
 		builder, err := soci.NewIndexBuilder(cs, blobStore, builderOpts...)
