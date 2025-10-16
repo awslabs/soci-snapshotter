@@ -104,6 +104,9 @@ type Layer interface {
 	// Done releases the reference to this layer. The resources related to this layer will be
 	// discarded sooner or later. Queries after calling this function won't be serviced.
 	Done()
+
+	// GetCacheRefKey returns the reference key for the cache used by the layer
+	GetCacheRefKey() string
 }
 
 // Info is the current status of a layer.
@@ -226,6 +229,12 @@ func newCache(root string, cacheType string, cfg config.FSConfig) (cache.BlobCac
 	)
 }
 
+func (r *Resolver) Evict(name string) {
+	r.layerCacheMu.Lock()
+	r.layerCache.Remove(name)
+	r.layerCacheMu.Unlock()
+}
+
 // Resolve resolves a layer based on the passed layer blob information.
 func (r *Resolver) Resolve(ctx context.Context, hosts []docker.RegistryHost, refspec reference.Spec, desc, sociDesc ocispec.Descriptor, opCounter *FuseOperationCounter, disableVerification bool, metadataOpts ...metadata.Option) (_ Layer, retErr error) {
 	name := refspec.String() + "/" + desc.Digest.String()
@@ -339,7 +348,7 @@ func (r *Resolver) Resolve(ctx context.Context, hosts []docker.RegistryHost, ref
 	}
 	disableXAttrs := getDisableXAttrAnnotation(sociDesc)
 	// Combine layer information together and cache it.
-	l := newLayer(r, desc, blobR, vr, bgLayerResolver, opCounter, disableXAttrs)
+	l := newLayer(r, desc, name, blobR, vr, bgLayerResolver, opCounter, disableXAttrs)
 	r.layerCacheMu.Lock()
 	cachedL, done2, added := r.layerCache.Add(name, l)
 	r.layerCacheMu.Unlock()
@@ -370,18 +379,8 @@ func (r *Resolver) resolveBlob(ctx context.Context, hosts []docker.RegistryHost,
 		r.blobCacheMu.Unlock()
 	}
 
-	httpCache, err := newCache(filepath.Join(r.rootDir, "httpcache"), r.config.HTTPCacheType, r.config)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create http cache: %w", err)
-	}
-	defer func() {
-		if retErr != nil {
-			httpCache.Close()
-		}
-	}()
-
 	// Resolve the blob and cache the result.
-	b, err := r.resolver.Resolve(ctx, hosts, refspec, desc, httpCache)
+	b, err := r.resolver.Resolve(ctx, hosts, refspec, desc)
 	if err != nil {
 		return nil, fmt.Errorf("failed to resolve the source: %w", err)
 	}
@@ -397,6 +396,7 @@ func (r *Resolver) resolveBlob(ctx context.Context, hosts []docker.RegistryHost,
 func newLayer(
 	resolver *Resolver,
 	desc ocispec.Descriptor,
+	cacheRefKey string,
 	blob *blobRef,
 	r reader.Reader,
 	bgResolver backgroundfetcher.Resolver,
@@ -406,6 +406,7 @@ func newLayer(
 	return &layer{
 		resolver:             resolver,
 		desc:                 desc,
+		cacheRefKey:          cacheRefKey,
 		blob:                 blob,
 		r:                    r,
 		bgResolver:           bgResolver,
@@ -415,9 +416,10 @@ func newLayer(
 }
 
 type layer struct {
-	resolver *Resolver
-	desc     ocispec.Descriptor
-	blob     *blobRef
+	resolver    *Resolver
+	desc        ocispec.Descriptor
+	cacheRefKey string
+	blob        *blobRef
 
 	bgResolver backgroundfetcher.Resolver
 
@@ -428,6 +430,10 @@ type layer struct {
 
 	closed   bool
 	closedMu sync.Mutex
+}
+
+func (l *layer) GetCacheRefKey() string {
+	return l.cacheRefKey
 }
 
 func (l *layer) Info() Info {

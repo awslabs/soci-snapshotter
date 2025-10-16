@@ -1228,8 +1228,10 @@ func (fs *filesystem) Unmount(ctx context.Context, mountpoint string) error {
 	delete(fs.layer, mountpoint)
 	// If the mountpoint is an id-mapped layer, it is pointing to the
 	// underlying layer, so we cannot call done on it.
+	// We do a evict call to call the registered evict functions.
 	if !isIDMappedDir(mountpoint) {
 		l.Done()
+		fs.resolver.Evict(l.GetCacheRefKey())
 	}
 	fs.layerMu.Unlock()
 	fs.metricsController.Remove(mountpoint)
