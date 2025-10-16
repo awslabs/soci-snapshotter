@@ -52,7 +52,13 @@ const (
 
 // Supported checks if this pkg can run on the current system.
 func Supported() error {
-	return exec.Command("docker", "--version").Run()
+	if err := exec.Command("docker", "--version").Run(); err != nil {
+		return err
+	}
+	if err := exec.Command("docker", "compose", "version").Run(); err != nil {
+		return fmt.Errorf("compose version check failed (is Docker Compose installed?); %v", err)
+	}
+	return nil
 }
 
 // Compose represents a set of container execution environment (i.e. a set of *dexec.Exec) that
