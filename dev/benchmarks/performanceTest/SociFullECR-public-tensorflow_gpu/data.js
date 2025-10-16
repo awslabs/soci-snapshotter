@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1760567325233,
+  "lastUpdate": 1760573464183,
   "repoUrl": "https://github.com/awslabs/soci-snapshotter",
   "entries": {
     "Soci Benchmark": [
@@ -14316,6 +14316,48 @@ window.BENCHMARK_DATA = {
           {
             "name": "SociFullECR-public-tensorflow_gpu-pullTaskDuration",
             "value": 2.321,
+            "unit": "Seconds",
+            "extra": "P90"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "davbson@amazon.com",
+            "name": "David Son",
+            "username": "sondavidb"
+          },
+          "committer": {
+            "email": "swpnlg@amazon.com",
+            "name": "Swapnanil Gupta",
+            "username": "Swapnanil-Gupta"
+          },
+          "distinct": true,
+          "id": "3565951fec8fde4bdb740ba0f57e5e8786bfdc11",
+          "message": "Fix race condition in rebuild-db\n\nWhen we walk the filesystem to check for content, we can run into a race\nin environments where we are constantly modifying the content store.\nIn particular, we would hard-fail if a file was given from filepath.Walk\nbut was not found with the following os.Open to get said content.\n\nFixing this is simple — do a no-op if the content is not found in the\nfilesystem, which is safe as the content is already being removed\nanyway, so we don't want to do any operations on it.\n\nSigned-off-by: David Son <davbson@amazon.com>",
+          "timestamp": "2025-10-15T17:01:44-07:00",
+          "tree_id": "8f28887ee4866a69d0c209c5ea9a0cc8a99eedeb",
+          "url": "https://github.com/awslabs/soci-snapshotter/commit/3565951fec8fde4bdb740ba0f57e5e8786bfdc11"
+        },
+        "date": 1760573459121,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "SociFullECR-public-tensorflow_gpu-lazyTaskDuration",
+            "value": 26.151,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-tensorflow_gpu-localTaskDuration",
+            "value": 2.8155,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-tensorflow_gpu-pullTaskDuration",
+            "value": 2.6675,
             "unit": "Seconds",
             "extra": "P90"
           }
