@@ -96,7 +96,7 @@ var listCommand = &cli.Command{
 			for _, indexInfo := range indexInfos {
 				readerAt, err := cs.ReaderAt(ctx, indexInfo.Descriptor)
 				if err != nil {
-					return fmt.Errorf("failed to read a soci index with digest %s from the content store: %w", indexInfo.Descriptor.Digest, err)
+					return fmt.Errorf("failed to read a soci index with digest %s from the content store (try running \"soci rebuild-db\" first): %w", indexInfo.Descriptor.Digest, err)
 				}
 				var sociIndex soci.Index
 				err = soci.DecodeIndex(io.NewSectionReader(readerAt, 0, indexInfo.Descriptor.Size), &sociIndex)
@@ -109,9 +109,6 @@ var listCommand = &cli.Command{
 					}
 					ztocDescs = append(ztocDescs, blob)
 				}
-			}
-			if len(ztocDescs) == 0 {
-				return fmt.Errorf("no ztocs found for the image")
 			}
 
 			// at this point we already have the ztoc digests for the image
