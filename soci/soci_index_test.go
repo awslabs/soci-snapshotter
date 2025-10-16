@@ -38,6 +38,9 @@ func TestGetExistingZtocForLayer(t *testing.T) {
 		spanSize     = 10
 		size         = 10
 	)
+
+	cs := newFakeContentStore()
+	blobStore := NewOrasMemoryStore()
 	artifactsDb, err := newTestableDb()
 	if err != nil {
 		t.Fatalf("can't create a test db")
@@ -56,20 +59,16 @@ func TestGetExistingZtocForLayer(t *testing.T) {
 	}
 
 	testCases := []struct {
-		name          string
-		layerDesc     ocispec.Descriptor
-		builderConfig *builderConfig
-		existingZtoc  *ocispec.Descriptor
+		name               string
+		layerDesc          ocispec.Descriptor
+		existingZtoc       *ocispec.Descriptor
+		forceRecreateZtocs bool
 	}{
 		{
 			name: "Should return an existing ztoc if a corresponding entry exists in the artifacts db",
 			layerDesc: ocispec.Descriptor{
 				Digest: digest.Digest(layerDigest1),
 				Size:   size,
-			},
-			builderConfig: &builderConfig{
-				spanSize:    spanSize,
-				artifactsDb: artifactsDb,
 			},
 			existingZtoc: &ocispec.Descriptor{
 				Digest: ztocDigest1,
@@ -82,29 +81,32 @@ func TestGetExistingZtocForLayer(t *testing.T) {
 				Digest: digest.Digest(layerDigest2),
 				Size:   100,
 			},
-			builderConfig: &builderConfig{
-				spanSize:    spanSize,
-				artifactsDb: artifactsDb,
-			},
 			existingZtoc: nil,
 		},
 		{
-			name: "Should skip existing ztoc check if skipExistingZtoc flag is set",
+			name:               "Should skip existing ztoc check if forceRecreateZtocs flag is set",
+			forceRecreateZtocs: true,
 			layerDesc: ocispec.Descriptor{
 				Digest: digest.Digest(layerDigest2),
 				Size:   size,
-			},
-			builderConfig: &builderConfig{
-				spanSize:         spanSize,
-				artifactsDb:      artifactsDb,
-				skipExistingZtoc: true,
 			},
 			existingZtoc: nil,
 		},
 	}
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			existingZtoc := getExistingZtocForLayer(tc.layerDesc, tc.builderConfig)
+			builder, err := NewIndexBuilder(
+				cs,
+				blobStore,
+				WithArtifactsDb(artifactsDb),
+				WithSpanSize(spanSize),
+				WithForceRecreateZtocs(tc.forceRecreateZtocs),
+			)
+			if err != nil {
+				t.Fatalf("cannot create index builer: %v", err)
+			}
+
+			existingZtoc := builder.getExistingZtocForLayer(tc.layerDesc)
 			if existingZtoc == nil && tc.existingZtoc == nil {
 				return
 			}

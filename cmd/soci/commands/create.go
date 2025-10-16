@@ -31,12 +31,13 @@ import (
 const (
 	// buildToolIdentifier is placed in annotations of the SOCI index
 	// to help identify how a SOCI index was created
-	buildToolIdentifier  = "AWS SOCI CLI v0.2"
-	spanSizeFlag         = "span-size"
-	minLayerSizeFlag     = "min-layer-size"
-	optimizationFlag     = "optimizations"
-	skipExistingZtocFlag = "skip-existing-ztoc"
-	sociIndexGCLabel     = "containerd.io/gc.ref.content.soci-index"
+	buildToolIdentifier         = "AWS SOCI CLI v0.2"
+	spanSizeFlag                = "span-size"
+	minLayerSizeFlag            = "min-layer-size"
+	optimizationFlag            = "optimizations"
+	forceRecreateZtocsFlag      = "force"
+	forceRecreateZtocsFlagShort = "f"
+	sociIndexGCLabel            = "containerd.io/gc.ref.content.soci-index"
 )
 
 // CreateCommand creates SOCI index for an image
@@ -64,9 +65,10 @@ var CreateCommand = &cli.Command{
 			Usage: fmt.Sprintf("(Experimental) Enable optional optimizations. Valid values are %v", soci.Optimizations),
 		},
 		&cli.BoolFlag{
-			Name:  skipExistingZtocFlag,
-			Usage: "Skip checking if zTOCs already exist for layers or not. Defaults to false.",
-			Value: false,
+			Name:    forceRecreateZtocsFlag,
+			Usage:   "Force recreate zTOCs for layers even if they already exist. Defaults to false.",
+			Value:   false,
+			Aliases: []string{forceRecreateZtocsFlagShort},
 		},
 	),
 	Action: func(ctx context.Context, cmd *cli.Command) error {
@@ -99,7 +101,7 @@ var CreateCommand = &cli.Command{
 
 		spanSize := cmd.Int64(spanSizeFlag)
 		minLayerSize := cmd.Int64(minLayerSizeFlag)
-		skipExistingZtoc := cmd.Bool(skipExistingZtocFlag)
+		forceRecreateZtocs := cmd.Bool(forceRecreateZtocsFlag)
 
 		blobStore, err := store.NewContentStore(internal.ContentStoreOptions(ctx, cmd)...)
 		if err != nil {
@@ -125,7 +127,7 @@ var CreateCommand = &cli.Command{
 			soci.WithBuildToolIdentifier(buildToolIdentifier),
 			soci.WithOptimizations(optimizations),
 			soci.WithArtifactsDb(artifactsDb),
-			soci.WithSkipExistingZtoc(skipExistingZtoc),
+			soci.WithForceRecreateZtocs(forceRecreateZtocs),
 		}
 
 		builder, err := soci.NewIndexBuilder(cs, blobStore, builderOpts...)

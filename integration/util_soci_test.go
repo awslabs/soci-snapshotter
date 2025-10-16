@@ -66,7 +66,7 @@ type indexBuildConfig struct {
 	contentStoreType         store.ContentStoreType
 	namespace                string
 	runRebuildDbBeforeCreate bool
-	skipExistingZtoc         bool
+	forceRecreateZtocs       bool
 }
 
 // indexBuildOption is a functional argument to update `indexBuildConfig`
@@ -81,14 +81,14 @@ func withIndexBuildConfig(newIbc indexBuildConfig) indexBuildOption {
 		ibc.contentStoreType = newIbc.contentStoreType
 		ibc.namespace = newIbc.namespace
 		ibc.runRebuildDbBeforeCreate = newIbc.runRebuildDbBeforeCreate
-		ibc.skipExistingZtoc = newIbc.skipExistingZtoc
+		ibc.forceRecreateZtocs = newIbc.forceRecreateZtocs
 	}
 }
 
-// withSkipExistingZtoc passes the --skip-existing-ztoc flag to "soci create"
-func withSkipExistingZtoc() indexBuildOption {
+// withForceRecreateZtocs passes the --force flag to "soci create".
+func withForceRecreateZtocs(forceRecreateZtocs bool) indexBuildOption {
 	return func(ibc *indexBuildConfig) {
-		ibc.skipExistingZtoc = true
+		ibc.forceRecreateZtocs = forceRecreateZtocs
 	}
 }
 
@@ -96,7 +96,7 @@ func withSkipExistingZtoc() indexBuildOption {
 // We do this because the artifact store could be out of sync with the content store when 'soci create' is called.
 // This is problematic in cases where we create soci indexes for some images, delete those indexes and immediately recreate
 // them (like in TestSociIndexRemove) - as there could be ztoc entries in the artifact store which are not present in the
-// content store, causing 'soci create/convert' without --skip-existing-ztoc flag to throw an error.
+// content store, causing 'soci create/convert' without --force flag to throw an error.
 //
 // We can run this by default and probably remove this option in the future when the race condition with rebuild-db is solved.
 func withRunRebuildDbBeforeCreate() indexBuildOption {
@@ -169,8 +169,8 @@ func buildIndex(sh *shell.Shell, src imageInfo, opt ...indexBuildOption) string 
 		"--platform", platforms.Format(src.platform),
 		src.ref,
 	}
-	if indexBuildConfig.skipExistingZtoc {
-		createCommand = append(createCommand, "--skip-existing-ztoc")
+	if indexBuildConfig.forceRecreateZtocs {
+		createCommand = append(createCommand, "--force")
 	}
 
 	shx := sh.X

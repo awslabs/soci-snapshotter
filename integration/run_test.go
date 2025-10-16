@@ -55,9 +55,9 @@ import (
 func TestRunMultipleContainers(t *testing.T) {
 
 	tests := []struct {
-		name             string
-		containers       []containerImageAndTestFunc
-		skipExistingZtoc bool
+		name               string
+		containers         []containerImageAndTestFunc
+		forceRecreateZtocs bool
 	}{
 		{
 			name: "Run multiple containers from the same image",
@@ -99,7 +99,7 @@ func TestRunMultipleContainers(t *testing.T) {
 			},
 		},
 		{
-			name: "Run multiple containers from different images with shared layers with --skip-existing-ztoc flag",
+			name: "Run multiple containers from different images with shared layers with --force flag",
 			containers: []containerImageAndTestFunc{
 				{
 					containerImage: nginxAlpineImage,
@@ -110,7 +110,7 @@ func TestRunMultipleContainers(t *testing.T) {
 					testFunc:       testWebServiceContainer,
 				},
 			},
-			skipExistingZtoc: true,
+			forceRecreateZtocs: true,
 		},
 	}
 
@@ -126,8 +126,8 @@ func TestRunMultipleContainers(t *testing.T) {
 				copyImage(sh, dockerhub(container.containerImage), regConfig.mirror(container.containerImage))
 				// Pull image, create SOCI index
 				buildIndexOpts := []indexBuildOption{withMinLayerSize(0)}
-				if tt.skipExistingZtoc {
-					buildIndexOpts = append(buildIndexOpts, withSkipExistingZtoc())
+				if tt.forceRecreateZtocs {
+					buildIndexOpts = append(buildIndexOpts, withForceRecreateZtocs(true))
 				} else {
 					buildIndexOpts = append(buildIndexOpts, withRunRebuildDbBeforeCreate())
 				}

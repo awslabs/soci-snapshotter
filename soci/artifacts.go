@@ -315,11 +315,10 @@ func (db *ArtifactsDb) addNewArtifacts(ctx context.Context, blobStorePath string
 				var spanSize int64
 				spanSizeStr, ok := zt.Annotations[IndexAnnotationSociSpanSize]
 				if ok {
-					parsedSpanSize, err := strconv.ParseInt(spanSizeStr, 10, 64)
+					spanSize, err = strconv.ParseInt(spanSizeStr, 10, 64)
 					if err != nil {
 						return fmt.Errorf("failed to parse span size from annotations for layer  %s: %w", zt.Digest.String(), err)
 					}
-					spanSize = parsedSpanSize
 				}
 				ztocEntry := &ArtifactEntry{
 					Size:           zt.Size,

@@ -78,9 +78,10 @@ var ConvertCommand = &cli.Command{
 			Usage: fmt.Sprintf("(Experimental) Enable optional optimizations. Valid values are %v", soci.Optimizations),
 		},
 		&cli.BoolFlag{
-			Name:  skipExistingZtocFlag,
-			Usage: "Skip checking if zTOCs already exist for layers or not. Defaults to false.",
-			Value: false,
+			Name:    forceRecreateZtocsFlag,
+			Usage:   "Force recreate zTOCs for layers even if they already exist. Defaults to false.",
+			Value:   false,
+			Aliases: []string{forceRecreateZtocsFlagShort},
 		},
 	),
 	Action: func(ctx context.Context, cmd *cli.Command) error {
@@ -123,7 +124,7 @@ var ConvertCommand = &cli.Command{
 
 		spanSize := cmd.Int64(spanSizeFlag)
 		minLayerSize := cmd.Int64(minLayerSizeFlag)
-		skipExistingZtoc := cmd.Bool(skipExistingZtocFlag)
+		forceRecreateZtocs := cmd.Bool(forceRecreateZtocsFlag)
 
 		blobStore, err := store.NewContentStore(internal.ContentStoreOptions(ctx, cmd)...)
 		if err != nil {
@@ -141,7 +142,7 @@ var ConvertCommand = &cli.Command{
 			soci.WithBuildToolIdentifier(buildToolIdentifier),
 			soci.WithOptimizations(optimizations),
 			soci.WithArtifactsDb(artifactsDb),
-			soci.WithSkipExistingZtoc(skipExistingZtoc),
+			soci.WithForceRecreateZtocs(forceRecreateZtocs),
 		}
 
 		builder, err := soci.NewIndexBuilder(cs, blobStore, builderOpts...)

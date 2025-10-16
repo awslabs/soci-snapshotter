@@ -292,7 +292,7 @@ type builderConfig struct {
 	buildToolIdentifier string
 	artifactsDb         *ArtifactsDb
 	optimizations       []Optimization
-	skipExistingZtoc    bool
+	forceRecreateZtocs  bool
 }
 
 func (b *builderConfig) hasOptimization(o Optimization) bool {
@@ -331,9 +331,9 @@ func ParseOptimization(s string) (Optimization, error) {
 // and all indexes built with that builder.
 type BuilderOption func(c *builderConfig) error
 
-func WithSkipExistingZtoc(skipExistingZtoc bool) BuilderOption {
+func WithForceRecreateZtocs(forceRecreateZtocs bool) BuilderOption {
 	return func(c *builderConfig) error {
-		c.skipExistingZtoc = skipExistingZtoc
+		c.forceRecreateZtocs = forceRecreateZtocs
 		return nil
 	}
 }
@@ -630,12 +630,12 @@ func (b *IndexBuilder) buildSociLayer(ctx context.Context, desc ocispec.Descript
 		return nil, errUnsupportedLayerFormat
 	}
 
-	existingZtoc := getExistingZtocForLayer(desc, b.config)
+	existingZtoc := b.getExistingZtocForLayer(desc)
 	if existingZtoc != nil {
 		reader, err := b.blobStore.Fetch(ctx, *existingZtoc)
 		if err != nil {
 			if errors.Is(err, errdefs.ErrNotFound) {
-				return nil, fmt.Errorf("a ztoc entry was found in the artifact store but not in the content store (try tunning \"soci rebuild-db\" first or try again with \"--skip-existing-ztoc\" flag): %w", err)
+				return nil, fmt.Errorf("a ztoc entry was found in the artifact store but not in the content store (try running \"soci rebuild-db\" first or try again with \"--force\" flag): %w", err)
 			}
 			return nil, fmt.Errorf("failed to fetch existing ztoc: %w", err)
 		}
@@ -711,20 +711,22 @@ func (b *IndexBuilder) addSociLayerAnnotations(layerDesc *ocispec.Descriptor, zt
 	ztocDesc.Annotations = map[string]string{
 		IndexAnnotationImageLayerMediaType: layerDesc.MediaType,
 		IndexAnnotationImageLayerDigest:    layerDesc.Digest.String(),
-		IndexAnnotationSociSpanSize:        fmt.Sprintf("%d", b.config.spanSize),
+		IndexAnnotationSociSpanSize:        strconv.FormatInt(b.config.spanSize, 10),
 	}
 	b.maybeAddDisableXattrAnnotation(ztocDesc, toc)
 }
 
 // getExistingZtocForLayer returns a ztoc descriptor for the provided layer if an entry corresponding to the
 // layer already exists in the artifact store.
-func getExistingZtocForLayer(layerDesc ocispec.Descriptor, cfg *builderConfig) *ocispec.Descriptor {
-	if cfg.skipExistingZtoc || cfg.artifactsDb == nil {
+func (b *IndexBuilder) getExistingZtocForLayer(layerDesc ocispec.Descriptor) *ocispec.Descriptor {
+	if b.config.forceRecreateZtocs || b.config.artifactsDb == nil {
 		return nil
 	}
 	var existingZtoc *ocispec.Descriptor
-	cfg.artifactsDb.Walk(func(ae *ArtifactEntry) error {
-		if ae.Type == ArtifactEntryTypeLayer && ae.OriginalDigest == layerDesc.Digest.String() && ae.SpanSize == cfg.spanSize {
+	b.config.artifactsDb.Walk(func(ae *ArtifactEntry) error {
+		if ae.Type == ArtifactEntryTypeLayer &&
+			ae.OriginalDigest == layerDesc.Digest.String() &&
+			ae.SpanSize == b.config.spanSize {
 			existingZtoc = &ocispec.Descriptor{
 				Digest: digest.Digest(ae.Digest),
 				Size:   ae.Size,
