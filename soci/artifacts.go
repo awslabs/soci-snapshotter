@@ -245,7 +245,12 @@ func (db *ArtifactsDb) addNewArtifacts(ctx context.Context, blobStorePath string
 			return nil
 		}
 		info, err := d.Info()
-		if err != nil {
+		if errors.Is(err, fs.ErrNotExist) {
+			// This check attempts to mitigate a race between finding content and getting said content.
+			// If content is provided there's no guarantee it will still be there by the time we want to fetch it.
+			// Returning should be safe as it's effectively a no-op.
+			return nil
+		} else if err != nil {
 			return err
 		}
 		// skip: entry is an empty config
@@ -254,9 +259,6 @@ func (db *ArtifactsDb) addNewArtifacts(ctx context.Context, blobStorePath string
 		}
 		f, err := os.Open(path)
 		if errors.Is(err, fs.ErrNotExist) {
-			// This check attempts to mitigate a race between finding content and getting said content.
-			// If content is provided there's no guarantee it will still be there by the time we want to fetch it.
-			// Returning should be safe as it's effectively a no-op.
 			return nil
 		} else if err != nil {
 			return err
