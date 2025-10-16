@@ -30,6 +30,111 @@ import (
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 )
 
+func TestGetExistingZtocForLayer(t *testing.T) {
+	const (
+		layerDigest1 = "sha256:1236aec48c0a74635a5f3dc666628c1673afaa21ed6e1270a9a44de66e811111"
+		ztocDigest1  = "sha256:10d6aec48c0a74635a5f3dc555528c1673afaa21ed6e1270a9a44de66e8ffa55"
+		layerDigest2 = "sha256:bbbbbbb48c0a74635a5f3dc666628c1673afaa21ed6e1270a9a44de66e811111"
+		spanSize     = 10
+		size         = 10
+	)
+
+	cs := newFakeContentStore()
+	blobStore := NewOrasMemoryStore()
+	artifactsDb, err := newTestableDb()
+	if err != nil {
+		t.Fatalf("can't create a test db")
+	}
+	err = artifactsDb.WriteArtifactEntry(&ArtifactEntry{
+		Digest:         ztocDigest1,
+		OriginalDigest: layerDigest1,
+		Type:           ArtifactEntryTypeLayer,
+		Size:           size,
+		SpanSize:       spanSize,
+		Location:       layerDigest1,
+		MediaType:      SociLayerMediaType,
+	})
+	if err != nil {
+		t.Fatalf("can't write an entry to the db")
+	}
+
+	testCases := []struct {
+		name               string
+		layerDesc          ocispec.Descriptor
+		existingZtoc       *ocispec.Descriptor
+		forceRecreateZtocs bool
+	}{
+		{
+			name: "Should return an existing ztoc if a corresponding entry exists in the artifacts db",
+			layerDesc: ocispec.Descriptor{
+				Digest: digest.Digest(layerDigest1),
+				Size:   size,
+			},
+			existingZtoc: &ocispec.Descriptor{
+				Digest: ztocDigest1,
+				Size:   size,
+			},
+		},
+		{
+			name: "Should not return an existing ztoc if a corresponding entry does not exist in the artifacts db",
+			layerDesc: ocispec.Descriptor{
+				Digest: digest.Digest(layerDigest2),
+				Size:   100,
+			},
+			existingZtoc: nil,
+		},
+		{
+			name:               "Should skip existing ztoc check if forceRecreateZtocs flag is set",
+			forceRecreateZtocs: true,
+			layerDesc: ocispec.Descriptor{
+				Digest: digest.Digest(layerDigest2),
+				Size:   size,
+			},
+			existingZtoc: nil,
+		},
+	}
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			builder, err := NewIndexBuilder(
+				cs,
+				blobStore,
+				WithArtifactsDb(artifactsDb),
+				WithSpanSize(spanSize),
+				WithForceRecreateZtocs(tc.forceRecreateZtocs),
+			)
+			if err != nil {
+				t.Fatalf("cannot create index builer: %v", err)
+			}
+
+			existingZtoc := builder.getExistingZtocForLayer(tc.layerDesc)
+			if existingZtoc == nil && tc.existingZtoc == nil {
+				return
+			}
+			if existingZtoc == nil || tc.existingZtoc == nil {
+				t.Fatalf(
+					"mismatch between expected and returned ztoc descriptor. expected: %v, returned: %v",
+					tc.existingZtoc,
+					existingZtoc,
+				)
+			}
+			if existingZtoc.Digest != tc.existingZtoc.Digest {
+				t.Fatalf(
+					"mismatch between expected and returned ztoc descriptor digest. expected: %v, returned: %v",
+					tc.existingZtoc.Digest,
+					existingZtoc.Digest,
+				)
+			}
+			if existingZtoc.Size != tc.existingZtoc.Size {
+				t.Fatalf(
+					"mismatch between expected and returned ztoc descriptor size. expected: %v, returned: %v",
+					tc.existingZtoc.Size,
+					existingZtoc.Size,
+				)
+			}
+		})
+	}
+}
+
 func TestSkipBuildingZtoc(t *testing.T) {
 	testcases := []struct {
 		name        string

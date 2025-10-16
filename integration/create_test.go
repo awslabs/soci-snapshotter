@@ -34,6 +34,66 @@ import (
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 )
 
+func TestCreateWithForceRecreateZtocs(t *testing.T) {
+	sh, done := newSnapshotterBaseShell(t)
+	defer done()
+	rebootContainerd(t, sh, "", "")
+
+	// if we build an index for the image first and then create it again
+	// without the --force flag, all ztoc's should be skipped
+	image := dockerhub(nginxAlpineImage)
+	indexDigest := buildIndex(sh, image)
+	if indexDigest == "" {
+		t.Fatal("failed to get soci index for test image")
+	}
+	contentStoreBlobPath, _ := testutil.GetContentStoreBlobPath(config.DefaultContentStoreType)
+	parsedDigest, err := digest.Parse(indexDigest)
+	if err != nil {
+		t.Fatalf("cannot parse digest: %v", err)
+	}
+	checkpoints := fetchContentFromPath(sh, filepath.Join(contentStoreBlobPath, parsedDigest.Encoded()))
+	var index soci.Index
+	err = soci.DecodeIndex(bytes.NewReader(checkpoints), &index)
+	if err != nil {
+		t.Fatalf("cannot get index data: %v", err)
+	}
+
+	testCases := []struct {
+		name                   string
+		forceRecreateZtocsFlag bool
+		numZtocSkipped         int
+	}{
+		{
+			name:                   "test soci create without --force flag",
+			forceRecreateZtocsFlag: false,
+			numZtocSkipped:         len(index.Blobs),
+		},
+		{
+			name:                   "test soci create with --force flag",
+			forceRecreateZtocsFlag: true,
+			numZtocSkipped:         0,
+		},
+	}
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			args := []string{"soci", "create", "--min-layer-size=0", "--platform", platforms.Format(image.platform)}
+			if tc.forceRecreateZtocsFlag {
+				args = append(args, "--force")
+			}
+			args = append(args, image.ref)
+			b, err := sh.CombinedOLog(args...)
+			if err != nil {
+				t.Fatalf("expected no error, got %v", err)
+			}
+
+			numSkipped := strings.Count(string(b), "already exists")
+			if numSkipped != tc.numZtocSkipped {
+				t.Fatalf("expected %v ztoc to be skipped, got %v", tc.numZtocSkipped, numSkipped)
+			}
+		})
+	}
+}
+
 func TestCreateConvertParameterValidation(t *testing.T) {
 	tests := []struct {
 		name          string

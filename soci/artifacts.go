@@ -24,6 +24,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"strconv"
 	"sync"
 	"time"
 
@@ -74,6 +75,7 @@ var (
 	bucketKeyMediaType      = []byte("media_type")
 	bucketKeyArtifactType   = []byte("artifact_type")
 	bucketKeyCreatedAt      = []byte("created_at")
+	bucketKeySpanSize       = []byte("span_size")
 
 	// ArtifactEntryTypeIndex indicates that an ArtifactEntry is a SOCI index artifact
 	ArtifactEntryTypeIndex ArtifactEntryType = "soci_index"
@@ -120,6 +122,8 @@ type ArtifactEntry struct {
 	ArtifactType string
 	// Creation time of SOCI artifact.
 	CreatedAt time.Time
+	// Span Size used to generate the SOCI artifact.
+	SpanSize int64
 }
 
 // NewDB returns an instance of an ArtifactsDB
@@ -308,6 +312,14 @@ func (db *ArtifactsDb) addNewArtifacts(ctx context.Context, blobStorePath string
 				return err
 			}
 			for _, zt := range sociIndex.Blobs {
+				var spanSize int64
+				spanSizeStr, ok := zt.Annotations[IndexAnnotationSociSpanSize]
+				if ok {
+					spanSize, err = strconv.ParseInt(spanSizeStr, 10, 64)
+					if err != nil {
+						return fmt.Errorf("failed to parse span size from annotations for layer  %s: %w", zt.Digest.String(), err)
+					}
+				}
 				ztocEntry := &ArtifactEntry{
 					Size:           zt.Size,
 					Digest:         zt.Digest.String(),
@@ -316,6 +328,7 @@ func (db *ArtifactsDb) addNewArtifacts(ctx context.Context, blobStorePath string
 					Location:       zt.Annotations[IndexAnnotationImageLayerDigest],
 					MediaType:      SociLayerMediaType,
 					CreatedAt:      time.Now(),
+					SpanSize:       spanSize,
 				}
 				if err := db.WriteArtifactEntry(ztocEntry); err != nil {
 					return err
@@ -466,6 +479,11 @@ func loadArtifact(artifactBkt *bolt.Bucket, digest string) (*ArtifactEntry, erro
 	if err != nil {
 		return nil, err
 	}
+	encodedSpanSize := artifactBkt.Get(bucketKeySpanSize)
+	spanSize, err := dbutil.DecodeInt(encodedSpanSize)
+	if err != nil {
+		return nil, err
+	}
 	createdAt := time.Time{}
 	createdAtBytes := artifactBkt.Get(bucketKeyCreatedAt)
 	if createdAtBytes != nil {
@@ -483,6 +501,7 @@ func loadArtifact(artifactBkt *bolt.Bucket, digest string) (*ArtifactEntry, erro
 	ae.MediaType = string(artifactBkt.Get(bucketKeyMediaType))
 	ae.ArtifactType = string(artifactBkt.Get(bucketKeyArtifactType))
 	ae.CreatedAt = createdAt
+	ae.SpanSize = spanSize
 	return &ae, nil
 }
 
@@ -497,6 +516,11 @@ func putArtifactEntry(artifacts *bolt.Bucket, ae *ArtifactEntry) error {
 	}
 
 	sizeInBytes, err := dbutil.EncodeInt(ae.Size)
+	if err != nil {
+		return err
+	}
+
+	spanSizeInBytes, err := dbutil.EncodeInt(ae.SpanSize)
 	if err != nil {
 		return err
 	}
@@ -519,6 +543,7 @@ func putArtifactEntry(artifacts *bolt.Bucket, ae *ArtifactEntry) error {
 		{bucketKeyMediaType, []byte(ae.MediaType)},
 		{bucketKeyArtifactType, []byte(ae.ArtifactType)},
 		{bucketKeyCreatedAt, createdAt},
+		{bucketKeySpanSize, spanSizeInBytes},
 	}
 
 	for _, update := range updates {
