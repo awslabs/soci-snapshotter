@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1760573461579,
+  "lastUpdate": 1761070258973,
   "repoUrl": "https://github.com/awslabs/soci-snapshotter",
   "entries": {
     "Soci Benchmark": [
@@ -14480,6 +14480,48 @@ window.BENCHMARK_DATA = {
           {
             "name": "SociFullECR-public-redis-pullTaskDuration",
             "value": 1.4285,
+            "unit": "Seconds",
+            "extra": "P90"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "davbson@amazon.com",
+            "name": "David Son",
+            "username": "sondavidb"
+          },
+          "committer": {
+            "email": "55555210+sondavidb@users.noreply.github.com",
+            "name": "David Son",
+            "username": "sondavidb"
+          },
+          "distinct": true,
+          "id": "39b226555dafb6c3b52297ca5d348c1fbfac430e",
+          "message": "Add extra check for rebuild-db race condition\n\nSigned-off-by: David Son <davbson@amazon.com>",
+          "timestamp": "2025-10-21T14:02:29-04:00",
+          "tree_id": "4c0d0eca0a93a60e66a68828a16eec4445e3f99d",
+          "url": "https://github.com/awslabs/soci-snapshotter/commit/39b226555dafb6c3b52297ca5d348c1fbfac430e"
+        },
+        "date": 1761070256939,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "SociFullECR-public-redis-lazyTaskDuration",
+            "value": 0.493,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-redis-localTaskDuration",
+            "value": 0.022,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-redis-pullTaskDuration",
+            "value": 1.2055,
             "unit": "Seconds",
             "extra": "P90"
           }
