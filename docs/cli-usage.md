@@ -11,6 +11,7 @@ This document provides instructions on how to use the SOCI CLI. And a comprehens
 
 ## CLI commands
 - [soci create](#soci-create)
+- [soci convert](#soci-convert)
 - [soci push](#soci-push)
 - [soci rebuild_db](#soci-rebuild_db)
 - [soci index](#soci-index)
@@ -18,33 +19,68 @@ This document provides instructions on how to use the SOCI CLI. And a comprehens
 
 
 ### soci create
-Creates SOCI index for an image
+Creates SOCI index for an image (SOCI Index Manifest v1)
 
 Output of this command is SOCI layers and SOCI index stored in a local directory
 > [!NOTE] 
 > SOCI layer is named as \<image-layer-digest>.soci.layer
 >
 > SOCI index is named as \<image-manifest-digest>.soci.index
+>
+> This command creates SOCI Index Manifest v1 artifacts. For production use, consider using `soci convert` to create SOCI Index Manifest v2 enabled images.
 
 
 Usage: ```soci create [flags] <image_ref> ```
 
 Flags:
 
- - ```--span-size``` : Span size that soci index uses to segment layer data. Default is 4MiB 
+ - ```--span-size``` : Span size that soci index uses to segment layer data. Default is 4MiB
  - ```--min-layer-size``` : Minimum layer size to build zTOC for. Smaller layers won't have zTOC and not lazy pulled. Default is 10MiB
  - ```--optimizations``` : Enable experimental features by name. Usage is `--optimizations opt_name`.
    - `xattr` :  When true, adds DisableXAttrs annotation to SOCI index. This annotation often helps performance at pull time.
      - There is currently a bug using this on an image with volume-mounts in a layer without whiteout directories or xattrs. If in doubt, do not use this on images with volume mounts.
 
-**Example:** 
+**Example:**
 ```
 soci create public.ecr.aws/soci-workshop-examples/ffmpeg:latest
 ```
 
+### soci convert
+Converts an OCI image to a SOCI-enabled image (SOCI Index Manifest v2)
+
+This command creates a new SOCI-enabled image that packages the original image and SOCI index into a single, strongly-linked artifact. The SOCI-enabled image can be pushed and deployed like any other image, and the SOCI index will move with it across registries.
+
+> [!NOTE]
+> SOCI Index Manifest v2 is the recommended approach for production deployments as it provides immutable binding between the image and SOCI index, preventing runtime behavior changes.
+
+Usage: ```soci convert [flags] <source_image_ref> <dest_image_ref> ```
+
+Flags:
+
+ - ```--span-size``` : Span size that soci index uses to segment layer data. Default is 4MiB
+ - ```--min-layer-size``` : Minimum layer size to build zTOC for. Smaller layers won't have zTOC and not lazy pulled. Default is 10MiB
+ - ```--optimizations``` : Enable experimental features by name. Usage is `--optimizations opt_name`.
+   - `xattr` :  When true, adds DisableXAttrs annotation to SOCI index. This annotation often helps performance at pull time.
+ - ```--all-platforms``` : Convert all platforms of a multi-platform image
+ - ```--platform``` : Convert only the specified platform (e.g., linux/amd64)
+
+**Example:**
+```
+soci convert public.ecr.aws/soci-workshop-examples/ffmpeg:latest public.ecr.aws/soci-workshop-examples/ffmpeg:latest-soci
+```
+
+**Multi-platform example:**
+```
+soci convert --all-platforms public.ecr.aws/soci-workshop-examples/ffmpeg:latest public.ecr.aws/soci-workshop-examples/ffmpeg:latest-soci
+```
+
 ### soci push
-Push SOCI artifacts to a registry by image reference.
-If multiple soci indices exist for the given image, the most recent one will be pushed.
+Push SOCI artifacts to a registry by image reference (SOCI Index Manifest v1 only)
+
+This command pushes SOCI Index Manifest v1 artifacts to the registry. If multiple soci indices exist for the given image, the most recent one will be pushed.
+
+> [!NOTE]
+> This command only works with SOCI Index Manifest v1 artifacts created by `soci create`. For SOCI Index Manifest v2, use standard image push commands (e.g., `nerdctl push`) on the SOCI-enabled image created by `soci convert`.
 
 Usage: ```soci push [flags] <image_ref> ```
 
