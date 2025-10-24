@@ -79,7 +79,7 @@ func prepareCustomSociIndices(t *testing.T, sh *shell.Shell, images []testImageI
 			}
 		}
 		img.imgInfo = dockerhub(imgName, withPlatform(platform))
-		img.sociIndexDigest = buildIndex(sh, img.imgInfo, withIndexBuildConfig(indexBuildConfig), withMinLayerSize(0))
+		img.sociIndexDigest = buildIndex(sh, img.imgInfo, withIndexBuildConfig(indexBuildConfig), withMinLayerSize(0), withRunRebuildDbBeforeCreate())
 		ztocDigests, err := getZtocDigestsForImage(sh, img.imgInfo)
 		if err != nil {
 			t.Fatalf("could not get ztoc digests: %v", err)
@@ -332,6 +332,54 @@ func TestSociIndexRemove(t *testing.T) {
 		_, err := sh.OLog("soci", "index", "rm", invalidDgst)
 		if err == nil {
 			t.Fatalf("failed to return err")
+		}
+	})
+}
+
+func TestSociIndexRemoveAndRebuildWithSharedLayers(t *testing.T) {
+	sh, done := newSnapshotterBaseShell(t)
+	defer done()
+	rebootContainerd(t, sh, "", "")
+
+	t.Run("soci index rm with shared layers should not affect the other image", func(t *testing.T) {
+		// the following 2 images share layers
+		img1 := dockerhub(nginxAlpineImage)
+		img2 := dockerhub(nginxAlpineImage2)
+		imgDigest := buildIndex(sh, img1, withMinLayerSize(0), withRunRebuildDbBeforeCreate())
+		if imgDigest == "" {
+			t.Fatal("failed to get soci index for nginx alpine test image")
+		}
+		imgDigest2 := buildIndex(sh, img2, withMinLayerSize(0))
+		if imgDigest2 == "" {
+			t.Fatal("failed to get soci index for nginx alpine 2 test image")
+		}
+
+		sh.X("soci", "index", "rm", imgDigest)
+
+		ztocsBeforeRebuild, err := getZtocDigestsForImage(sh, img2)
+		if err != nil {
+			t.Fatalf("could not get ztoc digests before rebuild-db: %v", err)
+		}
+		sh.X("soci", "rebuild-db")
+		ztocsAfterRebuild, err := getZtocDigestsForImage(sh, img2)
+		if err != nil {
+			t.Fatalf("could not get ztoc digests after rebuild-db: %v", err)
+		}
+
+		if len(ztocsBeforeRebuild) != len(ztocsAfterRebuild) {
+			t.Fatalf(
+				"expected number of ztoc's to remain unchanged after rebuild-db: expected: %d, got: %d",
+				len(ztocsBeforeRebuild),
+				len(ztocsAfterRebuild),
+			)
+		}
+		for i := range ztocsBeforeRebuild {
+			if ztocsBeforeRebuild[i] != ztocsAfterRebuild[i] {
+				t.Fatalf("expected ztoc digests to remain unchanged after rebuild-db: expected: %s, got: %s",
+					ztocsBeforeRebuild[i],
+					ztocsAfterRebuild[i],
+				)
+			}
 		}
 	})
 }
