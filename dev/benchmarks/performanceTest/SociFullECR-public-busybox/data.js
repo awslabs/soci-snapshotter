@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1761170435798,
+  "lastUpdate": 1761339835937,
   "repoUrl": "https://github.com/awslabs/soci-snapshotter",
   "entries": {
     "Soci Benchmark": [
@@ -14607,6 +14607,48 @@ window.BENCHMARK_DATA = {
           {
             "name": "SociFullECR-public-busybox-pullTaskDuration",
             "value": 9.244,
+            "unit": "Seconds",
+            "extra": "P90"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "swpnlg@amazon.com",
+            "name": "Swapnanil-Gupta",
+            "username": "Swapnanil-Gupta"
+          },
+          "committer": {
+            "email": "swpnlg@amazon.com",
+            "name": "Swapnanil Gupta",
+            "username": "Swapnanil-Gupta"
+          },
+          "distinct": true,
+          "id": "0d04fff38c8c0544d62f4f469f67691b955e4749",
+          "message": "fix!: ztocs from other images showing up in `ztoc ls` when these images share layers\n\nSigned-off-by: Swapnanil-Gupta <swpnlg@amazon.com>",
+          "timestamp": "2025-10-24T13:53:58-07:00",
+          "tree_id": "0a4e6e150efba5fc9565c49790ef7539c0a9d236",
+          "url": "https://github.com/awslabs/soci-snapshotter/commit/0d04fff38c8c0544d62f4f469f67691b955e4749"
+        },
+        "date": 1761339832984,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "SociFullECR-public-busybox-lazyTaskDuration",
+            "value": 0.011,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-busybox-localTaskDuration",
+            "value": 0.0055,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-busybox-pullTaskDuration",
+            "value": 1.1785,
             "unit": "Seconds",
             "extra": "P90"
           }
