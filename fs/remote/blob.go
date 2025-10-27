@@ -221,7 +221,8 @@ func (b *blob) fetchRegion(reg region, w io.Writer, fetched bool, opts *options)
 	fr := b.fetcher
 	b.fetcherMu.Unlock()
 
-	fetchCtx := context.Background()
+	fetchCtx, cancel := context.WithCancel(context.Background())
+	defer cancel()
 
 	var req []region
 	req = append(req, reg)
