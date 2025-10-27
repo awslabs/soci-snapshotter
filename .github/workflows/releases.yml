@@ -60,7 +60,7 @@ jobs:
           mkdir release-${{ matrix.os }}
       - name: Create release binaries
         run: make RELEASE_TAG=${{ env.RELEASE_TAG }} release
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v5
         with:
           name: artifacts-${{ matrix.os }}
           path: release/
