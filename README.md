@@ -41,8 +41,8 @@ developed by the [OCI Reference Types working group](https://github.com/opencont
 
 ### Workload-specific load order optimization
 
-Another big consideration that we haven't implmented/integrated
-into SOCI is to image load order based on your specific workload. See [design README](./docs/design-docs/README.md#workload-specific-load-order-optimization)
+Another big consideration that we haven't implemented/integrated
+into SOCI is image load order based on your specific workload. See [design README](./docs/design-docs/README.md#workload-specific-load-order-optimization)
 for more details.
 
 ## Documentation
@@ -60,7 +60,7 @@ for more details.
 
 ## Project Origin
 
-There a few different lazy loading projects in the containerd snapshotter community.  This project began as a
+There are a few different lazy loading projects in the containerd snapshotter community.  This project began as a
 fork of the popular [Stargz-snapshotter project](https://github.com/containerd/stargz-snapshotter) from
 commit 743e5e70a7fdec9cd4ab218e1d4782fbbd253803 with the intention of an upstream patch.  During development
 the changes were fundamental enough that the decision was made to create soci-snapshotter as a standalone
