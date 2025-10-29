@@ -573,18 +573,19 @@ func TestRunWithIdMap(t *testing.T) {
 	}
 
 	checkUIDGID := func(stat, uid, gid string) error {
-		if len(uid) < 5 || len(gid) < 5 {
-			return errors.New("UID or GID not a string of length 5")
+		statArr := strings.Split(stat, "\n")
+		if len(statArr) > 2 {
+			return errors.New("stat should only contain UID+GID info")
+		}
+		statUID := statArr[0]
+		statGID := statArr[1]
+
+		if uid != statUID {
+			return fmt.Errorf("expected UID: %s; actual UID: %s", uid, statUID)
 		}
 
-		matchUID := fmt.Sprintf("Uid: (%s", uid)
-		if !strings.Contains(stat, matchUID) {
-			return fmt.Errorf("expected UID: %s; actual UID: %s", matchUID, uid)
-		}
-
-		matchGID := fmt.Sprintf("Uid: (%s", gid)
-		if !strings.Contains(stat, matchGID) {
-			return fmt.Errorf("expected GID: %s; actual GID: %s", matchGID, gid)
+		if gid != statGID {
+			return fmt.Errorf("expected GID: %s; actual GID: %s", gid, statGID)
 		}
 
 		return nil
@@ -632,8 +633,8 @@ func TestRunWithIdMap(t *testing.T) {
 					path:                   "/usr/bin/sh",
 					expectedUIDOnHost:      "12345",
 					expectedGIDOnHost:      "12345",
-					expectedUIDInContainer: "    0",
-					expectedGIDInContainer: "    0",
+					expectedUIDInContainer: "0",
+					expectedGIDInContainer: "0",
 				},
 			},
 		},
@@ -652,15 +653,15 @@ func TestRunWithIdMap(t *testing.T) {
 					path:                   "/usr/bin/sh",
 					expectedUIDOnHost:      "12345",
 					expectedGIDOnHost:      "12345",
-					expectedUIDInContainer: "    0",
-					expectedGIDInContainer: "    0",
+					expectedUIDInContainer: "0",
+					expectedGIDInContainer: "0",
 				},
 				{
 					path:                   "/home/ubuntu",
 					expectedUIDOnHost:      "22222",
 					expectedGIDOnHost:      "22222",
-					expectedUIDInContainer: " 1000",
-					expectedGIDInContainer: " 1000",
+					expectedUIDInContainer: "1000",
+					expectedGIDInContainer: "1000",
 				},
 			},
 		},
@@ -733,7 +734,7 @@ func TestRunWithIdMap(t *testing.T) {
 				for _, check := range tt.checkFiles {
 					// Check UID/GID on host
 					fullCheckPath := filepath.Join(baseRuntimeDir, containerID, "rootfs", check.path)
-					statHost, err := sh.OLog("stat", fullCheckPath)
+					statHost, err := sh.OLog("stat", "--printf", "%u\\n%g", fullCheckPath)
 					if err != nil {
 						t.Fatalf("error stat files in %s", fullCheckPath)
 					}
@@ -745,7 +746,7 @@ func TestRunWithIdMap(t *testing.T) {
 					}
 
 					// Check UID/GID in container
-					statContainer, err := sh.OLog("nerdctl", "exec", containerID, "stat", check.path)
+					statContainer, err := sh.OLog("nerdctl", "exec", containerID, "stat", "--printf", "%u\\n%g", check.path)
 					if err != nil {
 						t.Fatalf("error stat files in %s", fullCheckPath)
 					}
