@@ -430,6 +430,7 @@ func (m *SpanManager) verifySpanContents(compressedData []byte, spanID compressi
 
 // Close closes both the underlying zinfo data and blob cache.
 func (m *SpanManager) Close() {
+	log.L.Debug("Spancache finalizer called. Cleaning up spancache")
 	m.zinfo.Close()
 	m.cache.Close()
 }
