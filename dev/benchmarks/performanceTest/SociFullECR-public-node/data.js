@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1761762989714,
+  "lastUpdate": 1761843963222,
   "repoUrl": "https://github.com/awslabs/soci-snapshotter",
   "entries": {
     "Soci Benchmark": [
@@ -14568,6 +14568,48 @@ window.BENCHMARK_DATA = {
           {
             "name": "SociFullECR-public-node-pullTaskDuration",
             "value": 1.7285,
+            "unit": "Seconds",
+            "extra": "P90"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "swpnlg@amazon.com",
+            "name": "Swapnanil-Gupta",
+            "username": "Swapnanil-Gupta"
+          },
+          "committer": {
+            "email": "swpnlg@amazon.com",
+            "name": "Swapnanil Gupta",
+            "username": "Swapnanil-Gupta"
+          },
+          "distinct": true,
+          "id": "3fe7f855cea9fc0b1eb448e1d707a809b0058561",
+          "message": "feat: skip existing ztoc generation\n\nSigned-off-by: Swapnanil-Gupta <swpnlg@amazon.com>",
+          "timestamp": "2025-10-30T09:39:59-07:00",
+          "tree_id": "9d97f8bfc134d3e2d088b8222e88251a1beabf9f",
+          "url": "https://github.com/awslabs/soci-snapshotter/commit/3fe7f855cea9fc0b1eb448e1d707a809b0058561"
+        },
+        "date": 1761843953683,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "SociFullECR-public-node-lazyTaskDuration",
+            "value": 90.946,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-node-localTaskDuration",
+            "value": 1.017,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-node-pullTaskDuration",
+            "value": 2.3415,
             "unit": "Seconds",
             "extra": "P90"
           }
