@@ -353,9 +353,8 @@ func TestNetworkRetry(t *testing.T) {
 			failureChannel := make(chan string, 1)
 
 			listener := func(c chan string) func(string) {
-				var once sync.Once
 				return func(rawLog string) {
-					once.Do(func() { c <- rawLog })
+					c <- rawLog
 				}
 			}
 
@@ -371,6 +370,29 @@ func TestNetworkRetry(t *testing.T) {
 			stderrLogMonitor := testutil.NewLogMonitor(r, strings.NewReader(""), cmdStderr)
 			stderrLogMonitor.Add("listener", listener(failureChannel))
 			defer stderrLogMonitor.Remove("listener")
+
+			// nerdctl v2 introduced some warning messages when using default networking.
+			// This is a workaround to ignore the first stderr output as it is just warnings of us using defaults.
+			// Fixing this would be either suppressing ONLY that warning, or bypassing it from outputting at all,
+			// but I'm not sure if either solution is possible.
+			expectNumWarnings := 2
+			for msgCount := 0; msgCount < expectNumWarnings; msgCount++ {
+				select {
+				case data := <-failureChannel:
+					switch msgCount {
+					case 0:
+						if !strings.Contains(data, "Using default external servers") {
+							t.Fatalf("unexpected warning when starting up container; %s", data)
+						}
+					case 1:
+						if !strings.Contains(data, "IPv6 enabled") {
+							t.Fatalf("unexpected warning when starting up container; %s", data)
+						}
+					}
+				case <-time.After(5*time.Second + timeNetworkDisabled):
+					t.Fatal("container did not send expected startup warnings")
+				}
+			}
 
 			select {
 			case data := <-failureChannel:
@@ -573,18 +595,19 @@ func TestRunWithIdMap(t *testing.T) {
 	}
 
 	checkUIDGID := func(stat, uid, gid string) error {
-		if len(uid) < 5 || len(gid) < 5 {
-			return errors.New("UID or GID not a string of length 5")
+		statArr := strings.Split(stat, "\n")
+		if len(statArr) > 2 {
+			return errors.New("stat should only contain UID+GID info")
+		}
+		statUID := statArr[0]
+		statGID := statArr[1]
+
+		if uid != statUID {
+			return fmt.Errorf("expected UID: %s; actual UID: %s", uid, statUID)
 		}
 
-		matchUID := fmt.Sprintf("Uid: (%s", uid)
-		if !strings.Contains(stat, matchUID) {
-			return fmt.Errorf("expected UID: %s; actual UID: %s", matchUID, uid)
-		}
-
-		matchGID := fmt.Sprintf("Uid: (%s", gid)
-		if !strings.Contains(stat, matchGID) {
-			return fmt.Errorf("expected GID: %s; actual GID: %s", matchGID, gid)
+		if gid != statGID {
+			return fmt.Errorf("expected GID: %s; actual GID: %s", gid, statGID)
 		}
 
 		return nil
@@ -626,14 +649,14 @@ func TestRunWithIdMap(t *testing.T) {
 			name:           "with one set of substitutions",
 			imageName:      rabbitmqImage,
 			subUIDContents: fmt.Sprintf("%s:12345:1001", dummyuser),
-			subGIDContents: fmt.Sprintf("%s:12345:1001", dummyuser),
+			subGIDContents: fmt.Sprintf("%s:12345:1001", dummygroup),
 			checkFiles: []checker{
 				{
 					path:                   "/usr/bin/sh",
 					expectedUIDOnHost:      "12345",
 					expectedGIDOnHost:      "12345",
-					expectedUIDInContainer: "    0",
-					expectedGIDInContainer: "    0",
+					expectedUIDInContainer: "0",
+					expectedGIDInContainer: "0",
 				},
 			},
 		},
@@ -646,21 +669,21 @@ func TestRunWithIdMap(t *testing.T) {
 			// Maybe we can find a more suitable image for this test.
 			imageName:      "ubuntu:24.04",
 			subUIDContents: fmt.Sprintf("%s:12345:1000\n%s:22222:1", dummyuser, dummyuser),
-			subGIDContents: fmt.Sprintf("%s:12345:1000\n%s:22222:1", dummyuser, dummyuser),
+			subGIDContents: fmt.Sprintf("%s:12345:1000\n%s:22222:1", dummygroup, dummygroup),
 			checkFiles: []checker{
 				{
 					path:                   "/usr/bin/sh",
 					expectedUIDOnHost:      "12345",
 					expectedGIDOnHost:      "12345",
-					expectedUIDInContainer: "    0",
-					expectedGIDInContainer: "    0",
+					expectedUIDInContainer: "0",
+					expectedGIDInContainer: "0",
 				},
 				{
 					path:                   "/home/ubuntu",
 					expectedUIDOnHost:      "22222",
 					expectedGIDOnHost:      "22222",
-					expectedUIDInContainer: " 1000",
-					expectedGIDInContainer: " 1000",
+					expectedUIDInContainer: "1000",
+					expectedGIDInContainer: "1000",
 				},
 			},
 		},
@@ -668,6 +691,11 @@ func TestRunWithIdMap(t *testing.T) {
 
 	for _, mode := range modes {
 		for _, tt := range tests {
+			// Redundant use case, remove this conditional once we get
+			// a multi-layer image for the multiple substitutions test case
+			if tt.name == "with multiple substitutions" && mode.name == "with mixed layers" {
+				continue
+			}
 			t.Run(tt.name+" "+mode.name, func(t *testing.T) {
 				regConfig := newRegistryConfig()
 				sh, done := newShellWithRegistry(t, regConfig)
@@ -713,13 +741,11 @@ func TestRunWithIdMap(t *testing.T) {
 					pullCmd = append(pullCmd, "--soci-index-digest", indexDigest)
 				}
 				sh.X(append(pullCmd, mirrorInfo.ref)...)
-				containerID := strings.TrimSpace(string(sh.O("nerdctl-with-idmapping", "run", "-d",
-					"--net", "none",
-					"--pull", "never",
-					"--userns", dummyuser,
-					"--snapshotter", "soci",
+				runCmd := append(runSociCmd, "-d",
+					"--userns-remap", fmt.Sprintf("%s:%s", dummyuser, dummygroup),
 					imageInfo.ref, "sleep", "infinity",
-				)))
+				)
+				containerID := strings.TrimSpace(string(sh.O(runCmd...)))
 
 				newFilenames, err := sh.OLog("ls", baseSnapshotDir)
 				if err != nil {
@@ -733,7 +759,7 @@ func TestRunWithIdMap(t *testing.T) {
 				for _, check := range tt.checkFiles {
 					// Check UID/GID on host
 					fullCheckPath := filepath.Join(baseRuntimeDir, containerID, "rootfs", check.path)
-					statHost, err := sh.OLog("stat", fullCheckPath)
+					statHost, err := sh.OLog("stat", "--printf", "%u\\n%g", fullCheckPath)
 					if err != nil {
 						t.Fatalf("error stat files in %s", fullCheckPath)
 					}
@@ -745,7 +771,7 @@ func TestRunWithIdMap(t *testing.T) {
 					}
 
 					// Check UID/GID in container
-					statContainer, err := sh.OLog("nerdctl", "exec", containerID, "stat", check.path)
+					statContainer, err := sh.OLog("nerdctl", "exec", containerID, "stat", "--printf", "%u\\n%g", check.path)
 					if err != nil {
 						t.Fatalf("error stat files in %s", fullCheckPath)
 					}
