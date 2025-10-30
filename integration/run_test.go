@@ -332,9 +332,8 @@ func TestNetworkRetry(t *testing.T) {
 			failureChannel := make(chan string, 1)
 
 			listener := func(c chan string) func(string) {
-				var once sync.Once
 				return func(rawLog string) {
-					once.Do(func() { c <- rawLog })
+					c <- rawLog
 				}
 			}
 
@@ -350,6 +349,29 @@ func TestNetworkRetry(t *testing.T) {
 			stderrLogMonitor := testutil.NewLogMonitor(r, strings.NewReader(""), cmdStderr)
 			stderrLogMonitor.Add("listener", listener(failureChannel))
 			defer stderrLogMonitor.Remove("listener")
+
+			// nerdctl v2 introduced some warning messages when using default networking.
+			// This is a workaround to ignore the first stderr output as it is just warnings of us using defaults.
+			// Fixing this would be either suppressing ONLY that warning, or bypassing it from outputting at all,
+			// but I'm not sure if either solution is possible.
+			expectNumWarnings := 2
+			for msgCount := 0; msgCount < expectNumWarnings; msgCount++ {
+				select {
+				case data := <-failureChannel:
+					switch msgCount {
+					case 0:
+						if !strings.Contains(data, "Using default external servers") {
+							t.Fatalf("unexpected warning when starting up container; %s", data)
+						}
+					case 1:
+						if !strings.Contains(data, "IPv6 enabled") {
+							t.Fatalf("unexpected warning when starting up container; %s", data)
+						}
+					}
+				case <-time.After(5*time.Second + timeNetworkDisabled):
+					t.Fatal("container did not send expected startup warnings")
+				}
+			}
 
 			select {
 			case data := <-failureChannel:
@@ -606,7 +628,7 @@ func TestRunWithIdMap(t *testing.T) {
 			name:           "with one set of substitutions",
 			imageName:      rabbitmqImage,
 			subUIDContents: fmt.Sprintf("%s:12345:1001", dummyuser),
-			subGIDContents: fmt.Sprintf("%s:12345:1001", dummyuser),
+			subGIDContents: fmt.Sprintf("%s:12345:1001", dummygroup),
 			checkFiles: []checker{
 				{
 					path:                   "/usr/bin/sh",
@@ -626,7 +648,7 @@ func TestRunWithIdMap(t *testing.T) {
 			// Maybe we can find a more suitable image for this test.
 			imageName:      "ubuntu:24.04",
 			subUIDContents: fmt.Sprintf("%s:12345:1000\n%s:22222:1", dummyuser, dummyuser),
-			subGIDContents: fmt.Sprintf("%s:12345:1000\n%s:22222:1", dummyuser, dummyuser),
+			subGIDContents: fmt.Sprintf("%s:12345:1000\n%s:22222:1", dummygroup, dummygroup),
 			checkFiles: []checker{
 				{
 					path:                   "/usr/bin/sh",
@@ -648,6 +670,11 @@ func TestRunWithIdMap(t *testing.T) {
 
 	for _, mode := range modes {
 		for _, tt := range tests {
+			// Redundant use case, remove this conditional once we get
+			// a multi-layer image for the multiple substitutions test case
+			if tt.name == "with multiple substitutions" && mode.name == "with mixed layers" {
+				continue
+			}
 			t.Run(tt.name+" "+mode.name, func(t *testing.T) {
 				regConfig := newRegistryConfig()
 				sh, done := newShellWithRegistry(t, regConfig)
@@ -693,13 +720,11 @@ func TestRunWithIdMap(t *testing.T) {
 					pullCmd = append(pullCmd, "--soci-index-digest", indexDigest)
 				}
 				sh.X(append(pullCmd, mirrorInfo.ref)...)
-				containerID := strings.TrimSpace(string(sh.O("nerdctl-with-idmapping", "run", "-d",
-					"--net", "none",
-					"--pull", "never",
-					"--userns", dummyuser,
-					"--snapshotter", "soci",
+				runCmd := append(runSociCmd, "-d",
+					"--userns-remap", fmt.Sprintf("%s:%s", dummyuser, dummygroup),
 					imageInfo.ref, "sleep", "infinity",
-				)))
+				)
+				containerID := strings.TrimSpace(string(sh.O(runCmd...)))
 
 				newFilenames, err := sh.OLog("ls", baseSnapshotDir)
 				if err != nil {
