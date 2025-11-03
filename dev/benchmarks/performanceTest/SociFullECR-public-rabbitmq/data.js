@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1761843966192,
+  "lastUpdate": 1762197720019,
   "repoUrl": "https://github.com/awslabs/soci-snapshotter",
   "entries": {
     "Soci Benchmark": [
@@ -14611,6 +14611,48 @@ window.BENCHMARK_DATA = {
           {
             "name": "SociFullECR-public-rabbitmq-pullTaskDuration",
             "value": 1.9874999999999998,
+            "unit": "Seconds",
+            "extra": "P90"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "davbson@amazon.com",
+            "name": "David Son",
+            "username": "sondavidb"
+          },
+          "committer": {
+            "email": "55555210+sondavidb@users.noreply.github.com",
+            "name": "David Son",
+            "username": "sondavidb"
+          },
+          "distinct": true,
+          "id": "7fd48151498952cdd2224d8ba329b1c4d9bc2ef7",
+          "message": "Upgrade to nerdctl v2.1.6\n\nSigned-off-by: David Son <davbson@amazon.com>",
+          "timestamp": "2025-11-03T14:11:52-05:00",
+          "tree_id": "9410a28c819a43559372806de1e9c553b036a2e8",
+          "url": "https://github.com/awslabs/soci-snapshotter/commit/7fd48151498952cdd2224d8ba329b1c4d9bc2ef7"
+        },
+        "date": 1762197712438,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "SociFullECR-public-rabbitmq-lazyTaskDuration",
+            "value": 14.767500000000002,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-rabbitmq-localTaskDuration",
+            "value": 9.2975,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-rabbitmq-pullTaskDuration",
+            "value": 1.823,
             "unit": "Seconds",
             "extra": "P90"
           }
