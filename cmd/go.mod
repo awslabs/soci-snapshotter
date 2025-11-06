@@ -4,7 +4,7 @@ go 1.24.9
 
 require (
 	github.com/awslabs/soci-snapshotter v0.0.0-local
-	github.com/containerd/containerd v1.7.28
+	github.com/containerd/containerd v1.7.29
 	github.com/containerd/containerd/api v1.9.0
 	github.com/containerd/log v0.1.0
 	github.com/containerd/platforms v0.2.1
