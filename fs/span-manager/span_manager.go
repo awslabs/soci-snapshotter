@@ -23,6 +23,7 @@ import (
 	"fmt"
 	"io"
 	"runtime"
+	"sync"
 
 	"github.com/awslabs/soci-snapshotter/cache"
 	"github.com/awslabs/soci-snapshotter/util/ioutils"
@@ -49,6 +50,7 @@ type SpanManager struct {
 	spans                             []*span
 	ztoc                              *ztoc.Ztoc
 	maxSpanVerificationFailureRetries int
+	closeOnce                         sync.Once
 }
 
 type spanInfo struct {
@@ -432,6 +434,13 @@ func (m *SpanManager) verifySpanContents(compressedData []byte, spanID compressi
 
 // Close closes both the underlying zinfo data and blob cache.
 func (m *SpanManager) Close() {
-	m.zinfo.Close()
-	m.cache.Close()
+	m.closeOnce.Do(func() {
+		log.L.Debug("Spancache finalizer called. Cleaning up spancache")
+		if m.zinfo != nil {
+			m.zinfo.Close()
+		}
+		if m.cache != nil {
+			m.cache.Close()
+		}
+	})
 }
