@@ -361,11 +361,20 @@ func hasSize(name string, size int) check {
 }
 
 func getRootNode(t *testing.T, r reader.Reader, opaque OverlayOpaqueType) *node {
-	rootNode, err := newNode(testStateLayerDigest, &testReader{r}, &testBlobState{10, 5}, 100, opaque, false, nil, idtools.IDMap{})
+	rootNode, err := newNode(testStateLayerDigest, &testReader{r}, &testBlobState{10, 5}, 100, opaque, false, nil, idtools.IDMap{}, "")
 	if err != nil {
 		t.Fatalf("failed to get root node: %v", err)
 	}
 	fusefs.NewNodeFS(rootNode, &fusefs.Options{}) // initializes root node
+	return rootNode.(*node)
+}
+
+func getRootNodeWithStatfsBase(t *testing.T, r reader.Reader, opaque OverlayOpaqueType, statfsBase string) *node {
+	rootNode, err := newNode(testStateLayerDigest, &testReader{r}, &testBlobState{10, 5}, 100, opaque, false, nil, idtools.IDMap{}, statfsBase)
+	if err != nil {
+		t.Fatalf("failed to get root node: %v", err)
+	}
+	fusefs.NewNodeFS(rootNode, &fusefs.Options{})
 	return rootNode.(*node)
 }
 
@@ -706,4 +715,50 @@ func extraModeToTarMode(fm os.FileMode) (tm int64) {
 		tm |= cISVTX
 	}
 	return
+}
+
+func testStatfs(t *testing.T, factory metadata.Store) {
+	tarEntry := []testutil.TarEntry{testutil.File("foo.txt", sampleData1)}
+	ztoc, sr, err := ztoc.BuildZtocReader(t, tarEntry, gzip.DefaultCompression, sampleSpanSize)
+	if err != nil {
+		t.Fatalf("failed to build ztoc: %v", err)
+	}
+	mr, err := factory(sr, ztoc.TOC)
+	if err != nil {
+		t.Fatalf("failed to create metadata reader: %v", err)
+	}
+	defer mr.Close()
+
+	spanManager := spanmanager.New(ztoc, sr, cache.NewMemoryCache(), 0)
+	r, err := reader.NewReader(mr, digest.FromString(""), spanManager, false)
+	if err != nil {
+		t.Fatalf("failed to create reader: %v", err)
+	}
+	defer r.Close()
+
+	// Case1: empty statfsBase -> zero stats
+	rootEmpty := getRootNode(t, r, OverlayOpaqueAll)
+	var out fuse.StatfsOut
+	if errno := rootEmpty.Operations().(fusefs.NodeStatfser).Statfs(context.Background(), &out); errno != 0 {
+		t.Fatalf("Statfs failed: %v", errno)
+	}
+	if out.Blocks != 0 || out.Files != 0 {
+		t.Fatalf("expected zero stats for empty base, got Blocks=%d Files=%d", out.Blocks, out.Files)
+	}
+
+	// Case2: valid statfsBase -> non-zero stats
+	dir, err := os.MkdirTemp("", "statfsbase")
+	if err != nil {
+		t.Fatalf("failed to create temp dir: %v", err)
+	}
+	defer os.RemoveAll(dir)
+
+	rootWith := getRootNodeWithStatfsBase(t, r, OverlayOpaqueAll, dir)
+	var out2 fuse.StatfsOut
+	if errno := rootWith.Operations().(fusefs.NodeStatfser).Statfs(context.Background(), &out2); errno != 0 {
+		t.Fatalf("Statfs with base failed: %v", errno)
+	}
+	if out2.Blocks == 0 || out2.Bsize == 0 {
+		t.Fatalf("expected non-zero stats for valid base, got Blocks=%d Bsize=%d", out2.Blocks, out2.Bsize)
+	}
 }

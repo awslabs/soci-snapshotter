@@ -461,7 +461,7 @@ func (l *layer) RootNode(baseInode uint32, idMapper idtools.IDMap) (fusefs.Inode
 	if l.isClosed() {
 		return nil, fmt.Errorf("layer is already closed")
 	}
-	return newNode(l.desc.Digest, l.r, l.blob, baseInode, l.resolver.overlayOpaqueType, l.resolver.config.LogFuseOperations, l.fuseOperationCounter, idMapper)
+	return newNode(l.desc.Digest, l.r, l.blob, baseInode, l.resolver.overlayOpaqueType, l.resolver.config.LogFuseOperations, l.fuseOperationCounter, idMapper, l.resolver.rootDir)
 }
 
 func (l *layer) ReadAt(p []byte, offset int64, opts ...remote.Option) (int, error) {
