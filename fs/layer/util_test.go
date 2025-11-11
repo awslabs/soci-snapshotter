@@ -361,7 +361,20 @@ func hasSize(name string, size int) check {
 }
 
 func getRootNode(t *testing.T, r reader.Reader, opaque OverlayOpaqueType) *node {
-	rootNode, err := newNode(testStateLayerDigest, &testReader{r}, &testBlobState{10, 5}, 100, opaque, false, nil, idtools.IDMap{}, "")
+	l := &layer{
+		resolver: &Resolver{
+			overlayOpaqueType: opaque,
+		},
+		desc: ocispec.Descriptor{
+			Digest: testStateLayerDigest,
+		},
+		blob: &blobRef{
+			Blob: &testBlobState{10, 5},
+			done: func() {},
+		},
+		r: &testReader{r},
+	}
+	rootNode, err := newNode(l, 100, idtools.IDMap{})
 	if err != nil {
 		t.Fatalf("failed to get root node: %v", err)
 	}
@@ -370,7 +383,21 @@ func getRootNode(t *testing.T, r reader.Reader, opaque OverlayOpaqueType) *node 
 }
 
 func getRootNodeWithStatfsBase(t *testing.T, r reader.Reader, opaque OverlayOpaqueType, statfsBase string) *node {
-	rootNode, err := newNode(testStateLayerDigest, &testReader{r}, &testBlobState{10, 5}, 100, opaque, false, nil, idtools.IDMap{}, statfsBase)
+	l := &layer{
+		resolver: &Resolver{
+			overlayOpaqueType: opaque,
+			rootDir:           statfsBase,
+		},
+		desc: ocispec.Descriptor{
+			Digest: testStateLayerDigest,
+		},
+		blob: &blobRef{
+			Blob: &testBlobState{10, 5},
+			done: func() {},
+		},
+		r: &testReader{r},
+	}
+	rootNode, err := newNode(l, 100, idtools.IDMap{})
 	if err != nil {
 		t.Fatalf("failed to get root node: %v", err)
 	}

@@ -190,27 +190,28 @@ func (f *FuseOperationCounter) Run(ctx context.Context) {
 
 // logFSOperations may cause sensitive information to be emitted to logs
 // e.g. filenames and paths within an image
-func newNode(layerDgst digest.Digest, r reader.Reader, blob remote.Blob, baseInode uint32, opaque OverlayOpaqueType, logFSOperations bool, opCounter *FuseOperationCounter, idMapper idtools.IDMap, statfsBase string) (fusefs.InodeEmbedder, error) {
+func newNode(l *layer, baseInode uint32, idMapper idtools.IDMap) (fusefs.InodeEmbedder, error) {
+	r := l.r
 	rootID := r.Metadata().RootID()
 	rootAttr, err := r.Metadata().GetAttr(rootID)
 	if err != nil {
 		return nil, err
 	}
-	opq, ok := opaqueXattrs[opaque]
+	opq, ok := opaqueXattrs[l.resolver.overlayOpaqueType]
 	if !ok {
 		return nil, fmt.Errorf("unknown overlay opaque type")
 	}
 	ffs := &fs{
-		r:                r,
-		layerDigest:      layerDgst,
+		r:                l.r,
+		layerDigest:      l.desc.Digest,
 		baseInode:        baseInode,
 		rootID:           rootID,
 		opaqueXattrs:     opq,
-		logFSOperations:  logFSOperations,
-		operationCounter: opCounter,
-		statfsBase:       statfsBase,
+		logFSOperations:  l.resolver.config.LogFuseOperations,
+		operationCounter: l.fuseOperationCounter,
+		statfsBase:       l.resolver.rootDir,
 	}
-	ffs.s = ffs.newState(layerDgst, blob)
+	ffs.s = ffs.newState(l.desc.Digest, l.blob)
 	return &node{
 		id:       rootID,
 		attr:     rootAttr,
