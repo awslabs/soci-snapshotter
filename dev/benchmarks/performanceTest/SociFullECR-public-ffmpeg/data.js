@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1762197713355,
+  "lastUpdate": 1762820932836,
   "repoUrl": "https://github.com/awslabs/soci-snapshotter",
   "entries": {
     "Soci Benchmark": [
@@ -14817,6 +14817,48 @@ window.BENCHMARK_DATA = {
           {
             "name": "SociFullECR-public-ffmpeg-pullTaskDuration",
             "value": 1.929,
+            "unit": "Seconds",
+            "extra": "P90"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "davbson@amazon.com",
+            "name": "David Son",
+            "username": "sondavidb"
+          },
+          "committer": {
+            "email": "55555210+sondavidb@users.noreply.github.com",
+            "name": "David Son",
+            "username": "sondavidb"
+          },
+          "distinct": true,
+          "id": "88fe5688e9adba8232e2f72053919bd3a5e53a4b",
+          "message": "Remove Go patch version requirement\n\nSigned-off-by: David Son <davbson@amazon.com>",
+          "timestamp": "2025-11-10T19:20:37-05:00",
+          "tree_id": "ab4f34126cedb40bbd3cbb24f627e8d0e5ca2154",
+          "url": "https://github.com/awslabs/soci-snapshotter/commit/88fe5688e9adba8232e2f72053919bd3a5e53a4b"
+        },
+        "date": 1762820927475,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "SociFullECR-public-ffmpeg-lazyTaskDuration",
+            "value": 0.127,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-ffmpeg-localTaskDuration",
+            "value": 0.0075,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-ffmpeg-pullTaskDuration",
+            "value": 1.5905,
             "unit": "Seconds",
             "extra": "P90"
           }
