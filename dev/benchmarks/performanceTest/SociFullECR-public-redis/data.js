@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1762197716578,
+  "lastUpdate": 1762820931391,
   "repoUrl": "https://github.com/awslabs/soci-snapshotter",
   "entries": {
     "Soci Benchmark": [
@@ -14816,6 +14816,48 @@ window.BENCHMARK_DATA = {
           {
             "name": "SociFullECR-public-redis-pullTaskDuration",
             "value": 1.6165,
+            "unit": "Seconds",
+            "extra": "P90"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "davbson@amazon.com",
+            "name": "David Son",
+            "username": "sondavidb"
+          },
+          "committer": {
+            "email": "55555210+sondavidb@users.noreply.github.com",
+            "name": "David Son",
+            "username": "sondavidb"
+          },
+          "distinct": true,
+          "id": "88fe5688e9adba8232e2f72053919bd3a5e53a4b",
+          "message": "Remove Go patch version requirement\n\nSigned-off-by: David Son <davbson@amazon.com>",
+          "timestamp": "2025-11-10T19:20:37-05:00",
+          "tree_id": "ab4f34126cedb40bbd3cbb24f627e8d0e5ca2154",
+          "url": "https://github.com/awslabs/soci-snapshotter/commit/88fe5688e9adba8232e2f72053919bd3a5e53a4b"
+        },
+        "date": 1762820928595,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "SociFullECR-public-redis-lazyTaskDuration",
+            "value": 0.528,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-redis-localTaskDuration",
+            "value": 0.024,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-redis-pullTaskDuration",
+            "value": 1.2670000000000001,
             "unit": "Seconds",
             "extra": "P90"
           }
