@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1762974653335,
+  "lastUpdate": 1762974676367,
   "repoUrl": "https://github.com/awslabs/soci-snapshotter",
   "entries": {
     "Soci Benchmark": [
@@ -14860,6 +14860,47 @@ window.BENCHMARK_DATA = {
           {
             "name": "SociFullECR-public-mongo-pullTaskDuration",
             "value": 0.8295,
+            "unit": "Seconds",
+            "extra": "P90"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "abushwang@tencent.com",
+            "name": "abushwang"
+          },
+          "committer": {
+            "email": "55555210+sondavidb@users.noreply.github.com",
+            "name": "David Son",
+            "username": "sondavidb"
+          },
+          "distinct": true,
+          "id": "e97b5e9fa021b2015b55e16765c798abd7efee79",
+          "message": "refactor newNode to simplify function header\n\nSigned-off-by: abushwang <abushwang@tencent.com>",
+          "timestamp": "2025-11-12T14:01:48-05:00",
+          "tree_id": "b6e58cc6ae9bd1c2544641f97d01596d0e005ae6",
+          "url": "https://github.com/awslabs/soci-snapshotter/commit/e97b5e9fa021b2015b55e16765c798abd7efee79"
+        },
+        "date": 1762974674054,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "SociFullECR-public-mongo-lazyTaskDuration",
+            "value": 4.292,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-mongo-localTaskDuration",
+            "value": 0.295,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-mongo-pullTaskDuration",
+            "value": 1.2429999999999999,
             "unit": "Seconds",
             "extra": "P90"
           }
