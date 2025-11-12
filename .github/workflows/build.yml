@@ -18,6 +18,7 @@ on:
       - 'Dockerfile'
       - 'integration/**'
       - 'scripts/**'
+      - 'ztoc/**' # Includes flatbuf + C files
       - '!benchmark/**'
 
 env:
