@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1762974646829,
+  "lastUpdate": 1762974678679,
   "repoUrl": "https://github.com/awslabs/soci-snapshotter",
   "entries": {
     "Soci Benchmark": [
@@ -14737,6 +14737,47 @@ window.BENCHMARK_DATA = {
           {
             "name": "SociFullECR-public-rabbitmq-pullTaskDuration",
             "value": 0.9784999999999999,
+            "unit": "Seconds",
+            "extra": "P90"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "abushwang@tencent.com",
+            "name": "abushwang"
+          },
+          "committer": {
+            "email": "55555210+sondavidb@users.noreply.github.com",
+            "name": "David Son",
+            "username": "sondavidb"
+          },
+          "distinct": true,
+          "id": "e97b5e9fa021b2015b55e16765c798abd7efee79",
+          "message": "refactor newNode to simplify function header\n\nSigned-off-by: abushwang <abushwang@tencent.com>",
+          "timestamp": "2025-11-12T14:01:48-05:00",
+          "tree_id": "b6e58cc6ae9bd1c2544641f97d01596d0e005ae6",
+          "url": "https://github.com/awslabs/soci-snapshotter/commit/e97b5e9fa021b2015b55e16765c798abd7efee79"
+        },
+        "date": 1762974673634,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "SociFullECR-public-rabbitmq-lazyTaskDuration",
+            "value": 15.158,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-rabbitmq-localTaskDuration",
+            "value": 9.6395,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-rabbitmq-pullTaskDuration",
+            "value": 1.4195,
             "unit": "Seconds",
             "extra": "P90"
           }
