@@ -18,6 +18,7 @@ package ztoc
 
 import (
 	"bytes"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -32,7 +33,10 @@ import (
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 )
 
-var ErrInvalidTOCEntry = errors.New("invalid toc entry")
+var (
+	ErrInvalidTOCEntry = errors.New("invalid toc entry")
+	PrefetchSeparator  = []byte("---SOCI-PREFETCH---")
+)
 
 // Marshal serializes Ztoc to its flatbuffers schema and returns a reader along with the descriptor (digest and size only).
 // If not successful, it will return an error.
@@ -42,13 +46,34 @@ func Marshal(ztoc *Ztoc) (io.Reader, ocispec.Descriptor, error) {
 		return nil, ocispec.Descriptor{}, err
 	}
 
-	buf := bytes.NewReader(flatbuf)
-	dgst := digest.FromBytes(flatbuf)
-	size := len(flatbuf)
-	return buf, ocispec.Descriptor{
-		Digest: dgst,
-		Size:   int64(size),
-	}, nil
+	if len(ztoc.PrefetchFiles) == 0 {
+		buf := bytes.NewReader(flatbuf)
+		dgst := digest.FromBytes(flatbuf)
+		size := len(flatbuf)
+		return buf, ocispec.Descriptor{
+			Digest: dgst,
+			Size:   int64(size),
+		}, nil
+	}
+
+	metadataBytes, err := json.Marshal(ztoc.PrefetchFiles)
+	if err != nil {
+		return nil, ocispec.Descriptor{}, fmt.Errorf("failed to marshal prefetch metadata: %w", err)
+	}
+
+	var combinedBuf bytes.Buffer
+	combinedBuf.Write(flatbuf)
+	combinedBuf.Write(PrefetchSeparator)
+	combinedBuf.Write(metadataBytes)
+
+	combinedData := combinedBuf.Bytes()
+	desc := ocispec.Descriptor{
+		Digest: digest.FromBytes(combinedData),
+		Size:   int64(len(combinedData)),
+	}
+
+	fmt.Printf("Created ztoc blob with prefetch metadata for %d files\n", len(ztoc.PrefetchFiles))
+	return bytes.NewReader(combinedData), desc, nil
 }
 
 // Unmarshal takes the reader with flatbuffers byte stream and deserializes it ztoc.
@@ -59,7 +84,36 @@ func Unmarshal(serializedZtoc io.Reader) (*Ztoc, error) {
 		return nil, err
 	}
 
-	return flatbufToZtoc(flatbuf)
+	separator := PrefetchSeparator
+	separatorIndex := bytes.Index(flatbuf, separator)
+
+	var ztocData []byte
+	var prefetchFiles []PrefetchFileInfo
+
+	if separatorIndex == -1 {
+		ztocData = flatbuf
+	} else {
+		ztocData = flatbuf[:separatorIndex]
+		jsonStart := separatorIndex + len(separator)
+
+		if jsonStart < len(flatbuf) {
+			jsonData := flatbuf[jsonStart:]
+			if err := json.Unmarshal(jsonData, &prefetchFiles); err != nil {
+				return nil, fmt.Errorf("failed to unmarshal prefetch files: %w", err)
+			}
+		}
+	}
+
+	ztoc, err := flatbufToZtoc(ztocData)
+	if err != nil {
+		return nil, fmt.Errorf("failed to unmarshal ztoc: %w", err)
+	}
+
+	if len(prefetchFiles) > 0 {
+		ztoc.PrefetchFiles = prefetchFiles
+	}
+
+	return ztoc, nil
 }
 
 func flatbufToZtoc(flatbuffer []byte) (z *Ztoc, err error) {
