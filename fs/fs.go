@@ -944,7 +944,7 @@ func (fs *filesystem) IDMapMount(ctx context.Context, mountpoint, activeLayerID 
 	l := fs.layer[mountpoint]
 	if l == nil {
 		fs.layerMu.Unlock()
-		logger.Error("failed to create remote id-mapped mount")
+		logger.Warnf("failed to create remote id-mapped mount: %s", errdefs.ErrNotFound)
 		return "", errdefs.ErrNotFound
 	}
 	fs.layer[newMountpoint] = l
