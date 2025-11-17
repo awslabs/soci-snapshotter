@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1762974679781,
+  "lastUpdate": 1763418926377,
   "repoUrl": "https://github.com/awslabs/soci-snapshotter",
   "entries": {
     "Soci Benchmark": [
@@ -14819,6 +14819,48 @@ window.BENCHMARK_DATA = {
           {
             "name": "SociFullECR-public-tensorflow_gpu-pullTaskDuration",
             "value": 2.0035,
+            "unit": "Seconds",
+            "extra": "P90"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "davbson@amazon.com",
+            "name": "David Son",
+            "username": "sondavidb"
+          },
+          "committer": {
+            "email": "55555210+sondavidb@users.noreply.github.com",
+            "name": "David Son",
+            "username": "sondavidb"
+          },
+          "distinct": true,
+          "id": "a6982c310a92fa118aa3bf72b48b496b195f257d",
+          "message": "Lower Error to Warn in remote mount id-mapping\n\nSigned-off-by: David Son <davbson@amazon.com>",
+          "timestamp": "2025-11-17T17:25:22-05:00",
+          "tree_id": "6ead4b035fa097befe85113be9de81916a866377",
+          "url": "https://github.com/awslabs/soci-snapshotter/commit/a6982c310a92fa118aa3bf72b48b496b195f257d"
+        },
+        "date": 1763418924159,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "SociFullECR-public-tensorflow_gpu-lazyTaskDuration",
+            "value": 31.0735,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-tensorflow_gpu-localTaskDuration",
+            "value": 2.8434999999999997,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-tensorflow_gpu-pullTaskDuration",
+            "value": 2.6295,
             "unit": "Seconds",
             "extra": "P90"
           }
