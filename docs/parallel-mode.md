@@ -91,3 +91,15 @@ Achieving optimal performance with the _parallel-pull-unpack_ mode requires care
 Please monitor your system's CPU, memory, and storage utilization when running the _parallel-pull-unpack_ mode. Adjust the configuration parameters as needed to find the right balance between performance gains and system stability. We recommend enabling this mode on high-performance infrastructure with ample CPU, memory, and storage resources.
 
 If you have any questions or need further assistance, please don't hesitate to reach out to the SOCI Snapshotter community.
+
+## Known Limitations
+
+### Registries
+
+Any registry that supports ranged GET requests and has sufficient request limits should work with parallel pull mode. If a registry is rate limiting image pull requests, users can attempt to lower `max_concurrent_downloads` or `max_concurrent_downloads_per_image` and see if it alleviates the issue, however this will result in less of a performance benefit compared to regular pulling.
+
+If you are having issues with parallel pull mode on registries that sufficiently support both, please cut us an issue and we can look into it.
+
+The following registries are known to have issues with parallel pull mode:
+
+- DockerHub — unverified users have a low request limit, which can lead to requests being throttled if SOCI is making too many requests at once.
