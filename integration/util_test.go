@@ -852,7 +852,7 @@ func getReferrers(sh *shell.Shell, regConfig registryConfig, imgName, digest str
 	return &index, nil
 }
 
-func rebootContainerd(t *testing.T, sh *shell.Shell, customContainerdConfig, customSnapshotterConfig string) *testutil.LogMonitor {
+func rebootContainerd(t *testing.T, sh *shell.Shell, customContainerdConfig, customSnapshotterConfig string, monitorFuncs ...func(string)) *testutil.LogMonitor {
 	var (
 		containerdRoot    = "/var/lib/containerd"
 		containerdStatus  = "/run/containerd/"
@@ -901,9 +901,22 @@ func rebootContainerd(t *testing.T, sh *shell.Shell, customContainerdConfig, cus
 	}
 	reporter := testutil.NewTestingReporter(t)
 	m := testutil.NewLogMonitor(reporter, outR, errR)
+	startupFunc, startCh := testutil.MonitorStartup()
+	monitorFuncs = append(monitorFuncs, startupFunc)
+	for _, f := range monitorFuncs {
+		m.Add(f)
+	}
 
-	if err = testutil.LogConfirmStartup(m); err != nil {
+	if err := m.Start(); err != nil {
+		t.Fatalf("LogMonitor failed to startup: %v", err)
+	}
+	if err := testutil.LogConfirmStartup(startCh); err != nil {
 		t.Fatalf("snapshotter startup failed: %v", err)
+	}
+
+	// If we only care about snapshotter startup, preemptively cleanup to avoid dangling resources
+	if len(monitorFuncs) == 1 {
+		m.Cleanup(t)
 	}
 
 	// make sure containerd and soci-snapshotter-grpc are up-and-running

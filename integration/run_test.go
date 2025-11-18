@@ -352,12 +352,24 @@ func TestNetworkRetry(t *testing.T) {
 				t.Fatalf("attempt to run task requiring network access failed: %s", err)
 			}
 
-			successChannel := make(chan string, 1)
-			failureChannel := make(chan string, 1)
+			// nerdctl v2 introduced some warning messages when using default networking.
+			// This is a workaround to ignore the first stderr output as it is just warnings of us using defaults.
+			// Fixing this would be either suppressing ONLY that warning, or bypassing it from outputting at all,
+			// but I'm not sure if either solution is possible.
+			expectNumWarnings := 2
 
-			listener := func(c chan string) func(string) {
+			successChLen := 1
+			failureChLen := expectNumWarnings + 1
+			successChannel := make(chan string, successChLen)
+			failureChannel := make(chan string, failureChLen)
+
+			listener := func(c chan string, count int) func(string) {
+				n := 0
 				return func(rawLog string) {
-					c <- rawLog
+					if n < count {
+						n++
+						c <- rawLog
+					}
 				}
 			}
 
@@ -367,18 +379,19 @@ func TestNetworkRetry(t *testing.T) {
 			r := testutil.NewTestingReporter(t)
 
 			stdoutLogMonitor := testutil.NewLogMonitor(r, cmdStdout, strings.NewReader(""))
-			stdoutLogMonitor.Add("listener", listener(successChannel))
-			defer stdoutLogMonitor.Remove("listener")
+			stdoutLogMonitor.Add(listener(successChannel, successChLen))
+			if err := stdoutLogMonitor.Start(); err != nil {
+				t.Fatalf("LogMonitor failed to startup: %v", err)
+			}
+			defer stdoutLogMonitor.Cleanup(t)
 
 			stderrLogMonitor := testutil.NewLogMonitor(r, strings.NewReader(""), cmdStderr)
-			stderrLogMonitor.Add("listener", listener(failureChannel))
-			defer stderrLogMonitor.Remove("listener")
+			stderrLogMonitor.Add(listener(failureChannel, failureChLen))
+			if err := stderrLogMonitor.Start(); err != nil {
+				t.Fatalf("LogMonitor failed to startup: %v", err)
+			}
+			defer stderrLogMonitor.Cleanup(t)
 
-			// nerdctl v2 introduced some warning messages when using default networking.
-			// This is a workaround to ignore the first stderr output as it is just warnings of us using defaults.
-			// Fixing this would be either suppressing ONLY that warning, or bypassing it from outputting at all,
-			// but I'm not sure if either solution is possible.
-			expectNumWarnings := 2
 			for msgCount := 0; msgCount < expectNumWarnings; msgCount++ {
 				select {
 				case data := <-failureChannel:
@@ -392,7 +405,7 @@ func TestNetworkRetry(t *testing.T) {
 							t.Fatalf("unexpected warning when starting up container; %s", data)
 						}
 					}
-				case <-time.After(5*time.Second + timeNetworkDisabled):
+				case <-time.After(5 * time.Second):
 					t.Fatal("container did not send expected startup warnings")
 				}
 			}

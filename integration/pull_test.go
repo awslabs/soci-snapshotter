@@ -313,9 +313,9 @@ func TestLazyPull(t *testing.T) {
 					want: fromNormalSnapshotter(optimizedMirror1.ref),
 					test: func(t *testing.T, tarExportArgs ...string) {
 						image := optimizedMirror1.ref
-						m := rebootContainerd(t, sh, "", getSnapshotterConfigToml(t, bgFetchVariant.opt))
-						rsm, done := testutil.NewRemoteSnapshotMonitor(m)
-						defer done()
+						rsm := testutil.NewRemoteSnapshotMonitor()
+						m := rebootContainerd(t, sh, "", getSnapshotterConfigToml(t, bgFetchVariant.opt), rsm.MonitorFunc)
+						defer m.Cleanup(t)
 						export(sh, image, tarExportArgs)
 						rsm.CheckAllRemoteSnapshots(t)
 					},
@@ -325,9 +325,9 @@ func TestLazyPull(t *testing.T) {
 					want: fromNormalSnapshotter(optimizedMirror1.ref),
 					test: func(t *testing.T, tarExportArgs ...string) {
 						image := optimizedMirror1.ref
-						m := rebootContainerd(t, sh, "", getSnapshotterConfigToml(t, bgFetchVariant.opt))
-						rsm, done := testutil.NewRemoteSnapshotMonitor(m)
-						defer done()
+						rsm := testutil.NewRemoteSnapshotMonitor()
+						m := rebootContainerd(t, sh, "", getSnapshotterConfigToml(t, bgFetchVariant.opt), rsm.MonitorFunc)
+						defer m.Cleanup(t)
 						sh.X(append(imagePullCmd, "--soci-index-digest", indexDigest2, regConfig.mirror(optimizedImageName2).ref)...)
 						export(sh, image, tarExportArgs)
 						rsm.CheckAllRemoteSnapshots(t)
@@ -402,9 +402,9 @@ func TestLazyPullNoIndexDigest(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			m := rebootContainerd(t, sh, "", "")
-			rsm, done := testutil.NewRemoteSnapshotMonitor(m)
-			defer done()
+			rsm := testutil.NewRemoteSnapshotMonitor()
+			m := rebootContainerd(t, sh, "", "", rsm.MonitorFunc)
+			defer m.Cleanup(t)
 			testSameTarContents(t, sh, tt.want, tt.test)
 			if tt.checkAllRemoteSnapshots {
 				rsm.CheckAllRemoteSnapshots(t)
@@ -456,11 +456,10 @@ func TestPullWrongIndexDigest(t *testing.T) {
 	sh.X("nerdctl", "tag", image1IndexRef, wrongImageIndexRef)
 	sh.X("nerdctl", "image", "push", wrongImageIndexRef)
 
-	m := rebootContainerd(t, sh, "", "")
-	rsm, rsmDone := testutil.NewRemoteSnapshotMonitor(m)
-	defer rsmDone()
-	idm := testutil.NewIndexDigestMonitor(m)
-	defer idm.Close()
+	rsm := testutil.NewRemoteSnapshotMonitor()
+	idm := testutil.NewIndexDigestMonitor()
+	m := rebootContainerd(t, sh, "", "", rsm.MonitorFunc, idm.MonitorFunc)
+	defer m.Cleanup(t)
 	sh.X(append(imagePullCmd, "--soci-index-digest", image1IndexDigest, image2Mirror.ref)...)
 	rsm.CheckAllLocalSnapshots(t)
 	if idm.IndexDigest != image1IndexDigest {
