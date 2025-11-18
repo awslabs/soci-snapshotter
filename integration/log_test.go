@@ -22,8 +22,6 @@ import (
 	"time"
 )
 
-const sensitiveInfoMonitorKey = "sensitive-info-monitor"
-
 // TestSnapshotterDoesNotLogSensitiveInformation verifies that the snapshotter
 // doesn't log sensitive information during various operations.
 func TestSnapshotterDoesNotLogSensitiveInformation(t *testing.T) {
@@ -59,10 +57,9 @@ func TestSnapshotterDoesNotLogSensitiveInformation(t *testing.T) {
 				done()
 			})
 
-			logMonitor := rebootContainerd(t, sh, getContainerdConfigToml(t, false), getSnapshotterConfigToml(t, tc.opts...))
-			logMonitor.Add(sensitiveInfoMonitorKey, sensitiveInfoMonitor(t, sensitivePatterns...))
+			logMonitor := rebootContainerd(t, sh, getContainerdConfigToml(t, false), getSnapshotterConfigToml(t, tc.opts...), sensitiveInfoMonitor(t, sensitivePatterns...))
 			t.Cleanup(func() {
-				logMonitor.Remove(sensitiveInfoMonitorKey)
+				logMonitor.Cleanup(t)
 			})
 
 			copyImage(sh, dockerhub(image), regConfig.mirror(image))
