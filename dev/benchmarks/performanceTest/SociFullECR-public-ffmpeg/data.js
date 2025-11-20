@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1763418927566,
+  "lastUpdate": 1763680703556,
   "repoUrl": "https://github.com/awslabs/soci-snapshotter",
   "entries": {
     "Soci Benchmark": [
@@ -14984,6 +14984,48 @@ window.BENCHMARK_DATA = {
           {
             "name": "SociFullECR-public-ffmpeg-pullTaskDuration",
             "value": 1.7850000000000001,
+            "unit": "Seconds",
+            "extra": "P90"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49699333+dependabot[bot]@users.noreply.github.com",
+            "name": "dependabot[bot]",
+            "username": "dependabot[bot]"
+          },
+          "committer": {
+            "email": "arjunry@amazon.com",
+            "name": "Arjun",
+            "username": "coderbirju"
+          },
+          "distinct": true,
+          "id": "142eba47cec482dcc3105c746b6e8776c97870d3",
+          "message": "Bump golang.org/x/crypto from 0.43.0 to 0.45.0\n\nBumps [golang.org/x/crypto](https://github.com/golang/crypto) from 0.43.0 to 0.45.0.\n- [Commits](https://github.com/golang/crypto/compare/v0.43.0...v0.45.0)\n\n---\nupdated-dependencies:\n- dependency-name: golang.org/x/crypto\n  dependency-version: 0.45.0\n  dependency-type: direct:production\n...\n\nSigned-off-by: dependabot[bot] <support@github.com>\nCo-authored-by: Arjun Raja Yogidas <arjunry@amazon.com>",
+          "timestamp": "2025-11-20T15:09:30-08:00",
+          "tree_id": "fcb0605f2e0b86617138a1e54e6a09ad54c86696",
+          "url": "https://github.com/awslabs/soci-snapshotter/commit/142eba47cec482dcc3105c746b6e8776c97870d3"
+        },
+        "date": 1763680694307,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "SociFullECR-public-ffmpeg-lazyTaskDuration",
+            "value": 0.27649999999999997,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-ffmpeg-localTaskDuration",
+            "value": 0.0075,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-ffmpeg-pullTaskDuration",
+            "value": 1.677,
             "unit": "Seconds",
             "extra": "P90"
           }
