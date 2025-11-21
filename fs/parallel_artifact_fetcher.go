@@ -301,6 +301,7 @@ func writeToFileRange(file *os.File, rsc io.ReadCloser, lower, upper int64) erro
 	// Reading any more or less will result in an incorrect file being created,
 	// so use io.CopyN to guarantee we read exactly lower - upper + 1 bytes.
 	_, err := io.CopyN(w, rsc, readSize)
+	io.Copy(io.Discard, rsc) // Drain remaining data
 	if err != nil {
 		return fmt.Errorf("failed to write to temp file %s at offset %d: %w", file.Name(), lower, err)
 	}
