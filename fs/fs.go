@@ -258,7 +258,7 @@ func NewFilesystem(ctx context.Context, root string, cfg config.FSConfig, opts .
 	var bgFetcher *bf.BackgroundFetcher
 
 	if !cfg.BackgroundFetchConfig.Disable {
-		log.G(context.Background()).WithFields(logrus.Fields{
+		log.G(ctx).WithFields(logrus.Fields{
 			"fetchPeriod":      bgFetchPeriod,
 			"silencePeriod":    bgSilencePeriod,
 			"maxQueueSize":     bgMaxQueueSize,
@@ -273,9 +273,9 @@ func NewFilesystem(ctx context.Context, root string, cfg config.FSConfig, opts .
 		if err != nil {
 			return nil, fmt.Errorf("cannot create background fetcher: %w", err)
 		}
-		go bgFetcher.Run(context.Background())
+		go bgFetcher.Run(ctx)
 	} else {
-		log.G(context.Background()).Info("background fetch is disabled")
+		log.G(ctx).Info("background fetch is disabled")
 	}
 
 	r, err := layer.NewResolver(root, cfg, fsOpts.resolveHandlers, metadataStore, store, fsOpts.overlayOpaqueType, bgFetcher)

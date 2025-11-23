@@ -363,7 +363,8 @@ func (f *httpFetcher) fetch(ctx context.Context, rs []region, retry bool) (multi
 }
 
 func (f *httpFetcher) check() error {
-	ctx := context.Background()
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
 	f.urlMu.Lock()
 	url := f.realURL
 	f.urlMu.Unlock()
@@ -382,7 +383,8 @@ func (f *httpFetcher) check() error {
 		return nil
 	case http.StatusForbidden:
 		// Try to re-redirect this blob
-		rCtx := context.Background()
+		rCtx, cancel := context.WithCancel(context.Background())
+		defer cancel()
 		if err := f.refreshURL(rCtx); err == nil {
 			return nil
 		}

@@ -18,7 +18,6 @@ package ztoc
 
 import (
 	"archive/tar"
-	"context"
 	"fmt"
 	"io"
 	"os"
@@ -195,7 +194,7 @@ func (zt Ztoc) ExtractFile(r *io.SectionReader, filename string) ([]byte, error)
 
 	bufSize := checkpoints[len(checkpoints)-1] - checkpoints[0]
 	buf := make([]byte, bufSize)
-	eg, _ := errgroup.WithContext(context.Background())
+	var eg errgroup.Group
 
 	// Fetch all span data in parallel
 	for i := compression.SpanID(0); i < numSpans; i++ {
