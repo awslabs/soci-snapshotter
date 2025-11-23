@@ -29,8 +29,8 @@
 [Unit]
 Description=soci snapshotter containerd plugin
 Documentation=https://github.com/awslabs/soci-snapshotter
-After=network.target
-Before=containerd.service
+After=network.target containerd.service
+Requires=containerd.service
 
 [Service]
 Type=notify
