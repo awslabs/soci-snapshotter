@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1764001187472,
+  "lastUpdate": 1764014394595,
   "repoUrl": "https://github.com/awslabs/soci-snapshotter",
   "entries": {
     "Soci Benchmark": [
@@ -14903,6 +14903,48 @@ window.BENCHMARK_DATA = {
           {
             "name": "SociFullECR-public-node-pullTaskDuration",
             "value": 1.9609999999999999,
+            "unit": "Seconds",
+            "extra": "P90"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "davbson@amazon.com",
+            "name": "David Son",
+            "username": "sondavidb"
+          },
+          "committer": {
+            "email": "55555210+sondavidb@users.noreply.github.com",
+            "name": "David Son",
+            "username": "sondavidb"
+          },
+          "distinct": true,
+          "id": "546eba2db00fcbba26272c5a9391ff27f614be39",
+          "message": "Run CI on ztoc module changes\n\nSigned-off-by: David Son <davbson@amazon.com>",
+          "timestamp": "2025-11-24T14:50:50-05:00",
+          "tree_id": "7281e3e6152b7474374789d877119792eadc6528",
+          "url": "https://github.com/awslabs/soci-snapshotter/commit/546eba2db00fcbba26272c5a9391ff27f614be39"
+        },
+        "date": 1764014389622,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "SociFullECR-public-node-lazyTaskDuration",
+            "value": 2.184,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-node-localTaskDuration",
+            "value": 0.477,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-node-pullTaskDuration",
+            "value": 2.2889999999999997,
             "unit": "Seconds",
             "extra": "P90"
           }
