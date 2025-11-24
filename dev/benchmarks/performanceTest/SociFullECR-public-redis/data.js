@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1764014633260,
+  "lastUpdate": 1764015734224,
   "repoUrl": "https://github.com/awslabs/soci-snapshotter",
   "entries": {
     "Soci Benchmark": [
@@ -15235,6 +15235,48 @@ window.BENCHMARK_DATA = {
           {
             "name": "SociFullECR-public-redis-pullTaskDuration",
             "value": 1.9255,
+            "unit": "Seconds",
+            "extra": "P90"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "davbson@amazon.com",
+            "name": "David Son",
+            "username": "sondavidb"
+          },
+          "committer": {
+            "email": "55555210+sondavidb@users.noreply.github.com",
+            "name": "David Son",
+            "username": "sondavidb"
+          },
+          "distinct": true,
+          "id": "e387001e4f6b392b5211519cddecb7412cb03bc0",
+          "message": "Bump containerd + runc versions in CI\n\nSigned-off-by: David Son <davbson@amazon.com>",
+          "timestamp": "2025-11-24T15:13:46-05:00",
+          "tree_id": "b5724ec375c80a11d73cdf04eeeb57f1965ac665",
+          "url": "https://github.com/awslabs/soci-snapshotter/commit/e387001e4f6b392b5211519cddecb7412cb03bc0"
+        },
+        "date": 1764015730224,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "SociFullECR-public-redis-lazyTaskDuration",
+            "value": 0.4565,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-redis-localTaskDuration",
+            "value": 0.0245,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-redis-pullTaskDuration",
+            "value": 1.357,
             "unit": "Seconds",
             "extra": "P90"
           }
