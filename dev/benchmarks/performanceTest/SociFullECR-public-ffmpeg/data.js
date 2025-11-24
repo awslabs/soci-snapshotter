@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1764018810309,
+  "lastUpdate": 1764024922389,
   "repoUrl": "https://github.com/awslabs/soci-snapshotter",
   "entries": {
     "Soci Benchmark": [
@@ -15320,6 +15320,48 @@ window.BENCHMARK_DATA = {
           {
             "name": "SociFullECR-public-ffmpeg-pullTaskDuration",
             "value": 1.8415,
+            "unit": "Seconds",
+            "extra": "P90"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "davbson@amazon.com",
+            "name": "David Son",
+            "username": "sondavidb"
+          },
+          "committer": {
+            "email": "55555210+sondavidb@users.noreply.github.com",
+            "name": "David Son",
+            "username": "sondavidb"
+          },
+          "distinct": true,
+          "id": "b0ee43284310a1c05b986696bac4d46249d1e74c",
+          "message": "Upgrade Go 1.24.10 in CI\n\nSigned-off-by: David Son <davbson@amazon.com>",
+          "timestamp": "2025-11-24T17:46:01-05:00",
+          "tree_id": "aca3ff1b674860e8d7a0481812c6ba6c70b43b0d",
+          "url": "https://github.com/awslabs/soci-snapshotter/commit/b0ee43284310a1c05b986696bac4d46249d1e74c"
+        },
+        "date": 1764024920380,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "SociFullECR-public-ffmpeg-lazyTaskDuration",
+            "value": 0.1855,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-ffmpeg-localTaskDuration",
+            "value": 0.008,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-ffmpeg-pullTaskDuration",
+            "value": 2.019,
             "unit": "Seconds",
             "extra": "P90"
           }
