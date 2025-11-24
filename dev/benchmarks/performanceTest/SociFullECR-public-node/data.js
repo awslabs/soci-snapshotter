@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1763680699363,
+  "lastUpdate": 1764001187472,
   "repoUrl": "https://github.com/awslabs/soci-snapshotter",
   "entries": {
     "Soci Benchmark": [
@@ -14861,6 +14861,48 @@ window.BENCHMARK_DATA = {
           {
             "name": "SociFullECR-public-node-pullTaskDuration",
             "value": 1.8775,
+            "unit": "Seconds",
+            "extra": "P90"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "henwang@amazon.com",
+            "name": "Henry Wang",
+            "username": "henry118"
+          },
+          "committer": {
+            "email": "55555210+sondavidb@users.noreply.github.com",
+            "name": "David Son",
+            "username": "sondavidb"
+          },
+          "distinct": true,
+          "id": "7a6464abb91054de30797d02d70475d0f5f3ce2e",
+          "message": "Make sure draining the resp body for range-gets\n\nSigned-off-by: Henry Wang <henwang@amazon.com>",
+          "timestamp": "2025-11-24T11:10:15-05:00",
+          "tree_id": "94f56140fc11d809abac787e0c5333cb992fdcde",
+          "url": "https://github.com/awslabs/soci-snapshotter/commit/7a6464abb91054de30797d02d70475d0f5f3ce2e"
+        },
+        "date": 1764001179253,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "SociFullECR-public-node-lazyTaskDuration",
+            "value": 4.601,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-node-localTaskDuration",
+            "value": 0.496,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-node-pullTaskDuration",
+            "value": 1.9609999999999999,
             "unit": "Seconds",
             "extra": "P90"
           }
