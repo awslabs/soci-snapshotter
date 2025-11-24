@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1764001178158,
+  "lastUpdate": 1764014390965,
   "repoUrl": "https://github.com/awslabs/soci-snapshotter",
   "entries": {
     "Soci Benchmark": [
@@ -15068,6 +15068,48 @@ window.BENCHMARK_DATA = {
           {
             "name": "SociFullECR-public-ffmpeg-pullTaskDuration",
             "value": 1.587,
+            "unit": "Seconds",
+            "extra": "P90"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "davbson@amazon.com",
+            "name": "David Son",
+            "username": "sondavidb"
+          },
+          "committer": {
+            "email": "55555210+sondavidb@users.noreply.github.com",
+            "name": "David Son",
+            "username": "sondavidb"
+          },
+          "distinct": true,
+          "id": "546eba2db00fcbba26272c5a9391ff27f614be39",
+          "message": "Run CI on ztoc module changes\n\nSigned-off-by: David Son <davbson@amazon.com>",
+          "timestamp": "2025-11-24T14:50:50-05:00",
+          "tree_id": "7281e3e6152b7474374789d877119792eadc6528",
+          "url": "https://github.com/awslabs/soci-snapshotter/commit/546eba2db00fcbba26272c5a9391ff27f614be39"
+        },
+        "date": 1764014388102,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "SociFullECR-public-ffmpeg-lazyTaskDuration",
+            "value": 0.159,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-ffmpeg-localTaskDuration",
+            "value": 0.007,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-ffmpeg-pullTaskDuration",
+            "value": 1.8275000000000001,
             "unit": "Seconds",
             "extra": "P90"
           }
