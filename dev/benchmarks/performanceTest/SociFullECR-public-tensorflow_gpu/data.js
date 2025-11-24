@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1764018814981,
+  "lastUpdate": 1764024929228,
   "repoUrl": "https://github.com/awslabs/soci-snapshotter",
   "entries": {
     "Soci Benchmark": [
@@ -15197,6 +15197,48 @@ window.BENCHMARK_DATA = {
           {
             "name": "SociFullECR-public-tensorflow_gpu-pullTaskDuration",
             "value": 2.2465,
+            "unit": "Seconds",
+            "extra": "P90"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "davbson@amazon.com",
+            "name": "David Son",
+            "username": "sondavidb"
+          },
+          "committer": {
+            "email": "55555210+sondavidb@users.noreply.github.com",
+            "name": "David Son",
+            "username": "sondavidb"
+          },
+          "distinct": true,
+          "id": "b0ee43284310a1c05b986696bac4d46249d1e74c",
+          "message": "Upgrade Go 1.24.10 in CI\n\nSigned-off-by: David Son <davbson@amazon.com>",
+          "timestamp": "2025-11-24T17:46:01-05:00",
+          "tree_id": "aca3ff1b674860e8d7a0481812c6ba6c70b43b0d",
+          "url": "https://github.com/awslabs/soci-snapshotter/commit/b0ee43284310a1c05b986696bac4d46249d1e74c"
+        },
+        "date": 1764024923071,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "SociFullECR-public-tensorflow_gpu-lazyTaskDuration",
+            "value": 16.3495,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-tensorflow_gpu-localTaskDuration",
+            "value": 2.827,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-tensorflow_gpu-pullTaskDuration",
+            "value": 2.4245,
             "unit": "Seconds",
             "extra": "P90"
           }
