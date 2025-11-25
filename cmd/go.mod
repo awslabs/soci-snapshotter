@@ -9,13 +9,13 @@ require (
 	github.com/containerd/log v0.1.0
 	github.com/containerd/platforms v0.2.1
 	github.com/coreos/go-systemd/v22 v22.6.0
-	github.com/docker/cli v29.0.0+incompatible
+	github.com/docker/cli v29.0.4+incompatible
 	github.com/docker/go-metrics v0.0.1
 	github.com/opencontainers/go-digest v1.0.0
 	github.com/opencontainers/image-spec v1.1.1
 	github.com/pelletier/go-toml/v2 v2.2.4
 	github.com/sirupsen/logrus v1.9.3
-	github.com/urfave/cli/v3 v3.6.0
+	github.com/urfave/cli/v3 v3.6.1
 	go.etcd.io/bbolt v1.4.3
 	golang.org/x/sys v0.38.0
 	google.golang.org/grpc v1.59.0
