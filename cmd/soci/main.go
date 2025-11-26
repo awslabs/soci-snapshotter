@@ -39,6 +39,7 @@ import (
 
 	"github.com/awslabs/soci-snapshotter/cmd/soci/commands"
 	"github.com/awslabs/soci-snapshotter/cmd/soci/commands/index"
+	"github.com/awslabs/soci-snapshotter/cmd/soci/commands/prefetch"
 	"github.com/awslabs/soci-snapshotter/cmd/soci/commands/ztoc"
 	"github.com/awslabs/soci-snapshotter/config"
 	"github.com/awslabs/soci-snapshotter/soci"
@@ -89,6 +90,7 @@ func main() {
 		Commands: []*cli.Command{
 			index.Command,
 			ztoc.Command,
+			prefetch.Command,
 			commands.CreateCommand,
 			commands.ConvertCommand,
 			commands.PushCommand,
