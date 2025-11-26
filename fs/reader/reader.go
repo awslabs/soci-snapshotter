@@ -128,6 +128,9 @@ func (gr *reader) Close() (retErr error) {
 		return nil
 	}
 	gr.closed = true
+	if gr.spanManager != nil {
+		gr.spanManager.Close()
+	}
 	if err := gr.r.Close(); err != nil {
 		retErr = errors.Join(retErr, err)
 	}

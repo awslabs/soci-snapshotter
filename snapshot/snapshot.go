@@ -1117,6 +1117,26 @@ func (o *snapshotter) restoreRemoteSnapshot(ctx context.Context) error {
 		return err
 	}
 	for _, info := range task {
+		if err := func() error {
+			ctx, t, err := o.ms.TransactionContext(ctx, false)
+			if err != nil {
+				return err
+			}
+			defer t.Rollback()
+			id, _, _, err := storage.GetInfo(ctx, info.Name)
+			if err != nil {
+				return err
+			}
+			if err := os.Mkdir(filepath.Join(o.root, "snapshots", id), 0700); err != nil && !os.IsExist(err) {
+				return err
+			}
+			if err := os.Mkdir(o.upperPath(id), 0755); err != nil && !os.IsExist(err) {
+				return err
+			}
+			return nil
+		}(); err != nil {
+			return fmt.Errorf("failed to create remote snapshot directory: %s: %w", info.Name, err)
+		}
 		ns, ok := info.Labels[source.TargetNamespace]
 		if !ok {
 			return ErrNoNamespace
