@@ -16,7 +16,7 @@ This document provides instructions on how to use the SOCI CLI. And a comprehens
 - [soci rebuild_db](#soci-rebuild_db)
 - [soci index](#soci-index)
 - [soci ztoc](#soci-ztoc)
-
+- [soci prefetch](#soci-prefetch)
 
 ### soci create
 Creates SOCI index for an image (SOCI Index Manifest v1)
@@ -184,3 +184,43 @@ Sub commands:
     ```
     soci ztoc info sha256:5c0f5cb700f596d
     ```
+
+### soci prefetch
+
+Manage prefetch artifacts that define which spans should be prefetched for lazy-loaded layers.
+
+**Subcommands:**
+
+- ```ls``` (or ```list```): List all prefetch artifacts
+
+    Usage: ```soci prefetch ls [flags]```
+
+    Flags:
+    - ```--json```: Output in JSON format
+
+    Output columns:
+    - `DIGEST`: The digest of the prefetch artifact
+    - `LAYER DIGEST`: The digest of the layer this prefetch artifact applies to
+    - `SPANS`: Total number of spans to prefetch
+    - `CREATED`: When the prefetch artifact was created (relative time)
+
+    **Example:** 
+    ```
+    soci prefetch ls
+    ```
+
+- ```info```: Display detailed information about a prefetch artifact
+
+    Usage: ```soci prefetch info [flags] <digest>```
+
+    Arguments:
+    - `<digest>`: The digest of the prefetch artifact to inspect
+
+    Flags:
+    - ```--json```: Output raw JSON
+
+    **Example:** 
+    ```
+    soci prefetch info sha256:f8715bbab4e73d8f282010f4c0eb1a9ed863e95a7bc3e2cd0c8e332569ebe233
+    ```
+
