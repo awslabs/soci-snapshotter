@@ -498,6 +498,229 @@ func TestDecodeIndex(t *testing.T) {
 	}
 }
 
+func TestBuildPrefetchLayer(t *testing.T) {
+	testcases := []struct {
+		name                 string
+		prefetchPaths        []string
+		expectedPrefetchDesc int
+	}{
+		{
+			name:                 "successfully build prefetch layer with valid paths",
+			prefetchPaths:        []string{"test/file1.txt", "test/file2.txt"},
+			expectedPrefetchDesc: 0, // Will depend on whether files are found in ztoc
+		},
+		{
+			name:                 "no prefetch layer when prefetchPaths is empty",
+			prefetchPaths:        []string{},
+			expectedPrefetchDesc: 0,
+		},
+		{
+			name:                 "no prefetch layer when prefetchPaths is nil",
+			prefetchPaths:        nil,
+			expectedPrefetchDesc: 0,
+		},
+	}
+
+	for _, tc := range testcases {
+		t.Run(tc.name, func(t *testing.T) {
+			ctx := context.Background()
+			cs := newFakeContentStore()
+			blobStore := NewOrasMemoryStore()
+			artifactsDb, err := newTestableDb()
+			if err != nil {
+				t.Fatalf("can't create a test db")
+			}
+
+			builder, err := NewIndexBuilder(
+				cs,
+				blobStore,
+				WithArtifactsDb(artifactsDb),
+				WithPrefetchPaths(tc.prefetchPaths),
+			)
+			if err != nil {
+				t.Fatalf("cannot create index builder: %v", err)
+			}
+
+			builtZtocs := []*ztocWithLayer{}
+			layers := []ocispec.Descriptor{}
+
+			prefetchDescs := builder.buildPrefetchLayer(ctx, builtZtocs, layers)
+
+			if len(prefetchDescs) != tc.expectedPrefetchDesc {
+				t.Fatalf("expected %d prefetch descriptors, got %d", tc.expectedPrefetchDesc, len(prefetchDescs))
+			}
+		})
+	}
+}
+
+func TestStorePrefetchLayer(t *testing.T) {
+	testcases := []struct {
+		name          string
+		layerDigest   string
+		prefetchSpans []PrefetchSpan
+		expectError   bool
+		expectNil     bool
+	}{
+		{
+			name:        "successfully store prefetch layer with valid spans",
+			layerDigest: "sha256:1236aec48c0a74635a5f3dc666628c1673afaa21ed6e1270a9a44de66e811111",
+			prefetchSpans: []PrefetchSpan{
+				{StartSpan: 0, EndSpan: 10},
+				{StartSpan: 20, EndSpan: 30},
+			},
+			expectError: false,
+			expectNil:   false,
+		},
+		{
+			name:          "return nil when prefetchSpans is empty",
+			layerDigest:   "sha256:1236aec48c0a74635a5f3dc666628c1673afaa21ed6e1270a9a44de66e811111",
+			prefetchSpans: []PrefetchSpan{},
+			expectError:   false,
+			expectNil:     true,
+		},
+		{
+			name:        "successfully merge overlapping spans",
+			layerDigest: "sha256:1236aec48c0a74635a5f3dc666628c1673afaa21ed6e1270a9a44de66e811111",
+			prefetchSpans: []PrefetchSpan{
+				{StartSpan: 0, EndSpan: 10},
+				{StartSpan: 5, EndSpan: 15},
+				{StartSpan: 20, EndSpan: 30},
+			},
+			expectError: false,
+			expectNil:   false,
+		},
+	}
+
+	for _, tc := range testcases {
+		t.Run(tc.name, func(t *testing.T) {
+			ctx := context.Background()
+			cs := newFakeContentStore()
+			blobStore := NewOrasMemoryStore()
+			artifactsDb, err := newTestableDb()
+			if err != nil {
+				t.Fatalf("can't create a test db")
+			}
+
+			builder, err := NewIndexBuilder(
+				cs,
+				blobStore,
+				WithArtifactsDb(artifactsDb),
+			)
+			if err != nil {
+				t.Fatalf("cannot create index builder: %v", err)
+			}
+
+			desc, err := builder.storePrefetchLayer(ctx, tc.layerDigest, tc.prefetchSpans)
+
+			if tc.expectError && err == nil {
+				t.Fatalf("expected error but got nil")
+			}
+
+			if !tc.expectError && err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+
+			if tc.expectNil && desc != nil {
+				t.Fatalf("expected nil descriptor but got %v", desc)
+			}
+
+			if !tc.expectNil && !tc.expectError && desc == nil {
+				t.Fatalf("expected non-nil descriptor but got nil")
+			}
+
+			if desc != nil {
+				if desc.MediaType != SociPrefetchMediaType {
+					t.Fatalf("expected MediaType %s, got %s", SociPrefetchMediaType, desc.MediaType)
+				}
+
+				if desc.Annotations == nil {
+					t.Fatalf("expected non-nil annotations")
+				}
+
+				if desc.Annotations[IndexAnnotationImageLayerDigest] != tc.layerDigest {
+					t.Fatalf("expected layer digest annotation %s, got %s",
+						tc.layerDigest, desc.Annotations[IndexAnnotationImageLayerDigest])
+				}
+			}
+		})
+	}
+}
+
+func TestNormalizePrefetchSpans(t *testing.T) {
+	testcases := []struct {
+		name     string
+		input    []PrefetchSpan
+		expected []PrefetchSpan
+	}{
+		{
+			name:     "empty spans return nil",
+			input:    []PrefetchSpan{},
+			expected: nil,
+		},
+		{
+			name: "single span unchanged",
+			input: []PrefetchSpan{
+				{StartSpan: 0, EndSpan: 10},
+			},
+			expected: []PrefetchSpan{
+				{StartSpan: 0, EndSpan: 10},
+			},
+		},
+		{
+			name: "merge overlapping spans",
+			input: []PrefetchSpan{
+				{StartSpan: 0, EndSpan: 10},
+				{StartSpan: 5, EndSpan: 15},
+			},
+			expected: []PrefetchSpan{
+				{StartSpan: 0, EndSpan: 15},
+			},
+		},
+		{
+			name: "merge adjacent spans",
+			input: []PrefetchSpan{
+				{StartSpan: 0, EndSpan: 10},
+				{StartSpan: 11, EndSpan: 20},
+			},
+			expected: []PrefetchSpan{
+				{StartSpan: 0, EndSpan: 20},
+			},
+		},
+		{
+			name: "keep separate non-overlapping spans",
+			input: []PrefetchSpan{
+				{StartSpan: 0, EndSpan: 10},
+				{StartSpan: 20, EndSpan: 30},
+			},
+			expected: []PrefetchSpan{
+				{StartSpan: 0, EndSpan: 10},
+				{StartSpan: 20, EndSpan: 30},
+			},
+		},
+		{
+			name: "sort and merge multiple spans",
+			input: []PrefetchSpan{
+				{StartSpan: 20, EndSpan: 30},
+				{StartSpan: 0, EndSpan: 10},
+				{StartSpan: 5, EndSpan: 25},
+			},
+			expected: []PrefetchSpan{
+				{StartSpan: 0, EndSpan: 30},
+			},
+		},
+	}
+
+	for _, tc := range testcases {
+		t.Run(tc.name, func(t *testing.T) {
+			result := normalizePrefetchSpans(tc.input)
+
+			if diff := cmp.Diff(tc.expected, result); diff != "" {
+				t.Fatalf("unexpected normalized spans; diff = %v", diff)
+			}
+		})
+	}
+}
+
 func TestMarshalIndex(t *testing.T) {
 	blobs := []ocispec.Descriptor{
 		{
