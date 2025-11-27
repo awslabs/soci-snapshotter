@@ -34,6 +34,7 @@ package integration
 
 import (
 	"bytes"
+	"encoding/json"
 	"fmt"
 	"path/filepath"
 	"strings"
@@ -67,6 +68,7 @@ type indexBuildConfig struct {
 	namespace                string
 	runRebuildDbBeforeCreate bool
 	forceRecreateZtocs       bool
+	prefetchPaths            []string
 }
 
 // indexBuildOption is a functional argument to update `indexBuildConfig`
@@ -82,6 +84,11 @@ func withIndexBuildConfig(newIbc indexBuildConfig) indexBuildOption {
 		ibc.namespace = newIbc.namespace
 		ibc.runRebuildDbBeforeCreate = newIbc.runRebuildDbBeforeCreate
 		ibc.forceRecreateZtocs = newIbc.forceRecreateZtocs
+		if len(newIbc.prefetchPaths) > 0 {
+			ibc.prefetchPaths = append([]string{}, newIbc.prefetchPaths...)
+		} else {
+			ibc.prefetchPaths = nil
+		}
 	}
 }
 
@@ -117,6 +124,19 @@ func withSpanSize(spanSize int64) indexBuildOption {
 func withMinLayerSize(minLayerSize int64) indexBuildOption {
 	return func(ibc *indexBuildConfig) {
 		ibc.minLayerSize = minLayerSize
+	}
+}
+
+// withPrefetchPaths configures the list of files to include in the prefetch artifact when calling `buildIndex`
+func withPrefetchPaths(paths ...string) indexBuildOption {
+	return func(ibc *indexBuildConfig) {
+		for _, p := range paths {
+			p = strings.TrimSpace(p)
+			if p == "" {
+				continue
+			}
+			ibc.prefetchPaths = append(ibc.prefetchPaths, p)
+		}
 	}
 }
 
@@ -167,11 +187,14 @@ func buildIndex(sh *shell.Shell, src imageInfo, opt ...indexBuildOption) string 
 		"--min-layer-size", fmt.Sprintf("%d", indexBuildConfig.minLayerSize),
 		"--span-size", fmt.Sprintf("%d", indexBuildConfig.spanSize),
 		"--platform", platforms.Format(src.platform),
-		src.ref,
 	}
 	if indexBuildConfig.forceRecreateZtocs {
 		createCommand = append(createCommand, "--force")
 	}
+	for _, p := range indexBuildConfig.prefetchPaths {
+		createCommand = append(createCommand, "--prefetch-file", p)
+	}
+	createCommand = append(createCommand, src.ref)
 
 	shx := sh.X
 	if indexBuildConfig.allowErrors {
@@ -274,4 +297,86 @@ func sociIndexFromDigest(sh *shell.Shell, indexDigest string) (index soci.Index,
 		err = fmt.Errorf("invalid soci index from digest %s: %s", indexDigest, err)
 	}
 	return
+}
+
+func assertPrefetchArtifactCreated(sh *shell.Shell, indexDigest string, img imageInfo, expectedPrefetchPath string) error {
+	idx, err := sociIndexFromDigest(sh, indexDigest)
+	if err != nil {
+		return err
+	}
+
+	var prefetchDescs []ocispec.Descriptor
+	for _, blob := range idx.Blobs {
+		if blob.MediaType == soci.SociPrefetchMediaType {
+			prefetchDescs = append(prefetchDescs, blob)
+		}
+	}
+
+	if len(prefetchDescs) != 1 {
+		return fmt.Errorf("expected exactly 1 prefetch descriptor for %s, got %d", expectedPrefetchPath, len(prefetchDescs))
+	}
+
+	prefetchDesc := prefetchDescs[0]
+	if prefetchDesc.MediaType != soci.SociPrefetchMediaType {
+		return fmt.Errorf("unexpected media type %s for prefetch descriptor", prefetchDesc.MediaType)
+	}
+
+	if prefetchDesc.Annotations == nil {
+		return fmt.Errorf("prefetch descriptor missing annotations")
+	}
+
+	layerDigest := prefetchDesc.Annotations[soci.IndexAnnotationImageLayerDigest]
+	if layerDigest == "" {
+		return fmt.Errorf("prefetch descriptor missing %s annotation", soci.IndexAnnotationImageLayerDigest)
+	}
+
+	manifestDigestStr, err := getManifestDigest(sh, img.ref, img.platform)
+	if err != nil {
+		return fmt.Errorf("failed to get manifest digest: %w", err)
+	}
+
+	manifestDigest, err := digest.Parse(manifestDigestStr)
+	if err != nil {
+		return fmt.Errorf("failed to parse manifest digest %s: %w", manifestDigestStr, err)
+	}
+
+	manifestBytes, err := FetchContentByDigest(sh, store.ContainerdContentStoreType, manifestDigest)
+	if err != nil {
+		return fmt.Errorf("failed to fetch manifest %s: %w", manifestDigestStr, err)
+	}
+
+	var manifest ocispec.Manifest
+	if err := json.Unmarshal(manifestBytes, &manifest); err != nil {
+		return fmt.Errorf("failed to unmarshal manifest: %w", err)
+	}
+
+	layerFound := false
+	for _, layer := range manifest.Layers {
+		if layer.Digest.String() == layerDigest {
+			layerFound = true
+			break
+		}
+	}
+	if !layerFound {
+		return fmt.Errorf("prefetch artifact references unknown layer %s", layerDigest)
+	}
+
+	artifactBytes, err := FetchContentByDigest(sh, config.DefaultContentStoreType, prefetchDesc.Digest)
+	if err != nil {
+		return fmt.Errorf("failed to fetch prefetch artifact %s: %w", prefetchDesc.Digest.String(), err)
+	}
+
+	if int64(len(artifactBytes)) != prefetchDesc.Size {
+		return fmt.Errorf("prefetch artifact size mismatch; descriptor=%d bytes, blob=%d bytes", prefetchDesc.Size, len(artifactBytes))
+	}
+
+	artifact, err := soci.UnmarshalPrefetchArtifact(bytes.NewReader(artifactBytes))
+	if err != nil {
+		return fmt.Errorf("failed to decode prefetch artifact: %w", err)
+	}
+	if len(artifact.PrefetchSpans) == 0 {
+		return fmt.Errorf("prefetch artifact for %s contains no spans", expectedPrefetchPath)
+	}
+
+	return nil
 }
