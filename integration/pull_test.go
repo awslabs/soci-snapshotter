@@ -88,7 +88,7 @@ func TestOptimizeConsistentSociArtifact(t *testing.T) {
 	for _, tt := range tests {
 		for _, contentStoreType := range store.ContentStoreTypes() {
 			t.Run(tt.name+" with "+string(contentStoreType+" content store"), func(t *testing.T) {
-				contentStorePath, err := store.GetContentStorePath(contentStoreType)
+				contentStorePath, err := store.GetContentStorePath(contentStoreType, "")
 				if err != nil {
 					t.Fatalf("cannot get local content store path: %v", err)
 				}

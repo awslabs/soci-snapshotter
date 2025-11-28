@@ -18,6 +18,7 @@ package internal
 
 import (
 	"context"
+	"path/filepath"
 
 	"github.com/awslabs/soci-snapshotter/soci/store"
 	"github.com/urfave/cli/v3"
@@ -27,8 +28,16 @@ import (
 func ContentStoreOptions(ctx context.Context, cmd *cli.Command) []store.Option {
 	contentStore := cmd.String("content-store")
 	address := cmd.String("address")
+	root := cmd.String("root")
+	var snapshotterRoot string
+	if root != "" {
+		snapshotterRoot = root
+	} else {
+		snapshotterRoot = filepath.Dir(store.DefaultSociContentStorePath)
+	}
 	return []store.Option{
 		store.WithType(store.ContentStoreType(contentStore)),
 		store.WithContainerdAddress(address),
+		store.WithSnapshotterRoot(snapshotterRoot),
 	}
 }
