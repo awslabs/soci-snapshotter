@@ -40,7 +40,7 @@ import (
 
 // GetContentStoreBlobPath returns the bottom level directory for the content store, e.g. "/blobs/sha256".
 func GetContentStoreBlobPath(contentStoreType store.ContentStoreType) (string, error) {
-	contentStorePath, err := store.GetContentStorePath(contentStoreType)
+	contentStorePath, err := store.GetContentStorePath(contentStoreType, "")
 	if err != nil {
 		return "", err
 	}

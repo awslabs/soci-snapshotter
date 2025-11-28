@@ -54,7 +54,10 @@ var RebuildDBCommand = &cli.Command{
 		}
 
 		contentStoreType := cmd.String("content-store")
-		contentStorePath, err := store.GetContentStorePath(store.ContentStoreType(contentStoreType))
+		contentStorePath, err := store.GetContentStorePath(
+			store.ContentStoreType(contentStoreType),
+			cmd.String("root"),
+		)
 		if err != nil {
 			return err
 		}

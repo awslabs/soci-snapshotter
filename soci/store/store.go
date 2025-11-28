@@ -21,6 +21,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"path/filepath"
 	"sync"
 	"time"
 
@@ -71,7 +72,7 @@ const (
 	DefaultContainerdContentStorePath = "/var/lib/containerd/io.containerd.content.v1.content"
 
 	// Default path to soci content addressable storage
-	DefaultSociContentStorePath = "/var/lib/soci-snapshotter-grpc/content"
+	DefaultSociContentStorePath = config.DefaultSociSnapshotterRootPath + "content"
 )
 
 func ErrUnknownContentStoreType(contentStoreType ContentStoreType) error {
@@ -122,7 +123,8 @@ func (c *ContainerdClient) Client() (*containerd.Client, error) {
 
 type ContentStoreConfig struct {
 	config.ContentStoreConfig
-	ctdClient *ContainerdClient
+	ctdClient       *ContainerdClient
+	SnapshotterRoot string
 }
 
 func NewStoreConfig(opts ...Option) ContentStoreConfig {
@@ -153,6 +155,12 @@ func WithContainerdAddress(address string) Option {
 	}
 }
 
+func WithSnapshotterRoot(root string) Option {
+	return func(sc *ContentStoreConfig) {
+		sc.SnapshotterRoot = root
+	}
+}
+
 func WithClient(client *ContainerdClient) Option {
 	return func(sc *ContentStoreConfig) {
 		sc.ctdClient = client
@@ -173,7 +181,7 @@ func CanonicalizeContentStoreType(contentStoreType ContentStoreType) (ContentSto
 }
 
 // GetContentStorePath returns the top level directory for the content store.
-func GetContentStorePath(contentStoreType ContentStoreType) (string, error) {
+func GetContentStorePath(contentStoreType ContentStoreType, root string) (string, error) {
 	contentStoreType, err := CanonicalizeContentStoreType(contentStoreType)
 	if err != nil {
 		return "", err
@@ -182,7 +190,10 @@ func GetContentStorePath(contentStoreType ContentStoreType) (string, error) {
 	case ContainerdContentStoreType:
 		return DefaultContainerdContentStorePath, nil
 	case SociContentStoreType:
-		return DefaultSociContentStorePath, nil
+		if root == "" {
+			return DefaultSociContentStorePath, nil
+		}
+		return filepath.Join(root, "content"), nil
 	}
 	return "", errors.New("unexpectedly reached end of GetContentStorePath")
 }
@@ -202,7 +213,11 @@ func NewContentStore(opts ...Option) (Store, error) {
 	case ContainerdContentStoreType:
 		return NewContainerdStore(storeConfig)
 	case SociContentStoreType:
-		return NewSociStore()
+		path, err := GetContentStorePath(SociContentStoreType, storeConfig.SnapshotterRoot)
+		if err != nil {
+			return nil, err
+		}
+		return NewSociStore(path)
 	}
 	return nil, errors.New("unexpectedly reached end of NewContentStore")
 }
@@ -216,8 +231,11 @@ type SociStore struct {
 var _ Store = (*SociStore)(nil)
 
 // NewSociStore creates a sociStore.
-func NewSociStore() (*SociStore, error) {
-	store, err := oci.New(DefaultSociContentStorePath)
+func NewSociStore(path string) (*SociStore, error) {
+	if path == "" {
+		path = DefaultSociContentStorePath
+	}
+	store, err := oci.New(path)
 	return &SociStore{store}, err
 }
 

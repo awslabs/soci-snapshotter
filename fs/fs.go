@@ -250,6 +250,7 @@ func NewFilesystem(ctx context.Context, root string, cfg config.FSConfig, opts .
 		store.WithType(cfg.ContentStoreConfig.Type),
 		store.WithContainerdAddress(cfg.ContentStoreConfig.ContainerdAddress),
 		store.WithClient(client),
+		store.WithSnapshotterRoot(filepath.Dir(root)),
 	)
 	if err != nil {
 		return nil, fmt.Errorf("cannot create content store: %w", err)
