@@ -27,8 +27,10 @@ import (
 func ContentStoreOptions(ctx context.Context, cmd *cli.Command) []store.Option {
 	contentStore := cmd.String("content-store")
 	address := cmd.String("address")
+	root := cmd.String("root")
 	return []store.Option{
 		store.WithType(store.ContentStoreType(contentStore)),
 		store.WithContainerdAddress(address),
+		store.WithSnapshotterRoot(root),
 	}
 }

@@ -103,7 +103,7 @@ func TestStoreGetContentStorePath(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.input, func(t *testing.T) {
-			output, err := GetContentStorePath(ContentStoreType(tt.input))
+			output, err := GetContentStorePath(ContentStoreType(tt.input), "")
 			if err != nil {
 				if !tt.fail {
 					t.Fatalf("content store type \"%s\" produced path %s with unexpected error %v", tt.input, output, err)
