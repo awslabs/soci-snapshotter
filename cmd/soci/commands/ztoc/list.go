@@ -18,6 +18,7 @@ package ztoc
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -25,7 +26,9 @@ import (
 
 	"github.com/awslabs/soci-snapshotter/cmd/soci/commands/internal"
 	"github.com/awslabs/soci-snapshotter/soci"
+	"github.com/containerd/containerd/errdefs"
 	"github.com/containerd/containerd/images"
+	"github.com/containerd/log"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/urfave/cli/v3"
 )
@@ -96,7 +99,11 @@ var listCommand = &cli.Command{
 			for _, indexInfo := range indexInfos {
 				readerAt, err := cs.ReaderAt(ctx, indexInfo.Descriptor)
 				if err != nil {
-					return fmt.Errorf("failed to read a soci index with digest %s from the content store (try running \"soci rebuild-db\" first): %w", indexInfo.Descriptor.Digest, err)
+					if errors.Is(err, errdefs.ErrNotFound) {
+						log.G(ctx).Debug("a soci index was found in the artifact store but not in the content store, skipping")
+						continue
+					}
+					return fmt.Errorf("failed to read a soci index with digest %s from the content store: %w", indexInfo.Descriptor.Digest, err)
 				}
 				var sociIndex soci.Index
 				err = soci.DecodeIndex(io.NewSectionReader(readerAt, 0, indexInfo.Descriptor.Size), &sociIndex)

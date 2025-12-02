@@ -92,19 +92,6 @@ func withForceRecreateZtocs(forceRecreateZtocs bool) indexBuildOption {
 	}
 }
 
-// withRebuildDbBeforeCreate syncs the artifact store with the content store before calling "soci create"
-// We do this because the artifact store could be out of sync with the content store when 'soci create' is called.
-// This is problematic in cases where we create soci indexes for some images, delete those indexes and immediately recreate
-// them (like in TestSociIndexRemove) - as there could be ztoc entries in the artifact store which are not present in the
-// content store, causing 'soci create/convert' without --force flag to throw an error.
-//
-// We can run this by default and probably remove this option in the future when the race condition with rebuild-db is solved.
-func withRunRebuildDbBeforeCreate() indexBuildOption {
-	return func(ibc *indexBuildConfig) {
-		ibc.runRebuildDbBeforeCreate = true
-	}
-}
-
 // withSpanSize overrides the default span size to use when creating an index with `buildIndex`
 func withSpanSize(spanSize int64) indexBuildOption {
 	return func(ibc *indexBuildConfig) {
