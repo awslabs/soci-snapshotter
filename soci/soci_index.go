@@ -632,21 +632,26 @@ func (b *IndexBuilder) buildSociLayer(ctx context.Context, desc ocispec.Descript
 
 	existingZtoc := b.getExistingZtocForLayer(desc)
 	if existingZtoc != nil {
+		var shouldOverwrite bool
 		reader, err := b.blobStore.Fetch(ctx, *existingZtoc)
 		if err != nil {
 			if errors.Is(err, errdefs.ErrNotFound) {
-				return nil, fmt.Errorf("a ztoc entry was found in the artifact store but not in the content store (try running \"soci rebuild-db\" first or try again with \"--force\" flag): %w", err)
+				log.G(ctx).Debug("a ztoc entry was found in the artifact store but not in the content store, overwriting existing ztoc")
+				shouldOverwrite = true
+			} else {
+				return nil, fmt.Errorf("failed to fetch existing ztoc: %w", err)
 			}
-			return nil, fmt.Errorf("failed to fetch existing ztoc: %w", err)
 		}
-		toc, err := ztoc.Unmarshal(reader)
-		if err != nil {
-			return nil, fmt.Errorf("cannot unmarshal existing ztoc: %w", err)
-		}
+		if !shouldOverwrite {
+			toc, err := ztoc.Unmarshal(reader)
+			if err != nil {
+				return nil, fmt.Errorf("cannot unmarshal existing ztoc: %w", err)
+			}
 
-		fmt.Printf("layer %s -> ztoc %s (already exists)\n", desc.Digest, existingZtoc.Digest)
-		b.addSociLayerAnnotations(&desc, existingZtoc, toc)
-		return existingZtoc, err
+			fmt.Printf("layer %s -> ztoc %s (already exists)\n", desc.Digest, existingZtoc.Digest)
+			b.addSociLayerAnnotations(&desc, existingZtoc, toc)
+			return existingZtoc, err
+		}
 	}
 
 	ra, err := b.contentStore.ReaderAt(ctx, desc)
