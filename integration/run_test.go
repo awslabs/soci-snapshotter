@@ -128,8 +128,6 @@ func TestRunMultipleContainers(t *testing.T) {
 				buildIndexOpts := []indexBuildOption{withMinLayerSize(0)}
 				if tt.forceRecreateZtocs {
 					buildIndexOpts = append(buildIndexOpts, withForceRecreateZtocs(true))
-				} else {
-					buildIndexOpts = append(buildIndexOpts, withRunRebuildDbBeforeCreate())
 				}
 				indexDigest := buildIndex(sh, regConfig.mirror(container.containerImage), buildIndexOpts...)
 				sh.X("soci", "push", "--user", regConfig.mirror(container.containerImage).creds, regConfig.mirror(container.containerImage).ref)

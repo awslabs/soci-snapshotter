@@ -79,7 +79,7 @@ func prepareCustomSociIndices(t *testing.T, sh *shell.Shell, images []testImageI
 			}
 		}
 		img.imgInfo = dockerhub(imgName, withPlatform(platform))
-		img.sociIndexDigest = buildIndex(sh, img.imgInfo, withIndexBuildConfig(indexBuildConfig), withMinLayerSize(0), withRunRebuildDbBeforeCreate())
+		img.sociIndexDigest = buildIndex(sh, img.imgInfo, withIndexBuildConfig(indexBuildConfig), withMinLayerSize(0))
 		ztocDigests, err := getZtocDigestsForImage(sh, img.imgInfo)
 		if err != nil {
 			t.Fatalf("could not get ztoc digests: %v", err)
@@ -345,7 +345,7 @@ func TestSociIndexRemoveAndRebuildWithSharedLayers(t *testing.T) {
 		// the following 2 images share layers
 		img1 := dockerhub(nginxAlpineImage)
 		img2 := dockerhub(nginxAlpineImage2)
-		imgDigest := buildIndex(sh, img1, withMinLayerSize(0), withRunRebuildDbBeforeCreate())
+		imgDigest := buildIndex(sh, img1, withMinLayerSize(0))
 		if imgDigest == "" {
 			t.Fatal("failed to get soci index for nginx alpine test image")
 		}
