@@ -18,6 +18,7 @@ package store
 
 import (
 	"context"
+	"path/filepath"
 	"testing"
 
 	"github.com/awslabs/soci-snapshotter/config"
@@ -80,30 +81,45 @@ func TestStoreGetContentStorePath(t *testing.T) {
 
 	tests := []struct {
 		input  string
+		root   string
 		output string
 		fail   bool
 	}{
 		{
 			input:  "",
+			root:   "",
 			output: defaultContentStorePath,
 		},
 		{
 			input:  "soci",
+			root:   "",
 			output: DefaultSociContentStorePath,
 		},
 		{
 			input:  "containerd",
+			root:   "",
 			output: DefaultContainerdContentStorePath,
 		},
 		{
 			input: "bad",
+			root:  "",
 			fail:  true,
+		},
+		{
+			input:  "soci",
+			root:   "/tmp/test",
+			output: filepath.Join("/tmp/test", "content"),
+		},
+		{
+			input:  "containerd",
+			root:   "/tmp/test",
+			output: DefaultContainerdContentStorePath,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.input, func(t *testing.T) {
-			output, err := GetContentStorePath(ContentStoreType(tt.input), "")
+			output, err := GetContentStorePath(ContentStoreType(tt.input), tt.root)
 			if err != nil {
 				if !tt.fail {
 					t.Fatalf("content store type \"%s\" produced path %s with unexpected error %v", tt.input, output, err)
