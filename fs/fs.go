@@ -384,8 +384,25 @@ func (c *sociContext) populateImageLayerToSociMapping(sociIndex *soci.Index) {
 	c.imageLayerToSociDesc = make(map[string]ocispec.Descriptor, len(sociIndex.Blobs))
 	for _, desc := range sociIndex.Blobs {
 		ociDigest := desc.Annotations[soci.IndexAnnotationImageLayerDigest]
-		c.imageLayerToSociDesc[ociDigest] = desc
+		if desc.MediaType == soci.SociLayerMediaType {
+			c.imageLayerToSociDesc[ociDigest] = desc
+		}
 	}
+}
+
+func (c *sociContext) findPrefetchArtifact(layerDigest string) *ocispec.Descriptor {
+	if c.sociIndex == nil {
+		return nil
+	}
+
+	for _, desc := range c.sociIndex.Blobs {
+		if desc.MediaType == soci.SociPrefetchMediaType {
+			if ociDigest, ok := desc.Annotations[soci.IndexAnnotationImageLayerDigest]; ok && ociDigest == layerDigest {
+				return &desc
+			}
+		}
+	}
+	return nil
 }
 
 type filesystem struct {
@@ -1023,7 +1040,9 @@ func (fs *filesystem) Mount(ctx context.Context, mountpoint string, labels map[s
 				break
 			}
 
-			l, err := fs.resolver.Resolve(ctx, s.Hosts, s.Name, s.Target, sociDesc, c.fuseOperationCounter, fs.disableVerification)
+			prefetchDesc := c.findPrefetchArtifact(s.Target.Digest.String())
+
+			l, err := fs.resolver.Resolve(ctx, s.Hosts, s.Name, s.Target, sociDesc, c.fuseOperationCounter, fs.disableVerification, prefetchDesc)
 			if err == nil {
 				resultChan <- l
 				return
@@ -1050,7 +1069,9 @@ func (fs *filesystem) Mount(ctx context.Context, mountpoint string, labels map[s
 				return imgNameAndDigest
 			}
 
-			l, err := fs.resolver.Resolve(ctx, preResolve.Hosts, preResolve.Name, desc, sociDesc, c.fuseOperationCounter, fs.disableVerification)
+			prefetchDesc := c.findPrefetchArtifact(desc.Digest.String())
+
+			l, err := fs.resolver.Resolve(ctx, preResolve.Hosts, preResolve.Name, desc, sociDesc, c.fuseOperationCounter, fs.disableVerification, prefetchDesc)
 			if err != nil {
 				log.G(ctx).WithError(err).Debug("failed to pre-resolve")
 				return imgNameAndDigest

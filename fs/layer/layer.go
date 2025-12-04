@@ -45,6 +45,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strconv"
 	"sync"
 	"time"
@@ -64,6 +65,7 @@ import (
 	"github.com/awslabs/soci-snapshotter/util/lrucache"
 	"github.com/awslabs/soci-snapshotter/util/namedmutex"
 	"github.com/awslabs/soci-snapshotter/ztoc"
+	"github.com/awslabs/soci-snapshotter/ztoc/compression"
 	"github.com/containerd/containerd/reference"
 	"github.com/containerd/containerd/remotes/docker"
 	"github.com/containerd/log"
@@ -71,6 +73,7 @@ import (
 	digest "github.com/opencontainers/go-digest"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/sirupsen/logrus"
+	"golang.org/x/sync/semaphore"
 	"oras.land/oras-go/v2/content"
 )
 
@@ -128,6 +131,7 @@ type Resolver struct {
 	artifactStore     content.Storage
 	overlayOpaqueType OverlayOpaqueType
 	bgFetcher         *backgroundfetcher.BackgroundFetcher
+	prefetchSemaphore *semaphore.Weighted
 }
 
 // NewResolver returns a new layer resolver.
@@ -164,6 +168,11 @@ func NewResolver(root string, cfg config.FSConfig, resolveHandlers map[string]re
 		return nil, err
 	}
 
+	var prefetchSem *semaphore.Weighted
+	if cfg.PrefetchMaxConcurrency > 0 {
+		prefetchSem = semaphore.NewWeighted(cfg.PrefetchMaxConcurrency)
+	}
+
 	return &Resolver{
 		rootDir:           root,
 		resolver:          remote.NewResolver(cfg.BlobConfig, resolveHandlers),
@@ -175,6 +184,7 @@ func NewResolver(root string, cfg config.FSConfig, resolveHandlers map[string]re
 		artifactStore:     artifactStore,
 		overlayOpaqueType: overlayOpaqueType,
 		bgFetcher:         bgFetcher,
+		prefetchSemaphore: prefetchSem,
 	}, nil
 }
 
@@ -227,7 +237,8 @@ func newCache(root string, cacheType string, cfg config.FSConfig) (cache.BlobCac
 }
 
 // Resolve resolves a layer based on the passed layer blob information.
-func (r *Resolver) Resolve(ctx context.Context, hosts []docker.RegistryHost, refspec reference.Spec, desc, sociDesc ocispec.Descriptor, opCounter *FuseOperationCounter, disableVerification bool, metadataOpts ...metadata.Option) (_ Layer, retErr error) {
+// prefetchDesc is optional - if provided, it will be used for prefetching spans
+func (r *Resolver) Resolve(ctx context.Context, hosts []docker.RegistryHost, refspec reference.Spec, desc, sociDesc ocispec.Descriptor, opCounter *FuseOperationCounter, disableVerification bool, prefetchDesc *ocispec.Descriptor, metadataOpts ...metadata.Option) (_ Layer, retErr error) {
 	name := refspec.String() + "/" + desc.Digest.String()
 
 	// Wait if resolving this layer is already running. The result
@@ -333,6 +344,11 @@ func (r *Resolver) Resolve(ctx context.Context, hosts []docker.RegistryHost, ref
 		bgLayerResolver = backgroundfetcher.NewSequentialResolver(desc.Digest, spanManager)
 		r.bgFetcher.Add(bgLayerResolver)
 	}
+
+	if err := r.executePrefetch(ctx, spanManager, prefetchDesc); err != nil {
+		log.G(ctx).WithError(err).Warn("Failed to execute prefetch, continuing without prefetch")
+	}
+
 	vr, err := reader.NewReader(meta, desc.Digest, spanManager, disableVerification)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read layer: %w", err)
@@ -525,3 +541,80 @@ type layerRef struct {
 type readerAtFunc func([]byte, int64) (int, error)
 
 func (f readerAtFunc) ReadAt(p []byte, offset int64) (int, error) { return f(p, offset) }
+
+func (r *Resolver) executePrefetch(ctx context.Context, spanManager *spanmanager.SpanManager, prefetchDesc *ocispec.Descriptor) error {
+	if prefetchDesc == nil {
+		return nil
+	}
+
+	prefetchArtifact, err := r.loadPrefetchArtifact(ctx, prefetchDesc)
+	if err != nil {
+		return fmt.Errorf("failed to load prefetch artifact: %w", err)
+	}
+
+	if prefetchArtifact == nil || prefetchArtifact.IsEmpty() {
+		return nil
+	}
+
+	var spansToFetch []compression.SpanID
+	for _, prefetchSpan := range prefetchArtifact.PrefetchSpans {
+		for spanID := prefetchSpan.StartSpan; spanID <= prefetchSpan.EndSpan; spanID++ {
+			spansToFetch = append(spansToFetch, spanID)
+		}
+	}
+
+	if len(spansToFetch) == 0 {
+		return nil
+	}
+
+	if r.prefetchSemaphore != nil {
+		if err := r.prefetchSemaphore.Acquire(ctx, 1); err != nil {
+			return err
+		}
+		defer r.prefetchSemaphore.Release(1)
+	}
+
+	spanChan := make(chan compression.SpanID, len(spansToFetch))
+	numWorkers := runtime.GOMAXPROCS(0)
+	if numWorkers > len(spansToFetch) {
+		numWorkers = len(spansToFetch)
+	}
+
+	var wg sync.WaitGroup
+
+	for i := 0; i < numWorkers; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for spanID := range spanChan {
+				spanManager.ResolveSpan(spanID)
+			}
+		}()
+	}
+
+	for _, spanID := range spansToFetch {
+		spanChan <- spanID
+	}
+	close(spanChan)
+
+	wg.Wait()
+	return nil
+}
+
+func (r *Resolver) loadPrefetchArtifact(ctx context.Context, prefetchDesc *ocispec.Descriptor) (*soci.PrefetchArtifact, error) {
+	log.G(ctx).Infof("Loading prefetch artifact %s", prefetchDesc.Digest)
+
+	reader, err := r.artifactStore.Fetch(ctx, *prefetchDesc)
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch prefetch artifact %s: %w", prefetchDesc.Digest, err)
+	}
+	defer reader.Close()
+
+	artifact, err := soci.UnmarshalPrefetchArtifact(reader)
+	if err != nil {
+		return nil, fmt.Errorf("failed to unmarshal prefetch artifact: %w", err)
+	}
+
+	log.G(ctx).Infof("Successfully loaded prefetch artifact with %d span ranges", len(artifact.PrefetchSpans))
+	return artifact, nil
+}

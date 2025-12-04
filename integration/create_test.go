@@ -24,6 +24,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/awslabs/soci-snapshotter/config"
 	"github.com/awslabs/soci-snapshotter/soci"
@@ -326,6 +327,65 @@ func TestSociCreate(t *testing.T) {
 				t.Fatalf("failed to validate soci index: %v", err)
 			}
 		})
+	}
+}
+
+func TestSociCreateWithPrefetchArtifacts(t *testing.T) {
+	const (
+		// Tar headers record file paths without a leading slash, so the prefetch flag uses the tar path.
+		prefetchTarPath     = "etc/alpine-release"
+		runtimePrefetchPath = "/etc/alpine-release"
+	)
+
+	regConfig := newRegistryConfig()
+	sh, done := newShellWithRegistry(t, regConfig)
+	defer done()
+
+	rebootContainerd(t, sh, "", "")
+
+	mirrorImg := regConfig.mirror(alpineImage)
+	copyImage(sh, dockerhub(alpineImage), mirrorImg)
+
+	indexDigest := buildIndex(sh, mirrorImg, withMinLayerSize(0), withPrefetchPaths(prefetchTarPath))
+	if indexDigest == "" {
+		t.Fatal("failed to build SOCI index with prefetch artifacts")
+	}
+
+	if err := assertPrefetchArtifactCreated(sh, indexDigest, mirrorImg, prefetchTarPath); err != nil {
+		t.Fatal(err)
+	}
+
+	sh.X("soci", "push", "--user", regConfig.creds(), mirrorImg.ref)
+
+	logMonitor := rebootContainerd(t, sh, getContainerdConfigToml(t, false), getSnapshotterConfigToml(t))
+
+	const prefetchMonitorKey = "prefetch-artifact-monitor"
+	prefetchLogCh := make(chan struct{}, 1)
+	if err := logMonitor.Add(prefetchMonitorKey, func(line string) {
+		if strings.Contains(line, "Successfully loaded prefetch artifact") {
+			select {
+			case prefetchLogCh <- struct{}{}:
+			default:
+			}
+		}
+	}); err != nil {
+		t.Fatalf("failed to add prefetch log monitor: %v", err)
+	}
+	t.Cleanup(func() {
+		logMonitor.Remove(prefetchMonitorKey)
+	})
+
+	sh.X(append(imagePullCmd, "--soci-index-digest", indexDigest, mirrorImg.ref)...)
+
+	releaseContents := sh.O(append(runSociCmd, "--rm", mirrorImg.ref, "cat", runtimePrefetchPath)...)
+	if strings.TrimSpace(string(releaseContents)) == "" {
+		t.Fatalf("unexpected empty output when reading %s", runtimePrefetchPath)
+	}
+
+	select {
+	case <-prefetchLogCh:
+	case <-time.After(30 * time.Second):
+		t.Fatalf("did not observe snapshotter loading prefetch artifact")
 	}
 }
 
