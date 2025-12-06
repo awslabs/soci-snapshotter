@@ -307,6 +307,18 @@ func (b *IndexBuilder) annotateImages(ctx context.Context, ociIndex *ocispec.Ind
 			}
 			indexWithMetadata.Desc.Annotations[IndexAnnotationImageManifestDigest] = manifestDesc.Digest.String()
 		}
+
+		err = store.LabelGCRefContent(ctx, b.blobStore, *manifestDesc, "config", manifest.Config.Digest.String())
+		if err != nil {
+			return err
+		}
+
+		for i, layer := range manifest.Layers {
+			err = store.LabelGCRefContent(ctx, b.blobStore, *manifestDesc, fmt.Sprintf("l.%d", i), layer.Digest.String())
+			if err != nil {
+				return err
+			}
+		}
 	}
 	return nil
 }

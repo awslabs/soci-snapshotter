@@ -101,6 +101,57 @@ func TestConvertWithForceRecreateZtocs(t *testing.T) {
 func validateConversion(t *testing.T, sh *shell.Shell, originalDigest, convertedDigest string) {
 	t.Helper()
 
+	// Helper function to get digest label mapping
+	getDigestLabelMapping := func(manifestDigest string) (map[string][]string, error) {
+		digestMap := make(map[string][]string)
+
+		manifestLabelOutput := sh.O("ctr", "content", "label", manifestDigest)
+		manifestLabels := strings.Split(strings.TrimSpace(string(manifestLabelOutput)), ",")
+
+		if len(manifestLabels) <= 0 {
+			return nil, fmt.Errorf("manifest does not contain any labels")
+		}
+
+		for _, label := range manifestLabels {
+			keyVal := strings.Split(label, "=")
+			if len(keyVal) != 2 {
+				continue
+			}
+			digestMap[keyVal[1]] = append(digestMap[keyVal[1]], keyVal[0])
+		}
+		return digestMap, nil
+	}
+
+	// Helper function to verify image layers contain required labels
+	verifyImageLayersContainsLabel := func(digestMap map[string][]string, manifest ocispec.Manifest) error {
+		// Helper function to check if a digest has the required label
+		checkDigestLabels := func(digest string) error {
+			if labels, ok := digestMap[digest]; ok {
+				for _, label := range labels {
+					if strings.Contains(label, "containerd.io/gc.ref.content") {
+						return nil // Found the required label
+					}
+				}
+				return fmt.Errorf("digest %s does not have associated gc label", digest)
+			}
+			return fmt.Errorf("digest %s not found in digestMap", digest)
+		}
+
+		// Check all layer digests
+		for _, layer := range manifest.Layers {
+			if err := checkDigestLabels(layer.Digest.String()); err != nil {
+				return err
+			}
+		}
+
+		// Check config digest
+		if err := checkDigestLabels(manifest.Config.Digest.String()); err != nil {
+			return err
+		}
+
+		return nil
+	}
+
 	if originalDigest == convertedDigest {
 		t.Fatalf("conversion did not change the digest: %s", originalDigest)
 	}
@@ -197,7 +248,21 @@ func validateConversion(t *testing.T, sh *shell.Shell, originalDigest, converted
 		if dg, ok := manifest.Annotations[soci.ImageAnnotationSociIndexDigest]; !ok || dg != sociIndexDesc.Digest.String() {
 			t.Errorf("manifest %v does not contain expected soci index digest %v", manifestDesc, sociIndexDesc.Digest)
 		}
+
+		// get labels associated with the manifest and extract the digest
+		digestLabelMap, err := getDigestLabelMapping(manifestDesc.Digest.String())
+		if err != nil {
+			t.Errorf("failed to get config digest from manifest: %v", err)
+			continue
+		}
+
+		err = verifyImageLayersContainsLabel(digestLabelMap, manifest)
+		if err != nil {
+			t.Errorf("error verifying layers: %v", err)
+			continue
+		}
 	}
+
 }
 
 func TestConvert(t *testing.T) {
