@@ -47,6 +47,7 @@ import (
 	"runtime"
 	"strconv"
 	"strings"
+	"sync"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -108,13 +109,16 @@ func (r *TestingReporter) Stderr() io.Writer {
 
 // LogMonitor manages a list of functions that should scan lines coming from stdout and stderr Readers
 type LogMonitor struct {
+	mu           *sync.RWMutex
 	monitorFuncs map[string]func(string)
 }
 
 // NewLogMonitor creates a LogMonitor for a given pair of stdout and stderr Readers
 func NewLogMonitor(r shell.Reporter, stdout, stderr io.Reader) *LogMonitor {
-	m := &LogMonitor{}
-	m.monitorFuncs = make(map[string]func(string))
+	m := &LogMonitor{
+		mu:           &sync.RWMutex{},
+		monitorFuncs: make(map[string]func(string)),
+	}
 	go m.scanLog(io.TeeReader(stdout, r.Stdout()))
 	go m.scanLog(io.TeeReader(stderr, r.Stderr()))
 	return m
@@ -122,6 +126,8 @@ func NewLogMonitor(r shell.Reporter, stdout, stderr io.Reader) *LogMonitor {
 
 // Add registers a new log monitor function
 func (m *LogMonitor) Add(name string, monitorFunc func(string)) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
 	if _, ok := m.monitorFuncs[name]; ok {
 		return fmt.Errorf("attempted to add log monitor with already existing name: %s", name)
 	}
@@ -131,6 +137,8 @@ func (m *LogMonitor) Add(name string, monitorFunc func(string)) error {
 
 // Remove unregisters a log monitor function
 func (m *LogMonitor) Remove(name string) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
 	if _, ok := m.monitorFuncs[name]; ok {
 		delete(m.monitorFuncs, name)
 		return nil
@@ -143,9 +151,11 @@ func (m *LogMonitor) scanLog(inputR io.Reader) {
 	scanner := bufio.NewScanner(inputR)
 	for scanner.Scan() {
 		rawL := scanner.Text()
+		m.mu.RLock()
 		for _, monitorFunc := range m.monitorFuncs {
 			monitorFunc(rawL)
 		}
+		m.mu.RUnlock()
 	}
 }
 
