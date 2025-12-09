@@ -93,6 +93,7 @@ func (l *breakableLayer) SkipVerify()                          {}
 func (l *breakableLayer) ReadAt([]byte, int64, ...remote.Option) (int, error) {
 	return 0, fmt.Errorf("fail")
 }
+func (l *breakableLayer) GetCacheRefKey() string { return "" }
 func (l *breakableLayer) BackgroundFetch() error { return fmt.Errorf("fail") }
 func (l *breakableLayer) Check() error {
 	if !l.success {
