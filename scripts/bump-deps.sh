@@ -23,21 +23,25 @@ pushd "${SOCI_SNAPSHOTTER_PROJECT_ROOT}"
 
 # skip k8s deps since they use the latest go version/features that may not be in the go version soci uses
 # skip grpc because it's not compatible with containerd 1.7
+# skip runtime-spec until this issue is resolved: https://github.com/containerd/containerd/issues/12493
 # Also ignored in /dependabot.yml
 # shellcheck disable=SC2046
 go get $(go list -m -f '{{if not (or .Indirect .Main)}}{{.Path}}{{end}}' all | \
     grep -v "^google.golang.org/grpc" | \
+    grep -v "^github.com/opencontainers/runtime-spec" | \
     grep -v "^k8s.io/")
 make tidy
 
 pushd ./cmd
 # skip k8s deps and soci-snapshotter itself
 # skip grpc because it's not compatible with containerd 1.7
+# skip runtime-spec until this issue is resolved: https://github.com/containerd/containerd/issues/12493
 # Also ignored in /dependabot.yml
 # shellcheck disable=SC2046
 go get $(go list -m -f '{{if not (or .Indirect .Main)}}{{.Path}}{{end}}' all | \
     grep -v "^github.com/awslabs/soci-snapshotter" | \
     grep -v "^google.golang.org/grpc" | \
+    grep -v "^github.com/opencontainers/runtime-spec" | \
     grep -v "^k8s.io/")
 popd
 make tidy
