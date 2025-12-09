@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1765240141093,
+  "lastUpdate": 1765315342756,
   "repoUrl": "https://github.com/awslabs/soci-snapshotter",
   "entries": {
     "Soci Benchmark": [
@@ -15365,6 +15365,48 @@ window.BENCHMARK_DATA = {
           {
             "name": "SociFullECR-public-node-pullTaskDuration",
             "value": 1.8864999999999998,
+            "unit": "Seconds",
+            "extra": "P90"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "swpnlg@amazon.com",
+            "name": "Swapnanil-Gupta",
+            "username": "Swapnanil-Gupta"
+          },
+          "committer": {
+            "email": "swpnlg@amazon.com",
+            "name": "Swapnanil Gupta",
+            "username": "Swapnanil-Gupta"
+          },
+          "distinct": true,
+          "id": "98f63cb073e86dfea11f2c0b3f6057816cd0f9b2",
+          "message": "Upgrade go to 1.24.11 in CI\n\nSigned-off-by: Swapnanil-Gupta <swpnlg@amazon.com>",
+          "timestamp": "2025-12-09T13:13:04-08:00",
+          "tree_id": "034e6989459a389292bcbafd48c2b7c797a0ce40",
+          "url": "https://github.com/awslabs/soci-snapshotter/commit/98f63cb073e86dfea11f2c0b3f6057816cd0f9b2"
+        },
+        "date": 1765315340389,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "SociFullECR-public-node-lazyTaskDuration",
+            "value": 2.4295,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-node-localTaskDuration",
+            "value": 0.487,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-node-pullTaskDuration",
+            "value": 2.2285,
             "unit": "Seconds",
             "extra": "P90"
           }
