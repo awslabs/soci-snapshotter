@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1765315344876,
+  "lastUpdate": 1765481868793,
   "repoUrl": "https://github.com/awslabs/soci-snapshotter",
   "entries": {
     "Soci Benchmark": [
@@ -15572,6 +15572,48 @@ window.BENCHMARK_DATA = {
           {
             "name": "SociFullECR-public-ffmpeg-pullTaskDuration",
             "value": 1.8679999999999999,
+            "unit": "Seconds",
+            "extra": "P90"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "davbson@amazon.com",
+            "name": "David Son",
+            "username": "sondavidb"
+          },
+          "committer": {
+            "email": "55555210+sondavidb@users.noreply.github.com",
+            "name": "David Son",
+            "username": "sondavidb"
+          },
+          "distinct": true,
+          "id": "f2b5076096347a395df5d664ae450fb543bb0687",
+          "message": "Ignore runtime-spec in dependency bump script\n\nSigned-off-by: David Son <davbson@amazon.com>",
+          "timestamp": "2025-12-11T14:29:09-05:00",
+          "tree_id": "1c763e1b80d51b0cb9500a5ff2bbfc09472da219",
+          "url": "https://github.com/awslabs/soci-snapshotter/commit/f2b5076096347a395df5d664ae450fb543bb0687"
+        },
+        "date": 1765481865536,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "SociFullECR-public-ffmpeg-lazyTaskDuration",
+            "value": 0.1795,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-ffmpeg-localTaskDuration",
+            "value": 0.007,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-ffmpeg-pullTaskDuration",
+            "value": 1.2825,
             "unit": "Seconds",
             "extra": "P90"
           }
