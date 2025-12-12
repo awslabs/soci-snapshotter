@@ -51,6 +51,7 @@ for more details.
 - [Build](docs/build.md): how to build SOCI from source, test SOCI (and contribute).
 - [Install](docs/install.md): how to install SOCI as a systemd unit.
 - [Debug and Useful Commands](docs/debug.md): accessing logs/metrics and debugging common errors.
+- [Prefetch](docs/prefetch.md): understanding and managing prefetch artifacts (experimental).
 - [Glossary](docs/glossary.md): glossary we use in the project.
 
 ### Integration-specific documentation
