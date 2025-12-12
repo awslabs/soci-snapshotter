@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1765481868793,
+  "lastUpdate": 1765568856161,
   "repoUrl": "https://github.com/awslabs/soci-snapshotter",
   "entries": {
     "Soci Benchmark": [
@@ -15614,6 +15614,47 @@ window.BENCHMARK_DATA = {
           {
             "name": "SociFullECR-public-ffmpeg-pullTaskDuration",
             "value": 1.2825,
+            "unit": "Seconds",
+            "extra": "P90"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "abushwang@tencent.com",
+            "name": "abushwang"
+          },
+          "committer": {
+            "email": "55555210+sondavidb@users.noreply.github.com",
+            "name": "David Son",
+            "username": "sondavidb"
+          },
+          "distinct": true,
+          "id": "77613ab98817e2062ebe5076597c29973394d2e4",
+          "message": "Add UT for \"Support specifying content directory via root option\"\n\nSigned-off-by: abushwang <abushwang@tencent.com>",
+          "timestamp": "2025-12-12T14:37:44-05:00",
+          "tree_id": "5b4f29f26cfe12b942b3f8efad9a7bd97450a4af",
+          "url": "https://github.com/awslabs/soci-snapshotter/commit/77613ab98817e2062ebe5076597c29973394d2e4"
+        },
+        "date": 1765568853350,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "SociFullECR-public-ffmpeg-lazyTaskDuration",
+            "value": 0.31,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-ffmpeg-localTaskDuration",
+            "value": 0.006,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-ffmpeg-pullTaskDuration",
+            "value": 2.371,
             "unit": "Seconds",
             "extra": "P90"
           }
