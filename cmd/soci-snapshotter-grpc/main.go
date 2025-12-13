@@ -84,31 +84,40 @@ import (
 const (
 	defaultAddress  = "/run/soci-snapshotter-grpc/soci-snapshotter-grpc.sock"
 	defaultLogLevel = logrus.InfoLevel
+
+	envAddress  = "SOCI_SNAPSHOTTER_ADDRESS"
+	envConfig   = "SOCI_SNAPSHOTTER_CONFIG"
+	envLogLevel = "SOCI_SNAPSHOTTER_LOG_LEVEL"
+	envRoot     = "SOCI_SNAPSHOTTER_ROOT"
 )
 
-func main() {
-	app := cli.Command{
+func buildApp() *cli.Command {
+	return &cli.Command{
 		Name: "soci-snapshotter-grpc",
 		Flags: []cli.Flag{
 			&cli.StringFlag{
-				Name:  "address",
-				Usage: "address for the snapshotter's GRPC server",
-				Value: defaultAddress,
+				Name:    "address",
+				Usage:   "address for the snapshotter's GRPC server",
+				Value:   defaultAddress,
+				Sources: cli.EnvVars(envAddress),
 			},
 			&cli.StringFlag{
-				Name:  "config",
-				Usage: "path to the configuration file",
-				Value: config.DefaultConfigPath,
+				Name:    "config",
+				Usage:   "path to the configuration file",
+				Value:   config.DefaultConfigPath,
+				Sources: cli.EnvVars(envConfig),
 			},
 			&cli.StringFlag{
-				Name:  "log-level",
-				Usage: "set the logging level [trace, debug, info, warn, error, fatal, panic]",
-				Value: defaultLogLevel.String(),
+				Name:    "log-level",
+				Usage:   "set the logging level [trace, debug, info, warn, error, fatal, panic]",
+				Value:   defaultLogLevel.String(),
+				Sources: cli.EnvVars(envLogLevel),
 			},
 			&cli.StringFlag{
-				Name:  "root",
-				Usage: "path to the root directory for this snapshotter",
-				Value: config.DefaultSociSnapshotterRootPath,
+				Name:    "root",
+				Usage:   "path to the root directory for this snapshotter",
+				Value:   config.DefaultSociSnapshotterRootPath,
+				Sources: cli.EnvVars(envRoot),
 			},
 		},
 		Version: fmt.Sprintf("%s %s", version.Version, version.Revision),
@@ -228,6 +237,10 @@ func main() {
 			return nil
 		},
 	}
+}
+
+func main() {
+	app := buildApp()
 
 	ctx, cancel := context.WithCancel(context.Background())
 	if err := app.Run(ctx, os.Args); err != nil {
