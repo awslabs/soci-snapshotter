@@ -11,6 +11,7 @@ allow-licenses:
   - 'BSD-2-Clause'
   - 'BSD-2-Clause-FreeBSD'
   - 'BSD-3-Clause'
+  - 'LicenseRef-scancode-google-patent-license-golang' # Golang packages are licensed under this
   - 'MIT'
   - 'ISC'
   - 'Python-2.0'
