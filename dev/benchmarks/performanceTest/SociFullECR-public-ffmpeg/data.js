@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1765568856161,
+  "lastUpdate": 1765997239277,
   "repoUrl": "https://github.com/awslabs/soci-snapshotter",
   "entries": {
     "Soci Benchmark": [
@@ -15655,6 +15655,48 @@ window.BENCHMARK_DATA = {
           {
             "name": "SociFullECR-public-ffmpeg-pullTaskDuration",
             "value": 2.371,
+            "unit": "Seconds",
+            "extra": "P90"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "davbson@amazon.com",
+            "name": "David Son",
+            "username": "sondavidb"
+          },
+          "committer": {
+            "email": "55555210+sondavidb@users.noreply.github.com",
+            "name": "David Son",
+            "username": "sondavidb"
+          },
+          "distinct": true,
+          "id": "d0c013410a10fa24073cd69338be2f17a5229fa1",
+          "message": "Add golang patent license to allowlist\n\nSigned-off-by: David Son <davbson@amazon.com>",
+          "timestamp": "2025-12-17T13:36:34-05:00",
+          "tree_id": "9dd2854d6e94b8221577e729c72c0b6f22f2e73c",
+          "url": "https://github.com/awslabs/soci-snapshotter/commit/d0c013410a10fa24073cd69338be2f17a5229fa1"
+        },
+        "date": 1765997233976,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "SociFullECR-public-ffmpeg-lazyTaskDuration",
+            "value": 0.35300000000000004,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-ffmpeg-localTaskDuration",
+            "value": 0.007,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-ffmpeg-pullTaskDuration",
+            "value": 1.6305,
             "unit": "Seconds",
             "extra": "P90"
           }
