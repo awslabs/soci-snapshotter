@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1765997239277,
+  "lastUpdate": 1766025762650,
   "repoUrl": "https://github.com/awslabs/soci-snapshotter",
   "entries": {
     "Soci Benchmark": [
@@ -15697,6 +15697,48 @@ window.BENCHMARK_DATA = {
           {
             "name": "SociFullECR-public-ffmpeg-pullTaskDuration",
             "value": 1.6305,
+            "unit": "Seconds",
+            "extra": "P90"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "davbson@amazon.com",
+            "name": "David Son",
+            "username": "sondavidb"
+          },
+          "committer": {
+            "email": "55555210+sondavidb@users.noreply.github.com",
+            "name": "David Son",
+            "username": "sondavidb"
+          },
+          "distinct": true,
+          "id": "d219a8372743838fc346c7a685dcc03de6eca47e",
+          "message": "Use cancellable contexts when possible\n\nFunctionally this shouldn't change much if anything, it just ensures\nthat we are passing meaningful contexts to more function calls. This\nmostly affects our tests where we were very liberal with using\ncontext.Background when we should ensure that all functions terminate by\nthe end of the test case.\n\nThis also includes changes to use log.L instead of log.G with\ncontext.Background, which shouldn't make a difference since log.G with\nan empty context works the same as log.L (I think...)\n\nSigned-off-by: David Son <davbson@amazon.com>",
+          "timestamp": "2025-12-17T21:32:14-05:00",
+          "tree_id": "ca3104d35340897a399752e0ec7372acee0c849c",
+          "url": "https://github.com/awslabs/soci-snapshotter/commit/d219a8372743838fc346c7a685dcc03de6eca47e"
+        },
+        "date": 1766025755707,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "SociFullECR-public-ffmpeg-lazyTaskDuration",
+            "value": 0.1495,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-ffmpeg-localTaskDuration",
+            "value": 0.008,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-ffmpeg-pullTaskDuration",
+            "value": 1.796,
             "unit": "Seconds",
             "extra": "P90"
           }
