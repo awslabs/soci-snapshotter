@@ -323,6 +323,9 @@ func TestNetworkRetry(t *testing.T) {
 			}
 
 			timeNetworkDisabled := time.Duration(tt.config.networkDisableMsec) * time.Millisecond
+			if timeNetworkDisabled < 0 {
+				timeNetworkDisabled = 0
+			}
 
 			var once sync.Once
 			restoreNetwork := func() {
