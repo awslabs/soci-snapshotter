@@ -379,7 +379,7 @@ func (b *IndexBuilder) pushOCIObject(ctx context.Context, obj any) (ocispec.Desc
 func (b *IndexBuilder) updateSociV2ArtifactReferences(index *ocispec.Index, indexDigest string) error {
 	for _, manifestDesc := range index.Manifests {
 		if manifestDesc.ArtifactType == SociIndexArtifactTypeV2 {
-			err := b.config.artifactsDb.updateSociV2ArtifactReference(manifestDesc.Digest.String(), manifestDesc.Annotations[IndexAnnotationImageManifestDigest], indexDigest)
+			err := b.config.artifactStore.UpdateSociV2ArtifactReference(manifestDesc.Digest.String(), manifestDesc.Annotations[IndexAnnotationImageManifestDigest], indexDigest)
 			if err != nil {
 				return err
 			}
