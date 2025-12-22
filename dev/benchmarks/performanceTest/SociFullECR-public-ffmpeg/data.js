@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1766046757160,
+  "lastUpdate": 1766444698556,
   "repoUrl": "https://github.com/awslabs/soci-snapshotter",
   "entries": {
     "Soci Benchmark": [
@@ -15781,6 +15781,47 @@ window.BENCHMARK_DATA = {
           {
             "name": "SociFullECR-public-ffmpeg-pullTaskDuration",
             "value": 1.9445000000000001,
+            "unit": "Seconds",
+            "extra": "P90"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "abushwang@tencent.com",
+            "name": "abushwang"
+          },
+          "committer": {
+            "email": "55555210+sondavidb@users.noreply.github.com",
+            "name": "David Son",
+            "username": "sondavidb"
+          },
+          "distinct": true,
+          "id": "b558f5960fcdcd0253638b76051a270ae4e469e1",
+          "message": "fix fscache not cleanup\n\nSigned-off-by: Shubhranshu Mahapatra <shubhum@amazon.com>\nSigned-off-by: abushwang <abushwang@tencent.com>",
+          "timestamp": "2025-12-22T17:55:41-05:00",
+          "tree_id": "9b493baa65938fef709b511f5a48aa48bc50d4a3",
+          "url": "https://github.com/awslabs/soci-snapshotter/commit/b558f5960fcdcd0253638b76051a270ae4e469e1"
+        },
+        "date": 1766444688222,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "SociFullECR-public-ffmpeg-lazyTaskDuration",
+            "value": 0.17049999999999998,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-ffmpeg-localTaskDuration",
+            "value": 0.009000000000000001,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-ffmpeg-pullTaskDuration",
+            "value": 1.7530000000000001,
             "unit": "Seconds",
             "extra": "P90"
           }
