@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1766046747085,
+  "lastUpdate": 1766444690475,
   "repoUrl": "https://github.com/awslabs/soci-snapshotter",
   "entries": {
     "Soci Benchmark": [
@@ -15617,6 +15617,47 @@ window.BENCHMARK_DATA = {
           {
             "name": "SociFullECR-public-rabbitmq-pullTaskDuration",
             "value": 1.6105,
+            "unit": "Seconds",
+            "extra": "P90"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "abushwang@tencent.com",
+            "name": "abushwang"
+          },
+          "committer": {
+            "email": "55555210+sondavidb@users.noreply.github.com",
+            "name": "David Son",
+            "username": "sondavidb"
+          },
+          "distinct": true,
+          "id": "b558f5960fcdcd0253638b76051a270ae4e469e1",
+          "message": "fix fscache not cleanup\n\nSigned-off-by: Shubhranshu Mahapatra <shubhum@amazon.com>\nSigned-off-by: abushwang <abushwang@tencent.com>",
+          "timestamp": "2025-12-22T17:55:41-05:00",
+          "tree_id": "9b493baa65938fef709b511f5a48aa48bc50d4a3",
+          "url": "https://github.com/awslabs/soci-snapshotter/commit/b558f5960fcdcd0253638b76051a270ae4e469e1"
+        },
+        "date": 1766444687641,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "SociFullECR-public-rabbitmq-lazyTaskDuration",
+            "value": 12.827,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-rabbitmq-localTaskDuration",
+            "value": 9.76,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-rabbitmq-pullTaskDuration",
+            "value": 1.4849999999999999,
             "unit": "Seconds",
             "extra": "P90"
           }
