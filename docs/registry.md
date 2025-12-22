@@ -66,41 +66,24 @@ Each registry will display information in a slightly different mechanism, but he
 
 Registries that are not listed have not been tested by the SOCI maintainers or reported by the community, but they may still be compatible SOCI.
 
-| Registry                                                                                  | Compatible? | Mechanism     | Notes                                                |
-| ----------------------------------------------------------------------------------------- | ----------- | ------------- | ---------------------------------------------------- |
-| [Docker Hub](https://hub.docker.com)                                                      | No          | N/A           | Does not support image manifests with subject fields |
-| [Amazon Elastic Container Registry (ECR)](https://aws.amazon.com/ecr/)                    | Yes         | Referrers API      |                                                      |
-| [Amazon ECR Public Gallery](https://gallery.ecr.aws)                                      | Yes         | Referrers API      |                                                      |
-| [Azure Container Registry](https://azure.microsoft.com/en-us/products/container-registry) | Yes         | Referrers API |                                                      |
-| [GitHub Packages (GHCR)](https://github.com/features/packages)                            | Yes         | Fallback      |                                                      |
-| [Google Cloud Container Registry (GCR)](https://cloud.google.com/container-registry)      | Yes         | Fallback      |                                                      |
-| [Google Cloud Artifact Registry (AR)](https://cloud.google.com/artifact-registry)         | No          | N/A           | Testing the referrers API redirects to login         |
-| [Quay.io](https://quay.io)                                                                | No          | N/A           | Does not support image manifests with subject fields |
-| [Artifactory](https://jfrog.com/artifactory/)                                             | Yes         | Fallback      |                                                      |
+| Registry                                                                                  | Compatible? | Mechanism                                         | Notes                                                                                                                                                                      |
+| ----------------------------------------------------------------------------------------- |-------------|---------------------------------------------------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| [Docker Hub](https://hub.docker.com)                                                      | Yes         | Referrers API                                     |                                                                                                                                                                            |
+| [Amazon Elastic Container Registry (ECR)](https://aws.amazon.com/ecr/)                    | Yes         | Referrers API                                     |                                                                                                                                                                            |
+| [Amazon ECR Public Gallery](https://gallery.ecr.aws)                                      | Yes         | Referrers API                                     |                                                                                                                                                                            |
+| [Azure Container Registry](https://azure.microsoft.com/en-us/products/container-registry) | Yes         | Referrers API                                     |                                                                                                                                                                            |
+| [GitHub Packages (GHCR)](https://github.com/features/packages)                            | Yes         | Fallback                                          |                                                                                                                                                                            |
+| [Google Cloud Container Registry (GCR)](https://cloud.google.com/container-registry)      | Yes         | Fallback                                          |                                                                                                                                                                            |
+| [Google Cloud Artifact Registry (AR)](https://cloud.google.com/artifact-registry)         | No          | N/A                                               | Testing the referrers API redirects to login                                                                                                                               |
+| [Quay.io](https://quay.io)                                                                | No          | N/A                                               | Does not support image manifests with subject fields                                                                                                                       |
+| [Artifactory](https://jfrog.com/artifactory/)                                             | Yes         | Fallback                                          |                                                                                                                                                                            |
 | [Harbor](https://github.com/goharbor/harbor)                                              | Yes         | Referrers API (>= v2.8.1)<br/>Fallback (< v2.8.1) | For versions >= v2.8.1 and < v2.11.0, harbor had a bug in the referrers API implementation that prevents SOCI from pulling indexes. Upgrade to >= v2.11.0 to fix the issue |
-| [Distribution](https://github.com/distribution/distribution)                              | Yes         | Fallback      |                                                      |
-| [OCI-playground Distribution](https://github.com/oci-playground/distribution)             | Yes         | Referrers API |                                                      |
+| [Distribution](https://github.com/distribution/distribution)                              | Yes         | Fallback                                          |                                                                                                                                                                            |
+| [OCI-playground Distribution](https://github.com/oci-playground/distribution)             | Yes         | Referrers API                                     |                                                                                                                                                                            |
 
 ### Failure Examples
 
 Below are some slightly redacted examples from the services that don't support the features needed to be compatible SOCI.
-
-**Docker Hub**
-
-```
-$ sudo ./out/soci push --user $USERNAME:$PASSWORD docker.io/####/busybox:latest
-checking if a soci index already exists in remote repository...
-pushing soci index with digest: sha256:d6ebffd218ead37e4862172b4f19491341e72aebc3cc6d9cf1a22297c40fb3c2
-pushing artifact with digest: sha256:cce4c7e12e01b32151d69348fcf52e0db7b44f6df6c23c511fa5c52eaf272c28
-pushing artifact with digest: sha256:44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a
-skipped artifact with digest: sha256:acaddd9ed544f7baf3373064064a51250b14cfe3ec604d65765a53da5958e5f5
-successfully pushed artifact with digest: sha256:44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a
-successfully pushed artifact with digest: sha256:cce4c7e12e01b32151d69348fcf52e0db7b44f6df6c23c511fa5c52eaf272c28
-pushing artifact with digest: sha256:d6ebffd218ead37e4862172b4f19491341e72aebc3cc6d9cf1a22297c40fb3c2
-soci: error pushing graph to remote: PUT "https://registry-1.docker.io/v2/####/busybox/manifests/sha256:d6ebffd218ead37e4862172b4f19491341e72aebc3cc6d9cf1a22297c40fb3c2": response status code 404: notfound: not found
-```
-
-The index manifest can't be pushed at all.
 
 **Google Cloud Artifact Registry**
 
