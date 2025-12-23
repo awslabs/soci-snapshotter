@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1766444693088,
+  "lastUpdate": 1766529844317,
   "repoUrl": "https://github.com/awslabs/soci-snapshotter",
   "entries": {
     "Soci Benchmark": [
@@ -15781,6 +15781,48 @@ window.BENCHMARK_DATA = {
           {
             "name": "SociFullECR-public-mongo-pullTaskDuration",
             "value": 1.41,
+            "unit": "Seconds",
+            "extra": "P90"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "hudson@cyzhu.com",
+            "name": "ChengyuZhu6",
+            "username": "ChengyuZhu6"
+          },
+          "committer": {
+            "email": "kern.walster@gmail.com",
+            "name": "Kern Walster",
+            "username": "Kern--"
+          },
+          "distinct": true,
+          "id": "5cf1cdebb16ceea78f3a3b7ec8cd7a44e9032a92",
+          "message": "integration: add prefetch integration test\n\nSigned-off-by: ChengyuZhu6 <hudson@cyzhu.com>",
+          "timestamp": "2025-12-23T14:35:17-08:00",
+          "tree_id": "c53d1dfe7889cf31b85c6cbb06a16174673f56b2",
+          "url": "https://github.com/awslabs/soci-snapshotter/commit/5cf1cdebb16ceea78f3a3b7ec8cd7a44e9032a92"
+        },
+        "date": 1766529841703,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "SociFullECR-public-mongo-lazyTaskDuration",
+            "value": 1.779,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-mongo-localTaskDuration",
+            "value": 0.2995,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-mongo-pullTaskDuration",
+            "value": 1.815,
             "unit": "Seconds",
             "extra": "P90"
           }
