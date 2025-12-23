@@ -21,6 +21,7 @@ import (
 	"sync"
 	"testing"
 
+	"github.com/awslabs/soci-snapshotter/soci/artifacts"
 	bolt "go.etcd.io/bbolt"
 )
 
@@ -39,13 +40,13 @@ func TestGetIndexArtifactEntries(t *testing.T) {
 		imageDigest   = "sha256:0000000000000000000000000000000000000000000000000000000000000000"
 		platform      = "linux/amd64"
 	)
-	entries := []ArtifactEntry{
+	entries := []artifacts.ArtifactEntry{
 		{
 			Size:           10,
 			Digest:         dgst1,
 			OriginalDigest: originalDgst1,
 			Location:       "/var/soci-snapshotter/test1",
-			Type:           ArtifactEntryTypeIndex,
+			Type:           artifacts.ArtifactEntryTypeIndex,
 			ImageDigest:    imageDigest,
 			Platform:       platform,
 		},
@@ -54,7 +55,7 @@ func TestGetIndexArtifactEntries(t *testing.T) {
 			Digest:         dgst2,
 			OriginalDigest: originalDgst1,
 			Location:       "/var/soci-snapshotter/test2",
-			Type:           ArtifactEntryTypeIndex,
+			Type:           artifacts.ArtifactEntryTypeIndex,
 			ImageDigest:    imageDigest,
 			Platform:       platform,
 		},
@@ -63,7 +64,7 @@ func TestGetIndexArtifactEntries(t *testing.T) {
 			Digest:         dgst3,
 			OriginalDigest: originalDgst3,
 			Location:       "/var/soci-snapshotter/test3",
-			Type:           ArtifactEntryTypeIndex,
+			Type:           artifacts.ArtifactEntryTypeIndex,
 			ImageDigest:    imageDigest,
 			Platform:       platform,
 		},
@@ -72,7 +73,7 @@ func TestGetIndexArtifactEntries(t *testing.T) {
 			Digest:         dgst4,
 			OriginalDigest: originalDgst1,
 			Location:       "/var/soci-snapshotter/test1",
-			Type:           ArtifactEntryTypeLayer,
+			Type:           artifacts.ArtifactEntryTypeLayer,
 			ImageDigest:    imageDigest,
 			Platform:       platform,
 		},
@@ -84,7 +85,7 @@ func TestGetIndexArtifactEntries(t *testing.T) {
 		}
 	}
 
-	retrievedEntries, err := db.getIndexArtifactEntries(originalDgst1)
+	retrievedEntries, err := db.GetIndexArtifactEntries(originalDgst1)
 	if err != nil {
 		t.Fatalf("could not retrieve artifact entries for original digest %s", originalDgst1)
 	}
@@ -149,12 +150,12 @@ func TestArtifactEntry_ReadWrite_Using_ArtifactsDb(t *testing.T) {
 		imageDigest  = "sha256:0000000000000000000000000000000000000000000000000000000000000000"
 		platform     = "linux/amd64"
 	)
-	ae := &ArtifactEntry{
+	ae := &artifacts.ArtifactEntry{
 		Size:           10,
 		Digest:         dgst,
 		OriginalDigest: originalDgst,
 		Location:       "/var/soci-snapshotter/test",
-		Type:           ArtifactEntryTypeIndex,
+		Type:           artifacts.ArtifactEntryTypeIndex,
 		ImageDigest:    imageDigest,
 		Platform:       platform,
 		SpanSize:       10,
@@ -183,7 +184,7 @@ func TestArtifactEntry_ReadWrite_AtomicDbOperations(t *testing.T) {
 		imageDigest  = "sha256:0000000000000000000000000000000000000000000000000000000000000000"
 		platform     = "linux/amd64"
 	)
-	ae := ArtifactEntry{
+	ae := artifacts.ArtifactEntry{
 		Size:           10,
 		Digest:         dgst,
 		OriginalDigest: originalDgst,
