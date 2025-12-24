@@ -83,6 +83,9 @@ const (
 	// defaultMaxConcurrency is the maximum number of layers allowed to be pulled at once
 	defaultMaxConcurrency = 100
 
+	// defaultPrefetchEnable is the default value for whether prefetch is enabled.
+	defaultPrefetchEnable = false
+
 	// defaultPrefetchMaxConcurrency limits the maximum number of layers that can perform
 	// prefetch operations concurrently at the snapshotter level.
 	// 0 means no limit

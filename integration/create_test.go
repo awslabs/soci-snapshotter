@@ -357,7 +357,7 @@ func TestSociCreateWithPrefetchArtifacts(t *testing.T) {
 
 	sh.X("soci", "push", "--user", regConfig.creds(), mirrorImg.ref)
 
-	logMonitor := rebootContainerd(t, sh, getContainerdConfigToml(t, false), getSnapshotterConfigToml(t))
+	logMonitor := rebootContainerd(t, sh, getContainerdConfigToml(t, false), getSnapshotterConfigToml(t, withPrefetch()))
 
 	const prefetchMonitorKey = "prefetch-artifact-monitor"
 	prefetchLogCh := make(chan struct{}, 1)

@@ -173,8 +173,8 @@ func NewResolver(root string, cfg config.FSConfig, resolveHandlers map[string]re
 	}
 
 	var prefetchSem *semaphore.Weighted
-	if cfg.PrefetchMaxConcurrency > 0 {
-		prefetchSem = semaphore.NewWeighted(cfg.PrefetchMaxConcurrency)
+	if cfg.PrefetchConfig.Enable && cfg.PrefetchConfig.MaxConcurrency > 0 {
+		prefetchSem = semaphore.NewWeighted(cfg.PrefetchConfig.MaxConcurrency)
 	}
 
 	return &Resolver{
@@ -551,6 +551,11 @@ func (f readerAtFunc) ReadAt(p []byte, offset int64) (int, error) { return f(p, 
 
 func (r *Resolver) executePrefetch(ctx context.Context, spanManager *spanmanager.SpanManager, prefetchDesc *ocispec.Descriptor) error {
 	if prefetchDesc == nil {
+		return nil
+	}
+
+	if !r.config.PrefetchConfig.Enable {
+		log.G(ctx).Debug("Prefetch is disabled in config, skipping prefetch")
 		return nil
 	}
 
