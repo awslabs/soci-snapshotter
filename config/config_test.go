@@ -77,9 +77,14 @@ func TestConfigDefaults(t *testing.T) {
 			actual:   cfg.MaxConcurrency,
 		},
 		{
+			name:     "prefetch enabled",
+			expected: defaultPrefetchEnable,
+			actual:   cfg.PrefetchConfig.Enable,
+		},
+		{
 			name:     "prefetch max concurrency",
 			expected: int64(defaultPrefetchMaxConcurrency),
-			actual:   cfg.PrefetchMaxConcurrency,
+			actual:   cfg.PrefetchConfig.MaxConcurrency,
 		},
 		{
 			name:     "fuse attr timeout",

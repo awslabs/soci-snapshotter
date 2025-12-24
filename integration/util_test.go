@@ -347,6 +347,12 @@ func withFuseWaitDuration(i int64) snapshotterConfigOpt {
 	}
 }
 
+func withPrefetch() snapshotterConfigOpt {
+	return func(c *config.Config) {
+		c.ServiceConfig.FSConfig.PrefetchConfig.Enable = true
+	}
+}
+
 func withPullModes(pullModes config.PullModes) snapshotterConfigOpt {
 	return func(c *config.Config) {
 		c.ServiceConfig.PullModes = pullModes
