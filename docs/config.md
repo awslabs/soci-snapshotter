@@ -23,7 +23,6 @@ This set of variables must be at the top of your TOML file due to not belonging 
 - `resolve_result_entry` (int) — Max amount of entries allowed in the cache. Default: 30.
 - `debug` (bool) — Enables debugging for go-fuse in logs. This often emits sensitive data, so this should be false in production. Default: false.
 - `disable_verification` (bool) — Allows skipping TOC validation, which can give slight performance improvements if files have already been verified elsewhere. Default: false.
-- `prefetch_max_concurrency` (int) — Maximum number of layers that can perform prefetch operations concurrently at the snapshotter level. `0` means no limit. Default: 0.
 - `no_prometheus` (bool) — Toggle prometheus metrics. Default: false.
 - `mount_timeout_sec` (int) — Timeout for mount if a layer can't be resolved. Default: 30.
 - `fuse_metrics_emit_wait_duration_sec` (int) — The wait time before the snaphotter emits FUSE operation counts for an image. Default: 60.
@@ -81,6 +80,10 @@ This set of variables must be at the top of your TOML file due to not belonging 
 ### [content_store]
 - `type` (string) — Sets content store (e.g. "soci", "containerd"). Default: "soci".
 - `namespace` (string) — Default: "default".
+
+### [prefetch]
+- `enable` (bool) — Enables the prefetch feature for downloading specified files before marking a layer download as complete. Default: false.
+- `max_concurrency` (int) — Maximum number of layers that can perform prefetch operations concurrently at the snapshotter level. `0` means no limit. Default: 0.
 
 ## config/resolver.go
 
