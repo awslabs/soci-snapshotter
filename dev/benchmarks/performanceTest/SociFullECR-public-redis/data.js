@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1766611760902,
+  "lastUpdate": 1766630882032,
   "repoUrl": "https://github.com/awslabs/soci-snapshotter",
   "entries": {
     "Soci Benchmark": [
@@ -15947,6 +15947,48 @@ window.BENCHMARK_DATA = {
           {
             "name": "SociFullECR-public-redis-pullTaskDuration",
             "value": 0.9265000000000001,
+            "unit": "Seconds",
+            "extra": "P90"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49699333+dependabot[bot]@users.noreply.github.com",
+            "name": "dependabot[bot]",
+            "username": "dependabot[bot]"
+          },
+          "committer": {
+            "email": "55555210+sondavidb@users.noreply.github.com",
+            "name": "David Son",
+            "username": "sondavidb"
+          },
+          "distinct": true,
+          "id": "6dc83eb70feab072a46713a9edeca6b503acbc03",
+          "message": "Bump actions/upload-artifact from 5 to 6\n\nBumps [actions/upload-artifact](https://github.com/actions/upload-artifact) from 5 to 6.\n- [Release notes](https://github.com/actions/upload-artifact/releases)\n- [Commits](https://github.com/actions/upload-artifact/compare/v5...v6)\n\n---\nupdated-dependencies:\n- dependency-name: actions/upload-artifact\n  dependency-version: '6'\n  dependency-type: direct:production\n  update-type: version-update:semver-major\n...\n\nSigned-off-by: dependabot[bot] <support@github.com>",
+          "timestamp": "2025-12-24T21:40:02-05:00",
+          "tree_id": "13fccb432a3c36922de6a1c0551fac146822ec99",
+          "url": "https://github.com/awslabs/soci-snapshotter/commit/6dc83eb70feab072a46713a9edeca6b503acbc03"
+        },
+        "date": 1766630876592,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "SociFullECR-public-redis-lazyTaskDuration",
+            "value": 0.47050000000000003,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-redis-localTaskDuration",
+            "value": 0.023,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-redis-pullTaskDuration",
+            "value": 1.3014999999999999,
             "unit": "Seconds",
             "extra": "P90"
           }
