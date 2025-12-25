@@ -278,10 +278,13 @@ func TestStartWithConfigPaths(t *testing.T) {
 			}
 			reporter := testutil.NewTestingReporter(t)
 			m := testutil.NewLogMonitor(reporter, outR, errR)
+			startupFunc, startCh := testutil.MonitorStartup()
+			m.Add(startupFunc)
+
 			errMatch := false
 			errStr := ""
 			if tc.expectedErrorStr != "" {
-				m.Add("config", func(rawL string) {
+				m.Add(func(rawL string) {
 					if i := strings.Index(rawL, "{"); i > 0 {
 						rawL = rawL[i:] // trim garbage chars; expects "{...}"-styled JSON log
 					}
@@ -296,10 +299,13 @@ func TestStartWithConfigPaths(t *testing.T) {
 						}
 					}
 				})
-				defer m.Remove("config")
 			}
+			if err := m.Start(); err != nil {
+				t.Fatalf("LogMonitor failed to startup: %v", err)
+			}
+			defer m.Cleanup(t)
 
-			err = testutil.LogConfirmStartup(m)
+			err = testutil.LogConfirmStartup(startCh)
 			// LogConfirmStartup has a 10 second timeout, so we can reasonably expect the LogMonitor func above
 			// to have caught the config at this point, and if not we can assume it failed.
 
