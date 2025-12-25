@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1766630884733,
+  "lastUpdate": 1766630963837,
   "repoUrl": "https://github.com/awslabs/soci-snapshotter",
   "entries": {
     "Soci Benchmark": [
@@ -16031,6 +16031,47 @@ window.BENCHMARK_DATA = {
           {
             "name": "SociFullECR-public-tensorflow-pullTaskDuration",
             "value": 2.107,
+            "unit": "Seconds",
+            "extra": "P90"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "abushwang@tencent.com",
+            "name": "abushwang"
+          },
+          "committer": {
+            "email": "55555210+sondavidb@users.noreply.github.com",
+            "name": "David Son",
+            "username": "sondavidb"
+          },
+          "distinct": true,
+          "id": "57d438ae16634ef96a501280ca8bc47c962ca236",
+          "message": "fix build error with strict build flag\n\nSigned-off-by: abushwang <abushwang@tencent.com>",
+          "timestamp": "2025-12-24T21:41:43-05:00",
+          "tree_id": "5ff9b8c03c7a7afcec1ed459d2bd85a64d0e70fe",
+          "url": "https://github.com/awslabs/soci-snapshotter/commit/57d438ae16634ef96a501280ca8bc47c962ca236"
+        },
+        "date": 1766630956999,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "SociFullECR-public-tensorflow-lazyTaskDuration",
+            "value": 8.1495,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-tensorflow-localTaskDuration",
+            "value": 2.346,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-tensorflow-pullTaskDuration",
+            "value": 2.036,
             "unit": "Seconds",
             "extra": "P90"
           }
