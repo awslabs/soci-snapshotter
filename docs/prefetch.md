@@ -198,31 +198,38 @@ Total spans to prefetch: 12
 
 ## Configuration
 
-### Concurrency Control
+### Enabling Prefetch
 
-The snapshotter implements bounded concurrency for prefetch operations to prevent overwhelming the system when multiple containers start simultaneously.
-
-#### Snapshotter Configuration
-
-Prefetch concurrency is controlled via the snapshotter configuration file (typically `/etc/soci-snapshotter-grpc/config.toml`):
+Prefetch must be explicitly enabled in the snapshotter configuration file:
 
 ```toml
+[prefetch]
+# Enable the prefetch feature
+enable = true
+
 # Maximum number of layers that can perform prefetch operations concurrently
 # at the snapshotter level
 # 0 = no limit (default)
 # Positive value = maximum concurrent prefetch operations
-prefetch_max_concurrency = 0
+max_concurrency = 0
 ```
 
-**Configuration options:**
-- `0` (default): No limit on concurrent prefetch operations
-- Positive integer (e.g., `10`): Maximum number of layers that can prefetch simultaneously
+### Configuration Options
 
-#### Example Configuration
+- `enable` (default: `false`): Controls whether the prefetch feature is enabled. When disabled, prefetch artifacts are ignored even if present.
+- `max_concurrency` (default: `0`): Limits concurrent prefetch operations across all layers.
+  - `0`: No limit on concurrent prefetch operations
+  - Positive integer (e.g., `10`): Maximum number of layers that can prefetch simultaneously
+
+### Example Configuration
 
 ```toml
 # /etc/soci-snapshotter-grpc/config.toml
 
+[prefetch]
+# Enable prefetch feature
+enable = true
+
 # Limit to 10 concurrent prefetch operations
-prefetch_max_concurrency = 10
+max_concurrency = 10
 ```
