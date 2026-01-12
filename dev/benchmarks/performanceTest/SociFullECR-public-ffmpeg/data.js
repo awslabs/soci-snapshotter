@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1767732681852,
+  "lastUpdate": 1768257981241,
   "repoUrl": "https://github.com/awslabs/soci-snapshotter",
   "entries": {
     "Soci Benchmark": [
@@ -16073,6 +16073,48 @@ window.BENCHMARK_DATA = {
           {
             "name": "SociFullECR-public-ffmpeg-pullTaskDuration",
             "value": 2.165,
+            "unit": "Seconds",
+            "extra": "P90"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "michal@baumgartner.io",
+            "name": "Michal Baumgartner",
+            "username": "m1so"
+          },
+          "committer": {
+            "email": "swpnlg@amazon.com",
+            "name": "Swapnanil Gupta",
+            "username": "Swapnanil-Gupta"
+          },
+          "distinct": true,
+          "id": "cf608324a19bae564275b6d3bc9a31917eb9e9e1",
+          "message": "Allow setting CLI flags via environment variables\n\nSigned-off-by: Michal Baumgartner <michal@baumgartner.io>",
+          "timestamp": "2026-01-12T14:36:39-08:00",
+          "tree_id": "1c608214cfecdb2f8a9281412995c0c75bb6ab75",
+          "url": "https://github.com/awslabs/soci-snapshotter/commit/cf608324a19bae564275b6d3bc9a31917eb9e9e1"
+        },
+        "date": 1768257974410,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "SociFullECR-public-ffmpeg-lazyTaskDuration",
+            "value": 0.1855,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-ffmpeg-localTaskDuration",
+            "value": 0.007,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-ffmpeg-pullTaskDuration",
+            "value": 1.539,
             "unit": "Seconds",
             "extra": "P90"
           }
