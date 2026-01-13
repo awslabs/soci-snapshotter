@@ -198,11 +198,8 @@ func testPullModes(t *testing.T, imgName string) {
 			if test.contentStoreType == store.ContainerdContentStoreType {
 				opts = append(opts, withContainerdContentStore())
 			}
-			m := rebootContainerd(t, sh, "", getSnapshotterConfigToml(t, opts...))
-			rsm, done := testutil.NewRemoteSnapshotMonitor(m)
-			defer done()
 			var indexDigestUsed string
-			m.Add("Look for digest", func(s string) {
+			monitorFunc := func(s string) {
 				structuredLog := make(map[string]string)
 				err := json.Unmarshal([]byte(s), &structuredLog)
 				if err != nil {
@@ -211,7 +208,10 @@ func testPullModes(t *testing.T, imgName string) {
 				if structuredLog["msg"] == "fetching SOCI artifacts using index descriptor" {
 					indexDigestUsed = structuredLog["digest"]
 				}
-			})
+			}
+			rsm := testutil.NewRemoteSnapshotMonitor()
+			m := rebootContainerd(t, sh, "", getSnapshotterConfigToml(t, opts...), rsm.MonitorFunc, monitorFunc)
+			defer m.Cleanup(t)
 			args := imagePullCmd
 			if test.pullDigest != "" {
 				args = append(args, "--soci-index-digest", test.pullDigest)
@@ -253,6 +253,9 @@ func testV1IsNotUsedWhenDisabled(t *testing.T, imgName string) {
 	buildIndex(sh, dstInfo, withMinLayerSize(0))
 	sh.X("soci", "push", "--user", dstInfo.creds, dstInfo.ref)
 
+	rsm := testutil.NewRemoteSnapshotMonitor()
+	idm := testutil.NewIndexDigestMonitor()
+
 	m := rebootContainerd(t, sh, "", getSnapshotterConfigToml(t, withPullModes(config.PullModes{
 		SOCIv1: config.V1{
 			Enable: false,
@@ -260,12 +263,8 @@ func testV1IsNotUsedWhenDisabled(t *testing.T, imgName string) {
 		SOCIv2: config.V2{
 			Enable: true,
 		},
-	})))
-
-	rsm, doneRsm := testutil.NewRemoteSnapshotMonitor(m)
-	defer doneRsm()
-	idm := testutil.NewIndexDigestMonitor(m)
-	defer idm.Close()
+	})), rsm.MonitorFunc, idm.MonitorFunc)
+	defer m.Cleanup(t)
 	sh.X(append(imagePullCmd, dstInfo.ref)...)
 	rsm.CheckAllDeferredSnapshots(t)
 	if idm.IndexDigest != "" {
@@ -337,13 +336,9 @@ func testDanglingV2Annotation(t *testing.T, imgName string) {
 	// Push a v1 index as well to verify that we do not fall back if we don't find the SOCI v2 index
 	sh.X("nerdctl", "push", "--snapshotter", "soci", "--soci-min-layer-size", "0", danglingRef.String())
 
-	m := rebootContainerd(t, sh, "", getSnapshotterConfigToml(t, withPullModes(config.DefaultPullModes())))
-
-	rsm, doneRsm := testutil.NewRemoteSnapshotMonitor(m)
-	defer doneRsm()
 	var foundNoIndexMessage bool
 	var indexDigestUsed string
-	m.Add("Look for digest", func(s string) {
+	monitorFunc := func(s string) {
 		if strings.Contains(s, "no valid SOCI index found") {
 			foundNoIndexMessage = true
 		}
@@ -355,7 +350,11 @@ func testDanglingV2Annotation(t *testing.T, imgName string) {
 		if structuredLog["msg"] == "fetching SOCI artifacts using index descriptor" {
 			indexDigestUsed = structuredLog["digest"]
 		}
-	})
+	}
+
+	rsm := testutil.NewRemoteSnapshotMonitor()
+	m := rebootContainerd(t, sh, "", getSnapshotterConfigToml(t, withPullModes(config.DefaultPullModes())), rsm.MonitorFunc, monitorFunc)
+	defer m.Cleanup(t)
 	sh.X(append(imagePullCmd, danglingRef.String())...)
 	rsm.CheckAllDeferredSnapshots(t)
 	if !foundNoIndexMessage {
