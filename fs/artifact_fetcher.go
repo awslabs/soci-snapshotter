@@ -25,7 +25,9 @@ import (
 	"mime"
 	"net/http"
 	"net/url"
+	"path"
 	"strconv"
+	"strings"
 
 	sociremote "github.com/awslabs/soci-snapshotter/fs/remote"
 	socihttp "github.com/awslabs/soci-snapshotter/internal/http"
@@ -226,6 +228,16 @@ type clientWrapper struct {
 
 func (c *clientWrapper) RoundTrip(req *http.Request) (*http.Response, error) {
 	return c.Client.Do(req)
+}
+
+func withLocatorHost(refspec reference.Spec, host string) (reference.Spec, error) {
+	repoPath := strings.TrimPrefix(refspec.Locator, refspec.Hostname())
+	repoPath = strings.TrimPrefix(repoPath, "/")
+	if repoPath == "" {
+		return reference.Spec{}, fmt.Errorf("invalid image locator %q", refspec.Locator)
+	}
+	refspec.Locator = path.Join(host, repoPath)
+	return refspec, nil
 }
 
 func newRemoteStore(refspec reference.Spec, client *http.Client) (*remote.Repository, error) {

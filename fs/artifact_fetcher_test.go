@@ -305,6 +305,20 @@ func TestNewRemoteStore(t *testing.T) {
 	}
 }
 
+func TestWithLocatorHost(t *testing.T) {
+	refspec, err := reference.Parse("docker.io/library/nginx:latest")
+	if err != nil {
+		t.Fatalf("unexpected failure parsing reference: %v", err)
+	}
+	rewritten, err := withLocatorHost(refspec, "example-mirror.local")
+	if err != nil {
+		t.Fatalf("unexpected failure rewriting reference: %v", err)
+	}
+	if rewritten.Locator != "example-mirror.local/library/nginx" {
+		t.Fatalf("unexpected locator, expected %q, got %q", "example-mirror.local/library/nginx", rewritten.Locator)
+	}
+}
+
 func TestFetchSociArtifacts(t *testing.T) {
 	fakeZtoc := []byte("test data")
 	fakeZtocDesc := ocispec.Descriptor{
