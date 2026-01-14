@@ -68,7 +68,7 @@ NERDCTL_REPO = https://github.com/containerd/nerdctl.git
 NERDCTL_TAG = v1.7.7
 
 .PHONY: all build check flatc add-ltag install uninstall tidy vendor gen-config clean clean-coverage \
-	clean-integration test test-with-coverage show-test-coverage show-test-coverage-html \
+	clean-integration test test-lib test-cmd test-with-coverage show-test-coverage show-test-coverage-html \
 	integration integration-with-coverage show-integration-coverage show-integration-coverage-html \
 	release benchmarks build-benchmarks benchmarks-perf-test benchmarks-comparison-test
 
@@ -142,9 +142,15 @@ vendor:
 gen-config: build
 	@$(OUTDIR)/soci-snapshotter-grpc config default > $(SOCI_SNAPSHOTTER_PROJECT_ROOT)/config/config.toml
 
-test:
+test: test-lib test-cmd
+
+test-lib:
 	@echo "$@"
 	@GO111MODULE=$(GO111MODULE_VALUE) go test $(GO_TEST_FLAGS) $(GO_LD_FLAGS) -race `go list ./... | grep -v benchmark` -args $(GO_TEST_ARGS)
+
+test-cmd:
+	@echo "$@"
+	@cd ./cmd; GO111MODULE=$(GO111MODULE_VALUE) go test $(GO_TEST_FLAGS) $(GO_LD_FLAGS) -race `go list ./...` -args $(GO_TEST_ARGS); cd ../
 
 show-test-coverage: test-with-coverage
 	go tool covdata percent -i $(COVDIR)/unit
