@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1768257974228,
+  "lastUpdate": 1768599797625,
   "repoUrl": "https://github.com/awslabs/soci-snapshotter",
   "entries": {
     "Soci Benchmark": [
@@ -16074,6 +16074,48 @@ window.BENCHMARK_DATA = {
           {
             "name": "SociFullECR-public-mongo-pullTaskDuration",
             "value": 1.296,
+            "unit": "Seconds",
+            "extra": "P90"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "davbson@amazon.com",
+            "name": "David Son",
+            "username": "sondavidb"
+          },
+          "committer": {
+            "email": "55555210+sondavidb@users.noreply.github.com",
+            "name": "David Son",
+            "username": "sondavidb"
+          },
+          "distinct": true,
+          "id": "a34dc13509e20fb431bef2612986057e32f34298",
+          "message": "Add testing for cmd submodule\n\nSigned-off-by: David Son <davbson@amazon.com>",
+          "timestamp": "2026-01-16T13:33:29-08:00",
+          "tree_id": "f664bbacf2dc977e13060c60edc8c229c7dd70e4",
+          "url": "https://github.com/awslabs/soci-snapshotter/commit/a34dc13509e20fb431bef2612986057e32f34298"
+        },
+        "date": 1768599795282,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "SociFullECR-public-mongo-lazyTaskDuration",
+            "value": 4.901,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-mongo-localTaskDuration",
+            "value": 0.305,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-mongo-pullTaskDuration",
+            "value": 1.561,
             "unit": "Seconds",
             "extra": "P90"
           }
