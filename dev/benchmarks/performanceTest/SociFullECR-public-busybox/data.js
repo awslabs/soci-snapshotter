@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1768257976221,
+  "lastUpdate": 1768599802782,
   "repoUrl": "https://github.com/awslabs/soci-snapshotter",
   "entries": {
     "Soci Benchmark": [
@@ -16073,6 +16073,48 @@ window.BENCHMARK_DATA = {
           {
             "name": "SociFullECR-public-busybox-pullTaskDuration",
             "value": 1.0185,
+            "unit": "Seconds",
+            "extra": "P90"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "davbson@amazon.com",
+            "name": "David Son",
+            "username": "sondavidb"
+          },
+          "committer": {
+            "email": "55555210+sondavidb@users.noreply.github.com",
+            "name": "David Son",
+            "username": "sondavidb"
+          },
+          "distinct": true,
+          "id": "a34dc13509e20fb431bef2612986057e32f34298",
+          "message": "Add testing for cmd submodule\n\nSigned-off-by: David Son <davbson@amazon.com>",
+          "timestamp": "2026-01-16T13:33:29-08:00",
+          "tree_id": "f664bbacf2dc977e13060c60edc8c229c7dd70e4",
+          "url": "https://github.com/awslabs/soci-snapshotter/commit/a34dc13509e20fb431bef2612986057e32f34298"
+        },
+        "date": 1768599795771,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "SociFullECR-public-busybox-lazyTaskDuration",
+            "value": 0.0125,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-busybox-localTaskDuration",
+            "value": 0.0055,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-busybox-pullTaskDuration",
+            "value": 1.489,
             "unit": "Seconds",
             "extra": "P90"
           }
