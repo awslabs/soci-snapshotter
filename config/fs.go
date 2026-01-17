@@ -54,7 +54,6 @@ type FSConfig struct {
 	NoPrometheus                   bool   `toml:"no_prometheus"`
 	MountTimeoutSec                int64  `toml:"mount_timeout_sec"`
 	FuseMetricsEmitWaitDurationSec int64  `toml:"fuse_metrics_emit_wait_duration_sec"`
-	PrefetchMaxConcurrency         int64  `toml:"prefetch_max_concurrency"`
 
 	RetryableHTTPClientConfig `toml:"http"`
 	BlobConfig                `toml:"blob"`
@@ -66,6 +65,20 @@ type FSConfig struct {
 	BackgroundFetchConfig `toml:"background_fetch"`
 
 	ContentStoreConfig `toml:"content_store"`
+
+	PrefetchConfig `toml:"prefetch"`
+}
+
+// PrefetchConfig configures the prefetch feature for downloading specified files
+// before marking a layer download as complete.
+type PrefetchConfig struct {
+	// Enable controls whether the prefetch feature is enabled.
+	Enable bool `toml:"enable"`
+
+	// MaxConcurrency limits the maximum number of layers that can perform
+	// prefetch operations concurrently at the snapshotter level.
+	// 0 means no limit.
+	MaxConcurrency int64 `toml:"max_concurrency"`
 }
 
 // BlobConfig is config for layer blob management.
@@ -200,9 +213,9 @@ func parseFSConfig(cfg *Config) error {
 	if cfg.MaxConcurrency < 0 {
 		cfg.MaxConcurrency = 0
 	}
-	// If PrefetchMaxConcurrency is not set or negative, disable concurrency limits entirely.
-	if cfg.PrefetchMaxConcurrency < 0 {
-		cfg.PrefetchMaxConcurrency = defaultPrefetchMaxConcurrency
+	// If PrefetchConfig.MaxConcurrency is negative, disable concurrency limits entirely.
+	if cfg.PrefetchConfig.MaxConcurrency < 0 {
+		cfg.PrefetchConfig.MaxConcurrency = defaultPrefetchMaxConcurrency
 	}
 
 	// Parse nested fs configs
