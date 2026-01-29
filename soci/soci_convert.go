@@ -84,7 +84,7 @@ func (b *IndexBuilder) Convert(ctx context.Context, img images.Image, opts ...Co
 	if len(allPlatforms) == 0 {
 		return nil, errors.New("image does not support any platforms")
 	}
-	defaultPlatform := platforms.DefaultSpec()
+	var defaultPlatforms []ocispec.Platform
 	if images.IsManifestType(img.Target.MediaType) {
 		// If the image's target descriptor is a single manifest, then it will not
 		// contain a platform because that information is stored in the image config instead.
@@ -95,15 +95,25 @@ func (b *IndexBuilder) Convert(ctx context.Context, img images.Image, opts ...Co
 		imagePlatform := allPlatforms[0]
 		img.Target.Platform = &imagePlatform
 
-		// We also set the default platform as the image's platform.
+		// We set the default platform as the image's platform.
 		// We shouldn't force the user to specify the platform if
 		// we know the only platform the image supports. This allows users
 		// to convert single platform images on non-native hardware
 		// (e.g. converting an arm64 image on an amd64 machine without explicitly specifying the platform)
-		defaultPlatform = imagePlatform
+		defaultPlatforms = []ocispec.Platform{imagePlatform}
+	} else {
+		// For OCI Index default to platforms that are actually available in the content store.
+		// This handles the case where a multi-platform image was pulled for only a subset of platforms
+		// (e.g., `nerdctl pull` without `--all-platforms`). In this case, the OCI Index lists
+		// all platforms, but only some manifests are actually present in the content store.
+		// We filter to only include platforms whose manifests are available.
+		defaultPlatforms = b.filterAvailablePlatforms(ctx, img.Target, allPlatforms)
+		if len(defaultPlatforms) == 0 {
+			return nil, errors.New("no platform manifests available in content store")
+		}
 	}
 	convertCfg := convertConfig{
-		platforms: []ocispec.Platform{defaultPlatform},
+		platforms: defaultPlatforms,
 		gcRoot:    true,
 	}
 	for _, opt := range opts {
@@ -166,6 +176,35 @@ func (b *IndexBuilder) Convert(ctx context.Context, img images.Image, opts ...Co
 	}
 
 	return &ociIndexDesc, nil
+}
+
+// filterAvailablePlatforms filters the given platforms to only include those whose
+// manifests are actually available in the content store. This is necessary because
+// when pulling a multi-platform image without --all-platforms, the OCI Index still
+// lists all platforms, but only some manifests are actually downloaded.
+func (b *IndexBuilder) filterAvailablePlatforms(ctx context.Context, target ocispec.Descriptor, allPlatforms []ocispec.Platform) []ocispec.Platform {
+	if !images.IsIndexType(target.MediaType) {
+		// For single-manifest images, the platform is available if we got here
+		return allPlatforms
+	}
+
+	var availablePlatforms []ocispec.Platform
+	for _, platform := range allPlatforms {
+		matcher := platforms.OnlyStrict(platform)
+		desc, err := GetImageManifestDescriptor(ctx, b.contentStore, target, matcher)
+		if err != nil {
+			// Platform manifest not found in index, skip
+			continue
+		}
+		// Check if the manifest content is actually available in the content store
+		_, err = b.contentStore.ReaderAt(ctx, *desc)
+		if err != nil {
+			// Manifest content not available, skip
+			continue
+		}
+		availablePlatforms = append(availablePlatforms, platform)
+	}
+	return availablePlatforms
 }
 
 // buildSociIndexesv2ForPlatforms builds a SOCI index for each specified platform

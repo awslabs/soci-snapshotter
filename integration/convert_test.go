@@ -450,6 +450,36 @@ func validateErrorOutput(t *testing.T, name string, o string, err error, expecte
 	}
 }
 
+// TestConvertLibraryDefaultsToAllPlatforms tests that Convert() without ConvertWithPlatforms
+// defaults to all platforms for OCI Index images. We test this via CLI since:
+// - CLI without platform flags calls ConvertWithPlatforms([])
+// - ConvertWithPlatforms([]) is a no-op (len check), so Convert()'s defaults apply
+// - Convert() defaults to allPlatforms for OCI Index
+func TestConvertLibraryDefaultsToAllPlatforms(t *testing.T) {
+	sh, done := newSnapshotterBaseShell(t)
+	defer done()
+
+	for _, imageName := range convertImages {
+		t.Run(imageName, func(t *testing.T) {
+			rebootContainerd(t, sh, "", "")
+			imgRef := dockerhub(imageName).ref
+			convertedRef := imgRef + "-soci-default"
+
+			originalDigest := getImageDigest(sh, imgRef)
+
+			sh.X("nerdctl", "pull", "-q", "--all-platforms", imgRef)
+
+			// Convert without specifying --platform or --all-platforms
+			// This exercises the Convert() default behavior testing cases where override was not passed
+			sh.X("soci", "convert", "--min-layer-size", "0", imgRef, convertedRef)
+
+			convertedDigest := getImageDigest(sh, convertedRef)
+
+			validateConversion(t, sh, originalDigest, convertedDigest)
+		})
+	}
+}
+
 func TestInvalidConversion(t *testing.T) {
 	registryConfig := newRegistryConfig()
 	sh, done := newShellWithRegistry(t, registryConfig)
