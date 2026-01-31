@@ -23,6 +23,7 @@ import (
 	"errors"
 	"testing"
 
+	"github.com/awslabs/soci-snapshotter/soci/artifacts"
 	"github.com/awslabs/soci-snapshotter/ztoc"
 	"github.com/containerd/containerd/images"
 	"github.com/google/go-cmp/cmp"
@@ -45,10 +46,10 @@ func TestGetExistingZtocForLayer(t *testing.T) {
 	if err != nil {
 		t.Fatalf("can't create a test db")
 	}
-	err = artifactsDb.WriteArtifactEntry(&ArtifactEntry{
+	err = artifactsDb.Write(t.Context(), &artifacts.Entry{
 		Digest:         ztocDigest1,
 		OriginalDigest: layerDigest1,
-		Type:           ArtifactEntryTypeLayer,
+		Type:           artifacts.EntryTypeLayer,
 		Size:           size,
 		SpanSize:       spanSize,
 		Location:       layerDigest1,
@@ -98,7 +99,7 @@ func TestGetExistingZtocForLayer(t *testing.T) {
 			builder, err := NewIndexBuilder(
 				cs,
 				blobStore,
-				WithArtifactsDb(artifactsDb),
+				WithArtifactStore(artifactsDb),
 				WithSpanSize(spanSize),
 				WithForceRecreateZtocs(tc.forceRecreateZtocs),
 			)
@@ -106,7 +107,7 @@ func TestGetExistingZtocForLayer(t *testing.T) {
 				t.Fatalf("cannot create index builer: %v", err)
 			}
 
-			existingZtoc := builder.getExistingZtocForLayer(tc.layerDesc)
+			existingZtoc := builder.getExistingZtocForLayer(t.Context(), tc.layerDesc)
 			if existingZtoc == nil && tc.existingZtoc == nil {
 				return
 			}
@@ -245,7 +246,7 @@ func TestBuildSociIndexNotLayer(t *testing.T) {
 	if err != nil {
 		t.Fatalf("can't create a test db")
 	}
-	builder, err := NewIndexBuilder(cs, blobStore, WithArtifactsDb(artifactsDb), WithSpanSize(spanSize), WithMinLayerSize(0))
+	builder, err := NewIndexBuilder(cs, blobStore, WithArtifactStore(artifactsDb), WithSpanSize(spanSize), WithMinLayerSize(0))
 
 	if err != nil {
 		t.Fatalf("cannot create index builer: %v", err)
@@ -320,7 +321,7 @@ func TestBuildSociIndexWithLimits(t *testing.T) {
 			if err != nil {
 				t.Fatalf("can't create a test db")
 			}
-			builder, _ := NewIndexBuilder(cs, blobStore, WithArtifactsDb(artifactsDb), WithSpanSize(spanSize), WithMinLayerSize(tc.minLayerSize))
+			builder, _ := NewIndexBuilder(cs, blobStore, WithArtifactStore(artifactsDb), WithSpanSize(spanSize), WithMinLayerSize(tc.minLayerSize))
 			ztoc, _, err := builder.buildSociLayer(ctx, desc)
 			if tc.ztocGenerated {
 				// we check only for build skip, which is indicated as nil value for ztoc and nil value for error
@@ -398,7 +399,7 @@ func TestDisableXattrs(t *testing.T) {
 			if err != nil {
 				t.Fatalf("can't create a test db")
 			}
-			builder, _ := NewIndexBuilder(cs, blobStore, WithArtifactsDb(artifactsDb), WithOptimizations([]Optimization{XAttrOptimization}))
+			builder, _ := NewIndexBuilder(cs, blobStore, WithArtifactStore(artifactsDb), WithOptimizations([]Optimization{XAttrOptimization}))
 			builder.maybeAddDisableXattrAnnotation(&desc, &ztoc)
 			disableXAttrs := desc.Annotations[IndexAnnotationDisableXAttrs] == disableXAttrsTrue
 			if disableXAttrs != tc.shouldDisableXattrs {
@@ -536,7 +537,7 @@ func TestBuildPrefetchLayer(t *testing.T) {
 			builder, err := NewIndexBuilder(
 				cs,
 				blobStore,
-				WithArtifactsDb(artifactsDb),
+				WithArtifactStore(artifactsDb),
 				WithPrefetchPaths(tc.prefetchPaths),
 			)
 			if err != nil {
@@ -606,7 +607,7 @@ func TestStorePrefetchLayer(t *testing.T) {
 			builder, err := NewIndexBuilder(
 				cs,
 				blobStore,
-				WithArtifactsDb(artifactsDb),
+				WithArtifactStore(artifactsDb),
 			)
 			if err != nil {
 				t.Fatalf("cannot create index builder: %v", err)
