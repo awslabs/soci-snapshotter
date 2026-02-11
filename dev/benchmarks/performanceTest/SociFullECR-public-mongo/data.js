@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1770843599717,
+  "lastUpdate": 1770852955897,
   "repoUrl": "https://github.com/awslabs/soci-snapshotter",
   "entries": {
     "Soci Benchmark": [
@@ -16200,6 +16200,48 @@ window.BENCHMARK_DATA = {
           {
             "name": "SociFullECR-public-mongo-pullTaskDuration",
             "value": 16.2185,
+            "unit": "Seconds",
+            "extra": "P90"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "arjunry@amazon.com",
+            "name": "Arjun Raja Yogidas",
+            "username": "coderbirju"
+          },
+          "committer": {
+            "email": "47723536+Shubhranshu153@users.noreply.github.com",
+            "name": "Subhransu",
+            "username": "Shubhranshu153"
+          },
+          "distinct": true,
+          "id": "d9d125ca3a423b53405b4aeeb362d6ec1f133ba9",
+          "message": "chore: test multiple go versions in CI\n\nSigned-off-by: Arjun Raja Yogidas <arjunry@amazon.com>",
+          "timestamp": "2026-02-11T15:26:06-08:00",
+          "tree_id": "b212a72afeedf54340afaebcc1c7640b4558ba59",
+          "url": "https://github.com/awslabs/soci-snapshotter/commit/d9d125ca3a423b53405b4aeeb362d6ec1f133ba9"
+        },
+        "date": 1770852952778,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "SociFullECR-public-mongo-lazyTaskDuration",
+            "value": 1.9755,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-mongo-localTaskDuration",
+            "value": 0.2995,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-mongo-pullTaskDuration",
+            "value": 1.0745,
             "unit": "Seconds",
             "extra": "P90"
           }
