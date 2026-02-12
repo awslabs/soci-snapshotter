@@ -144,7 +144,7 @@ var ConvertCommand = &cli.Command{
 			soci.WithSpanSize(spanSize),
 			soci.WithBuildToolIdentifier(buildToolIdentifier),
 			soci.WithOptimizations(optimizations),
-			soci.WithArtifactsDb(artifactsDb),
+			soci.WithArtifactStore(artifactsDb),
 			soci.WithForceRecreateZtocs(forceRecreateZtocs),
 		}
 

@@ -26,6 +26,7 @@ import (
 
 	"github.com/awslabs/soci-snapshotter/cmd/soci/commands/internal"
 	"github.com/awslabs/soci-snapshotter/soci"
+	"github.com/awslabs/soci-snapshotter/soci/artifacts"
 	"github.com/containerd/containerd/errdefs"
 	"github.com/containerd/containerd/images"
 	"github.com/containerd/log"
@@ -62,16 +63,16 @@ var listCommand = &cli.Command{
 		imgRef := cmd.String("image-ref")
 		quiet := cmd.Bool("quiet")
 
-		var artifacts []*soci.ArtifactEntry
+		var artifactEntries []*artifacts.Entry
 		if imgRef == "" {
 			_, cancel := internal.AppContext(ctx, cmd)
 			defer cancel()
-			db.Walk(func(ae *soci.ArtifactEntry) error {
-				if ae.Type == soci.ArtifactEntryTypeLayer && (ztocDgst == "" || ae.Digest == ztocDgst) {
-					artifacts = append(artifacts, ae)
-				}
-				return nil
+			artifactEntries, err = db.Filter(ctx, func(ae *artifacts.Entry) bool {
+				return ae.Type == artifacts.EntryTypeLayer && (ztocDgst == "" || ae.Digest == ztocDgst)
 			})
+			if err != nil {
+				return err
+			}
 		} else {
 			client, ctx, cancel, err := internal.NewClient(ctx, cmd)
 			if err != nil {
@@ -121,22 +122,22 @@ var listCommand = &cli.Command{
 			// at this point we already have the ztoc digests for the image
 			// but we have to query to artifacts db to get the associated layer digests
 			for _, ztocDesc := range ztocDescs {
-				entry, err := db.GetArtifactEntry(string(ztocDesc.Digest))
+				entry, err := db.Get(ctx, string(ztocDesc.Digest))
 				if err != nil {
 					return fmt.Errorf("failed to get ztoc from artifacts store (try running \"soci rebuild-db\" first): %w", err)
 				}
 				if ztocDgst == "" || ztocDgst == entry.Digest {
-					artifacts = append(artifacts, entry)
+					artifactEntries = append(artifactEntries, entry)
 				}
 			}
 
-			if ztocDgst != "" && len(artifacts) == 0 {
+			if ztocDgst != "" && len(artifactEntries) == 0 {
 				return fmt.Errorf("the specified ztoc doesn't exist or is not associated with the specified image")
 			}
 		}
 
 		if quiet {
-			for _, ae := range artifacts {
+			for _, ae := range artifactEntries {
 				fmt.Fprintf(os.Stdout, "%s\n", ae.Digest)
 			}
 			return nil
@@ -144,7 +145,7 @@ var listCommand = &cli.Command{
 
 		writer := tabwriter.NewWriter(os.Stdout, 8, 8, 4, ' ', 0)
 		writer.Write([]byte("DIGEST\tSIZE\tLAYER DIGEST\t\n"))
-		for _, artifact := range artifacts {
+		for _, artifact := range artifactEntries {
 			fmt.Fprintf(writer, "%s\t%d\t%s\t\n", artifact.Digest, artifact.Size, artifact.OriginalDigest)
 		}
 		writer.Flush()

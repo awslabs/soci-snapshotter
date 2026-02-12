@@ -25,6 +25,7 @@ import (
 
 	"github.com/awslabs/soci-snapshotter/cmd/soci/commands/internal"
 	"github.com/awslabs/soci-snapshotter/soci"
+	"github.com/awslabs/soci-snapshotter/soci/artifacts"
 	"github.com/awslabs/soci-snapshotter/soci/store"
 
 	"github.com/opencontainers/go-digest"
@@ -51,11 +52,11 @@ var infoCommand = &cli.Command{
 			return err
 		}
 
-		artifactType, err := db.GetArtifactType(digest.String())
+		artifact, err := db.Get(ctx, digest.String())
 		if err != nil {
 			return err
 		}
-		if artifactType == soci.ArtifactEntryTypeLayer {
+		if artifact.Type == artifacts.EntryTypeLayer {
 			return fmt.Errorf("the provided digest is of ztoc not SOCI index. Use \"soci ztoc info\" command to get detailed info of ztoc")
 		}
 

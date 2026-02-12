@@ -108,8 +108,8 @@ func getZtoc(ctx context.Context, cmd *cli.Command, d digest.Digest) (*ztoc.Ztoc
 	return ztoc.Unmarshal(reader)
 }
 
-func getLayer(ctx context.Context, metadata *soci.ArtifactsDb, ztocDigest digest.Digest, cs content.Store) (content.ReaderAt, error) {
-	artifact, err := metadata.GetArtifactEntry(ztocDigest.String())
+func getLayer(ctx context.Context, artifactsDb *soci.ArtifactsDb, ztocDigest digest.Digest, cs content.Store) (content.ReaderAt, error) {
+	artifact, err := artifactsDb.Get(ctx, ztocDigest.String())
 	if err != nil {
 		return nil, err
 	}

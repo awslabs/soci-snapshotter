@@ -23,6 +23,7 @@ import (
 
 	"github.com/awslabs/soci-snapshotter/cmd/soci/commands/internal"
 	"github.com/awslabs/soci-snapshotter/soci"
+	"github.com/awslabs/soci-snapshotter/soci/artifacts"
 	"github.com/awslabs/soci-snapshotter/soci/store"
 	"github.com/awslabs/soci-snapshotter/ztoc"
 	"github.com/awslabs/soci-snapshotter/ztoc/compression"
@@ -64,11 +65,11 @@ var infoCommand = &cli.Command{
 		if err != nil {
 			return err
 		}
-		entry, err := db.GetArtifactEntry(digest.String())
+		entry, err := db.Get(ctx, digest.String())
 		if err != nil {
 			return err
 		}
-		if entry.Type == soci.ArtifactEntryTypeIndex {
+		if entry.Type == artifacts.EntryTypeIndex {
 			return fmt.Errorf("the provided digest belongs to a SOCI index. Use `soci index info` to get the detailed information about it")
 		}
 		ctx, cancel := internal.AppContext(ctx, cmd)

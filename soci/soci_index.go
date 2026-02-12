@@ -32,6 +32,7 @@ import (
 	"time"
 
 	"github.com/awslabs/soci-snapshotter/config"
+	"github.com/awslabs/soci-snapshotter/soci/artifacts"
 	"github.com/awslabs/soci-snapshotter/soci/store"
 	"github.com/awslabs/soci-snapshotter/ztoc"
 	"github.com/awslabs/soci-snapshotter/ztoc/compression"
@@ -250,10 +251,10 @@ func MarshalIndex(i *Index) ([]byte, error) {
 }
 
 // GetIndexDescriptorCollection returns all `IndexDescriptorInfo` of the given image and platforms.
-func GetIndexDescriptorCollection(ctx context.Context, cs content.Store, artifactsDb *ArtifactsDb, img images.Image, ps []ocispec.Platform) ([]IndexDescriptorInfo, *ocispec.Descriptor, error) {
+func GetIndexDescriptorCollection(ctx context.Context, cs content.Store, artifactStore artifacts.Store, img images.Image, ps []ocispec.Platform) ([]IndexDescriptorInfo, *ocispec.Descriptor, error) {
 	var (
 		descriptors []IndexDescriptorInfo
-		entries     []ArtifactEntry
+		entries     []*artifacts.Entry
 		indexDesc   *ocispec.Descriptor
 		err         error
 	)
@@ -262,7 +263,10 @@ func GetIndexDescriptorCollection(ctx context.Context, cs content.Store, artifac
 		if err != nil {
 			return nil, nil, err
 		}
-		e, err := artifactsDb.getIndexArtifactEntries(indexDesc.Digest.String())
+		e, err := artifactStore.Filter(ctx, artifacts.WithAllFilters(
+			artifacts.WithEntryType(artifacts.EntryTypeIndex),
+			artifacts.WithOriginalDigest(indexDesc.Digest.String()),
+		))
 		if err != nil {
 			return nil, nil, err
 		}
@@ -293,7 +297,7 @@ type builderConfig struct {
 	spanSize            int64
 	minLayerSize        int64
 	buildToolIdentifier string
-	artifactsDb         *ArtifactsDb
+	artifactStore       artifacts.Store
 	optimizations       []Optimization
 	forceRecreateZtocs  bool
 	prefetchPaths       []string
@@ -380,10 +384,10 @@ func WithBuildToolIdentifier(tool string) BuilderOption {
 	}
 }
 
-// WithArtifactsDb specifies the artifacts database
-func WithArtifactsDb(db *ArtifactsDb) BuilderOption {
+// WithArtifactStore specifies the artifacts database
+func WithArtifactStore(artifactStore artifacts.Store) BuilderOption {
 	return func(c *builderConfig) error {
-		c.artifactsDb = db
+		c.artifactStore = artifactStore
 		return nil
 	}
 }
@@ -460,9 +464,9 @@ func NewIndexBuilder(contentStore content.Store, blobStore store.Store, opts ...
 			return nil, err
 		}
 	}
-	if cfg.artifactsDb == nil {
+	if cfg.artifactStore == nil {
 		var err error
-		cfg.artifactsDb, err = NewDB(ArtifactsDbPath(config.DefaultSociSnapshotterRootPath))
+		cfg.artifactStore, err = NewDB(ArtifactsDbPath(config.DefaultSociSnapshotterRootPath))
 		if err != nil {
 			return nil, err
 		}
@@ -670,7 +674,7 @@ func (b *IndexBuilder) buildSociLayer(ctx context.Context, desc ocispec.Descript
 		return nil, nil, errUnsupportedLayerFormat
 	}
 
-	existingZtoc := b.getExistingZtocForLayer(desc)
+	existingZtoc := b.getExistingZtocForLayer(ctx, desc)
 	if existingZtoc != nil {
 		var shouldOverwrite bool
 		reader, err := b.blobStore.Fetch(ctx, *existingZtoc)
@@ -731,17 +735,17 @@ func (b *IndexBuilder) buildSociLayer(ctx context.Context, desc ocispec.Descript
 
 	// write the artifact entry for soci layer
 	// this part is needed for local store only
-	entry := &ArtifactEntry{
+	entry := &artifacts.Entry{
 		Size:           ztocDesc.Size,
 		Digest:         ztocDesc.Digest.String(),
 		OriginalDigest: desc.Digest.String(),
-		Type:           ArtifactEntryTypeLayer,
+		Type:           artifacts.EntryTypeLayer,
 		Location:       desc.Digest.String(),
 		MediaType:      SociLayerMediaType,
 		CreatedAt:      time.Now(),
 		SpanSize:       b.config.spanSize,
 	}
-	err = b.config.artifactsDb.WriteArtifactEntry(entry)
+	err = b.config.artifactStore.Write(ctx, entry)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -895,15 +899,15 @@ func (b *IndexBuilder) storePrefetchLayer(ctx context.Context, layerDigest strin
 		return nil, fmt.Errorf("cannot push prefetch artifact to local store: %w", err)
 	}
 
-	entry := &ArtifactEntry{
+	entry := &artifacts.Entry{
 		Size:           desc.Size,
 		Digest:         desc.Digest.String(),
 		OriginalDigest: layerDigest,
-		Type:           ArtifactEntryTypePrefetch,
+		Type:           artifacts.EntryTypePrefetch,
 		MediaType:      SociPrefetchMediaType,
 		CreatedAt:      time.Now(),
 	}
-	err = b.config.artifactsDb.WriteArtifactEntry(entry)
+	err = b.config.artifactStore.Write(ctx, entry)
 	if err != nil {
 		return nil, err
 	}
@@ -914,25 +918,22 @@ func (b *IndexBuilder) storePrefetchLayer(ctx context.Context, layerDigest strin
 
 // getExistingZtocForLayer returns a ztoc descriptor for the provided layer if an entry corresponding to the
 // layer already exists in the artifact store.
-func (b *IndexBuilder) getExistingZtocForLayer(layerDesc ocispec.Descriptor) *ocispec.Descriptor {
-	if b.config.forceRecreateZtocs || b.config.artifactsDb == nil {
+func (b *IndexBuilder) getExistingZtocForLayer(ctx context.Context, layerDesc ocispec.Descriptor) *ocispec.Descriptor {
+	if b.config.forceRecreateZtocs || b.config.artifactStore == nil {
 		return nil
 	}
-	var existingZtoc *ocispec.Descriptor
-	b.config.artifactsDb.Walk(func(ae *ArtifactEntry) error {
-		if ae.Type == ArtifactEntryTypeLayer &&
+	ae, err := b.config.artifactStore.Find(ctx, func(ae *artifacts.Entry) bool {
+		return ae.Type == artifacts.EntryTypeLayer &&
 			ae.OriginalDigest == layerDesc.Digest.String() &&
-			ae.SpanSize == b.config.spanSize {
-			existingZtoc = &ocispec.Descriptor{
-				Digest: digest.Digest(ae.Digest),
-				Size:   ae.Size,
-			}
-			// intentionally returning an error here so that "cfg.artifactsDb.Walk" exits early
-			// when a match is found in the artifacts db
-			return fmt.Errorf("found existing ztoc for layer %s", layerDesc.Digest)
-		}
-		return nil
+			ae.SpanSize == b.config.spanSize
 	})
+	if err != nil || ae == nil {
+		return nil
+	}
+	existingZtoc := &ocispec.Descriptor{
+		Digest: digest.Digest(ae.Digest),
+		Size:   ae.Size,
+	}
 	return existingZtoc
 }
 
@@ -1043,7 +1044,7 @@ func (b *IndexBuilder) writeSociIndex(ctx context.Context, indexWithMetadata *In
 	for i, blob := range indexWithMetadata.Index.Blobs {
 		err = store.LabelGCRefContent(ctx, b.blobStore, desc, "ztoc."+strconv.Itoa(i), blob.Digest.String())
 		if err != nil {
-			errors.Join(allErr, err)
+			allErr = errors.Join(allErr, err)
 		}
 	}
 	if allErr != nil {
@@ -1057,19 +1058,19 @@ func (b *IndexBuilder) writeSociIndex(ctx context.Context, indexWithMetadata *In
 	}
 
 	// this entry is persisted to be used by cli push
-	entry := &ArtifactEntry{
+	entry := &artifacts.Entry{
 		Digest:         dgst.String(),
 		OriginalDigest: indexWithMetadata.ManifestDesc.Digest.String(),
 		ImageDigest:    indexWithMetadata.ImageDesc.Digest.String(),
 		Platform:       platforms.Format(*indexWithMetadata.Platform),
-		Type:           ArtifactEntryTypeIndex,
+		Type:           artifacts.EntryTypeIndex,
 		Location:       indexWithMetadata.ManifestDesc.Digest.String(),
 		Size:           size,
 		MediaType:      indexWithMetadata.Index.MediaType,
 		ArtifactType:   indexWithMetadata.Index.Config.MediaType,
 		CreatedAt:      indexWithMetadata.CreatedAt,
 	}
-	return desc, b.config.artifactsDb.WriteArtifactEntry(entry)
+	return desc, b.config.artifactStore.Write(ctx, entry)
 }
 
 func (b *IndexBuilder) maybeAddDisableXattrAnnotation(ztocDesc *ocispec.Descriptor, ztoc *ztoc.Ztoc) {

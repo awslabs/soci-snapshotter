@@ -22,7 +22,9 @@ import (
 
 	"github.com/awslabs/soci-snapshotter/cmd/soci/commands/internal"
 	"github.com/awslabs/soci-snapshotter/soci"
+	"github.com/awslabs/soci-snapshotter/soci/artifacts"
 	"github.com/awslabs/soci-snapshotter/soci/store"
+	"github.com/containerd/log"
 	"github.com/urfave/cli/v3"
 )
 
@@ -43,7 +45,8 @@ var RebuildDBCommand = &cli.Command{
 		defer cancel()
 		containerdContentStore := client.ContentStore()
 
-		artifactsDb, err := soci.NewDB(soci.ArtifactsDbPath(cmd.String("root")))
+		var artifactStore artifacts.Store
+		artifactStore, err = soci.NewDB(soci.ArtifactsDbPath(cmd.String("root")))
 		if err != nil {
 			return err
 		}
@@ -63,6 +66,10 @@ var RebuildDBCommand = &cli.Command{
 		}
 
 		blobStorePath := filepath.Join(contentStorePath, "blobs")
-		return artifactsDb.SyncWithLocalStore(ctx, blobStore, blobStorePath, containerdContentStore)
+		if remoteArtifactStore, ok := artifactStore.(artifacts.RemoteStore); ok {
+			return remoteArtifactStore.Sync(ctx, blobStore, blobStorePath, containerdContentStore)
+		}
+		log.G(ctx).Info("Artifact store does not support syncing with local store. Skipping database rebuild.")
+		return nil
 	},
 }

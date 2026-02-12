@@ -22,6 +22,7 @@ import (
 
 	"github.com/awslabs/soci-snapshotter/cmd/soci/commands/internal"
 	"github.com/awslabs/soci-snapshotter/soci"
+	"github.com/awslabs/soci-snapshotter/soci/artifacts"
 	"github.com/awslabs/soci-snapshotter/soci/store"
 	"github.com/opencontainers/go-digest"
 	"github.com/urfave/cli/v3"
@@ -59,11 +60,24 @@ var rmCommand = &cli.Command{
 			ctx, cancel := internal.AppContext(ctx, cmd)
 			defer cancel()
 
-			byteArgs := make([][]byte, args.Len())
-			for i, arg := range args.Slice() {
-				byteArgs[i] = []byte(arg)
+			var filters []artifacts.FilterFn
+			for _, arg := range args.Slice() {
+				filters = append(filters, artifacts.WithDigest(string(arg)))
 			}
-			err = removeArtifactsAndContent(ctx, db, contentStore, byteArgs)
+			entriesToRemove, err := db.Filter(
+				ctx,
+				artifacts.WithAllFilters(
+					artifacts.WithEntryType(artifacts.EntryTypeIndex),
+					artifacts.WithAnyFilters(filters...),
+				),
+			)
+			if err != nil {
+				return err
+			}
+			if len(entriesToRemove) == 0 {
+				return fmt.Errorf("no indices to remove")
+			}
+			err = removeArtifactsAndContent(ctx, db, contentStore, entriesToRemove)
 			if err != nil {
 				return err
 			}
@@ -79,11 +93,17 @@ var rmCommand = &cli.Command{
 			if err != nil {
 				return err
 			}
-			entries, err := db.GetArtifactEntriesByImageDigest(img.Target.Digest.String())
+			entriesToRemove, err := db.Filter(
+				ctx,
+				artifacts.WithAllFilters(
+					artifacts.WithEntryType(artifacts.EntryTypeIndex),
+					artifacts.WithImageDigest(img.Target.Digest.String()),
+				),
+			)
 			if err != nil {
 				return err
 			}
-			err = removeArtifactsAndContent(ctx, db, contentStore, entries)
+			err = removeArtifactsAndContent(ctx, db, contentStore, entriesToRemove)
 			if err != nil {
 				return err
 			}
@@ -93,13 +113,13 @@ var rmCommand = &cli.Command{
 }
 
 // removeArtifactsAndContent takes a list of content digests and removes them from the artifact db and content store
-func removeArtifactsAndContent(ctx context.Context, db *soci.ArtifactsDb, contentStore store.Store, digests [][]byte) error {
-	for _, dgst := range digests {
-		err := db.RemoveArtifactEntryByIndexDigest(dgst)
+func removeArtifactsAndContent(ctx context.Context, db *soci.ArtifactsDb, contentStore store.Store, entries []*artifacts.Entry) error {
+	for _, entry := range entries {
+		err := db.Remove(ctx, entry.Digest)
 		if err != nil {
 			return err
 		}
-		dgst, err := digest.Parse(string(dgst))
+		dgst, err := digest.Parse(string(entry.Digest))
 		if err != nil {
 			return err
 		}
