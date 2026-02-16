@@ -153,7 +153,7 @@ kubeconfig_path="/path/to/kubeconfig"
 
 # SOCI CLI
 
-The SOCI CLI supports 2 mechanisms for getting registry credentials when pushing SOCI indexes:
+The SOCI CLI supports 2 mechanisms for getting registry credentials when pushing SOCI indexes (via `soci push`) or when using standalone convert mode (via `soci convert --standalone`):
 
 1. [Docker Config](#docker-config)
 2. [Explicit username/password via a parameter](#username--password-parameter)
@@ -166,11 +166,20 @@ Like the SOCI snapshotter, the SOCI CLI can load credentials from the Docker con
 
 ## Username + Password Parameter
 
-The SOCI CLI can also receive credentials via the `--user` parameter which accepts a `USERNAME:PASSWORD` string. E.g.:
+The SOCI CLI can also receive credentials via the `--user` parameter which accepts a `USERNAME:PASSWORD` string. This parameter works with both `soci push` and `soci convert --standalone` commands. E.g.:
 
+**With soci push:**
 ```
 # ECR_TOKEN = $(aws ecr get-login-password)
 # soci push --user AWS:$ECR_TOKEN $IMAGE
+```
+
+**With soci convert (standalone mode):**
+```
+# ECR_TOKEN = $(aws ecr get-login-password)
+# soci convert --standalone --user AWS:$ECR_TOKEN \
+#     source.registry/image:tag \
+#     dest.registry/image:tag-soci
 ```
 
 NOTE: This method will record the password in shell history if you do not use an environment variable like in the example.
