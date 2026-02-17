@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1771011727995,
+  "lastUpdate": 1771356002895,
   "repoUrl": "https://github.com/awslabs/soci-snapshotter",
   "entries": {
     "Soci Benchmark": [
@@ -16283,6 +16283,48 @@ window.BENCHMARK_DATA = {
           {
             "name": "SociFullECR-public-busybox-pullTaskDuration",
             "value": 1.8495,
+            "unit": "Seconds",
+            "extra": "P90"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "hudson@cyzhu.com",
+            "name": "ChengyuZhu6",
+            "username": "ChengyuZhu6"
+          },
+          "committer": {
+            "email": "55555210+sondavidb@users.noreply.github.com",
+            "name": "David Son",
+            "username": "sondavidb"
+          },
+          "distinct": true,
+          "id": "53346dda740518d886735e17a0c17e4c2ba7fd61",
+          "message": "Add PrefetchConfig section\n\nAdd PrefetchConfig with enable flag and max_concurrency.\n\nFixes: #1832\n\nSigned-off-by: ChengyuZhu6 <hudson@cyzhu.com>",
+          "timestamp": "2026-02-17T11:10:45-08:00",
+          "tree_id": "cf0b190cb70c08058cec516c6e2e9eb9031b67dd",
+          "url": "https://github.com/awslabs/soci-snapshotter/commit/53346dda740518d886735e17a0c17e4c2ba7fd61"
+        },
+        "date": 1771355996922,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "SociFullECR-public-busybox-lazyTaskDuration",
+            "value": 0.014,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-busybox-localTaskDuration",
+            "value": 0.006500000000000001,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-busybox-pullTaskDuration",
+            "value": 1.42,
             "unit": "Seconds",
             "extra": "P90"
           }
