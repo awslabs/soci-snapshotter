@@ -25,6 +25,7 @@ import (
 	"slices"
 	"sort"
 
+	"github.com/awslabs/soci-snapshotter/cmd/soci/commands/global"
 	"github.com/awslabs/soci-snapshotter/cmd/soci/commands/internal"
 	"github.com/awslabs/soci-snapshotter/fs"
 	"github.com/awslabs/soci-snapshotter/soci"
@@ -39,6 +40,7 @@ import (
 )
 
 const (
+	quietFlag                = "quiet"
 	maxConcurrentUploadsFlag = "max-concurrent-uploads"
 
 	// defaultMaxConcurrentUploads is the default number of copy tasks used to upload the SOCI artifacts.
@@ -62,13 +64,13 @@ If multiple soci indices exist for the given image, the most recent one will be 
 
 After pushing the soci artifacts, they should be available in the registry. Soci artifacts will be pushed only
 if they are available in the snapshotter's local content store.
-append(append
 `,
-	Flags: slices.Concat(internal.RegistryFlags,
+	Flags: slices.Concat(
+		internal.RegistryFlags,
 		internal.SnapshotterFlags,
 		internal.PlatformFlags,
+		internal.ExistingIndexFlags,
 		[]cli.Flag{
-			internal.ExistingIndexFlag,
 			&cli.Uint64Flag{
 				Name:  maxConcurrentUploadsFlag,
 				Usage: fmt.Sprintf("Max concurrent uploads. Default is %d", defaultMaxConcurrentUploads),
@@ -87,7 +89,7 @@ append(append
 			return errors.New("please provide an image reference to push")
 		}
 
-		quiet := cmd.Bool("quiet")
+		quiet := cmd.Bool(quietFlag)
 		client, ctx, cancel, err := internal.NewClient(ctx, cmd)
 		if err != nil {
 			return err
@@ -109,7 +111,7 @@ append(append
 			ps = append(ps, platforms.DefaultSpec())
 		}
 
-		artifactsDb, err := soci.NewDB(soci.ArtifactsDbPath(cmd.String("root")))
+		artifactsDb, err := soci.NewDB(soci.ArtifactsDbPath(cmd.String(global.RootFlag)))
 		if err != nil {
 			return err
 		}
@@ -140,18 +142,18 @@ append(append
 
 		dst.Client = authClient
 
-		dst.PlainHTTP = cmd.Bool("plain-http")
+		dst.PlainHTTP = cmd.Bool(internal.PlainHTTPFlag)
 
-		if cmd.Bool("debug") {
+		if cmd.Bool(global.DebugFlag) {
 			dst.Client = &debugClient{client: authClient}
 		} else {
 			dst.Client = authClient
 		}
 
-		existingIndexOption := cmd.String(internal.ExistingIndexFlagName)
+		existingIndexOption := cmd.String(internal.ExistingIndexFlag)
 		if !internal.SupportedArg(existingIndexOption, internal.SupportedExistingIndexOptions) {
 			return fmt.Errorf("unexpected value for flag %s: %s, expected types %v",
-				internal.ExistingIndexFlagName, existingIndexOption, internal.SupportedExistingIndexOptions)
+				internal.ExistingIndexFlag, existingIndexOption, internal.SupportedExistingIndexOptions)
 		}
 
 		options := oraslib.DefaultCopyGraphOptions

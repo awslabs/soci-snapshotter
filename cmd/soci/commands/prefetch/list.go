@@ -24,6 +24,7 @@ import (
 	"text/tabwriter"
 	"time"
 
+	"github.com/awslabs/soci-snapshotter/cmd/soci/commands/global"
 	"github.com/awslabs/soci-snapshotter/cmd/soci/commands/internal"
 	"github.com/awslabs/soci-snapshotter/soci"
 	"github.com/awslabs/soci-snapshotter/soci/store"
@@ -38,11 +39,17 @@ var listCommand = &cli.Command{
 	Aliases:     []string{"ls"},
 	Usage:       "list prefetch artifacts",
 	Description: "list all prefetch artifacts in the local store",
+	Flags: []cli.Flag{
+		&cli.BoolFlag{
+			Name:  JSONFlag,
+			Usage: "output in JSON format",
+		},
+	},
 	Action: func(ctx context.Context, cmd *cli.Command) error {
 		ctx, cancel := internal.AppContext(ctx, cmd)
 		defer cancel()
 
-		db, err := soci.NewDB(soci.ArtifactsDbPath(cmd.String("root")))
+		db, err := soci.NewDB(soci.ArtifactsDbPath(cmd.String(global.RootFlag)))
 		if err != nil {
 			return err
 		}
@@ -113,7 +120,7 @@ var listCommand = &cli.Command{
 			return err
 		}
 
-		if cmd.Bool("json") {
+		if cmd.Bool(JSONFlag) {
 			enc := json.NewEncoder(os.Stdout)
 			enc.SetIndent("", "  ")
 			return enc.Encode(prefetches)
@@ -138,12 +145,6 @@ var listCommand = &cli.Command{
 		}
 
 		return w.Flush()
-	},
-	Flags: []cli.Flag{
-		&cli.BoolFlag{
-			Name:  "json",
-			Usage: "output in JSON format",
-		},
 	},
 }
 

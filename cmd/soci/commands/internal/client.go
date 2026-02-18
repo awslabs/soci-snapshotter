@@ -35,6 +35,7 @@ package internal
 import (
 	"context"
 
+	"github.com/awslabs/soci-snapshotter/cmd/soci/commands/global"
 	"github.com/awslabs/soci-snapshotter/config"
 	"github.com/containerd/containerd"
 	"github.com/containerd/containerd/namespaces"
@@ -55,8 +56,8 @@ import (
 // defined.
 func AppContext(ctx context.Context, cmd *cli.Command) (context.Context, context.CancelFunc) {
 	var cancel context.CancelFunc
-	ctx = namespaces.WithNamespace(ctx, cmd.String("namespace"))
-	if timeout := cmd.Duration("timeout"); timeout > 0 {
+	ctx = namespaces.WithNamespace(ctx, cmd.String(global.NamespaceFlag))
+	if timeout := cmd.Duration(global.TimeoutFlag); timeout > 0 {
 		ctx, cancel = context.WithTimeout(ctx, timeout)
 	} else {
 		ctx, cancel = context.WithCancel(ctx)
@@ -72,10 +73,10 @@ func AppContext(ctx context.Context, cmd *cli.Command) (context.Context, context
 
 // NewClient returns a new containerd client
 func NewClient(ctx context.Context, cmd *cli.Command, opts ...containerd.ClientOpt) (*containerd.Client, context.Context, context.CancelFunc, error) {
-	if timeout := cmd.Duration("timeout"); timeout > 0 {
+	if timeout := cmd.Duration(global.TimeoutFlag); timeout > 0 {
 		opts = append(opts, containerd.WithTimeout(timeout))
 	}
-	address := config.TrimSocketAddress(cmd.String("address"))
+	address := config.TrimSocketAddress(cmd.String(global.AddressFlag))
 	client, err := containerd.New(address, opts...)
 	if err != nil {
 		return nil, nil, nil, err

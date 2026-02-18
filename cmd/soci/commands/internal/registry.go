@@ -40,48 +40,61 @@ import (
 	"github.com/urfave/cli/v3"
 )
 
+const (
+	SkipVerifyFlag = "skip-verify"
+	PlainHTTPFlag  = "plain-http"
+	UserFlag       = "user"
+	RefreshFlag    = "refresh"
+	HostsDirFlag   = "hosts-dir"
+	TLSCaCertFlag  = "tlscacert"
+	TLSCertFlag    = "tlscert"
+	TLSKeyFlag     = "tlskey"
+	HTTPDumpFlag   = "http-dump"
+	HTTPTraceFlag  = "http-trace"
+)
+
 var RegistryFlags = []cli.Flag{
 	&cli.BoolFlag{
-		Name:    "skip-verify",
+		Name:    SkipVerifyFlag,
 		Aliases: []string{"k"},
 		Usage:   "Skip SSL certificate validation",
 	},
 	&cli.BoolFlag{
-		Name:  "plain-http",
+		Name:  PlainHTTPFlag,
 		Usage: "Allow connections using plain HTTP",
 	},
 	&cli.StringFlag{
-		Name:    "user",
+		Name:    UserFlag,
 		Aliases: []string{"u"},
 		Usage:   "User[:password] Registry user and password",
 	},
 	&cli.StringFlag{
-		Name:  "refresh",
+		Name:  RefreshFlag,
 		Usage: "Refresh token for authorization server",
 	},
 	&cli.StringFlag{
-		Name: "hosts-dir",
+		Name: HostsDirFlag,
 		// compatible with "/etc/docker/certs.d"
 		Usage: "Custom hosts configuration directory",
 	},
 	&cli.StringFlag{
-		Name:  "tlscacert",
+		Name:  TLSCaCertFlag,
 		Usage: "Path to TLS root CA",
 	},
 	&cli.StringFlag{
-		Name:  "tlscert",
+		Name:  TLSCertFlag,
 		Usage: "Path to TLS client certificate",
 	},
 	&cli.StringFlag{
-		Name:  "tlskey",
+		Name:  TLSKeyFlag,
 		Usage: "Path to TLS client key",
 	},
 	&cli.BoolFlag{
-		Name:  "http-dump",
+		Name:  HTTPDumpFlag,
 		Usage: "Dump all HTTP request/responses when interacting with container registry",
 	},
 	&cli.BoolFlag{
-		Name:  "http-trace",
+		Name:  HTTPTraceFlag,
 		Usage: "Enable HTTP tracing for registry interactions",
 	},
 }
@@ -91,8 +104,8 @@ var RegistryFlags = []cli.Flag{
 // 2. Docker config file (~/.docker/config.json)
 // 3. Empty credentials for public registries
 func ResolveCredentials(cmd *cli.Command, hostname string) (username, password string) {
-	if cmd.IsSet("user") {
-		user := cmd.String("user")
+	if cmd.IsSet(UserFlag) {
+		user := cmd.String(UserFlag)
 		if i := strings.IndexByte(user, ':'); i > 0 {
 			return user[:i], user[i+1:]
 		}
