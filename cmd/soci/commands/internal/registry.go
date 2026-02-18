@@ -33,6 +33,10 @@
 package internal
 
 import (
+	"io"
+	"strings"
+
+	dockercliconfig "github.com/docker/cli/cli/config"
 	"github.com/urfave/cli/v3"
 )
 
@@ -80,4 +84,27 @@ var RegistryFlags = []cli.Flag{
 		Name:  "http-trace",
 		Usage: "Enable HTTP tracing for registry interactions",
 	},
+}
+
+// ResolveCredentials resolves registry credentials from multiple sources:
+// 1. CLI --user/-u flag (username:password)
+// 2. Docker config file (~/.docker/config.json)
+// 3. Empty credentials for public registries
+func ResolveCredentials(cmd *cli.Command, hostname string) (username, password string) {
+	if cmd.IsSet("user") {
+		user := cmd.String("user")
+		if i := strings.IndexByte(user, ':'); i > 0 {
+			return user[:i], user[i+1:]
+		}
+		return user, ""
+	}
+
+	cf := dockercliconfig.LoadDefaultConfigFile(io.Discard)
+	if cf.ContainsAuth() {
+		if ac, err := cf.GetAuthConfig(hostname); err == nil {
+			return ac.Username, ac.Password
+		}
+	}
+
+	return "", ""
 }
