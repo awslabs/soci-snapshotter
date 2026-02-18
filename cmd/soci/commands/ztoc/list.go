@@ -24,6 +24,7 @@ import (
 	"os"
 	"text/tabwriter"
 
+	"github.com/awslabs/soci-snapshotter/cmd/soci/commands/global"
 	"github.com/awslabs/soci-snapshotter/cmd/soci/commands/internal"
 	"github.com/awslabs/soci-snapshotter/soci"
 	"github.com/containerd/containerd/errdefs"
@@ -33,34 +34,40 @@ import (
 	"github.com/urfave/cli/v3"
 )
 
+const (
+	ztocDigestFlag = "ztoc-digest"
+	imageRefFlag   = "image-ref"
+	quietFlag      = "quiet"
+)
+
 var listCommand = &cli.Command{
 	Name:        "list",
 	Description: "list ztocs",
 	Aliases:     []string{"ls"},
 	Flags: []cli.Flag{
 		&cli.StringFlag{
-			Name:  "ztoc-digest",
+			Name:  ztocDigestFlag,
 			Usage: "filter ztocs by digest",
 		},
 		&cli.StringFlag{
-			Name:  "image-ref",
+			Name:  imageRefFlag,
 			Usage: "filter ztocs to those that are associated with a specific image",
 		},
 		&cli.BoolFlag{
-			Name:    "quiet",
+			Name:    quietFlag,
 			Aliases: []string{"q"},
 			Usage:   "only display the index digests",
 		},
 	},
 	Action: func(ctx context.Context, cmd *cli.Command) error {
-		db, err := soci.NewDB(soci.ArtifactsDbPath(cmd.String("root")))
+		db, err := soci.NewDB(soci.ArtifactsDbPath(cmd.String(global.RootFlag)))
 		if err != nil {
 			return err
 		}
 
-		ztocDgst := cmd.String("ztoc-digest")
-		imgRef := cmd.String("image-ref")
-		quiet := cmd.Bool("quiet")
+		ztocDgst := cmd.String(ztocDigestFlag)
+		imgRef := cmd.String(imageRefFlag)
+		quiet := cmd.Bool(quietFlag)
 
 		var artifacts []*soci.ArtifactEntry
 		if imgRef == "" {

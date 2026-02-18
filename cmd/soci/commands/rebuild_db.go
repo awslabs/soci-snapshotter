@@ -20,6 +20,7 @@ import (
 	"context"
 	"path/filepath"
 
+	"github.com/awslabs/soci-snapshotter/cmd/soci/commands/global"
 	"github.com/awslabs/soci-snapshotter/cmd/soci/commands/internal"
 	"github.com/awslabs/soci-snapshotter/soci"
 	"github.com/awslabs/soci-snapshotter/soci/store"
@@ -43,7 +44,7 @@ var RebuildDBCommand = &cli.Command{
 		defer cancel()
 		containerdContentStore := client.ContentStore()
 
-		artifactsDb, err := soci.NewDB(soci.ArtifactsDbPath(cmd.String("root")))
+		artifactsDb, err := soci.NewDB(soci.ArtifactsDbPath(cmd.String(global.RootFlag)))
 		if err != nil {
 			return err
 		}
@@ -53,10 +54,10 @@ var RebuildDBCommand = &cli.Command{
 			return err
 		}
 
-		contentStoreType := cmd.String("content-store")
+		contentStoreType := cmd.String(global.ContentStoreFlag)
 		contentStorePath, err := store.GetContentStorePath(
 			store.ContentStoreType(contentStoreType),
-			cmd.String("root"),
+			cmd.String(global.RootFlag),
 		)
 		if err != nil {
 			return err

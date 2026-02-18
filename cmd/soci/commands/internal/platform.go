@@ -28,19 +28,18 @@ import (
 )
 
 const (
-	PlatformFlagKey      = "platform"
-	PlatformShortFlagKey = "p"
-	AllPlatformsFlagKey  = "all-platforms"
+	PlatformFlag     = "platform"
+	AllPlatformsFlag = "all-platforms"
 )
 
 var PlatformFlags = []cli.Flag{
 	&cli.BoolFlag{
-		Name:  AllPlatformsFlagKey,
+		Name:  AllPlatformsFlag,
 		Usage: "",
 	},
 	&cli.StringSliceFlag{
-		Name:    PlatformFlagKey,
-		Aliases: []string{PlatformShortFlagKey},
+		Name:    PlatformFlag,
+		Aliases: []string{"p"},
 		Usage:   "",
 	},
 }
@@ -53,12 +52,12 @@ var PlatformFlags = []cli.Flag{
 //
 // This method is not suitable for situations where the default should be all supported platforms (e.g. the `soci index list` command)
 func GetPlatforms(ctx context.Context, cmd *cli.Command, img images.Image, cs content.Store) ([]ocispec.Platform, error) {
-	allPlatforms := cmd.Bool(AllPlatformsFlagKey)
+	allPlatforms := cmd.Bool(AllPlatformsFlag)
 	if allPlatforms {
 		return images.Platforms(ctx, cs, img.Target)
 	}
 
-	ps := cmd.StringSlice(PlatformFlagKey)
+	ps := cmd.StringSlice(PlatformFlag)
 	var result []ocispec.Platform
 	for _, p := range ps {
 		platform, err := platforms.Parse(p)

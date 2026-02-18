@@ -23,6 +23,7 @@ import (
 	"slices"
 	"strings"
 
+	"github.com/awslabs/soci-snapshotter/cmd/soci/commands/global"
 	"github.com/awslabs/soci-snapshotter/cmd/soci/commands/internal"
 	"github.com/awslabs/soci-snapshotter/soci"
 	"github.com/awslabs/soci-snapshotter/soci/store"
@@ -62,32 +63,7 @@ var ConvertCommand = &cli.Command{
 	Name:      "convert",
 	Usage:     "convert an OCI image to a SOCI enabled image",
 	ArgsUsage: "[flags] <image_ref> <dest_ref>",
-	Flags: slices.Concat(
-		internal.PlatformFlags,
-		internal.PrefetchFlags(),
-		[]cli.Flag{
-			&cli.Int64Flag{
-				Name:  spanSizeFlag,
-				Usage: "Span size that soci index uses to segment layer data. Default is 4 MiB",
-				Value: 1 << 22,
-			},
-			&cli.Int64Flag{
-				Name:  minLayerSizeFlag,
-				Usage: "Minimum layer size to build zTOC for. Smaller layers won't have zTOC and not lazy pulled. Default is 10 MiB.",
-				Value: 10 << 20,
-			},
-			&cli.StringSliceFlag{
-				Name:  optimizationFlag,
-				Usage: fmt.Sprintf("(Experimental) Enable optional optimizations. Valid values are %v", soci.Optimizations),
-			},
-			&cli.BoolFlag{
-				Name:    forceRecreateZtocsFlag,
-				Usage:   "Force recreate zTOCs for layers even if they already exist. Defaults to false.",
-				Value:   false,
-				Aliases: []string{forceRecreateZtocsFlagShort},
-			},
-		},
-	),
+	Flags:     slices.Concat(internal.PlatformFlags, createZtocFlags, internal.PrefetchFlags),
 	Action: func(ctx context.Context, cmd *cli.Command) error {
 		srcRef := cmd.Args().Get(0)
 		if srcRef == "" {
@@ -135,7 +111,7 @@ var ConvertCommand = &cli.Command{
 			return err
 		}
 
-		artifactsDb, err := soci.NewDB(soci.ArtifactsDbPath(cmd.String("root")))
+		artifactsDb, err := soci.NewDB(soci.ArtifactsDbPath(cmd.String(global.RootFlag)))
 		if err != nil {
 			return err
 		}

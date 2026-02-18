@@ -23,6 +23,7 @@ import (
 	"io"
 	"os"
 
+	"github.com/awslabs/soci-snapshotter/cmd/soci/commands/global"
 	"github.com/awslabs/soci-snapshotter/cmd/soci/commands/internal"
 	"github.com/awslabs/soci-snapshotter/soci"
 	"github.com/awslabs/soci-snapshotter/soci/store"
@@ -33,13 +34,15 @@ import (
 	"github.com/urfave/cli/v3"
 )
 
+const outputFlag = "output"
+
 var getFileCommand = &cli.Command{
 	Name:      "get-file",
 	Usage:     "retrieve a file from a local image layer using a specified ztoc",
 	ArgsUsage: "<digest> <file>",
 	Flags: []cli.Flag{
 		&cli.StringFlag{
-			Name:    "output",
+			Name:    outputFlag,
 			Aliases: []string{"o"},
 			Usage:   "the file to write the extracted content. Defaults to stdout",
 		},
@@ -67,7 +70,7 @@ var getFileCommand = &cli.Command{
 			return err
 		}
 
-		artifactsDB, err := soci.NewDB(soci.ArtifactsDbPath(cmd.String("root")))
+		artifactsDB, err := soci.NewDB(soci.ArtifactsDbPath(cmd.String(global.RootFlag)))
 		if err != nil {
 			return err
 		}
@@ -83,7 +86,7 @@ var getFileCommand = &cli.Command{
 			return err
 		}
 
-		outfile := cmd.String("output")
+		outfile := cmd.String(outputFlag)
 		if outfile != "" {
 			os.WriteFile(outfile, data, 0)
 			return nil

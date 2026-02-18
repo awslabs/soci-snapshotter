@@ -20,6 +20,7 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/awslabs/soci-snapshotter/cmd/soci/commands/global"
 	"github.com/awslabs/soci-snapshotter/cmd/soci/commands/internal"
 	"github.com/awslabs/soci-snapshotter/soci"
 	"github.com/awslabs/soci-snapshotter/soci/store"
@@ -34,14 +35,14 @@ var rmCommand = &cli.Command{
 	Description: "remove an index from local db, and from content store if supported",
 	Flags: []cli.Flag{
 		&cli.StringFlag{
-			Name:  refKey,
+			Name:  refFlag,
 			Usage: "only remove indices that are associated with a specific image ref",
 		},
 	},
 	Action: func(ctx context.Context, cmd *cli.Command) error {
 		args := cmd.Args()
 
-		ref := cmd.String(refKey)
+		ref := cmd.String(refFlag)
 		if args.Len() != 0 && ref != "" {
 			return fmt.Errorf("please provide either index digests or image ref, but not both")
 		}
@@ -51,7 +52,7 @@ var rmCommand = &cli.Command{
 			return fmt.Errorf("cannot create local content store: %w", err)
 		}
 
-		db, err := soci.NewDB(soci.ArtifactsDbPath(cmd.String("root")))
+		db, err := soci.NewDB(soci.ArtifactsDbPath(cmd.String(global.RootFlag)))
 		if err != nil {
 			return err
 		}
