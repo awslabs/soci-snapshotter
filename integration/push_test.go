@@ -65,7 +65,7 @@ func TestSociArtifactsPushAndPull(t *testing.T) {
 				t.Fatalf("could not get digest of local content store: %v", err)
 			}
 
-			sh.X("soci", "push", "--user", regConfig.creds(), "--platform", tt.Platform, regConfig.mirror(imageName).ref)
+			sh.X("soci", "push", "--platform", tt.Platform, regConfig.mirror(imageName).ref)
 			sh.X("rm", "-rf", filepath.Join(store.DefaultSociContentStorePath, "blobs", "sha256"))
 			sh.X(append(imagePullCmd, "--soci-index-digest", indexDigest, "--platform", tt.Platform, regConfig.mirror(imageName).ref)...)
 
@@ -78,6 +78,37 @@ func TestSociArtifactsPushAndPull(t *testing.T) {
 				t.Fatalf("unexpected digests before and after rpull; before = %v, after = %v", artifactsStoreContentDigest, artifactsStoreContentDigestAfterRPull)
 			}
 		})
+	}
+}
+
+func TestPushWithUserFlag(t *testing.T) {
+	regConfig := newRegistryConfig()
+	sh, done := newShellWithRegistry(t, regConfig)
+	defer done()
+
+	rebootContainerd(t, sh, getContainerdConfigToml(t, false), getSnapshotterConfigToml(t))
+
+	imageName := ubuntuImage
+	copyImage(sh, dockerhub(imageName), regConfig.mirror(imageName))
+	buildIndex(sh, regConfig.mirror(imageName), withMinLayerSize(0))
+
+	// Remove Docker config so there is no credential fallback.
+	// This forces authentication to rely solely on the --user/-u flag.
+	sh.X("rm", "-f", "/root/.docker/config.json")
+
+	_, err := sh.OLog("soci", "push", "--user", regConfig.creds(), regConfig.mirror(imageName).ref)
+	if err != nil {
+		t.Fatalf("push with --user flag should succeed, but got error: %v", err)
+	}
+
+	_, err = sh.OLog("soci", "push", "-u", regConfig.creds(), regConfig.mirror(imageName).ref)
+	if err != nil {
+		t.Fatalf("push with -u flag should succeed, but got error: %v", err)
+	}
+
+	_, err = sh.OLog("soci", "push", regConfig.mirror(imageName).ref)
+	if err == nil {
+		t.Fatal("push without --user flag should fail when Docker config is removed, but it succeeded")
 	}
 }
 

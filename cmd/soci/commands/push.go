@@ -20,12 +20,10 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"io"
 	"math"
 	"net/http"
 	"slices"
 	"sort"
-	"strings"
 
 	"github.com/awslabs/soci-snapshotter/cmd/soci/commands/internal"
 	"github.com/awslabs/soci-snapshotter/fs"
@@ -33,7 +31,6 @@ import (
 	"github.com/awslabs/soci-snapshotter/soci/store"
 	"github.com/containerd/containerd/reference"
 	"github.com/containerd/platforms"
-	dockercliconfig "github.com/docker/cli/cli/config"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/urfave/cli/v3"
 	oraslib "oras.land/oras-go/v2"
@@ -126,28 +123,11 @@ if they are available in the snapshotter's local content store.
 		}
 		authClient := auth.DefaultClient
 
-		var username string
-		var secret string
-		if cmd.IsSet("username") {
-			username = cmd.String("username")
-			if i := strings.IndexByte(username, ':'); i > 0 {
-				secret = username[i+1:]
-				username = username[0:i]
-			}
-		} else {
-			cf := dockercliconfig.LoadDefaultConfigFile(io.Discard)
-			if cf.ContainsAuth() {
-				if ac, err := cf.GetAuthConfig(refspec.Hostname()); err == nil {
-					username = ac.Username
-					secret = ac.Password
-				}
-			}
-		}
-
+		username, password := internal.ResolveCredentials(cmd, refspec.Hostname())
 		authClient.Credential = func(_ context.Context, host string) (auth.Credential, error) {
 			return auth.Credential{
 				Username: username,
-				Password: secret,
+				Password: password,
 			}, nil
 		}
 
