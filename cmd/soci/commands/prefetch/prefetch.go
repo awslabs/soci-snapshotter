@@ -20,6 +20,8 @@ import (
 	"github.com/urfave/cli/v3"
 )
 
+const JSONFlag = "json"
+
 var Command = &cli.Command{
 	Name:  "prefetch",
 	Usage: "manage prefetch artifacts",

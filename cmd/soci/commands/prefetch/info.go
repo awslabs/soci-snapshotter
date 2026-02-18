@@ -22,6 +22,7 @@ import (
 	"encoding/json"
 	"fmt"
 
+	"github.com/awslabs/soci-snapshotter/cmd/soci/commands/global"
 	"github.com/awslabs/soci-snapshotter/cmd/soci/commands/internal"
 	"github.com/awslabs/soci-snapshotter/soci"
 	"github.com/awslabs/soci-snapshotter/soci/store"
@@ -36,6 +37,12 @@ var infoCommand = &cli.Command{
 	Usage:       "display a prefetch artifact",
 	Description: "get detailed info about a prefetch artifact",
 	ArgsUsage:   "<digest>",
+	Flags: []cli.Flag{
+		&cli.BoolFlag{
+			Name:  JSONFlag,
+			Usage: "output in JSON format",
+		},
+	},
 	Action: func(ctx context.Context, cmd *cli.Command) error {
 		ctx, cancel := internal.AppContext(ctx, cmd)
 		defer cancel()
@@ -45,7 +52,7 @@ var infoCommand = &cli.Command{
 			return err
 		}
 
-		db, err := soci.NewDB(soci.ArtifactsDbPath(cmd.String("root")))
+		db, err := soci.NewDB(soci.ArtifactsDbPath(cmd.String(global.RootFlag)))
 		if err != nil {
 			return err
 		}
@@ -114,7 +121,7 @@ var infoCommand = &cli.Command{
 		fmt.Printf("\nTotal spans to prefetch: %d\n", totalSpans)
 
 		// Optionally print raw JSON
-		if cmd.Bool("json") {
+		if cmd.Bool(JSONFlag) {
 			fmt.Println("\nRaw JSON:")
 			b, err := json.Marshal(artifact)
 			if err != nil {
@@ -124,12 +131,6 @@ var infoCommand = &cli.Command{
 		}
 
 		return nil
-	},
-	Flags: []cli.Flag{
-		&cli.BoolFlag{
-			Name:  "json",
-			Usage: "output raw JSON",
-		},
 	},
 }
 

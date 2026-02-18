@@ -21,6 +21,7 @@ import (
 	"encoding/json"
 	"fmt"
 
+	"github.com/awslabs/soci-snapshotter/cmd/soci/commands/global"
 	"github.com/awslabs/soci-snapshotter/cmd/soci/commands/internal"
 	"github.com/awslabs/soci-snapshotter/soci"
 	"github.com/awslabs/soci-snapshotter/soci/store"
@@ -60,7 +61,7 @@ var infoCommand = &cli.Command{
 		if err != nil {
 			return err
 		}
-		db, err := soci.NewDB(soci.ArtifactsDbPath(cmd.String("root")))
+		db, err := soci.NewDB(soci.ArtifactsDbPath(cmd.String(global.RootFlag)))
 		if err != nil {
 			return err
 		}

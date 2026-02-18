@@ -30,17 +30,15 @@ const (
 	PrefetchFilesJSONFlag = "prefetch-files-json"
 )
 
-func PrefetchFlags() []cli.Flag {
-	return []cli.Flag{
-		&cli.StringSliceFlag{
-			Name:  PrefetchFilesFlag,
-			Usage: "File paths to prefetch. Can be specified multiple times or as multiple arguments. These files will be included in the SOCI index metadata for faster access. Example: --prefetch-file /app/config.json --prefetch-file /app/static/main.css",
-		},
-		&cli.StringFlag{
-			Name:  PrefetchFilesJSONFlag,
-			Usage: "Path to a JSON file containing a list of file paths to prefetch. The JSON file should contain an array of strings. Example: --prefetch-files-json '/path/to/prefetch.json'",
-		},
-	}
+var PrefetchFlags = []cli.Flag{
+	&cli.StringSliceFlag{
+		Name:  PrefetchFilesFlag,
+		Usage: "File paths to prefetch. Can be specified multiple times or as multiple arguments. These files will be included in the SOCI index metadata for faster access. Example: --prefetch-file /app/config.json --prefetch-file /app/static/main.css",
+	},
+	&cli.StringFlag{
+		Name:  PrefetchFilesJSONFlag,
+		Usage: "Path to a JSON file containing a list of file paths to prefetch. The JSON file should contain an array of strings. Example: --prefetch-files-json '/path/to/prefetch.json'",
+	},
 }
 
 func ParsePrefetchFiles(cmd *cli.Command) ([]string, error) {

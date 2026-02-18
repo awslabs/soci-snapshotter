@@ -38,54 +38,19 @@ import (
 	"os"
 
 	"github.com/awslabs/soci-snapshotter/cmd/soci/commands"
+	"github.com/awslabs/soci-snapshotter/cmd/soci/commands/global"
 	"github.com/awslabs/soci-snapshotter/cmd/soci/commands/index"
 	"github.com/awslabs/soci-snapshotter/cmd/soci/commands/prefetch"
 	"github.com/awslabs/soci-snapshotter/cmd/soci/commands/ztoc"
-	"github.com/awslabs/soci-snapshotter/config"
 	"github.com/awslabs/soci-snapshotter/soci"
 	"github.com/awslabs/soci-snapshotter/version"
-	"github.com/containerd/containerd/defaults"
-	"github.com/containerd/containerd/namespaces"
 	"github.com/urfave/cli/v3"
 )
 
 func main() {
 	app := cli.Command{
-		Name: "soci",
-		Flags: []cli.Flag{
-			&cli.StringFlag{
-				Name:    "address",
-				Aliases: []string{"a"},
-				Usage:   "address for containerd's GRPC server",
-				Value:   defaults.DefaultAddress,
-				Sources: cli.EnvVars("CONTAINERD_ADDRESS"),
-			},
-			&cli.StringFlag{
-				Name:    "namespace",
-				Aliases: []string{"n"},
-				Usage:   "namespace to use with commands",
-				Value:   namespaces.Default,
-				Sources: cli.EnvVars(namespaces.NamespaceEnvVar),
-			},
-			&cli.DurationFlag{
-				Name:  "timeout",
-				Usage: "timeout for commands",
-			},
-			&cli.BoolFlag{
-				Name:  "debug",
-				Usage: "enable debug output",
-			},
-			&cli.StringFlag{
-				Name:  "content-store",
-				Usage: "use a specific content store (soci or containerd)",
-				Value: string(config.DefaultContentStoreType),
-			},
-			&cli.StringFlag{
-				Name:  "root",
-				Usage: "path to the root directory for this snapshotter",
-				Value: config.DefaultSociSnapshotterRootPath,
-			},
-		},
+		Name:    "soci",
+		Flags:   global.Flags,
 		Version: fmt.Sprintf("%s %s", version.Version, version.Revision),
 		Commands: []*cli.Command{
 			index.Command,
@@ -97,7 +62,7 @@ func main() {
 			commands.RebuildDBCommand,
 		},
 		Before: func(ctx context.Context, cmd *cli.Command) (context.Context, error) {
-			return ctx, soci.EnsureSnapshotterRootPath(cmd.String("root"))
+			return ctx, soci.EnsureSnapshotterRootPath(cmd.String(global.RootFlag))
 		},
 	}
 
