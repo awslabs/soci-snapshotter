@@ -57,7 +57,7 @@ func TestSociArtifactsPushAndPull(t *testing.T) {
 				t.Fatalf("could not parse platform %s: %v", tt.Platform, err)
 			}
 
-			imageName := ubuntuImage
+			imageName := alpineImage
 			copyImage(sh, dockerhub(imageName, withPlatform(platform)), regConfig.mirror(imageName, withPlatform(platform)))
 			indexDigest := buildIndex(sh, regConfig.mirror(imageName, withPlatform(platform)), withMinLayerSize(0))
 			artifactsStoreContentDigest, err := getSociLocalStoreContentDigest(sh, config.DefaultContentStoreType)
@@ -88,7 +88,7 @@ func TestPushWithUserFlag(t *testing.T) {
 
 	rebootContainerd(t, sh, getContainerdConfigToml(t, false), getSnapshotterConfigToml(t))
 
-	imageName := ubuntuImage
+	imageName := alpineImage
 	copyImage(sh, dockerhub(imageName), regConfig.mirror(imageName))
 	buildIndex(sh, regConfig.mirror(imageName), withMinLayerSize(0))
 
@@ -156,7 +156,7 @@ func TestPushAlwaysMostRecentlyCreatedIndex(t *testing.T) {
 			for _, opt := range tc.opts {
 				index := buildIndex(sh, imgInfo, withMinLayerSize(opt.minLayerSize), withSpanSize(opt.spanSize))
 				index = strings.Split(index, "\n")[0]
-				out := sh.O("soci", "push", "--existing-index", "allow", "--user", regConfig.creds(), "-q", imgInfo.ref)
+				out := sh.O("soci", "push", "--existing-index", "allow", "-q", imgInfo.ref)
 				pushedIndex := strings.Trim(string(out), "\n")
 				if index != pushedIndex {
 					t.Fatalf("incorrect index pushed to remote registry; expected %s, got %s", index, pushedIndex)
@@ -200,7 +200,7 @@ func TestLegacyOCI(t *testing.T) {
 			if err := soci.UnmarshalIndex(rawJSON, &sociIndex); err != nil {
 				t.Fatalf("invalid soci index from digest %s: %v", indexDigest, rawJSON)
 			}
-			_, err := sh.OLog("soci", "push", "--user", regConfig.creds(), regConfig.mirror(imageName).ref)
+			_, err := sh.OLog("soci", "push", regConfig.mirror(imageName).ref)
 			hasError := err != nil
 			if hasError != tc.expectError {
 				t.Fatalf("unexpected error state: expected error? %v, got %v", tc.expectError, err)
@@ -250,10 +250,10 @@ func TestPushWithExistingIndices(t *testing.T) {
 		imageToIndexDigest[img] = indexDigest
 		imageToManifestDigest[mirrorImg.ref] = manifestDigest
 
-		sh.X("soci", "push", "--user", regConfig.creds(), mirrorImg.ref)
+		sh.X("soci", "push", mirrorImg.ref)
 		if img == ubuntuImage {
 			buildIndex(sh, mirrorImg, withSpanSize(1280))
-			sh.X("soci", "push", "--user", regConfig.creds(), mirrorImg.ref)
+			sh.X("soci", "push", mirrorImg.ref)
 		}
 
 	}
@@ -271,7 +271,7 @@ func TestPushWithExistingIndices(t *testing.T) {
 			name:               "Warn with existing index",
 			imgInfo:            regConfig.mirror(nginxImage),
 			imgName:            "nginx",
-			cmd:                []string{"soci", "push", "--user", regConfig.creds(), "--existing-index", "warn"},
+			cmd:                []string{"soci", "push", "--existing-index", "warn"},
 			hasOutput:          true,
 			outputContains:     fmt.Sprintf("%s %s %s: %s", warnMessageHead, singleFoundMessage, imageToIndexDigest[nginxImage], warnMessageTail),
 			expectedIndexCount: 2,
@@ -280,7 +280,7 @@ func TestPushWithExistingIndices(t *testing.T) {
 			name:               "Skip with existing index",
 			imgInfo:            regConfig.mirror(rabbitmqImage),
 			imgName:            "rabbitmq",
-			cmd:                []string{"soci", "push", "--user", regConfig.creds(), "--existing-index", "skip"},
+			cmd:                []string{"soci", "push", "--existing-index", "skip"},
 			hasOutput:          true,
 			outputContains:     fmt.Sprintf("%s %s: %s %s", singleFoundMessage, imageToIndexDigest[rabbitmqImage], skipMessageTail, imageToManifestDigest[regConfig.mirror(rabbitmqImage).ref]),
 			expectedIndexCount: 1,
@@ -290,14 +290,14 @@ func TestPushWithExistingIndices(t *testing.T) {
 			name:               "Allow with existing index",
 			imgInfo:            regConfig.mirror(drupalImage),
 			imgName:            "drupal",
-			cmd:                []string{"soci", "push", "--user", regConfig.creds(), "--existing-index", "allow"},
+			cmd:                []string{"soci", "push", "--existing-index", "allow"},
 			expectedIndexCount: 2,
 		},
 		{
 			name:               "Warn with multiple existing indices",
 			imgInfo:            regConfig.mirror(ubuntuImage),
 			imgName:            "ubuntu",
-			cmd:                []string{"soci", "push", "--user", regConfig.creds(), "--existing-index", "warn"},
+			cmd:                []string{"soci", "push", "--existing-index", "warn"},
 			hasOutput:          true,
 			outputContains:     fmt.Sprintf("%s %s %s", warnMessageHead, multipleFoundMessage, warnMessageTail),
 			expectedIndexCount: 3,
