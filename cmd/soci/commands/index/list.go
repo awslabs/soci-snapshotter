@@ -28,6 +28,7 @@ import (
 
 	"github.com/awslabs/soci-snapshotter/cmd/soci/commands/internal"
 	"github.com/awslabs/soci-snapshotter/soci"
+	"github.com/awslabs/soci-snapshotter/soci/artifacts"
 	"github.com/containerd/containerd/errdefs"
 	"github.com/containerd/containerd/images"
 	"github.com/containerd/platforms"
@@ -44,35 +45,6 @@ const (
 	platformKey      = "platform"
 	platformShortKey = "p"
 )
-
-type filter func(ae *soci.ArtifactEntry) bool
-
-func indexFilter(ae *soci.ArtifactEntry) bool {
-	return ae.Type == soci.ArtifactEntryTypeIndex
-}
-
-func platformFilter(platform specs.Platform) filter {
-	return func(ae *soci.ArtifactEntry) bool {
-		return indexFilter(ae) && ae.Platform == platforms.Format(platform)
-	}
-}
-
-func originalDigestFilter(digest string) filter {
-	return func(ae *soci.ArtifactEntry) bool {
-		return indexFilter(ae) && ae.OriginalDigest == digest
-	}
-}
-
-func anyMatch(fns []filter) filter {
-	return func(ae *soci.ArtifactEntry) bool {
-		for _, f := range fns {
-			if f(ae) {
-				return true
-			}
-		}
-		return false
-	}
-}
 
 var listCommand = &cli.Command{
 	Name:    "list",
@@ -95,8 +67,6 @@ var listCommand = &cli.Command{
 		},
 	},
 	Action: func(ctx context.Context, cmd *cli.Command) error {
-		var artifacts []*soci.ArtifactEntry
-
 		ref := cmd.String(refKey)
 		quiet := cmd.Bool(quietKey)
 
@@ -115,7 +85,7 @@ var listCommand = &cli.Command{
 		}
 		defer cancel()
 
-		f := indexFilter
+		f := artifacts.WithEntryType(artifacts.EntryTypeIndex)
 
 		is := client.ImageService()
 		if ref != "" {
@@ -132,7 +102,7 @@ var listCommand = &cli.Command{
 			}
 
 			cs := client.ContentStore()
-			var filters []filter
+			var filters []artifacts.FilterFn
 			for _, plat := range plats {
 				desc, err := soci.GetImageManifestDescriptor(ctx, cs, img.Target, platforms.OnlyStrict(plat))
 				if err != nil {
@@ -141,34 +111,31 @@ var listCommand = &cli.Command{
 					}
 					return err
 				}
-				filters = append(filters, originalDigestFilter(desc.Digest.String()))
+				filters = append(filters, artifacts.WithOriginalDigest(desc.Digest.String()))
 			}
-			f = anyMatch(filters)
+			f = artifacts.WithAnyFilters(filters...)
 		} else if len(plats) != 0 {
-			var filters []filter
+			var filters []artifacts.FilterFn
 			for _, plat := range plats {
-				filters = append(filters, platformFilter(plat))
+				filters = append(filters, artifacts.WithAllFilters(
+					artifacts.WithEntryType(artifacts.EntryTypeIndex),
+					artifacts.WithPlatform(platforms.Format(plat)),
+				))
 			}
-			f = anyMatch(filters)
+			f = artifacts.WithAnyFilters(filters...)
 		}
 
 		db, err := soci.NewDB(soci.ArtifactsDbPath(cmd.String("root")))
 		if err != nil {
 			return err
 		}
-		db.Walk(func(ae *soci.ArtifactEntry) error {
-			if f(ae) {
-				artifacts = append(artifacts, ae)
-			}
-			return nil
-		})
-
-		sort.Slice(artifacts, func(i, j int) bool {
-			return artifacts[i].CreatedAt.After(artifacts[j].CreatedAt)
+		entries, err := db.Filter(ctx, f)
+		sort.Slice(entries, func(i, j int) bool {
+			return entries[i].CreatedAt.After(entries[j].CreatedAt)
 		})
 
 		if quiet {
-			for _, ae := range artifacts {
+			for _, ae := range entries {
 				fmt.Fprintf(os.Stdout, "%s\n", ae.Digest)
 			}
 			return nil
@@ -177,7 +144,7 @@ var listCommand = &cli.Command{
 		writer := tabwriter.NewWriter(os.Stdout, 8, 8, 4, ' ', 0)
 		writer.Write([]byte("DIGEST\tSIZE\tIMAGE REF\tPLATFORM\tMEDIA TYPE\tMANIFEST VERSION\tCREATED\t\n"))
 
-		for _, ae := range artifacts {
+		for _, ae := range entries {
 			imgs, _ := is.List(ctx, fmt.Sprintf("target.digest==%s", ae.ImageDigest))
 			if len(imgs) > 0 {
 				for _, img := range imgs {
@@ -192,7 +159,7 @@ var listCommand = &cli.Command{
 	},
 }
 
-func writeArtifactEntry(w io.Writer, ae *soci.ArtifactEntry, imageRef string) {
+func writeArtifactEntry(w io.Writer, ae *artifacts.Entry, imageRef string) {
 	version := ""
 	switch ae.ArtifactType {
 	case soci.SociIndexArtifactTypeV1:

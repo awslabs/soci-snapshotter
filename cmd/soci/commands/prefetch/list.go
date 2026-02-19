@@ -26,6 +26,7 @@ import (
 
 	"github.com/awslabs/soci-snapshotter/cmd/soci/commands/internal"
 	"github.com/awslabs/soci-snapshotter/soci"
+	"github.com/awslabs/soci-snapshotter/soci/artifacts"
 	"github.com/awslabs/soci-snapshotter/soci/store"
 
 	"github.com/opencontainers/go-digest"
@@ -61,7 +62,7 @@ var listCommand = &cli.Command{
 
 		var prefetches []prefetchInfo
 
-		addPrefetchInfo := func(entry *soci.ArtifactEntry, totalSpans int) {
+		addPrefetchInfo := func(entry *artifacts.Entry, totalSpans int) {
 			prefetches = append(prefetches, prefetchInfo{
 				Digest:      entry.Digest,
 				LayerDigest: entry.OriginalDigest,
@@ -70,8 +71,8 @@ var listCommand = &cli.Command{
 			})
 		}
 
-		err = db.Walk(func(entry *soci.ArtifactEntry) error {
-			if entry.Type != soci.ArtifactEntryTypePrefetch {
+		err = db.Walk(ctx, func(entry *artifacts.Entry) error {
+			if entry.Type != artifacts.EntryTypePrefetch {
 				return nil
 			}
 

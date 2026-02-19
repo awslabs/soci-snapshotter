@@ -24,6 +24,7 @@ import (
 
 	"github.com/awslabs/soci-snapshotter/cmd/soci/commands/internal"
 	"github.com/awslabs/soci-snapshotter/soci"
+	"github.com/awslabs/soci-snapshotter/soci/artifacts"
 	"github.com/awslabs/soci-snapshotter/soci/store"
 
 	"github.com/opencontainers/go-digest"
@@ -50,12 +51,12 @@ var infoCommand = &cli.Command{
 			return err
 		}
 
-		artifactType, err := db.GetArtifactType(digest.String())
+		artifact, err := db.Get(ctx, digest.String())
 		if err != nil {
 			return err
 		}
-		if artifactType != soci.ArtifactEntryTypePrefetch {
-			return fmt.Errorf("the provided digest is not a prefetch artifact (type: %s)", artifactType)
+		if artifact.Type != artifacts.EntryTypePrefetch {
+			return fmt.Errorf("the provided digest is not a prefetch artifact (type: %s)", artifact.Type)
 		}
 
 		store, err := store.NewContentStore(internal.ContentStoreOptions(ctx, cmd)...)
@@ -69,25 +70,21 @@ var infoCommand = &cli.Command{
 		}
 		defer reader.Close()
 
-		artifact, err := soci.UnmarshalPrefetchArtifact(reader)
+		prefetchArtifact, err := soci.UnmarshalPrefetchArtifact(reader)
 		if err != nil {
 			return err
 		}
 
 		// Get artifact entry for additional metadata
-		var entry *soci.ArtifactEntry
-		db.Walk(func(ae *soci.ArtifactEntry) error {
-			if ae.Digest == digest.String() {
-				entry = ae
-				return fmt.Errorf("found") // stop walking
-			}
-			return nil
-		})
+		entry, err := db.Find(ctx, artifacts.WithDigest(digest.String()))
+		if err != nil {
+			return err
+		}
 
 		// Print summary
 		fmt.Printf("Digest:        %s\n", digest)
-		fmt.Printf("Version:       %s\n", artifact.Version)
-		fmt.Printf("Span Ranges:   %d\n", len(artifact.PrefetchSpans))
+		fmt.Printf("Version:       %s\n", prefetchArtifact.Version)
+		fmt.Printf("Span Ranges:   %d\n", len(prefetchArtifact.PrefetchSpans))
 		if entry != nil {
 			fmt.Printf("Layer Digest:  %s\n", entry.OriginalDigest)
 			fmt.Printf("Size:          %d bytes\n", entry.Size)
@@ -102,7 +99,7 @@ var infoCommand = &cli.Command{
 		// Print detailed span information
 		fmt.Println("Prefetch Spans:")
 		totalSpans := 0
-		for i, span := range artifact.PrefetchSpans {
+		for i, span := range prefetchArtifact.PrefetchSpans {
 			spanCount := int(span.EndSpan - span.StartSpan + 1)
 			totalSpans += spanCount
 			fmt.Printf("  [%d] StartSpan: %d, EndSpan: %d (covers %d spans)\n",
