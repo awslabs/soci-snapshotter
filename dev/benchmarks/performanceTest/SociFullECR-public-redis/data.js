@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1771355997744,
+  "lastUpdate": 1771461394021,
   "repoUrl": "https://github.com/awslabs/soci-snapshotter",
   "entries": {
     "Soci Benchmark": [
@@ -16366,6 +16366,48 @@ window.BENCHMARK_DATA = {
           {
             "name": "SociFullECR-public-redis-pullTaskDuration",
             "value": 1.379,
+            "unit": "Seconds",
+            "extra": "P90"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "prafulgupta6@gmail.com",
+            "name": "Praful Gupta",
+            "username": "prafgup"
+          },
+          "committer": {
+            "email": "55555210+sondavidb@users.noreply.github.com",
+            "name": "David Son",
+            "username": "sondavidb"
+          },
+          "distinct": true,
+          "id": "01a89f77e8fcc33e832390f5dc504b31933807f6",
+          "message": "Change wrong \"username\" flag to \"user\" for creds lookup\n\nSigned-off-by: Praful Gupta <prafulgupta6@gmail.com>",
+          "timestamp": "2026-02-18T16:27:39-08:00",
+          "tree_id": "34bf68f4f3f1d3af9e4369059fdfe9040ca8a5d2",
+          "url": "https://github.com/awslabs/soci-snapshotter/commit/01a89f77e8fcc33e832390f5dc504b31933807f6"
+        },
+        "date": 1771461390537,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "SociFullECR-public-redis-lazyTaskDuration",
+            "value": 1.038,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-redis-localTaskDuration",
+            "value": 0.0235,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-redis-pullTaskDuration",
+            "value": 1.584,
             "unit": "Seconds",
             "extra": "P90"
           }
