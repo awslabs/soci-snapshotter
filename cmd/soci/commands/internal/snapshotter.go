@@ -36,9 +36,11 @@ import (
 	"github.com/urfave/cli/v3"
 )
 
+const SnapshotterFlag = "snapshotter"
+
 var SnapshotterFlags = []cli.Flag{
 	&cli.StringFlag{
-		Name:    "snapshotter",
+		Name:    SnapshotterFlag,
 		Usage:   "Snapshotter name. Empty value stands for the default value.",
 		Sources: cli.EnvVars("CONTAINERD_SNAPSHOTTER"),
 	},

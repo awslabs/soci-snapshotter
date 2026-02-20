@@ -19,22 +19,24 @@ package internal
 import "github.com/urfave/cli/v3"
 
 const (
-	ExistingIndexFlagName = "existing-index"
-	Warn                  = "warn"
-	Skip                  = "skip"
-	Allow                 = "allow"
+	ExistingIndexFlag = "existing-index"
+	Warn              = "warn"
+	Skip              = "skip"
+	Allow             = "allow"
 )
 
 var SupportedExistingIndexOptions = []string{Warn, Skip, Allow}
 
-var ExistingIndexFlag = &cli.StringFlag{
-	Name:  ExistingIndexFlagName,
-	Value: Warn,
-	Usage: `Configure how to handle existing SOCI artifacts in remote when pushing indices
+var ExistingIndexFlags = []cli.Flag{
+	&cli.StringFlag{
+		Name:  ExistingIndexFlag,
+		Value: Warn,
+		Usage: `Configure how to handle existing SOCI artifacts in remote when pushing indices
 			warn  - print warning message to stdout but push index anyway
 			skip  - skip pushing the index
 			allow - push the index regardless
 	`,
+	},
 }
 
 // SupportedArg checks if a value is present within a given slice

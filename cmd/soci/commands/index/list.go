@@ -26,6 +26,7 @@ import (
 	"text/tabwriter"
 	"time"
 
+	"github.com/awslabs/soci-snapshotter/cmd/soci/commands/global"
 	"github.com/awslabs/soci-snapshotter/cmd/soci/commands/internal"
 	"github.com/awslabs/soci-snapshotter/soci"
 	"github.com/containerd/containerd/errdefs"
@@ -36,13 +37,9 @@ import (
 )
 
 const (
-	refKey = "ref"
-
-	quietKey      = "quiet"
-	quietShortKey = "q"
-
-	platformKey      = "platform"
-	platformShortKey = "p"
+	refFlag      = "ref"
+	quietFlag    = "quiet"
+	platformFlag = "platform"
 )
 
 type filter func(ae *soci.ArtifactEntry) bool
@@ -80,28 +77,28 @@ var listCommand = &cli.Command{
 	Aliases: []string{"ls"},
 	Flags: []cli.Flag{
 		&cli.StringFlag{
-			Name:  refKey,
+			Name:  refFlag,
 			Usage: "filter indices to those that are associated with a specific image ref",
 		},
 		&cli.BoolFlag{
-			Name:    quietKey,
-			Aliases: []string{quietShortKey},
+			Name:    quietFlag,
+			Aliases: []string{"q"},
 			Usage:   "only display the index digests",
 		},
 		&cli.StringSliceFlag{
-			Name:    platformKey,
-			Aliases: []string{platformShortKey},
+			Name:    platformFlag,
+			Aliases: []string{"p"},
 			Usage:   "filter indices to a specific platform",
 		},
 	},
 	Action: func(ctx context.Context, cmd *cli.Command) error {
 		var artifacts []*soci.ArtifactEntry
 
-		ref := cmd.String(refKey)
-		quiet := cmd.Bool(quietKey)
+		ref := cmd.String(refFlag)
+		quiet := cmd.Bool(quietFlag)
 
 		var plats []specs.Platform
-		for _, p := range cmd.StringSlice(platformKey) {
+		for _, p := range cmd.StringSlice(platformFlag) {
 			pp, err := platforms.Parse(p)
 			if err != nil {
 				return err
@@ -152,7 +149,7 @@ var listCommand = &cli.Command{
 			f = anyMatch(filters)
 		}
 
-		db, err := soci.NewDB(soci.ArtifactsDbPath(cmd.String("root")))
+		db, err := soci.NewDB(soci.ArtifactsDbPath(cmd.String(global.RootFlag)))
 		if err != nil {
 			return err
 		}
