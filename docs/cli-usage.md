@@ -54,6 +54,11 @@ This command creates a new SOCI-enabled image that packages the original image a
 > [!NOTE]
 > SOCI Index Manifest v2 is the recommended approach for production deployments as it provides immutable binding between the image and SOCI index, preventing runtime behavior changes.
 
+**Modes of Operation:**
+
+1. **Containerd mode** (default): Works with local containerd daemon and requires the image to be present in containerd
+2. **Standalone mode** (`--standalone`): Downloads image directly from registry, converts it, and pushes back without requiring containerd
+
 Usage: ```soci convert [flags] <source_image_ref> <dest_image_ref> ```
 
 Flags:
@@ -64,6 +69,8 @@ Flags:
    - `xattr` :  When true, adds DisableXAttrs annotation to SOCI index. This annotation often helps performance at pull time.
  - ```--all-platforms``` : Convert all platforms of a multi-platform image
  - ```--platform``` : Convert only the specified platform (e.g., linux/amd64)
+ - ```--standalone``` : Run in standalone mode without containerd daemon
+ - ```--user```, ```-u``` : Registry credentials in format `username:password` (when using standalone mode)
 
 **Example:**
 ```
@@ -73,6 +80,13 @@ soci convert public.ecr.aws/soci-workshop-examples/ffmpeg:latest public.ecr.aws/
 **Multi-platform example:**
 ```
 soci convert --all-platforms public.ecr.aws/soci-workshop-examples/ffmpeg:latest public.ecr.aws/soci-workshop-examples/ffmpeg:latest-soci
+```
+
+**Standalone mode example (no containerd required):**
+```
+soci convert --standalone --user myuser:mypass \
+  private.registry/myapp:v1.0 \
+  private.registry/myapp:v1.0-soci
 ```
 
 ### soci push

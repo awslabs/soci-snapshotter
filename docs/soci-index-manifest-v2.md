@@ -19,7 +19,9 @@ While SOCI-enabled images are additional images compared to SOCI Index Manifest 
 
 The SOCI snapshotter v0.10.0 will no longer consume SOCI Index Manifest v1 by default. Your existing images will not be lazily loaded after updating. To upgrade to SOCI Index Manifest v2, use the SOCI CLI to convert your images into SOCI-enabled images. You can push the SOCI-enabled images to your registry like any other image which will include the new SOCI indexes. You can pull the SOCI-enabled images with the SOCI snapshotter to get the benefits of lazy loading.
 
-A sample workflow:
+### Option 1: Using containerd (nerdctl)
+
+Sample workflow with containerd:
 
 ```
 sudo nerdctl pull --all-platforms 123456789012.dkr.us-west-2.ecr.amazonaws.com/example:latest
@@ -28,6 +30,21 @@ sudo soci convert --all-platforms 123456789012.dkr.us-west-2.ecr.amazonaws.com/e
 sudo nerdctl push --all-platforms \
     123456789012.dkr.us-west-2.ecr.amazonaws.com/example:latest-soci
 ```
+
+### Option 2: Standalone mode (no containerd required)
+
+Sample workflow without containerd:
+
+```
+sudo soci convert --standalone --all-platforms \
+    --user $USER:$PASSWORD \
+    123456789012.dkr.us-west-2.ecr.amazonaws.com/example:latest \
+    123456789012.dkr.us-west-2.ecr.amazonaws.com/example:latest-soci
+```
+
+The standalone mode automatically downloads the image, converts it, and pushes it back to the registry in a single command. This is useful in CI/CD environments or when you don't have containerd available.
+
+### Using the converted image
 
 In your execution environment:
 
