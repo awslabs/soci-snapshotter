@@ -47,6 +47,7 @@ import (
 	"runtime"
 	"strconv"
 	"strings"
+	"sync"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -108,13 +109,12 @@ func (r *TestingReporter) Stderr() io.Writer {
 
 // LogMonitor manages a list of functions that should scan lines coming from stdout and stderr Readers
 type LogMonitor struct {
-	monitorFuncs map[string]func(string)
+	monitorFuncs sync.Map // map[string]func(string)
 }
 
 // NewLogMonitor creates a LogMonitor for a given pair of stdout and stderr Readers
 func NewLogMonitor(r shell.Reporter, stdout, stderr io.Reader) *LogMonitor {
 	m := &LogMonitor{}
-	m.monitorFuncs = make(map[string]func(string))
 	go m.scanLog(io.TeeReader(stdout, r.Stdout()))
 	go m.scanLog(io.TeeReader(stderr, r.Stderr()))
 	return m
@@ -122,20 +122,18 @@ func NewLogMonitor(r shell.Reporter, stdout, stderr io.Reader) *LogMonitor {
 
 // Add registers a new log monitor function
 func (m *LogMonitor) Add(name string, monitorFunc func(string)) error {
-	if _, ok := m.monitorFuncs[name]; ok {
+	if _, loaded := m.monitorFuncs.LoadOrStore(name, monitorFunc); loaded {
 		return fmt.Errorf("attempted to add log monitor with already existing name: %s", name)
 	}
-	m.monitorFuncs[name] = monitorFunc
 	return nil
 }
 
 // Remove unregisters a log monitor function
 func (m *LogMonitor) Remove(name string) error {
-	if _, ok := m.monitorFuncs[name]; ok {
-		delete(m.monitorFuncs, name)
-		return nil
+	if _, loaded := m.monitorFuncs.LoadAndDelete(name); !loaded {
+		return fmt.Errorf("attempted to remove nonexistent log monitor: %s", name)
 	}
-	return fmt.Errorf("attempted to remove nonexistent log monitor: %s", name)
+	return nil
 }
 
 // scanLog calls each registered log monitor function for each new line of the Reader
@@ -143,9 +141,10 @@ func (m *LogMonitor) scanLog(inputR io.Reader) {
 	scanner := bufio.NewScanner(inputR)
 	for scanner.Scan() {
 		rawL := scanner.Text()
-		for _, monitorFunc := range m.monitorFuncs {
-			monitorFunc(rawL)
-		}
+		m.monitorFuncs.Range(func(_, value any) bool {
+			value.(func(string))(rawL)
+			return true
+		})
 	}
 }
 
