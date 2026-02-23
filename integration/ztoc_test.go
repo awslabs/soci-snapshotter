@@ -37,6 +37,7 @@ import (
 	"github.com/awslabs/soci-snapshotter/util/testutil"
 	"github.com/awslabs/soci-snapshotter/ztoc"
 	"github.com/awslabs/soci-snapshotter/ztoc/compression"
+	"github.com/containerd/platforms"
 	"github.com/google/go-cmp/cmp"
 	"github.com/opencontainers/go-digest"
 	v1 "github.com/opencontainers/image-spec/specs-go/v1"
@@ -473,6 +474,74 @@ func dedupeZtocBlobs(ztocBlobs []*v1.Descriptor) []*v1.Descriptor {
 		}
 	}
 	return dedupedZtocBlobs
+}
+
+// eStargz layers are concatenated gzip members.
+func TestSociZtocWithEstargzLayers(t *testing.T) {
+	t.Parallel()
+
+	regConfig := newRegistryConfig()
+	sh, done := newShellWithRegistry(t, regConfig)
+	defer done()
+
+	rebootContainerd(t, sh, getContainerdConfigToml(t, false), getSnapshotterConfigToml(t))
+
+	src := dockerhub(alpineImage)
+	sh.X(append([]string{"nerdctl", "pull", "-q", "--platform", platforms.Format(src.platform)}, encodeImageInfoNerdctl(src)[0]...)...)
+
+	mirrorRef := regConfig.mirror("alpine-estargz:latest")
+	buildEstargzImage(sh, src, mirrorRef.ref)
+	sh.X(append([]string{"nerdctl", "push", "-q"}, encodeImageInfoNerdctl(mirrorRef)[0]...)...)
+
+	indexDigest := buildIndex(sh, mirrorRef, withMinLayerSize(0))
+	if indexDigest == "" {
+		t.Fatal("failed to create SOCI index for eStargz-compressed image")
+	}
+
+	sociIndex, err := sociIndexFromDigest(sh, indexDigest)
+	if err != nil {
+		t.Fatalf("failed to read SOCI index: %v", err)
+	}
+	var ztocFound bool
+	for _, blob := range sociIndex.Blobs {
+		if blob.MediaType != soci.SociLayerMediaType {
+			continue
+		}
+		ztocFound = true
+
+		layerDigest, err := digest.Parse(blob.Annotations[soci.IndexAnnotationImageLayerDigest])
+		if err != nil {
+			t.Fatalf("parse layer digest: %v", err)
+		}
+		files := readLayerTarFiles(t, sh, layerDigest)
+		names := make([]string, 0, len(files))
+		for n := range files {
+			names = append(names, n)
+		}
+		slices.Sort(names)
+		for _, name := range names {
+			expected := files[name]
+			if len(expected) == 0 || len(expected) > 16<<10 {
+				continue
+			}
+			extracted, err := sh.OLog("soci", "ztoc", "get-file", blob.Digest.String(), name)
+			if err != nil {
+				t.Fatalf("get-file %s: %v", name, err)
+			}
+			actual := bytes.TrimSuffix(extracted, []byte{'\n'})
+			if !bytes.Equal(actual, expected) {
+				t.Fatalf("%s content mismatch: expected %d bytes, got %d bytes", name, len(expected), len(actual))
+			}
+		}
+	}
+	if !ztocFound {
+		t.Fatal("no ztoc was generated for the eStargz layer")
+	}
+
+	sh.X("soci", "push", "--user", regConfig.creds(), mirrorRef.ref)
+	sh.X("ctr", "i", "rm", mirrorRef.ref)
+	sh.X(append(imagePullCmd, "--soci-index-digest", indexDigest, mirrorRef.ref)...)
+	checkFuseMounts(t, sh, 1)
 }
 
 func verifyInfoOutput(zinfo Info, ztoc *ztoc.Ztoc) error {
