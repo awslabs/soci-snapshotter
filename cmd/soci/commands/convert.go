@@ -20,6 +20,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"slices"
 	"strings"
 
 	"github.com/awslabs/soci-snapshotter/cmd/soci/commands/internal"
@@ -61,9 +62,10 @@ var ConvertCommand = &cli.Command{
 	Name:      "convert",
 	Usage:     "convert an OCI image to a SOCI enabled image",
 	ArgsUsage: "[flags] <image_ref> <dest_ref>",
-	Flags: append(
-		append(
-			internal.PlatformFlags,
+	Flags: slices.Concat(
+		internal.PlatformFlags,
+		internal.PrefetchFlags(),
+		[]cli.Flag{
 			&cli.Int64Flag{
 				Name:  spanSizeFlag,
 				Usage: "Span size that soci index uses to segment layer data. Default is 4 MiB",
@@ -84,8 +86,7 @@ var ConvertCommand = &cli.Command{
 				Value:   false,
 				Aliases: []string{forceRecreateZtocsFlagShort},
 			},
-		),
-		internal.PrefetchFlags()...,
+		},
 	),
 	Action: func(ctx context.Context, cmd *cli.Command) error {
 		srcRef := cmd.Args().Get(0)
