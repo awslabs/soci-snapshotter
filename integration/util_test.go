@@ -1120,8 +1120,33 @@ func FetchContentByDigest(sh *shell.Shell, contentStoreType store.ContentStoreTy
 	}
 }
 
+// readLayerTarFiles fetches a gzip-tar layer blob from containerd's content
+// store and returns the regular-file entries' contents keyed by tar path.
+func readLayerTarFiles(t *testing.T, sh *shell.Shell, layerDigest digest.Digest) map[string][]byte {
+	t.Helper()
+	layerBytes, err := FetchContentByDigest(sh, store.ContainerdContentStoreType, layerDigest)
+	if err != nil {
+		t.Fatalf("fetch layer %s: %v", layerDigest, err)
+	}
+	layerFile := filepath.Join(t.TempDir(), "layer.tar.gz")
+	if err := os.WriteFile(layerFile, layerBytes, 0644); err != nil {
+		t.Fatalf("write layer: %v", err)
+	}
+	files, _, err := testutil.GetFilesAndContentsWithinTarGz(layerFile)
+	if err != nil {
+		t.Fatalf("read layer tar: %v", err)
+	}
+	return files
+}
+
 func withContentStoreConfig(opts ...store.Option) snapshotterConfigOpt {
 	return func(c *config.Config) {
 		c.ServiceConfig.FSConfig.ContentStoreConfig = store.NewStoreConfig(opts...).ContentStoreConfig
 	}
+}
+
+func buildEstargzImage(sh *shell.Shell, src imageInfo, destRef string) {
+	sh.X("nerdctl", "image", "convert", "--estargz", "--oci",
+		"--platform", platforms.Format(src.platform),
+		src.ref, destRef)
 }

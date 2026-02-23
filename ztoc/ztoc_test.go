@@ -22,6 +22,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"os/exec"
 	"reflect"
 	"testing"
 
@@ -223,6 +224,136 @@ func TestDecompressWithGzipHeaders(t *testing.T) {
 			diff := getPositionOfFirstDiffInByteSlice(data, b)
 			if diff != -1 {
 				t.Fatalf("data mismatched at %d. expected %v, got %v", diff, data, b)
+			}
+		})
+	}
+}
+
+func TestDecompressWithPigz(t *testing.T) {
+	pigzPath, err := exec.LookPath("pigz")
+	if err != nil {
+		t.Skip("pigz not installed, skipping test")
+	}
+
+	r := testutil.NewTestRand(t)
+	tarEntries := []testutil.TarEntry{
+		testutil.File("smallfile", string(r.RandomByteDataRange(1, 100))),
+		testutil.File("mediumfile", string(r.RandomByteDataRange(10000, 128000))),
+		testutil.File("largefile", string(r.RandomByteDataRange(350000, 500000))),
+		testutil.File("jumbofile", string(r.RandomByteDataRange(3000000, 5000000))),
+	}
+
+	tests := []struct {
+		name     string
+		spanSize int64
+	}{
+		{
+			name:     "span size 64KB",
+			spanSize: 1 << 16,
+		},
+		{
+			name:     "span size 256KB",
+			spanSize: 1 << 18,
+		},
+		{
+			name:     "span size 1MB",
+			spanSize: 1 << 20,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			// Build an uncompressed tar
+			tarReader := testutil.BuildTar(tarEntries)
+			tarFilePath, _, err := testutil.WriteTarToTempFile("pigz-test-*.tar", tarReader)
+			if err != nil {
+				t.Fatalf("failed to write tar file: %v", err)
+			}
+			defer os.Remove(tarFilePath)
+
+			// Compress with real pigz binary
+			cmd := exec.Command(pigzPath, "-b", "128", tarFilePath)
+			if output, err := cmd.CombinedOutput(); err != nil {
+				t.Fatalf("pigz failed: %v, output: %s", err, output)
+			}
+			pigzFilePath := tarFilePath + ".gz"
+			defer os.Remove(pigzFilePath)
+
+			m, fileNames, err := testutil.GetFilesAndContentsWithinTarGz(pigzFilePath)
+			if err != nil {
+				t.Fatalf("failed to get files from pigz-compressed tar: %v", err)
+			}
+
+			ztocBuilder := NewBuilder("test")
+			ztoc, err := ztocBuilder.BuildZtoc(pigzFilePath, tc.spanSize, WithCompression(compression.Gzip))
+			if err != nil {
+				t.Fatalf("failed to build ztoc from pigz-compressed file: %v", err)
+			}
+			if ztoc == nil {
+				t.Fatal("ztoc should not be nil")
+			}
+
+			if ztoc.MaxSpanID == 0 {
+				t.Fatalf("expected multiple spans but got MaxSpanID=%d", ztoc.MaxSpanID)
+			}
+
+			// Verify extraction
+			for _, f := range fileNames {
+				extracted, err := ztoc.ExtractFromTarGz(pigzFilePath, f)
+				if err != nil {
+					t.Fatalf("ExtractFromTarGz failed for %s: %v", f, err)
+				}
+				if extracted != string(m[f]) {
+					t.Fatalf("ExtractFromTarGz: content mismatch for %s", f)
+				}
+			}
+
+			file, err := os.Open(pigzFilePath)
+			if err != nil {
+				t.Fatalf("failed to open pigz file: %v", err)
+			}
+			defer file.Close()
+
+			fi, err := file.Stat()
+			if err != nil {
+				t.Fatalf("failed to stat pigz file: %v", err)
+			}
+
+			sr := io.NewSectionReader(file, 0, fi.Size())
+			for _, f := range fileNames {
+				extractedBytes, err := ztoc.ExtractFile(sr, f)
+				if err != nil {
+					t.Fatalf("ExtractFile failed for %s: %v", f, err)
+				}
+				if !bytes.Equal(extractedBytes, m[f]) {
+					diffIdx := getPositionOfFirstDiffInByteSlice(extractedBytes, m[f])
+					t.Fatalf("ExtractFile: content mismatch for %s at byte %d", f, diffIdx)
+				}
+			}
+
+			// Verify ztoc serialization round-trip
+			ztocReader, _, err := Marshal(ztoc)
+			if err != nil {
+				t.Fatalf("failed to marshal ztoc: %v", err)
+			}
+			readZtoc, err := Unmarshal(ztocReader)
+			if err != nil {
+				t.Fatalf("failed to unmarshal ztoc: %v", err)
+			}
+			if !bytes.Equal(ztoc.Checkpoints, readZtoc.Checkpoints) {
+				t.Fatal("checkpoints mismatch after serialization round-trip")
+			}
+			if readZtoc.MaxSpanID != ztoc.MaxSpanID {
+				t.Fatalf("MaxSpanID mismatch: got %d, want %d", readZtoc.MaxSpanID, ztoc.MaxSpanID)
+			}
+			for _, f := range fileNames {
+				extracted, err := readZtoc.ExtractFromTarGz(pigzFilePath, f)
+				if err != nil {
+					t.Fatalf("ExtractFromTarGz after round-trip failed for %s: %v", f, err)
+				}
+				if extracted != string(m[f]) {
+					t.Fatalf("content mismatch after round-trip for %s", f)
+				}
 			}
 		})
 	}
