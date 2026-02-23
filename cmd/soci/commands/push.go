@@ -62,21 +62,23 @@ If multiple soci indices exist for the given image, the most recent one will be 
 
 After pushing the soci artifacts, they should be available in the registry. Soci artifacts will be pushed only
 if they are available in the snapshotter's local content store.
+append(append
 `,
-	Flags: append(append(append(
-		internal.RegistryFlags,
-		internal.SnapshotterFlags...),
-		internal.PlatformFlags...),
-		internal.ExistingIndexFlag,
-		&cli.Uint64Flag{
-			Name:  maxConcurrentUploadsFlag,
-			Usage: fmt.Sprintf("Max concurrent uploads. Default is %d", defaultMaxConcurrentUploads),
-			Value: defaultMaxConcurrentUploads,
-		},
-		&cli.BoolFlag{
-			Name:    "quiet",
-			Aliases: []string{"q"},
-			Usage:   "quiet mode",
+	Flags: slices.Concat(internal.RegistryFlags,
+		internal.SnapshotterFlags,
+		internal.PlatformFlags,
+		[]cli.Flag{
+			internal.ExistingIndexFlag,
+			&cli.Uint64Flag{
+				Name:  maxConcurrentUploadsFlag,
+				Usage: fmt.Sprintf("Max concurrent uploads. Default is %d", defaultMaxConcurrentUploads),
+				Value: defaultMaxConcurrentUploads,
+			},
+			&cli.BoolFlag{
+				Name:    "quiet",
+				Aliases: []string{"q"},
+				Usage:   "quiet mode",
+			},
 		},
 	),
 	Action: func(ctx context.Context, cmd *cli.Command) error {

@@ -20,6 +20,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"slices"
 
 	"github.com/awslabs/soci-snapshotter/cmd/soci/commands/internal"
 	"github.com/awslabs/soci-snapshotter/soci"
@@ -48,9 +49,10 @@ var CreateCommand = &cli.Command{
 	Name:      "create",
 	Usage:     "create SOCI index",
 	ArgsUsage: "[flags] <image_ref>",
-	Flags: append(
-		append(
-			internal.PlatformFlags,
+	Flags: slices.Concat(
+		internal.PlatformFlags,
+		internal.PrefetchFlags(),
+		[]cli.Flag{
 			&cli.Int64Flag{
 				Name:  spanSizeFlag,
 				Usage: "Span size that soci index uses to segment layer data. Default is 4 MiB",
@@ -71,8 +73,7 @@ var CreateCommand = &cli.Command{
 				Value:   false,
 				Aliases: []string{forceRecreateZtocsFlagShort},
 			},
-		),
-		internal.PrefetchFlags()...,
+		},
 	),
 	Action: func(ctx context.Context, cmd *cli.Command) error {
 		srcRef := cmd.Args().Get(0)
