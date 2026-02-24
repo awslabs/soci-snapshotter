@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1771613415864,
+  "lastUpdate": 1771959508936,
   "repoUrl": "https://github.com/awslabs/soci-snapshotter",
   "entries": {
     "Soci Benchmark": [
@@ -16450,6 +16450,48 @@ window.BENCHMARK_DATA = {
           {
             "name": "SociFullECR-public-redis-pullTaskDuration",
             "value": 1.2445,
+            "unit": "Seconds",
+            "extra": "P90"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "davbson@amazon.com",
+            "name": "David Son",
+            "username": "sondavidb"
+          },
+          "committer": {
+            "email": "55555210+sondavidb@users.noreply.github.com",
+            "name": "David Son",
+            "username": "sondavidb"
+          },
+          "distinct": true,
+          "id": "9707eb6967fad4fad1d6676263c029fd3223ac25",
+          "message": "Refactor LogMonitor to be threadsafe\n\nAn older iteration of this simply locked the map behind a mutex. This is\na slight overhaul of the entire LogMonitor func. This does the\nfollowing:\n\n- Add explicit Start func\n- Only allow monitorFuncs to be added before Starting\n- Replace Remove with Cleanup\n- Ensure all of our goroutines conclude before cleaning\n\nSigned-off-by: David Son <davbson@amazon.com>",
+          "timestamp": "2026-02-24T10:48:04-08:00",
+          "tree_id": "03e4548ab70314e7c6953e8cc2cbde1be0908739",
+          "url": "https://github.com/awslabs/soci-snapshotter/commit/9707eb6967fad4fad1d6676263c029fd3223ac25"
+        },
+        "date": 1771959499545,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "SociFullECR-public-redis-lazyTaskDuration",
+            "value": 2.0004999999999997,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-redis-localTaskDuration",
+            "value": 0.0295,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-redis-pullTaskDuration",
+            "value": 1.6195,
             "unit": "Seconds",
             "extra": "P90"
           }
