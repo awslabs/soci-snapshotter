@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1771959499734,
+  "lastUpdate": 1771960623880,
   "repoUrl": "https://github.com/awslabs/soci-snapshotter",
   "entries": {
     "Soci Benchmark": [
@@ -16534,6 +16534,48 @@ window.BENCHMARK_DATA = {
           {
             "name": "SociFullECR-public-tensorflow-pullTaskDuration",
             "value": 2.215,
+            "unit": "Seconds",
+            "extra": "P90"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "davbson@amazon.com",
+            "name": "David Son",
+            "username": "sondavidb"
+          },
+          "committer": {
+            "email": "55555210+sondavidb@users.noreply.github.com",
+            "name": "David Son",
+            "username": "sondavidb"
+          },
+          "distinct": true,
+          "id": "291ce10a49766373fae1c5bd7df3a0f00a7cc5c1",
+          "message": "Use variables for all SOCI CLI flag names\n\nShould be a no-op in practice, just chores :) This should also help us\nto better identify dead code/flags that are no longer used in the CLI\n(hence the commit before this). There's still quite a few that are\ngangling (e.g. many of the registry flags) but some of these might be\nmore desirable in the future.\n\nAdded a \"global\" package as well so CLI packages can refer to globally\nset variables as needed.\n\nThere's probably other housekeeping to be done here (internal package is\na bit messy IMO) but this is a good start.\n\nSigned-off-by: David Son <davbson@amazon.com>",
+          "timestamp": "2026-02-24T11:05:47-08:00",
+          "tree_id": "a940998fce0cf85d7fbc5b69f214261e7a7e9c56",
+          "url": "https://github.com/awslabs/soci-snapshotter/commit/291ce10a49766373fae1c5bd7df3a0f00a7cc5c1"
+        },
+        "date": 1771960617982,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "SociFullECR-public-tensorflow-lazyTaskDuration",
+            "value": 29.5865,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-tensorflow-localTaskDuration",
+            "value": 2.8315,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-tensorflow-pullTaskDuration",
+            "value": 2.576,
             "unit": "Seconds",
             "extra": "P90"
           }
