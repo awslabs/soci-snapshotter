@@ -14,14 +14,25 @@
    limitations under the License.
 */
 
-package compression
+package compression_test
 
 import (
 	"testing"
+
+	"github.com/awslabs/soci-snapshotter/ztoc/compression"
+	"github.com/awslabs/soci-snapshotter/ztoc/compression/purego"
 )
 
 func TestNewGzipZinfo(t *testing.T) {
-	t.Parallel()
+	testNewGzipZinfo(t, func(zinfoBytes []byte) (compression.Zinfo, error) {
+		return compression.NewGzipZinfo(zinfoBytes)
+	})
+	testNewGzipZinfo(t, func(zinfoBytes []byte) (compression.Zinfo, error) {
+		return purego.NewGzipZinfo(zinfoBytes)
+	})
+}
+
+func testNewGzipZinfo(t *testing.T, factory func([]byte) (compression.Zinfo, error)) {
 	testCases := []struct {
 		name        string
 		zinfoBytes  []byte
@@ -71,7 +82,7 @@ func TestNewGzipZinfo(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			_, err := newGzipZinfo(tc.zinfoBytes)
+			_, err := factory(tc.zinfoBytes)
 			if tc.expectError != (err != nil) {
 				t.Fatalf("expect error: %t, actual error: %v", tc.expectError, err)
 			}
@@ -80,38 +91,42 @@ func TestNewGzipZinfo(t *testing.T) {
 }
 
 func TestExtractDataFromBuffer(t *testing.T) {
-	t.Parallel()
+	testExtractDataFromBuffer(t, &compression.GzipZinfo{})
+	testExtractDataFromBuffer(t, &purego.GzipZinfo{})
+}
+
+func testExtractDataFromBuffer(t *testing.T, zinfo compression.Zinfo) {
 	testCases := []struct {
 		name               string
-		gzipZinfo          GzipZinfo
+		gzipZinfo          compression.Zinfo
 		compressedBuf      []byte
-		uncompressedSize   Offset
-		uncompressedOffset Offset
-		spanID             SpanID
+		uncompressedSize   compression.Offset
+		uncompressedOffset compression.Offset
+		spanID             compression.SpanID
 		expectError        bool
 	}{
 		{
 			name:          "nil buffer should return error",
-			gzipZinfo:     GzipZinfo{},
+			gzipZinfo:     zinfo,
 			compressedBuf: nil,
 			expectError:   true,
 		},
 		{
 			name:          "empty buffer should return error",
-			gzipZinfo:     GzipZinfo{},
+			gzipZinfo:     zinfo,
 			compressedBuf: []byte{},
 			expectError:   true,
 		},
 		{
 			name:             "negative uncompressedSize should return error",
-			gzipZinfo:        GzipZinfo{},
+			gzipZinfo:        zinfo,
 			compressedBuf:    []byte("foobar"),
 			uncompressedSize: -1,
 			expectError:      true,
 		},
 		{
 			name:             "zero uncompressedSize should return empty byte slice",
-			gzipZinfo:        GzipZinfo{},
+			gzipZinfo:        zinfo,
 			compressedBuf:    []byte("foobar"),
 			uncompressedSize: 0,
 			expectError:      false,
@@ -132,25 +147,29 @@ func TestExtractDataFromBuffer(t *testing.T) {
 }
 
 func TestExtractDataFromFile(t *testing.T) {
-	t.Parallel()
+	testExtractDataFromFile(t, &compression.GzipZinfo{})
+	testExtractDataFromFile(t, &purego.GzipZinfo{})
+}
+
+func testExtractDataFromFile(t *testing.T, zinfo compression.Zinfo) {
 	testCases := []struct {
 		name               string
-		gzipZinfo          GzipZinfo
+		gzipZinfo          compression.Zinfo
 		filename           string
-		uncompressedSize   Offset
-		uncompressedOffset Offset
+		uncompressedSize   compression.Offset
+		uncompressedOffset compression.Offset
 		expectError        bool
 	}{
 		{
 			name:             "negative uncompressedSize should return error",
-			gzipZinfo:        GzipZinfo{},
+			gzipZinfo:        zinfo,
 			filename:         "",
 			uncompressedSize: -1,
 			expectError:      true,
 		},
 		{
 			name:             "zero uncompressedSize should return empty byte slice",
-			gzipZinfo:        GzipZinfo{},
+			gzipZinfo:        zinfo,
 			filename:         "",
 			uncompressedSize: 0,
 			expectError:      false,
