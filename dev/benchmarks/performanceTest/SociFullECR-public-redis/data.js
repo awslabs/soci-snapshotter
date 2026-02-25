@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1771960625067,
+  "lastUpdate": 1772060029220,
   "repoUrl": "https://github.com/awslabs/soci-snapshotter",
   "entries": {
     "Soci Benchmark": [
@@ -16534,6 +16534,48 @@ window.BENCHMARK_DATA = {
           {
             "name": "SociFullECR-public-redis-pullTaskDuration",
             "value": 1.678,
+            "unit": "Seconds",
+            "extra": "P90"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "kazuyoshi.kato@baseten.co",
+            "name": "Kazuyoshi Kato",
+            "username": "kzys"
+          },
+          "committer": {
+            "email": "55555210+sondavidb@users.noreply.github.com",
+            "name": "David Son",
+            "username": "sondavidb"
+          },
+          "distinct": true,
+          "id": "1619a75b168405b7239bd269a41c91130bebbc13",
+          "message": "Fix TestSociCreateWithPrefetchArtifacts\n\nLogMonitor was updated in #1778, but this test was not updated to\nfollow the signatue change.\n\nSigned-off-by: Kazuyoshi Kato <kazuyoshi.kato@baseten.co>",
+          "timestamp": "2026-02-25T14:44:54-08:00",
+          "tree_id": "6e58af053021c3ea60a335b072c668e17a1b3e52",
+          "url": "https://github.com/awslabs/soci-snapshotter/commit/1619a75b168405b7239bd269a41c91130bebbc13"
+        },
+        "date": 1772060026552,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "SociFullECR-public-redis-lazyTaskDuration",
+            "value": 0.9584999999999999,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-redis-localTaskDuration",
+            "value": 0.036500000000000005,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-redis-pullTaskDuration",
+            "value": 1.4235,
             "unit": "Seconds",
             "extra": "P90"
           }
