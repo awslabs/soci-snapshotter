@@ -357,23 +357,19 @@ func TestSociCreateWithPrefetchArtifacts(t *testing.T) {
 
 	sh.X("soci", "push", "--user", regConfig.creds(), mirrorImg.ref)
 
-	logMonitor := rebootContainerd(t, sh, getContainerdConfigToml(t, false), getSnapshotterConfigToml(t, withPrefetch()))
-
-	const prefetchMonitorKey = "prefetch-artifact-monitor"
 	prefetchLogCh := make(chan struct{}, 1)
-	if err := logMonitor.Add(prefetchMonitorKey, func(line string) {
-		if strings.Contains(line, "Successfully loaded prefetch artifact") {
-			select {
-			case prefetchLogCh <- struct{}{}:
-			default:
+	m := rebootContainerd(
+		t, sh, getContainerdConfigToml(t, false), getSnapshotterConfigToml(t, withPrefetch()),
+		func(line string) {
+			if strings.Contains(line, "Successfully loaded prefetch artifact") {
+				select {
+				case prefetchLogCh <- struct{}{}:
+				default:
+				}
 			}
-		}
-	}); err != nil {
-		t.Fatalf("failed to add prefetch log monitor: %v", err)
-	}
-	t.Cleanup(func() {
-		logMonitor.Remove(prefetchMonitorKey)
-	})
+		},
+	)
+	defer m.Cleanup(t)
 
 	sh.X(append(imagePullCmd, "--soci-index-digest", indexDigest, mirrorImg.ref)...)
 
