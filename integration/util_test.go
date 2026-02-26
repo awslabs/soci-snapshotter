@@ -33,6 +33,7 @@
 package integration
 
 import (
+	"archive/tar"
 	"bytes"
 	"crypto/rand"
 	"crypto/rsa"
@@ -43,8 +44,10 @@ import (
 	"encoding/pem"
 	"errors"
 	"fmt"
+	"io"
 	"math/big"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"runtime"
 	"sort"
@@ -1051,5 +1054,127 @@ func FetchContentByDigest(sh *shell.Shell, contentStoreType store.ContentStoreTy
 func withContentStoreConfig(opts ...store.Option) snapshotterConfigOpt {
 	return func(c *config.Config) {
 		c.ServiceConfig.FSConfig.ContentStoreConfig = store.NewStoreConfig(opts...).ContentStoreConfig
+	}
+}
+
+type pigzImageInfo struct {
+	ref        string
+	files      map[string]string
+	layerCount int
+}
+
+// buildPigzImage constructs a minimal OCI image with a single pigz-compressed layer
+// and imports it into containerd via "ctr images import"
+func buildPigzImage(t *testing.T, sh *shell.Shell, imageName string) pigzImageInfo {
+	t.Helper()
+
+	pigzPath, err := exec.LookPath("pigz")
+	if err != nil {
+		t.Fatal("pigz is required but not installed")
+	}
+
+	r := testutil.NewTestRand(t)
+	testFiles := map[string]string{
+		"testfile1.txt": "pigz-test-content-alpha-" + string(r.RandomByteData(1<<20)), // ~1 MB
+		"testfile2.txt": "pigz-test-content-beta-" + string(r.RandomByteData(1<<20)),  // ~1 MB
+	}
+
+	entries := []testutil.TarEntry{
+		testutil.File("testfile1.txt", testFiles["testfile1.txt"]),
+		testutil.File("padding1.bin", string(r.RandomByteData(1<<23))), // 8 MB
+		testutil.File("testfile2.txt", testFiles["testfile2.txt"]),
+		testutil.File("padding2.bin", string(r.RandomByteData(1<<23))), // 8 MB
+	}
+	tarData, err := io.ReadAll(testutil.BuildTar(entries))
+	if err != nil {
+		t.Fatalf("failed to build tar: %v", err)
+	}
+
+	// Compress with pigz using 128KB block size (produces concatenated gzip members).
+	pigzCmd := exec.Command(pigzPath, "-b", "128", "-c")
+	pigzCmd.Stdin = bytes.NewReader(tarData)
+	compressedData, err := pigzCmd.Output()
+	if err != nil {
+		t.Fatalf("pigz compression failed: %v", err)
+	}
+	layerDigest := digest.FromBytes(compressedData)
+
+	platform := spec.Platform{Architecture: runtime.GOARCH, OS: "linux"}
+
+	// Build OCI image config.
+	configBytes, err := json.Marshal(spec.Image{
+		Platform: platform,
+		RootFS:   spec.RootFS{Type: "layers", DiffIDs: []digest.Digest{digest.FromBytes(tarData)}},
+	})
+	if err != nil {
+		t.Fatalf("failed to marshal config: %v", err)
+	}
+
+	configDigest := digest.FromBytes(configBytes)
+	manifest := spec.Manifest{
+		MediaType: spec.MediaTypeImageManifest,
+		Config:    spec.Descriptor{MediaType: spec.MediaTypeImageConfig, Digest: configDigest, Size: int64(len(configBytes))},
+		Layers:    []spec.Descriptor{{MediaType: spec.MediaTypeImageLayerGzip, Digest: layerDigest, Size: int64(len(compressedData))}},
+	}
+	manifest.SchemaVersion = 2
+	manifestBytes, err := json.Marshal(manifest)
+	if err != nil {
+		t.Fatalf("failed to marshal manifest: %v", err)
+	}
+	manifestDigest := digest.FromBytes(manifestBytes)
+
+	// Build OCI index.
+	index := spec.Index{
+		MediaType: spec.MediaTypeImageIndex,
+		Manifests: []spec.Descriptor{
+			{
+				MediaType:   spec.MediaTypeImageManifest,
+				Digest:      manifestDigest,
+				Size:        int64(len(manifestBytes)),
+				Platform:    &platform,
+				Annotations: map[string]string{"io.containerd.image.name": imageName},
+			},
+		},
+	}
+	index.SchemaVersion = 2
+	indexBytes, err := json.Marshal(index)
+	if err != nil {
+		t.Fatalf("failed to marshal index: %v", err)
+	}
+
+	// Assemble OCI image layout as a tar archive.
+	var buf bytes.Buffer
+	tw := tar.NewWriter(&buf)
+	for name, data := range map[string][]byte{
+		"oci-layout":                               []byte(`{"imageLayoutVersion":"1.0.0"}`),
+		"index.json":                               indexBytes,
+		"blobs/sha256/" + layerDigest.Encoded():    compressedData,
+		"blobs/sha256/" + configDigest.Encoded():   configBytes,
+		"blobs/sha256/" + manifestDigest.Encoded(): manifestBytes,
+	} {
+		if err := tw.WriteHeader(&tar.Header{Name: name, Mode: 0644, Size: int64(len(data))}); err != nil {
+			t.Fatalf("failed to write tar header for %s: %v", name, err)
+		}
+		if _, err := tw.Write(data); err != nil {
+			t.Fatalf("failed to write tar data for %s: %v", name, err)
+		}
+	}
+	if err := tw.Close(); err != nil {
+		t.Fatalf("failed to close tar writer: %v", err)
+	}
+	ociTar := buf.Bytes()
+
+	// Write OCI tar to test container and import into containerd.
+	tmpPath := "/tmp/pigz-image-" + xid.New().String() + ".tar"
+	if err := testutil.WriteFileContents(sh, tmpPath, ociTar, 0644); err != nil {
+		t.Fatalf("failed to write OCI tar to container: %v", err)
+	}
+	sh.X("ctr", "images", "import", tmpPath)
+	sh.X("rm", "-f", tmpPath)
+
+	return pigzImageInfo{
+		ref:        imageName,
+		files:      testFiles,
+		layerCount: 1,
 	}
 }
