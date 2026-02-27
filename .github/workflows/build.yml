@@ -47,6 +47,23 @@ jobs:
       - name: Show test coverage
         run: make show-test-coverage
 
+  # This is a temporary workaround to ensure we are testing our packages
+  # that require root (currently only the snapshot package).
+  # ref: https://github.com/awslabs/soci-snapshotter/issues/1878
+  test-root:
+    runs-on: ubuntu-24.04
+    strategy:
+      matrix:
+        go-version: ['1.25.7', '1.26.0']
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-go@v6
+        with:
+          go-version: ${{ matrix.go-version }}
+      # Only snapshot package has tests that require root
+      - run: sudo -E env PATH=$PATH go test ./snapshot -test.root
+
   integration:
     needs: setup
     runs-on: ${{ fromJSON(needs.setup.outputs.runner-labels)[matrix.os] }}

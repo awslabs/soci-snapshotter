@@ -43,6 +43,7 @@ import (
 
 	"github.com/awslabs/soci-snapshotter/idtools"
 	"github.com/containerd/containerd/mount"
+	"github.com/containerd/containerd/namespaces"
 	"github.com/containerd/containerd/pkg/testutil"
 	"github.com/containerd/containerd/snapshots"
 	"github.com/containerd/containerd/snapshots/overlay/overlayutils"
@@ -57,9 +58,7 @@ const (
 	brokenLabel              = "containerd.io/snapshot/broken"
 )
 
-func prepareWithTarget(t *testing.T, sn snapshots.Snapshotter, target, key, parent string, labels map[string]string) string {
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+func prepareWithTarget(ctx context.Context, t *testing.T, sn snapshots.Snapshotter, target, key, parent string, labels map[string]string) string {
 	if labels == nil {
 		labels = make(map[string]string)
 	}
@@ -70,10 +69,18 @@ func prepareWithTarget(t *testing.T, sn snapshots.Snapshotter, target, key, pare
 	return target
 }
 
+func failOnError(t *testing.T, fn func() error) {
+	err := fn()
+	if err != nil {
+		t.Fatalf("error during test cleanup: %v", err)
+	}
+}
+
 func TestRemotePrepare(t *testing.T) {
 	testutil.RequiresRoot(t)
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
+	ctx = namespaces.WithNamespace(ctx, namespaces.Default)
 	root := t.TempDir()
 	sn, err := NewSnapshotter(ctx, root, bindFileSystem(t))
 	if err != nil {
@@ -81,8 +88,8 @@ func TestRemotePrepare(t *testing.T) {
 	}
 
 	// Prepare a remote snapshot.
-	target := prepareWithTarget(t, sn, "testTarget", "/tmp/prepareTarget", "", nil)
-	defer sn.Remove(ctx, target)
+	target := prepareWithTarget(ctx, t, sn, "testTarget", "/tmp/prepareTarget", "", nil)
+	defer failOnError(t, func() error { return sn.Remove(ctx, target) })
 
 	// Get internally committed remote snapshot.
 	var tinfo *snapshots.Info
@@ -122,6 +129,7 @@ func TestRemoteOverlay(t *testing.T) {
 	testutil.RequiresRoot(t)
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
+	ctx = namespaces.WithNamespace(ctx, namespaces.Default)
 	root := t.TempDir()
 	sn, err := NewSnapshotter(ctx, root, bindFileSystem(t))
 	if err != nil {
@@ -129,8 +137,8 @@ func TestRemoteOverlay(t *testing.T) {
 	}
 
 	// Prepare a remote snapshot.
-	target := prepareWithTarget(t, sn, "testTarget", "/tmp/prepareTarget", "", nil)
-	defer sn.Remove(ctx, target)
+	target := prepareWithTarget(ctx, t, sn, "testTarget", "/tmp/prepareTarget", "", nil)
+	defer failOnError(t, func() error { return sn.Remove(ctx, target) })
 
 	// Prepare a new layer based on the remote snapshot.
 	pKey := "/tmp/test"
@@ -138,6 +146,7 @@ func TestRemoteOverlay(t *testing.T) {
 	if err != nil {
 		t.Fatalf("faild to prepare using lower remote layer: %v", err)
 	}
+	defer failOnError(t, func() error { return sn.Remove(ctx, pKey) })
 	if len(mounts) != 1 {
 		t.Errorf("should only have 1 mount but received %d", len(mounts))
 	}
@@ -178,6 +187,7 @@ func TestRemoteCommit(t *testing.T) {
 	testutil.RequiresRoot(t)
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
+	ctx = namespaces.WithNamespace(ctx, namespaces.Default)
 	root := t.TempDir()
 	sn, err := NewSnapshotter(ctx, root, bindFileSystem(t))
 	if err != nil {
@@ -185,8 +195,8 @@ func TestRemoteCommit(t *testing.T) {
 	}
 
 	// Prepare a remote snapshot.
-	target := prepareWithTarget(t, sn, "testTarget", "/tmp/prepareTarget", "", nil)
-	defer sn.Remove(ctx, target)
+	target := prepareWithTarget(ctx, t, sn, "testTarget", "/tmp/prepareTarget", "", nil)
+	defer failOnError(t, func() error { return sn.Remove(ctx, target) })
 
 	// Prepare a new snapshot based on the remote snapshot
 	pKey := "/tmp/test"
@@ -201,29 +211,34 @@ func TestRemoteCommit(t *testing.T) {
 	if err := m.Mount(snapshot); err != nil {
 		t.Fatal(err)
 	}
-	defer mount.Unmount(snapshot, 0)
+	defer failOnError(t, func() error { return mount.Unmount(snapshot, 0) })
 	if err := os.WriteFile(filepath.Join(snapshot, "bar"), []byte("hi"), 0660); err != nil {
 		t.Fatal(err)
 	}
-	mount.Unmount(snapshot, 0)
+	if err := mount.Unmount(snapshot, 0); err != nil {
+		t.Fatalf("error unmounting: %v", err)
+	}
 
 	// Commit the active snapshot
 	cKey := "/tmp/layer"
 	if err := sn.Commit(ctx, cKey, pKey); err != nil {
 		t.Fatal(err)
 	}
+	defer failOnError(t, func() error { return sn.Remove(ctx, cKey) })
 
 	// Validate the committed snapshot
 	check := t.TempDir()
-	mounts, err = sn.Prepare(ctx, "/tmp/test2", cKey)
+	tmpKey := "/tmp/test2"
+	mounts, err = sn.Prepare(ctx, tmpKey, cKey)
 	if err != nil {
 		t.Fatal(err)
 	}
+	defer failOnError(t, func() error { return sn.Remove(ctx, tmpKey) })
 	m = mounts[0]
 	if err := m.Mount(check); err != nil {
 		t.Fatal(err)
 	}
-	defer mount.Unmount(check, 0)
+	defer failOnError(t, func() error { return mount.Unmount(check, 0) })
 	data, err := os.ReadFile(filepath.Join(check, "bar"))
 	if err != nil {
 		t.Fatal(err)
@@ -309,6 +324,7 @@ func TestFailureDetection(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			ctx, cancel := context.WithCancel(context.Background())
 			defer cancel()
+			ctx = namespaces.WithNamespace(ctx, namespaces.Default)
 			root := t.TempDir()
 			fi := bindFileSystem(t)
 			sn, err := NewSnapshotter(ctx, root, fi)
@@ -332,8 +348,8 @@ func TestFailureDetection(t *testing.T) {
 				if broken {
 					labels[brokenLabel] = "true"
 				}
-				target := prepareWithTarget(t, sn, targetName, key, pKey, labels)
-				defer sn.Remove(ctx, target)
+				target := prepareWithTarget(ctx, t, sn, targetName, key, pKey, labels)
+				defer failOnError(t, func() error { return sn.Remove(ctx, target) })
 				pKey = target
 			}
 
@@ -347,23 +363,23 @@ func TestFailureDetection(t *testing.T) {
 				if err := sn.Commit(ctx, cKey, key); err != nil {
 					t.Fatal(err)
 				}
-				defer sn.Remove(ctx, cKey)
+				defer failOnError(t, func() error { return sn.Remove(ctx, cKey) })
 				pKey = cKey
 			}
 
 			// Tests if we can detect layer unavailablity
 			key := "/tmp/snapshot.test"
 			fs.checkFailure = true
-			defer sn.Remove(ctx, key)
 			if _, err := sn.Prepare(ctx, key, pKey); !check(t, tt.wantOK, err) {
 				return
 			}
+			defer failOnError(t, func() error { return sn.Remove(ctx, key) })
 			fs.checkFailure = false
 			key2 := "/tmp/test2"
 			if _, err = sn.Prepare(ctx, key2, pKey); err != nil {
 				t.Fatal(err)
 			}
-			defer sn.Remove(ctx, key2)
+			defer failOnError(t, func() error { return sn.Remove(ctx, key2) })
 			fs.checkFailure = true
 			if _, err := sn.Mounts(ctx, key2); !check(t, tt.wantOK, err) {
 				return
@@ -496,6 +512,7 @@ func TestOverlay(t *testing.T) {
 func TestOverlayMounts(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
+	ctx = namespaces.WithNamespace(ctx, namespaces.Default)
 	root := t.TempDir()
 	o, _, err := newSnapshotter(ctx, root)
 	if err != nil {
@@ -527,6 +544,7 @@ func TestOverlayMounts(t *testing.T) {
 func TestOverlayCommit(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
+	ctx = namespaces.WithNamespace(ctx, namespaces.Default)
 	root := t.TempDir()
 	o, _, err := newSnapshotter(ctx, root)
 	if err != nil {
@@ -549,6 +567,7 @@ func TestOverlayCommit(t *testing.T) {
 func TestOverlayOverlayMount(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
+	ctx = namespaces.WithNamespace(ctx, namespaces.Default)
 	root := t.TempDir()
 	o, _, err := newSnapshotter(ctx, root)
 	if err != nil {
@@ -630,6 +649,7 @@ func TestOverlayOverlayRead(t *testing.T) {
 	testutil.RequiresRoot(t)
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
+	ctx = namespaces.WithNamespace(ctx, namespaces.Default)
 	root := t.TempDir()
 	o, _, err := newSnapshotter(ctx, root)
 	if err != nil {
@@ -657,7 +677,7 @@ func TestOverlayOverlayRead(t *testing.T) {
 	if err := mount.All(mounts, dest); err != nil {
 		t.Fatal(err)
 	}
-	defer syscall.Unmount(dest, 0)
+	defer failOnError(t, func() error { return syscall.Unmount(dest, 0) })
 	data, err := os.ReadFile(filepath.Join(dest, "foo"))
 	if err != nil {
 		t.Fatal(err)
@@ -670,6 +690,7 @@ func TestOverlayOverlayRead(t *testing.T) {
 func TestOverlayView(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
+	ctx = namespaces.WithNamespace(ctx, namespaces.Default)
 	root := t.TempDir()
 	o, _, err := newSnapshotter(ctx, root)
 	if err != nil {
