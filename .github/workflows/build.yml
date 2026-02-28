@@ -21,6 +21,8 @@ on:
       - 'ztoc/**' # Includes flatbuf + C files
       - '!benchmark/**'
 
+env:
+  GOTESTSUM_VERSION: 1.13.0
 
 jobs:
   setup:
@@ -64,6 +66,8 @@ jobs:
       - uses: actions/setup-go@v6
         with:
           go-version: ${{ matrix.go-version }}
+      - name: Install gotestsum
+        run: go install gotest.tools/gotestsum@v${{ env.GOTESTSUM_VERSION }}
       - name: Install zlib static on AL2 ARM instances
         if: matrix.os == 'al2-arm'
         run: dnf install zlib-static.aarch64 -y
