@@ -178,7 +178,7 @@ $(COVDIR)/unit: $(COVDIR)
 integration: build
 	@echo "$@"
 	@echo "SOCI_SNAPSHOTTER_PROJECT_ROOT=$(SOCI_SNAPSHOTTER_PROJECT_ROOT)"
-	@GO111MODULE=$(GO111MODULE_VALUE) SOCI_SNAPSHOTTER_PROJECT_ROOT=$(SOCI_SNAPSHOTTER_PROJECT_ROOT) ENABLE_INTEGRATION_TEST=true go test $(GO_TEST_FLAGS) -v -timeout=0 ./integration
+	@GO111MODULE=$(GO111MODULE_VALUE) SOCI_SNAPSHOTTER_PROJECT_ROOT=$(SOCI_SNAPSHOTTER_PROJECT_ROOT) ENABLE_INTEGRATION_TEST=true gotestsum --rerun-fails --format standard-verbose --packages ./integration -- -timeout 0 $(GO_TEST_FLAGS)
 
 show-integration-coverage: $(COVDIR)/unit
 	go tool covdata percent -i $(COVDIR)/integration
