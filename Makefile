@@ -152,7 +152,7 @@ test-cmd:
 	@echo "$@"
 	@cd ./cmd; GO111MODULE=$(GO111MODULE_VALUE) go test $(GO_TEST_FLAGS) $(GO_LD_FLAGS) -race `go list ./...` -args $(GO_TEST_ARGS); cd ../
 
-show-test-coverage: test-with-coverage
+show-test-coverage: $(COVDIR)/unit
 	go tool covdata percent -i $(COVDIR)/unit
 
 show-test-coverage-html: test-with-coverage $(COVDIR)/html
@@ -160,6 +160,11 @@ show-test-coverage-html: test-with-coverage $(COVDIR)/html
 	go tool cover -html=$(COVDIR)/unit/unit.out -o $(COVDIR)/html/unit.html
 
 test-with-coverage: $(COVDIR)/unit
+	@echo "$@"
+	GO_TEST_FLAGS="$(GO_TEST_FLAGS) -cover" \
+	GO_TEST_ARGS="-test.gocoverdir=$(COVDIR)/unit" \
+	GO_BUILD_FLAGS="$(GO_BUILD_FLAGS) -coverpkg=$(SOCI_LIBRARY_PACKAGE_LIST)"\
+		$(MAKE) test
 
 $(COVDIR):
 	@mkdir -p $@
@@ -169,17 +174,13 @@ $(COVDIR)/html:
 
 $(COVDIR)/unit: $(COVDIR)
 	@mkdir -p $@
-	GO_TEST_FLAGS="$(GO_TEST_FLAGS) -cover" \
-	GO_TEST_ARGS="-test.gocoverdir=$(COVDIR)/unit" \
-	GO_BUILD_FLAGS="$(GO_BUILD_FLAGS) -coverpkg=$(SOCI_LIBRARY_PACKAGE_LIST)"\
-		$(MAKE) test
 
 integration: build
 	@echo "$@"
 	@echo "SOCI_SNAPSHOTTER_PROJECT_ROOT=$(SOCI_SNAPSHOTTER_PROJECT_ROOT)"
 	@GO111MODULE=$(GO111MODULE_VALUE) SOCI_SNAPSHOTTER_PROJECT_ROOT=$(SOCI_SNAPSHOTTER_PROJECT_ROOT) ENABLE_INTEGRATION_TEST=true go test $(GO_TEST_FLAGS) -v -timeout=0 ./integration
 
-show-integration-coverage: integration-with-coverage
+show-integration-coverage: $(COVDIR)/unit
 	go tool covdata percent -i $(COVDIR)/integration
 
 show-integration-coverage-html: integration-with-coverage $(COVDIR)/html
@@ -187,12 +188,13 @@ show-integration-coverage-html: integration-with-coverage $(COVDIR)/html
 	go tool cover -html=$(COVDIR)/integration/integration.out -o $(COVDIR)/html/integration.html
 
 integration-with-coverage: $(COVDIR)/integration
-
-$(COVDIR)/integration: $(COVDIR)
-	@mkdir -p $@
+	@echo "$@"
 	GO_TEST_FLAGS="$(GO_TEST_FLAGS)" \
 	GO_BUILD_FLAGS="$(GO_BUILD_FLAGS) -coverpkg=$(SOCI_CLI_PACKAGE_LIST),$(SOCI_GRPC_PACKAGE_LIST)" \
 		$(MAKE) integration
+
+$(COVDIR)/integration: $(COVDIR)
+	@mkdir -p $@
 
 release:
 	@echo "$@"
