@@ -16,6 +16,7 @@
 ARG CONTAINERD_VERSION=1.7.29
 ARG RUNC_VERSION=1.3.3
 ARG NERDCTL_VERSION=2.1.6
+ARG CRANE_VERSION=0.21.1
 ARG IGZIP_VERSION=2.31.1
 ARG RAPIDGZIP_VERSION=0.14.3
 
@@ -101,6 +102,7 @@ FROM public.ecr.aws/amazonlinux/amazonlinux:2023 AS containerd-snapshotter-base
 ARG CONTAINERD_VERSION
 ARG RUNC_VERSION
 ARG NERDCTL_VERSION
+ARG CRANE_VERSION
 ARG TARGETARCH
 ENV GOPROXY=direct
 ENV GOCOVERDIR=/test_coverage
@@ -141,3 +143,6 @@ RUN curl -sSL --output /tmp/runc https://github.com/opencontainers/runc/releases
 RUN curl -sSL --output /tmp/nerdctl.tgz https://github.com/containerd/nerdctl/releases/download/v${NERDCTL_VERSION}/nerdctl-${NERDCTL_VERSION}-linux-${TARGETARCH:-amd64}.tar.gz \
     && tar zxvf /tmp/nerdctl.tgz -C /usr/local/bin/ \
     && rm -f /tmp/nerdctl.tgz
+RUN curl -sSL --output /tmp/crane.tgz https://github.com/google/go-containerregistry/releases/download/v${CRANE_VERSION}/go-containerregistry_Linux_$(echo ${TARGETARCH:-amd64} | sed s/amd64/x86_64/).tar.gz \
+    && tar zxvf /tmp/crane.tgz -C /usr/local/bin/ crane \
+    && rm -f /tmp/crane.tgz
