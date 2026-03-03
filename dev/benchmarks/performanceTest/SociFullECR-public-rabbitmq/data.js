@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1772060021605,
+  "lastUpdate": 1772510535454,
   "repoUrl": "https://github.com/awslabs/soci-snapshotter",
   "entries": {
     "Soci Benchmark": [
@@ -16413,6 +16413,48 @@ window.BENCHMARK_DATA = {
           {
             "name": "SociFullECR-public-rabbitmq-pullTaskDuration",
             "value": 1.6044999999999998,
+            "unit": "Seconds",
+            "extra": "P90"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "davbson@amazon.com",
+            "name": "David Son",
+            "username": "sondavidb"
+          },
+          "committer": {
+            "email": "55555210+sondavidb@users.noreply.github.com",
+            "name": "David Son",
+            "username": "sondavidb"
+          },
+          "distinct": true,
+          "id": "c76cb8b10785e30ea55a534f61478e7510e6c2be",
+          "message": "Add retry mechanism for failing integration tests\n\nSigned-off-by: David Son <davbson@amazon.com>",
+          "timestamp": "2026-03-02T19:54:48-08:00",
+          "tree_id": "9c3432730245ef28afe908932ae7ffddf3a298a1",
+          "url": "https://github.com/awslabs/soci-snapshotter/commit/c76cb8b10785e30ea55a534f61478e7510e6c2be"
+        },
+        "date": 1772510530841,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "SociFullECR-public-rabbitmq-lazyTaskDuration",
+            "value": 11.989,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-rabbitmq-localTaskDuration",
+            "value": 10.299,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-rabbitmq-pullTaskDuration",
+            "value": 1.29,
             "unit": "Seconds",
             "extra": "P90"
           }
