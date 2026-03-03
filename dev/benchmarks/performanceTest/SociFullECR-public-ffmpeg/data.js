@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1772060022449,
+  "lastUpdate": 1772510537196,
   "repoUrl": "https://github.com/awslabs/soci-snapshotter",
   "entries": {
     "Soci Benchmark": [
@@ -16577,6 +16577,48 @@ window.BENCHMARK_DATA = {
           {
             "name": "SociFullECR-public-ffmpeg-pullTaskDuration",
             "value": 1.7215,
+            "unit": "Seconds",
+            "extra": "P90"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "davbson@amazon.com",
+            "name": "David Son",
+            "username": "sondavidb"
+          },
+          "committer": {
+            "email": "55555210+sondavidb@users.noreply.github.com",
+            "name": "David Son",
+            "username": "sondavidb"
+          },
+          "distinct": true,
+          "id": "c76cb8b10785e30ea55a534f61478e7510e6c2be",
+          "message": "Add retry mechanism for failing integration tests\n\nSigned-off-by: David Son <davbson@amazon.com>",
+          "timestamp": "2026-03-02T19:54:48-08:00",
+          "tree_id": "9c3432730245ef28afe908932ae7ffddf3a298a1",
+          "url": "https://github.com/awslabs/soci-snapshotter/commit/c76cb8b10785e30ea55a534f61478e7510e6c2be"
+        },
+        "date": 1772510530971,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "SociFullECR-public-ffmpeg-lazyTaskDuration",
+            "value": 0.181,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-ffmpeg-localTaskDuration",
+            "value": 0.0075,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-ffmpeg-pullTaskDuration",
+            "value": 1.6705,
             "unit": "Seconds",
             "extra": "P90"
           }
