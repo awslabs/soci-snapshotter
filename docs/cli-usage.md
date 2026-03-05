@@ -54,7 +54,7 @@ This command creates a new SOCI-enabled image that packages the original image a
 > [!NOTE]
 > SOCI Index Manifest v2 is the recommended approach for production deployments as it provides immutable binding between the image and SOCI index, preventing runtime behavior changes.
 
-Usage: ```soci convert [flags] <source_image_ref> <dest_image_ref> ```
+Usage: ```soci convert [flags] <source> <dest> ```
 
 Flags:
 
@@ -64,6 +64,8 @@ Flags:
    - `xattr` :  When true, adds DisableXAttrs annotation to SOCI index. This annotation often helps performance at pull time.
  - ```--all-platforms``` : Convert all platforms of a multi-platform image
  - ```--platform``` : Convert only the specified platform (e.g., linux/amd64)
+ - ```--standalone``` : Run in standalone mode without a containerd runtime. Reads an OCI image layout (tar or directory) from disk and writes a converted OCI image layout without requiring a running containerd instance. See [Standalone mode](#standalone-mode) below.
+ - ```--format``` : Output format for standalone mode: ```oci-archive``` (tar, default) or ```oci-dir``` (directory). Only used with ```--standalone```.
 
 **Example:**
 ```
@@ -73,6 +75,31 @@ soci convert public.ecr.aws/soci-workshop-examples/ffmpeg:latest public.ecr.aws/
 **Multi-platform example:**
 ```
 soci convert --all-platforms public.ecr.aws/soci-workshop-examples/ffmpeg:latest public.ecr.aws/soci-workshop-examples/ffmpeg:latest-soci
+```
+
+#### Standalone mode
+
+Standalone mode enables SOCI conversion without a running containerd daemon. This is useful in CI/CD pipelines and other environments where containerd is unavailable or running it would require privileged access.
+
+In standalone mode, ```<source>``` and ```<dest>``` are file paths (not image references). The source can be an OCI image layout tar archive or directory. The output format is controlled by the ```--format``` flag.
+
+Standalone mode does not require containerd, sudo, or any other daemon. You can use tools like [skopeo](https://github.com/containers/skopeo) or [crane](https://github.com/google/go-containerregistry/blob/main/cmd/crane) to download and push images.
+
+> [!NOTE]
+> The input tar or directory must be in **OCI image layout** format. Docker-style tarballs (e.g., from `docker save` or `crane pull` without `--format oci`) are not compatible.
+
+**Tar output format workflow** (using skopeo):
+```shell
+skopeo copy docker://public.ecr.aws/soci-workshop-examples/ffmpeg:latest oci-archive:ffmpeg.tar
+soci convert --standalone ffmpeg.tar ffmpeg-soci.tar
+skopeo copy oci-archive:ffmpeg-soci.tar docker://public.ecr.aws/soci-workshop-examples/ffmpeg:latest-soci
+```
+
+**Directory output format workflow** (using skopeo):
+```shell
+skopeo copy docker://public.ecr.aws/soci-workshop-examples/ffmpeg:latest oci:ffmpeg-oci
+soci convert --standalone --format oci-dir ffmpeg-oci ffmpeg-soci-oci
+skopeo copy oci:ffmpeg-soci-oci docker://public.ecr.aws/soci-workshop-examples/ffmpeg:latest-soci
 ```
 
 ### soci push
