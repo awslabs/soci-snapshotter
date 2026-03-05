@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1772510532679,
+  "lastUpdate": 1772749846730,
   "repoUrl": "https://github.com/awslabs/soci-snapshotter",
   "entries": {
     "Soci Benchmark": [
@@ -16618,6 +16618,48 @@ window.BENCHMARK_DATA = {
           {
             "name": "SociFullECR-public-redis-pullTaskDuration",
             "value": 1.187,
+            "unit": "Seconds",
+            "extra": "P90"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "prafulgupta6@gmail.com",
+            "name": "Praful Gupta",
+            "username": "prafgup"
+          },
+          "committer": {
+            "email": "55555210+sondavidb@users.noreply.github.com",
+            "name": "David Son",
+            "username": "sondavidb"
+          },
+          "distinct": true,
+          "id": "da566694278d89788e87209fe14770b49630c781",
+          "message": "Implement Standalone SOCI Image Convert\n\nSigned-off-by: Praful Gupta <prafulgupta6@gmail.com>",
+          "timestamp": "2026-03-05T14:21:18-08:00",
+          "tree_id": "539151e87eaeb46311179e27fcb13dce3446f33d",
+          "url": "https://github.com/awslabs/soci-snapshotter/commit/da566694278d89788e87209fe14770b49630c781"
+        },
+        "date": 1772749841311,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "SociFullECR-public-redis-lazyTaskDuration",
+            "value": 1.545,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-redis-localTaskDuration",
+            "value": 0.024,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-redis-pullTaskDuration",
+            "value": 1.158,
             "unit": "Seconds",
             "extra": "P90"
           }
