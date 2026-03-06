@@ -100,6 +100,3 @@ Any registry that supports ranged GET requests and has sufficient request limits
 
 If you are having issues with parallel pull mode on registries that sufficiently support both, please cut us an issue and we can look into it.
 
-The following registries are known to have issues with parallel pull mode:
-
-- DockerHub — unverified users have a low request limit, which can lead to requests being throttled if SOCI is making too many requests at once.
