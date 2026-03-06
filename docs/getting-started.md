@@ -102,6 +102,9 @@ sudo soci convert docker.io/library/rabbitmq:latest $REGISTRY/rabbitmq:latest
 sudo nerdctl push $REGISTRY/rabbitmq:latest
 ```
 
+> **Note**
+> If containerd is not available (e.g., in CI/CD pipelines), you can use `soci convert --standalone` to convert OCI image layouts on disk without a running containerd instance. See the [CLI usage documentation](./cli-usage.md#standalone-mode) for details.
+
 After this step, please check your registry to confirm the image and SOCI index are present.
 You can go to your registry console or use your registry's CLI (e.g. for ECR, you
 can use `aws ecr describe-images --repository-name rabbitmq --region $AWS_REGION`).
