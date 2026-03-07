@@ -363,9 +363,9 @@ type sociContext struct {
 	fuseOperationCounter *layer.FuseOperationCounter
 }
 
-func (c *sociContext) Init(ctx context.Context, fs *filesystem, imageRef, indexDigest, imageManifestDigest string, client *http.Client) error {
+func (c *sociContext) Init(ctx context.Context, fs *filesystem, imageRef, indexDigest, imageManifestDigest string, hosts []docker.RegistryHost) error {
 	c.fetchOnce.Do(func() {
-		index, err := fs.fetchSociIndex(ctx, imageRef, indexDigest, imageManifestDigest, client)
+		index, err := fs.fetchSociIndex(ctx, imageRef, indexDigest, imageManifestDigest, hosts)
 		if err != nil {
 			c.cachedErr = err
 			return
@@ -447,10 +447,20 @@ func (fs *filesystem) MountParallel(ctx context.Context, mountpoint string, labe
 	}
 	// download the target layer
 	s := src[0]
-	client := s.Hosts[0].Client
+	if len(s.Hosts) == 0 {
+		return fmt.Errorf("no registry hosts available for %q", imageRef)
+	}
+	host := s.Hosts[0]
+	if host.Client == nil {
+		return fmt.Errorf("registry host %q has no http client", host.Host)
+	}
 	refspec, err := reference.Parse(imageRef)
 	if err != nil {
 		return fmt.Errorf("cannot parse image ref (%s): %w", imageRef, err)
+	}
+	refspec, err = withLocatorHost(refspec, host)
+	if err != nil {
+		return err
 	}
 	desc := s.Target
 	imageDigest, ok := labels[ctdsnapshotters.TargetManifestDigestLabel]
@@ -459,7 +469,7 @@ func (fs *filesystem) MountParallel(ctx context.Context, mountpoint string, labe
 	}
 	// If lazy-loading is disabled and the image has no jobs associated with it, start premounting all jobs
 	if !fs.inProgressImageUnpacks.ImageExists(imageDigest) {
-		err := fs.preloadAllLayers(ctx, desc, imageDigest, refspec, client)
+		err := fs.preloadAllLayers(ctx, desc, imageDigest, refspec, host)
 		if err != nil {
 			return fmt.Errorf("failed to preload layers for image manifest digest %s: %w", imageDigest, err)
 		}
@@ -472,7 +482,7 @@ func (fs *filesystem) MountParallel(ctx context.Context, mountpoint string, labe
 	return nil
 }
 
-func (fs *filesystem) preloadAllLayers(ctx context.Context, desc ocispec.Descriptor, imageDigest string, refspec reference.Spec, cachedClient *http.Client) error {
+func (fs *filesystem) preloadAllLayers(ctx context.Context, desc ocispec.Descriptor, imageDigest string, refspec reference.Spec, cachedHost docker.RegistryHost) error {
 	manifest, err := fs.getImageManifest(ctx, imageDigest)
 	if err != nil {
 		return fmt.Errorf("cannot get image manifest: %w", err)
@@ -488,8 +498,8 @@ func (fs *filesystem) preloadAllLayers(ctx context.Context, desc ocispec.Descrip
 	}
 	// Clone client if it's our internal [socihttp.AuthClient]
 	// so that this image pull request has an isolated client reference.
-	client := cachedClient
-	if authClient, ok := cachedClient.Transport.(*socihttp.AuthClient); ok {
+	client := cachedHost.Client
+	if authClient, ok := cachedHost.Client.Transport.(*socihttp.AuthClient); ok {
 		retryClient := resolver.CloneRetryableClient(authClient.Client())
 		// The clone will have a cleaned cache
 		newAuthClient := authClient.CloneWithNewClient(retryClient)
@@ -503,7 +513,9 @@ func (fs *filesystem) preloadAllLayers(ctx context.Context, desc ocispec.Descrip
 			Transport: newAuthClient,
 		}
 	}
-	remoteStore, err := newRemoteBlobStore(refspec, client)
+	host := cachedHost
+	host.Client = client
+	remoteStore, err := newRemoteBlobStoreFromHost(refspec, host)
 	if err != nil {
 		return fmt.Errorf("cannot create remote store: %w", err)
 	}
@@ -752,12 +764,22 @@ func (fs *filesystem) MountLocal(ctx context.Context, mountpoint string, labels 
 	}
 	// download the target layer
 	s := src[0]
-	client := s.Hosts[0].Client
+	if len(s.Hosts) == 0 {
+		return fmt.Errorf("no registry hosts available for %q", imageRef)
+	}
+	host := s.Hosts[0]
+	if host.Client == nil {
+		return fmt.Errorf("registry host %q has no http client", host.Host)
+	}
 	refspec, err := reference.Parse(imageRef)
 	if err != nil {
 		return fmt.Errorf("cannot parse image ref (%s): %w", imageRef, err)
 	}
-	remoteStore, err := newRemoteBlobStore(refspec, client)
+	refspec, err = withLocatorHost(refspec, host)
+	if err != nil {
+		return err
+	}
+	remoteStore, err := newRemoteBlobStoreFromHost(refspec, host)
 	if err != nil {
 		return fmt.Errorf("cannot create remote store: %w", err)
 	}
@@ -811,39 +833,72 @@ func (fs *filesystem) MountLocal(ctx context.Context, mountpoint string, labels 
 	return nil
 }
 
-func (fs *filesystem) getSociContext(ctx context.Context, imageRef, indexDigest, imageManifestDigest string, client *http.Client) (*sociContext, error) {
+func (fs *filesystem) getSociContext(ctx context.Context, imageRef, indexDigest, imageManifestDigest string, hosts []docker.RegistryHost) (*sociContext, error) {
 	cAny, _ := fs.sociContexts.LoadOrStore(imageManifestDigest, &sociContext{})
 	c, ok := cAny.(*sociContext)
 	if !ok {
 		return nil, fmt.Errorf("could not load index: fs soci context is invalid type for %s", indexDigest)
 	}
-	err := c.Init(ctx, fs, imageRef, indexDigest, imageManifestDigest, client)
+	err := c.Init(ctx, fs, imageRef, indexDigest, imageManifestDigest, hosts)
 	return c, err
 }
 
-func (fs *filesystem) fetchSociIndex(ctx context.Context, imageRef, indexDigest, imageManifestDigest string, client *http.Client) (*soci.Index, error) {
-	refspec, err := reference.Parse(imageRef)
+func (fs *filesystem) fetchSociIndex(ctx context.Context, imageRef, indexDigest, imageManifestDigest string, hosts []docker.RegistryHost) (*soci.Index, error) {
+	baseRefspec, err := reference.Parse(imageRef)
 	if err != nil {
 		return nil, err
 	}
 
-	remoteStore, err := newRemoteStore(refspec, client)
-	if err != nil {
-		return nil, err
+	if len(hosts) == 0 {
+		return nil, fmt.Errorf("no registry hosts available for %q", imageRef)
 	}
 
-	indexDesc, err := fs.findSociIndexDesc(ctx, imageManifestDigest, indexDigest, remoteStore)
-	if err != nil {
-		return nil, fmt.Errorf("%w: %w", snapshot.ErrNoIndex, err)
+	var (
+		hostErr    error
+		noIndexErr error
+	)
+	for _, host := range hosts {
+		refspec, err := withLocatorHost(baseRefspec, host)
+		if err != nil {
+			hostErr = errors.Join(hostErr, fmt.Errorf("registry host %q: %w", host.Host, err))
+			continue
+		}
+		if host.Client == nil {
+			hostErr = errors.Join(hostErr, fmt.Errorf("registry host %q has no http client", host.Host))
+			continue
+		}
+
+		remoteStore, err := newRemoteStoreFromHost(refspec, host)
+		if err != nil {
+			hostErr = errors.Join(hostErr, fmt.Errorf("registry host %q: %w", host.Host, err))
+			continue
+		}
+
+		indexDesc, err := fs.findSociIndexDesc(ctx, imageManifestDigest, indexDigest, remoteStore)
+		if err != nil {
+			noIndexErr = errors.Join(noIndexErr, fmt.Errorf("registry host %q: %w", host.Host, err))
+			continue
+		}
+
+		log.G(ctx).WithFields(logrus.Fields{
+			"digest": indexDesc.Digest.String(),
+			"host":   host.Host,
+		}).Infof("fetching SOCI artifacts using index descriptor")
+
+		index, err := FetchSociArtifacts(ctx, refspec, indexDesc, fs.contentStore, remoteStore)
+		if err == nil {
+			return index, nil
+		}
+		noIndexErr = errors.Join(noIndexErr, fmt.Errorf("registry host %q: %w", host.Host, err))
 	}
 
-	log.G(ctx).WithField("digest", indexDesc.Digest.String()).Infof("fetching SOCI artifacts using index descriptor")
-
-	index, err := FetchSociArtifacts(ctx, refspec, indexDesc, fs.contentStore, remoteStore)
-	if err != nil {
-		return nil, fmt.Errorf("%w: error trying to fetch SOCI artifacts: %w", snapshot.ErrNoIndex, err)
+	if noIndexErr != nil {
+		return nil, fmt.Errorf("%w: unable to fetch SOCI artifacts from all configured registry hosts: %w", snapshot.ErrNoIndex, errors.Join(noIndexErr, hostErr))
 	}
-	return index, nil
+	if hostErr != nil {
+		return nil, hostErr
+	}
+	return nil, fmt.Errorf("unable to fetch SOCI artifacts for image %q", imageRef)
 }
 
 func (fs *filesystem) findSociIndexDesc(ctx context.Context, imageManifestDigest string, sociIndexDigest string, remoteStore *orasremote.Repository) (ocispec.Descriptor, error) {
@@ -1017,8 +1072,8 @@ func (fs *filesystem) Mount(ctx context.Context, mountpoint string, labels map[s
 	} else if len(src) == 0 {
 		return fmt.Errorf("source must be passed")
 	}
-	client := src[0].Hosts[0].Client
-	c, err := fs.getSociContext(ctx, imageRef, sociIndexDigest, imgDigest, client)
+	hosts := src[0].Hosts
+	c, err := fs.getSociContext(ctx, imageRef, sociIndexDigest, imgDigest, hosts)
 	if err != nil {
 		return fmt.Errorf("unable to fetch SOCI artifacts for image %q: %w", imageRef, err)
 	}

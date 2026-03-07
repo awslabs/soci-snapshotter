@@ -23,11 +23,13 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"strings"
 	"testing"
 
 	"github.com/awslabs/soci-snapshotter/soci"
 	"github.com/awslabs/soci-snapshotter/soci/store"
 	"github.com/containerd/containerd/reference"
+	"github.com/containerd/containerd/remotes/docker"
 	"github.com/google/go-cmp/cmp"
 	"github.com/opencontainers/go-digest"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
@@ -300,6 +302,133 @@ func TestNewRemoteStore(t *testing.T) {
 			}
 			if r.PlainHTTP != tc.shouldBePlainHTTP {
 				t.Fatalf("unepected plain http, expected: %v, got %v", tc.shouldBePlainHTTP, r.PlainHTTP)
+			}
+		})
+	}
+}
+
+func TestWithLocatorHost(t *testing.T) {
+	testCases := []struct {
+		name            string
+		host            docker.RegistryHost
+		expectedLocator string
+		expectedError   string
+	}{
+		{
+			name: "rewrites locator with mirror host",
+			host: docker.RegistryHost{
+				Host: "example-mirror.local",
+				Path: "/v2",
+			},
+			expectedLocator: "example-mirror.local/library/nginx",
+		},
+		{
+			name: "rewrites locator with mirror path prefix",
+			host: docker.RegistryHost{
+				Host: "example-mirror.local",
+				Path: "/v2/team-a",
+			},
+			expectedLocator: "example-mirror.local/team-a/library/nginx",
+		},
+		{
+			name: "invalid mirror path",
+			host: docker.RegistryHost{
+				Host: "example-mirror.local",
+				Path: "/custom/path",
+			},
+			expectedError: "unsupported registry host path",
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			refspec, err := reference.Parse("docker.io/library/nginx:latest")
+			if err != nil {
+				t.Fatalf("unexpected failure parsing reference: %v", err)
+			}
+			rewritten, err := withLocatorHost(refspec, tc.host)
+			if tc.expectedError != "" {
+				if err == nil {
+					t.Fatalf("expected error containing %q, got nil", tc.expectedError)
+				}
+				if got := err.Error(); !strings.Contains(got, tc.expectedError) {
+					t.Fatalf("unexpected error, expected substring %q, got %q", tc.expectedError, got)
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("unexpected failure rewriting reference: %v", err)
+			}
+			if rewritten.Locator != tc.expectedLocator {
+				t.Fatalf("unexpected locator, expected %q, got %q", tc.expectedLocator, rewritten.Locator)
+			}
+		})
+	}
+}
+
+func TestNewRemoteStoreFromHost(t *testing.T) {
+	client := &http.Client{}
+	refspec, err := reference.Parse("docker.io/library/nginx:latest")
+	if err != nil {
+		t.Fatalf("unexpected failure parsing reference: %v", err)
+	}
+
+	testCases := []struct {
+		name              string
+		host              docker.RegistryHost
+		shouldBePlainHTTP bool
+		expectedError     string
+	}{
+		{
+			name: "http mirror uses plain http",
+			host: docker.RegistryHost{
+				Host:   "example-mirror.local",
+				Scheme: "http",
+				Client: client,
+			},
+			shouldBePlainHTTP: true,
+		},
+		{
+			name: "https mirror does not use plain http",
+			host: docker.RegistryHost{
+				Host:   "example-mirror.local",
+				Scheme: "https",
+				Client: client,
+			},
+			shouldBePlainHTTP: false,
+		},
+		{
+			name: "invalid scheme fails",
+			host: docker.RegistryHost{
+				Host:   "example-mirror.local",
+				Scheme: "ftp",
+				Client: client,
+			},
+			expectedError: "unsupported registry scheme",
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			rewritten, err := withLocatorHost(refspec, docker.RegistryHost{Host: tc.host.Host, Path: "/v2"})
+			if err != nil {
+				t.Fatalf("unexpected failure rewriting reference: %v", err)
+			}
+			store, err := newRemoteStoreFromHost(rewritten, tc.host)
+			if tc.expectedError != "" {
+				if err == nil {
+					t.Fatalf("expected error containing %q, got nil", tc.expectedError)
+				}
+				if got := err.Error(); !strings.Contains(got, tc.expectedError) {
+					t.Fatalf("unexpected error, expected substring %q, got %q", tc.expectedError, got)
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("unexpected error, got %v", err)
+			}
+			if store.PlainHTTP != tc.shouldBePlainHTTP {
+				t.Fatalf("unexpected plain http setting, expected %v, got %v", tc.shouldBePlainHTTP, store.PlainHTTP)
 			}
 		})
 	}
