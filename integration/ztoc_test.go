@@ -474,6 +474,52 @@ func dedupeZtocBlobs(ztocBlobs []*v1.Descriptor) []*v1.Descriptor {
 	return dedupedZtocBlobs
 }
 
+func TestSociZtocWithPigzLayers(t *testing.T) {
+	t.Parallel()
+
+	regConfig := newRegistryConfig()
+	sh, done := newShellWithRegistry(t, regConfig)
+	defer done()
+
+	rebootContainerd(t, sh, getContainerdConfigToml(t, false), getSnapshotterConfigToml(t))
+
+	pigzImg := buildPigzImage(t, sh, "pigz-test:latest")
+	mirrorRef := regConfig.mirror("pigz-test:latest")
+	sh.X("ctr", "i", "tag", pigzImg.ref, mirrorRef.ref)
+	sh.X(append([]string{"nerdctl", "push", "-q"}, encodeImageInfoNerdctl(mirrorRef)[0]...)...)
+
+	indexDigest := buildIndex(sh, mirrorRef, withMinLayerSize(0))
+	if indexDigest == "" {
+		t.Fatal("failed to create SOCI index for pigz-compressed image")
+	}
+
+	// Verify a ztoc was created for the pigz layer and extract files to check content
+	sociIndex, err := sociIndexFromDigest(sh, indexDigest)
+	if err != nil {
+		t.Fatalf("failed to read SOCI index: %v", err)
+	}
+	for _, blob := range sociIndex.Blobs {
+		if blob.MediaType != soci.SociLayerMediaType {
+			continue
+		}
+		for fileName, expectedContent := range pigzImg.files {
+			output, err := sh.OLog("soci", "ztoc", "get-file", blob.Digest.String(), fileName)
+			if err != nil {
+				t.Fatalf("soci ztoc get-file failed for %s: %v", fileName, err)
+			}
+			actual := strings.TrimRight(string(output), "\n")
+			if actual != expectedContent {
+				t.Fatalf("file %s content mismatch: expected %q, got %q", fileName, expectedContent, actual)
+			}
+		}
+	}
+
+	sh.X("soci", "push", "--user", regConfig.creds(), mirrorRef.ref)
+	sh.X("ctr", "i", "rm", mirrorRef.ref)
+	sh.X(append(imagePullCmd, "--soci-index-digest", indexDigest, mirrorRef.ref)...)
+	checkFuseMounts(t, sh, pigzImg.layerCount)
+}
+
 func verifyInfoOutput(zinfo Info, ztoc *ztoc.Ztoc) error {
 	if zinfo.Version != string(ztoc.Version) {
 		return fmt.Errorf("different versions: expected %s got %s", ztoc.Version, zinfo.Version)
