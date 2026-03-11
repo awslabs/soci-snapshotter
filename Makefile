@@ -182,7 +182,7 @@ integration: build
 		GO111MODULE=$(GO111MODULE_VALUE) SOCI_SNAPSHOTTER_PROJECT_ROOT=$(SOCI_SNAPSHOTTER_PROJECT_ROOT) ENABLE_INTEGRATION_TEST=true gotestsum --rerun-fails --format standard-verbose --packages ./integration -- -timeout 0 $(GO_TEST_FLAGS); \
 	else \
 		echo "gotestsum not found; falling back to go test ./integration"; \
-		GO111MODULE=$(GO111MODULE_VALUE) SOCI_SNAPSHOTTER_PROJECT_ROOT=$(SOCI_SNAPSHOTTER_PROJECT_ROOT) ENABLE_INTEGRATION_TEST=true go test ./integration -timeout 0 $(GO_TEST_FLAGS); \
+		GO111MODULE=$(GO111MODULE_VALUE) SOCI_SNAPSHOTTER_PROJECT_ROOT=$(SOCI_SNAPSHOTTER_PROJECT_ROOT) ENABLE_INTEGRATION_TEST=true go test -v ./integration -timeout 0 $(GO_TEST_FLAGS); \
 	fi
 
 show-integration-coverage: $(COVDIR)/unit
