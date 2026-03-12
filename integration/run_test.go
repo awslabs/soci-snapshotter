@@ -566,6 +566,81 @@ func TestRunInNamespace(t *testing.T) {
 	}
 }
 
+func TestRunAfterConvert(t *testing.T) {
+	const containerImage = helloImage
+
+	regConfig := newRegistryConfig()
+	sh, done := newShellWithRegistry(t, regConfig)
+	defer done()
+
+	sociV2Opts := []snapshotterConfigOpt{
+		withPullModes(config.PullModes{
+			SOCIv2: config.V2{Enable: true},
+		}),
+	}
+
+	t.Run("standard convert", func(t *testing.T) {
+
+		rebootContainerd(t, sh, getContainerdConfigToml(t, false), getSnapshotterConfigToml(t, sociV2Opts...))
+
+		mirrorImg := regConfig.mirror(containerImage)
+		copyImage(sh, dockerhub(containerImage), mirrorImg)
+		convertedRef := mirrorImg.ref + "-soci"
+		sh.X("soci", "convert", "--min-layer-size=0", mirrorImg.ref, convertedRef)
+		sh.X("nerdctl", "push", convertedRef)
+
+		rebootContainerd(t, sh, getContainerdConfigToml(t, false), getSnapshotterConfigToml(t, sociV2Opts...))
+
+		sh.X(append(imagePullCmd, convertedRef)...)
+		_, err := sh.OLog(append(runSociCmd, "--name", "test-run-after-standard-convert", "--rm", convertedRef)...)
+		if err != nil {
+			t.Fatalf("encountered error running container: %v", err)
+		}
+		checkFuseMounts(t, sh, 1)
+	})
+
+	t.Run("standalone convert", func(t *testing.T) {
+		rebootContainerd(t, sh, getContainerdConfigToml(t, false), getSnapshotterConfigToml(t, sociV2Opts...))
+
+		mirrorImg := regConfig.mirror(containerImage)
+		copyImage(sh, dockerhub(containerImage), mirrorImg)
+
+		baseDir, err := testutil.TempDir(sh)
+		if err != nil {
+			t.Fatalf("failed to create temp dir: %v", err)
+		}
+		defer sh.X("rm", "-rf", baseDir)
+
+		inputDir := filepath.Join(baseDir, "input")
+		outputTar := filepath.Join(baseDir, "output.tar")
+		exportToOCIDir(sh, mirrorImg.ref, inputDir)
+
+		// Standlone convert doesn't require containerd
+		stopContainerd(t, sh)
+		sh.X("soci", "convert",
+			"--standalone",
+			"--min-layer-size=0",
+			inputDir,
+			outputTar,
+		)
+
+		rebootContainerd(t, sh, getContainerdConfigToml(t, false), getSnapshotterConfigToml(t, sociV2Opts...))
+
+		convertedRef := mirrorImg.ref + "-standalone-soci"
+		sh.X("ctr", "images", "import", "--no-unpack", "--index-name", convertedRef, outputTar)
+		sh.X("nerdctl", "push", convertedRef)
+
+		rebootContainerd(t, sh, getContainerdConfigToml(t, false), getSnapshotterConfigToml(t, sociV2Opts...))
+
+		sh.X(append(imagePullCmd, convertedRef)...)
+		_, err = sh.OLog(append(runSociCmd, "--name", "test-run-after-standalone-convert", "--rm", convertedRef)...)
+		if err != nil {
+			t.Fatalf("encountered error running container: %v", err)
+		}
+		checkFuseMounts(t, sh, 1)
+	})
+}
+
 func TestRunWithIdMap(t *testing.T) {
 	type checker struct {
 		path string
