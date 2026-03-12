@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1773245100783,
+  "lastUpdate": 1773341898058,
   "repoUrl": "https://github.com/awslabs/soci-snapshotter",
   "entries": {
     "Soci Benchmark": [
@@ -16746,6 +16746,48 @@ window.BENCHMARK_DATA = {
           {
             "name": "SociFullECR-public-mongo-pullTaskDuration",
             "value": 1.0695000000000001,
+            "unit": "Seconds",
+            "extra": "P90"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "davbson@amazon.com",
+            "name": "David Son",
+            "username": "sondavidb"
+          },
+          "committer": {
+            "email": "55555210+sondavidb@users.noreply.github.com",
+            "name": "David Son",
+            "username": "sondavidb"
+          },
+          "distinct": true,
+          "id": "d8e1a06e92793bf483a2eac576502137bc533525",
+          "message": "Remove containerd 1.6 from testing suite\n\nPer https://containerd.io/releases, 1.6 was EOL in August 2025 thus we\nhave no reason to keep testing against it.\n\n2.0 is also EOL but as it's a little newer it's probably fine to keep\ntesting against it anyway.\n\nSigned-off-by: David Son <davbson@amazon.com>",
+          "timestamp": "2026-03-12T11:43:31-07:00",
+          "tree_id": "a12c9793ad097c5c1f49d462bfcbf37adfd5adb3",
+          "url": "https://github.com/awslabs/soci-snapshotter/commit/d8e1a06e92793bf483a2eac576502137bc533525"
+        },
+        "date": 1773341894303,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "SociFullECR-public-mongo-lazyTaskDuration",
+            "value": 2.3135000000000003,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-mongo-localTaskDuration",
+            "value": 0.296,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-mongo-pullTaskDuration",
+            "value": 16.2075,
             "unit": "Seconds",
             "extra": "P90"
           }
