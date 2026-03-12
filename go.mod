@@ -19,7 +19,7 @@ require (
 	github.com/hashicorp/go-retryablehttp v0.7.8
 	github.com/klauspost/compress v1.18.4
 	github.com/moby/sys/mountinfo v0.7.2
-	github.com/montanaflynn/stats v0.7.1
+	github.com/montanaflynn/stats v0.8.2
 	github.com/opencontainers/go-digest v1.0.0
 	github.com/opencontainers/image-spec v1.1.1
 	github.com/opencontainers/runtime-spec v1.2.1
