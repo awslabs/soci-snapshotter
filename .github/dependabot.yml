@@ -7,11 +7,8 @@ updates:
     schedule:
       interval: "daily"
     ignore:
-      # skip grpc because the current latest not compatible with containerd 1.7
-      # skip k8s deps since they use the latest go version/features that may
-      # not be in the go version soci uses
+      # skip k8s deps since they use the latest go version/features that may not be in the go version soci uses
       # Also ignored in /scripts/bump-deps.sh
-      - dependency-name: "google.golang.org/grpc"
       - dependency-name: "k8s.io/*"
 
   # Automatic upgrade for go modules of cmd package.
@@ -20,12 +17,9 @@ updates:
     schedule:
       interval: "daily"
     ignore:
-      # skip grpc because the current latest not compatible with containerd 1.7
-      # skip k8s deps since they use the latest go version/features that may
-      # not be in the go version soci uses
+      # skip k8s deps and soci-snapshotter itself
       # Also ignored in /scripts/bump-deps.sh
       - dependency-name: "github.com/awslabs/soci-snapshotter"
-      - dependency-name: "google.golang.org/grpc"
       - dependency-name: "k8s.io/*"
 
   # Automatic update for base images used in the Dockerfile
