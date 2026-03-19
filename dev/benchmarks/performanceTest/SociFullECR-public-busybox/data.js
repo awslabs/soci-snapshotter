@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1773341896807,
+  "lastUpdate": 1773958295240,
   "repoUrl": "https://github.com/awslabs/soci-snapshotter",
   "entries": {
     "Soci Benchmark": [
@@ -16787,6 +16787,48 @@ window.BENCHMARK_DATA = {
           {
             "name": "SociFullECR-public-busybox-pullTaskDuration",
             "value": 8.659,
+            "unit": "Seconds",
+            "extra": "P90"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "davbson@amazon.com",
+            "name": "David Son",
+            "username": "sondavidb"
+          },
+          "committer": {
+            "email": "55555210+sondavidb@users.noreply.github.com",
+            "name": "David Son",
+            "username": "sondavidb"
+          },
+          "distinct": true,
+          "id": "dc2ed587e8142b1726e0578dfe21ec4c636e7bc5",
+          "message": "Revert \"Skip grpc in bump-deps.sh\"\n\nThis reverts commit fe6994c8f582f2983b11898a41c98e3328f4bbb8.\n\nSigned-off-by: David Son <davbson@amazon.com>",
+          "timestamp": "2026-03-19T15:03:14-07:00",
+          "tree_id": "ae518531f74831ff0f5f7b40577205505c6c65db",
+          "url": "https://github.com/awslabs/soci-snapshotter/commit/dc2ed587e8142b1726e0578dfe21ec4c636e7bc5"
+        },
+        "date": 1773958291515,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "SociFullECR-public-busybox-lazyTaskDuration",
+            "value": 0.0165,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-busybox-localTaskDuration",
+            "value": 0.007,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-busybox-pullTaskDuration",
+            "value": 1.1715,
             "unit": "Seconds",
             "extra": "P90"
           }
