@@ -62,6 +62,10 @@ func main() {
 			commands.RebuildDBCommand,
 		},
 		Before: func(ctx context.Context, cmd *cli.Command) (context.Context, error) {
+			// Standalone convert doesn't need the snapshotter root path.
+			if cmd.Command(commands.ConvertCommand.Name).Bool(commands.StandaloneFlag) {
+				return ctx, nil
+			}
 			return ctx, soci.EnsureSnapshotterRootPath(cmd.String(global.RootFlag))
 		},
 	}

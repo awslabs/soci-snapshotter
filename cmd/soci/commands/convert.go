@@ -35,7 +35,7 @@ import (
 )
 
 const (
-	standaloneFlag   = "standalone"
+	StandaloneFlag   = "standalone"
 	outputFormatFlag = "format"
 
 	outputFormatOCIArchive = "oci-archive"
@@ -81,7 +81,7 @@ var ConvertCommand = &cli.Command{
 		internal.PrefetchFlags,
 		[]cli.Flag{
 			&cli.BoolFlag{
-				Name:  standaloneFlag,
+				Name:  StandaloneFlag,
 				Usage: "Run in standalone mode without containerd runtime. In this mode, the command reads an OCI image layout (tar or directory) and writes a converted OCI image layout without requiring a running containerd instance.",
 			},
 			&cli.StringFlag{
@@ -107,7 +107,7 @@ var ConvertCommand = &cli.Command{
 			return errors.New("destination needs to be specified")
 		}
 
-		if cmd.Bool(standaloneFlag) {
+		if cmd.Bool(StandaloneFlag) {
 			return runStandaloneConvert(ctx, cmd, src, dst)
 		}
 
