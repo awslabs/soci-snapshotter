@@ -21,6 +21,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"path/filepath"
 	"slices"
 	"strings"
 
@@ -197,7 +198,14 @@ var ConvertCommand = &cli.Command{
 func runStandaloneConvert(ctx context.Context, cmd *cli.Command, inputPath string, outputPath string) error {
 	format := cmd.String(outputFormatFlag)
 
-	ociLayoutDir, err := os.MkdirTemp("", "soci-oci-*")
+	// Prefer the OS temp dir (/tmp) since it's often memory-backed and faster.
+	// Fall back to the output path's parent for minimal environments (e.g., scratch images) where /tmp may not exist.
+	tmpBase := os.TempDir()
+	if _, err := os.Stat(tmpBase); err != nil {
+		tmpBase = filepath.Dir(filepath.Clean(outputPath))
+	}
+
+	ociLayoutDir, err := os.MkdirTemp(tmpBase, "soci-oci-*")
 	if err != nil {
 		return fmt.Errorf("failed to create temp directory: %w", err)
 	}
@@ -208,7 +216,7 @@ func runStandaloneConvert(ctx context.Context, cmd *cli.Command, inputPath strin
 		return err
 	}
 
-	artifactsDir, err := os.MkdirTemp("", "soci-artifacts-*")
+	artifactsDir, err := os.MkdirTemp(tmpBase, "soci-artifacts-*")
 	if err != nil {
 		return fmt.Errorf("failed to create artifacts temp directory: %w", err)
 	}
