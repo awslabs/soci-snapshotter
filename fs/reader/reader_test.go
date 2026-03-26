@@ -52,6 +52,7 @@ import (
 	"github.com/awslabs/soci-snapshotter/util/testutil"
 	"github.com/awslabs/soci-snapshotter/ztoc"
 	digest "github.com/opencontainers/go-digest"
+	"github.com/stretchr/testify/assert"
 )
 
 const (
@@ -161,7 +162,8 @@ func makeFile(t *testing.T, contents []byte, prefix string, factory metadata.Sto
 	if err != nil {
 		t.Fatalf("failed to create reader: %v", err)
 	}
-	spanManager := spanmanager.New(ztoc, sr, cache.NewMemoryCache(), 0)
+	spanManager, err := spanmanager.New(ztoc, sr, cache.NewMemoryCache(), 0)
+	assert.Nil(t, err)
 	r, err := NewReader(mr, digest.FromString(""), spanManager, false)
 	if err != nil {
 		mr.Close()
@@ -216,7 +218,8 @@ func testFailReader(t *testing.T, factory metadata.Store) {
 			if !found {
 				t.Fatalf("free ID not found")
 			}
-			spanManager := spanmanager.New(ztoc, sr, cache.NewMemoryCache(), 0)
+			spanManager, err := spanmanager.New(ztoc, sr, cache.NewMemoryCache(), 0)
+			assert.Nil(t, err)
 			r, err := NewReader(mr, digest.FromString(""), spanManager, false)
 			if err != nil {
 				mr.Close()

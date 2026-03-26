@@ -67,6 +67,7 @@ import (
 	"github.com/hanwen/go-fuse/v2/fuse"
 	digest "github.com/opencontainers/go-digest"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
+	"github.com/stretchr/testify/assert"
 	"golang.org/x/sys/unix"
 )
 
@@ -172,7 +173,8 @@ func makeNodeReader(t *testing.T, contents []byte, spanSize int64, factory metad
 	if err != nil {
 		t.Fatalf("failed to create reader: %v", err)
 	}
-	spanManager := spanmanager.New(ztoc, sr, cache.NewMemoryCache(), 0)
+	spanManager, err := spanmanager.New(ztoc, sr, cache.NewMemoryCache(), 0)
+	assert.Nil(t, err)
 	r, err := reader.NewReader(mr, digest.FromString(""), spanManager, false)
 	if err != nil {
 		mr.Close()
@@ -333,7 +335,8 @@ func testExistenceWithOpaque(t *testing.T, factory metadata.Store, opaque Overla
 					t.Fatalf("failed to create reader: %v", err)
 				}
 				defer mr.Close()
-				spanManager := spanmanager.New(ztoc, sr, cache.NewMemoryCache(), 0)
+				spanManager, err := spanmanager.New(ztoc, sr, cache.NewMemoryCache(), 0)
+				assert.Nil(t, err)
 				r, err := reader.NewReader(mr, digest.FromString(""), spanManager, false)
 				if err != nil {
 					t.Fatalf("failed to make new reader: %v", err)
@@ -595,7 +598,7 @@ func hasEntry(t *testing.T, name string, ents fusefs.DirStream) (fuse.DirEntry, 
 	return fuse.DirEntry{}, false
 }
 
-func hasStateFile(t *testing.T, id string) check {
+func hasStateFile(_ *testing.T, id string) check {
 	return func(t *testing.T, root *node) {
 		ctx, cancel := context.WithCancel(context.Background())
 		defer cancel()
@@ -774,7 +777,8 @@ func testStatfs(t *testing.T, factory metadata.Store) {
 	}
 	defer mr.Close()
 
-	spanManager := spanmanager.New(ztoc, sr, cache.NewMemoryCache(), 0)
+	spanManager, err := spanmanager.New(ztoc, sr, cache.NewMemoryCache(), 0)
+	assert.Nil(t, err)
 	r, err := reader.NewReader(mr, digest.FromString(""), spanManager, false)
 	if err != nil {
 		t.Fatalf("failed to create reader: %v", err)

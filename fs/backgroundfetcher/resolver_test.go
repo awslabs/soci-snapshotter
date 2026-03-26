@@ -26,6 +26,7 @@ import (
 	"github.com/awslabs/soci-snapshotter/util/testutil"
 	"github.com/awslabs/soci-snapshotter/ztoc"
 	"github.com/opencontainers/go-digest"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestSequentialResolver(t *testing.T) {
@@ -50,7 +51,8 @@ func TestSequentialResolver(t *testing.T) {
 			if err != nil {
 				t.Fatalf("error build ztoc and section reader: %v", err)
 			}
-			sm := spanmanager.New(ztoc, sr, cache.NewMemoryCache(), 0)
+			sm, err := spanmanager.New(ztoc, sr, cache.NewMemoryCache(), 0)
+			assert.Nil(t, err)
 			sequentialResolver := NewSequentialResolver(digest.FromString("test"), sm)
 
 			var resolvedSpans []int

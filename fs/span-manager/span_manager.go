@@ -39,6 +39,7 @@ var (
 	ErrSpanNotAvailable    = errors.New("span not available in cache")
 	ErrIncorrectSpanDigest = errors.New("span digests do not match")
 	ErrExceedMaxSpan       = errors.New("span id larger than max span id")
+	ErrIncorrectMaxSpanID  = errors.New("given max span ID differs from calculated max span ID")
 )
 
 // SpanManager fetches and caches spans of a given layer.
@@ -69,22 +70,30 @@ type spanInfo struct {
 // New creates a SpanManager with given ztoc and content reader, and builds all
 // spans based on the ztoc.
 
-// TODO: return errors/nil objects on failure
-func New(ztoc *ztoc.Ztoc, r *io.SectionReader, cache cache.BlobCache, retries int, cacheOpt ...cache.Option) *SpanManager {
+func New(ztoc *ztoc.Ztoc, r *io.SectionReader, cache cache.BlobCache, retries int, cacheOpt ...cache.Option) (*SpanManager, error) {
 	index, err := ztoc.Zinfo()
 	if err != nil {
-		return nil
+		return nil, err
 	}
 	ztoc.Checkpoints = nil
+
+	// Check zTOC contents against generated Zinfo
+	maxSpanID := index.MaxSpanID()
+	if ztoc.MaxSpanID != maxSpanID {
+		return nil, fmt.Errorf("%w (zTOC: %d, checkpoints: %d)", ErrIncorrectMaxSpanID, ztoc.MaxSpanID, maxSpanID)
+	}
+	if int32(len(ztoc.SpanDigests)) != int32(maxSpanID+1) {
+		return nil, fmt.Errorf("%w (len span digests: %d, MaxSpanID+1: %d", ErrIncorrectMaxSpanID, len(ztoc.SpanDigests), maxSpanID+1)
+	}
 
 	// We don't need the header anywhere else, but we want to ensure we read every byte from the layer.
 	// This also serves as a sanity check to make sure the file isn't corrupted.
 	b := make([]byte, index.StartCompressedOffset(0))
 	if _, err := r.Read(b); err != nil {
-		log.L.Errorf("unable to read ztoc header: %v", err)
+		return nil, fmt.Errorf("unable to read ztoc header: %w", err)
 	}
 	if err := index.VerifyHeader(bytes.NewReader(b)); err != nil {
-		log.L.Errorf("unable to verify %v header: %v", ztoc.CompressionAlgorithm, err)
+		return nil, fmt.Errorf("unable to verify %v header: %w", ztoc.CompressionAlgorithm, err)
 	}
 
 	spans := make([]*span, ztoc.MaxSpanID+1)
@@ -105,7 +114,7 @@ func New(ztoc *ztoc.Ztoc, r *io.SectionReader, cache cache.BlobCache, retries in
 		m.Close()
 	})
 
-	return m
+	return m, nil
 }
 
 func (m *SpanManager) buildAllSpans() {
@@ -452,6 +461,10 @@ func (m *SpanManager) getSpanFromCache(spanID compression.SpanID, offset, size c
 // verifySpanContents calculates span digest from its compressed bytes, and compare
 // with the digest stored in ztoc.
 func (m *SpanManager) verifySpanContents(compressedData []byte, spanID compression.SpanID) error {
+	if int32(spanID) >= int32(len(m.ztoc.SpanDigests)) {
+		return ErrExceedMaxSpan
+	}
+
 	actual := digest.FromBytes(compressedData)
 	expected := m.ztoc.SpanDigests[spanID]
 	if actual != expected {

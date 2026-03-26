@@ -194,7 +194,7 @@ func TestLegacyOCI(t *testing.T) {
 			imageName := ubuntuImage
 			copyImage(sh, dockerhub(imageName), regConfig.mirror(imageName))
 
-			indexDigest := buildIndex(sh, regConfig.mirror(imageName))
+			indexDigest := buildIndex(sh, regConfig.mirror(imageName), withMinLayerSize(0))
 			rawJSON := sh.O("soci", "index", "info", indexDigest)
 			var sociIndex soci.Index
 			if err := soci.UnmarshalIndex(rawJSON, &sociIndex); err != nil {
@@ -212,7 +212,7 @@ func TestLegacyOCI(t *testing.T) {
 
 			sh.X(append(imagePullCmd, "--soci-index-digest", indexDigest, regConfig.mirror(imageName).ref)...)
 			if err := sh.Err(); err != nil {
-				t.Fatalf("failed to rpull: %v", err)
+				t.Fatalf("failed to pull: %v", err)
 			}
 			checkFuseMounts(t, sh, len(sociIndex.Blobs))
 		})
