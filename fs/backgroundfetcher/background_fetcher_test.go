@@ -28,6 +28,7 @@ import (
 	"github.com/awslabs/soci-snapshotter/util/testutil"
 	"github.com/awslabs/soci-snapshotter/ztoc"
 	"github.com/opencontainers/go-digest"
+	"github.com/stretchr/testify/assert"
 )
 
 func withPauser(p pauser) Option {
@@ -117,7 +118,8 @@ func TestBackgroundFetcherRun(t *testing.T) {
 					t.Fatalf("error building span manager and section reader: %v", err)
 				}
 				cache := &countingCache{}
-				sm := spanmanager.New(ztoc, sr, cache, 0)
+				sm, err := spanmanager.New(ztoc, sr, cache, 0)
+				assert.Nil(t, err)
 				infos = append(infos, testInfo{sm, cache, ztoc})
 			}
 

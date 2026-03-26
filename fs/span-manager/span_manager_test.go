@@ -28,6 +28,7 @@ import (
 	"github.com/awslabs/soci-snapshotter/util/testutil"
 	"github.com/awslabs/soci-snapshotter/ztoc"
 	"github.com/awslabs/soci-snapshotter/ztoc/compression"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestSpanManager(t *testing.T) {
@@ -48,12 +49,36 @@ func TestSpanManager(t *testing.T) {
 			maxSpans: 100,
 		},
 		{
-			name:     "span digest verification fails",
+			name:          "bad MaxSpanID",
+			maxSpans:      5,
+			expectedError: ErrIncorrectMaxSpanID,
+		},
+		{
+			name:     "header verification fails",
 			maxSpans: 100,
 			sectionReader: io.NewSectionReader(readerFn(func(b []byte, _ int64) (int, error) {
 				sz := compression.Offset(len(b))
 				r := testutil.NewTestRand(t)
 				copy(b, r.RandomByteData(int64(sz))) // populate with garbage data
+				return len(b), nil
+			}), 0, 10000000),
+			expectedError: gzip.ErrHeader,
+		},
+		{
+			name:     "span digest verification fails",
+			maxSpans: 100,
+			sectionReader: io.NewSectionReader(readerFn(func(b []byte, _ int64) (int, error) {
+				var r bytes.Buffer
+				w := gzip.NewWriter(&r)
+				w.Write([]byte("failing digest verification"))
+				w.Close()
+
+				gz, err := io.ReadAll(&r)
+				if err != nil {
+					t.Fatalf("error creating SectionReader: %v", err)
+				}
+
+				copy(b, gz)
 				return len(b), nil
 			}), 0, 10000000),
 			expectedError: ErrIncorrectSpanDigest,
@@ -84,13 +109,20 @@ func TestSpanManager(t *testing.T) {
 				return
 			}
 
+			if tc.expectedError == ErrIncorrectMaxSpanID {
+				toc.MaxSpanID++
+			}
+
 			if tc.sectionReader != nil {
 				r = tc.sectionReader
 			}
 
 			cache := cache.NewMemoryCache()
 			defer cache.Close()
-			m := New(toc, r, cache, 0)
+			m, err := New(toc, r, cache, 0)
+			if err != nil {
+				return
+			}
 
 			// Test GetContent
 			fileContentFromSpans, err := getFileContentFromSpans(m, toc, fileName)
@@ -133,7 +165,8 @@ func TestSpanManagerCache(t *testing.T) {
 	}
 	cache := cache.NewMemoryCache()
 	defer cache.Close()
-	m := New(toc, r, cache, 0)
+	m, err := New(toc, r, cache, 0)
+	assert.Nil(t, err)
 	spanID := 0
 	err = m.resolveSpan(compression.SpanID(spanID))
 	if err != nil {
@@ -188,7 +221,8 @@ func TestStateTransition(t *testing.T) {
 	}
 	cache := cache.NewMemoryCache()
 	defer cache.Close()
-	m := New(toc, r, cache, 0)
+	m, err := New(toc, r, cache, 0)
+	assert.Nil(t, err)
 
 	// check initial span states
 	for i := uint32(0); i <= uint32(toc.MaxSpanID); i++ {
@@ -347,16 +381,19 @@ func TestSpanManagerRetries(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			r := testutil.NewTestRand(t)
+			randStr := string(r.RandomByteData(10000000))
+
 			entries := []testutil.TarEntry{
-				testutil.File("test", string(r.RandomByteData(10000000))),
+				testutil.File("test", randStr),
 			}
 			ztoc, sr, err := ztoc.BuildZtocReader(t, entries, gzip.DefaultCompression, 100000)
 			if err != nil {
 				t.Fatal(err)
 			}
-			rdr := &retryableReaderAt{inner: sr, maxErrors: tc.readerErrors}
+			rdr := newRetryableReaderAt(sr, tc.readerErrors)
 			sr = io.NewSectionReader(rdr, 0, 10000000)
-			sm := New(ztoc, sr, cache.NewMemoryCache(), tc.spanManagerRetries)
+			sm, err := New(ztoc, sr, cache.NewMemoryCache(), tc.spanManagerRetries)
+			assert.Nil(t, err)
 
 			for i := 0; i < int(ztoc.MaxSpanID); i++ {
 				rdr.errCount = 0
@@ -381,6 +418,14 @@ type retryableReaderAt struct {
 	maxErrors int
 }
 
+func newRetryableReaderAt(inner *io.SectionReader, maxErrors int) *retryableReaderAt {
+	return &retryableReaderAt{
+		inner:     inner,
+		maxErrors: maxErrors,
+		errCount:  -1, // First read needs to succeed to create spanmanager
+	}
+}
+
 func (r *retryableReaderAt) ReadAt(buf []byte, off int64) (int, error) {
 	n, err := r.inner.ReadAt(buf, off)
 	if (err != nil && err != io.EOF) || n != len(buf) {
@@ -388,7 +433,9 @@ func (r *retryableReaderAt) ReadAt(buf []byte, off int64) (int, error) {
 	}
 	if r.errCount < r.maxErrors {
 		r.errCount++
-		buf[0] = buf[0] ^ 0xff
+		if r.errCount > 0 {
+			buf[0] = buf[0] ^ 0xff
+		}
 	}
 	return n, err
 }
