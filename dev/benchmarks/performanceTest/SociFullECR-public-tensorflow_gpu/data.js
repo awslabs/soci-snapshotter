@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1774896451089,
+  "lastUpdate": 1774905542711,
   "repoUrl": "https://github.com/awslabs/soci-snapshotter",
   "entries": {
     "Soci Benchmark": [
@@ -16916,6 +16916,48 @@ window.BENCHMARK_DATA = {
           {
             "name": "SociFullECR-public-tensorflow_gpu-pullTaskDuration",
             "value": 4.5834,
+            "unit": "Seconds",
+            "extra": "P90"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "davbson@amazon.com",
+            "name": "David Son",
+            "username": "sondavidb"
+          },
+          "committer": {
+            "email": "55555210+sondavidb@users.noreply.github.com",
+            "name": "David Son",
+            "username": "sondavidb"
+          },
+          "distinct": true,
+          "id": "8f363ceccda9f00442061e1f307509c3b63a6ee7",
+          "message": "Add root testing to unit test workflows\n\nSigned-off-by: David Son <davbson@amazon.com>",
+          "timestamp": "2026-03-30T14:10:24-07:00",
+          "tree_id": "790601f3586a3bb1de5b770d7c986f5192782b29",
+          "url": "https://github.com/awslabs/soci-snapshotter/commit/8f363ceccda9f00442061e1f307509c3b63a6ee7"
+        },
+        "date": 1774905540413,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "SociFullECR-public-tensorflow_gpu-lazyTaskDuration",
+            "value": 10.947,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-tensorflow_gpu-localTaskDuration",
+            "value": 2.8406000000000002,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-tensorflow_gpu-pullTaskDuration",
+            "value": 2.1102,
             "unit": "Seconds",
             "extra": "P90"
           }
