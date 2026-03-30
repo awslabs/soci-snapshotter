@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1774896452865,
+  "lastUpdate": 1774905606332,
   "repoUrl": "https://github.com/awslabs/soci-snapshotter",
   "entries": {
     "Soci Benchmark": [
@@ -16875,6 +16875,48 @@ window.BENCHMARK_DATA = {
           {
             "name": "SociFullECR-public-rabbitmq-pullTaskDuration",
             "value": 1.3964,
+            "unit": "Seconds",
+            "extra": "P90"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "davbson@amazon.com",
+            "name": "David Son",
+            "username": "sondavidb"
+          },
+          "committer": {
+            "email": "55555210+sondavidb@users.noreply.github.com",
+            "name": "David Son",
+            "username": "sondavidb"
+          },
+          "distinct": true,
+          "id": "8f363ceccda9f00442061e1f307509c3b63a6ee7",
+          "message": "Add root testing to unit test workflows\n\nSigned-off-by: David Son <davbson@amazon.com>",
+          "timestamp": "2026-03-30T14:10:24-07:00",
+          "tree_id": "790601f3586a3bb1de5b770d7c986f5192782b29",
+          "url": "https://github.com/awslabs/soci-snapshotter/commit/8f363ceccda9f00442061e1f307509c3b63a6ee7"
+        },
+        "date": 1774905541366,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "SociFullECR-public-rabbitmq-lazyTaskDuration",
+            "value": 14.3032,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-rabbitmq-localTaskDuration",
+            "value": 10.6706,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-rabbitmq-pullTaskDuration",
+            "value": 1.6216,
             "unit": "Seconds",
             "extra": "P90"
           }
