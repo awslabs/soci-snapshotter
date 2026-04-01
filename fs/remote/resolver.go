@@ -324,13 +324,17 @@ func (f *httpFetcher) fetch(ctx context.Context, rs []region, retry bool) (multi
 		}
 		return newSinglePartReader(region{0, size - 1}, res.Body), nil
 	case http.StatusPartialContent:
-		mediaType, params, err := mime.ParseMediaType(res.Header.Get("Content-Type"))
-		if err != nil {
-			return nil, fmt.Errorf("%w: invalid media type %q: %w", ErrCannotParseContentType, mediaType, err)
-		}
-		if strings.HasPrefix(mediaType, "multipart/") {
-			// We are getting a set of regions as a multipart body.
-			return newMultiPartReader(res.Body, params["boundary"]), nil
+		contentType := res.Header.Get("Content-Type")
+		// If no content type is found, assume it's a single stream file,
+		if contentType != "" {
+			mediaType, params, err := mime.ParseMediaType(contentType)
+			if err != nil {
+				return nil, fmt.Errorf("%w: invalid media type %q: %w", ErrCannotParseContentType, mediaType, err)
+			}
+			if strings.HasPrefix(mediaType, "multipart/") {
+				// We are getting a set of regions as a multipart body.
+				return newMultiPartReader(res.Body, params["boundary"]), nil
+			}
 		}
 		// We are getting single range
 		reg, _, err := parseRange(res.Header.Get("Content-Range"))
