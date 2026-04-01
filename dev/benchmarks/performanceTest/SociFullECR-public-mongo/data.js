@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1775075059727,
+  "lastUpdate": 1775075284926,
   "repoUrl": "https://github.com/awslabs/soci-snapshotter",
   "entries": {
     "Soci Benchmark": [
@@ -17208,6 +17208,48 @@ window.BENCHMARK_DATA = {
           {
             "name": "SociFullECR-public-mongo-pullTaskDuration",
             "value": 1.3122,
+            "unit": "Seconds",
+            "extra": "P90"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "arjunry@amazon.com",
+            "name": "Arjun Raja Yogidas",
+            "username": "coderbirju"
+          },
+          "committer": {
+            "email": "arjunry@amazon.com",
+            "name": "Arjun",
+            "username": "coderbirju"
+          },
+          "distinct": true,
+          "id": "a164da9f28d02314ea8a3061d703cb535bdcdb8b",
+          "message": "update containerd version in CI\n\nSigned-off-by: Arjun Raja Yogidas <arjunry@amazon.com>",
+          "timestamp": "2026-04-01T13:13:01-07:00",
+          "tree_id": "9b303c7cd2f669b8fb517d293d72136359aa0e21",
+          "url": "https://github.com/awslabs/soci-snapshotter/commit/a164da9f28d02314ea8a3061d703cb535bdcdb8b"
+        },
+        "date": 1775075279132,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "SociFullECR-public-mongo-lazyTaskDuration",
+            "value": 14.5492,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-mongo-localTaskDuration",
+            "value": 0.32280000000000003,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-mongo-pullTaskDuration",
+            "value": 2.4166,
             "unit": "Seconds",
             "extra": "P90"
           }
