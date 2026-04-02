@@ -1028,13 +1028,19 @@ services:
 
 	// Start the token server inside the testing container.
 	// The binary is built on the host and mounted via the auth volume.
+	// Use short-lived tokens (3s). After expiry, the cached Bearer handler
+	// in docker.Authorizer tries to re-fetch a token from the token server
+	// using the baked-in credentials. If the password has changed, fetchToken
+	// fails inside doBearerAuth — AddResponses is never called, so the handler
+	// is never deleted. The Authorizer is stuck with stale credentials.
 	sh.Gox("/auth/tokenserver",
 		"--addr", ":5001",
 		"--cert", "/auth/domain.crt",
 		"--key", "/auth/domain.key",
 		"--signing-key", "/auth/signing.key",
 		"--password-file", "/auth/password.txt",
-		"--issuer", "test-issuer")
+		"--issuer", "test-issuer",
+		"--token-ttl", "3")
 	// Wait for token server to start.
 	sh.Retry(30, "curl", "-sk", "https://localhost:5001/token")
 
@@ -1056,8 +1062,11 @@ services:
 	sh.X(append(imagePullCmd, "--soci-index-digest", indexDigest, image)...)
 
 	// First run: warms up registryHostMap cache. The docker.Authorizer creates
-	// a Bearer handler that caches the token server credentials internally.
+	// a Bearer handler that caches the token and token server credentials.
 	sh.X(append(runSociCmd, "--name", "warmup", "--rm", image, "echo", "ok")...)
+
+	// Wait for the short-lived token to expire (3s TTL + buffer).
+	sh.X("sleep", "5")
 
 	// Rotate the token server password.
 	newPass := "rotatedpass"
@@ -1068,15 +1077,18 @@ services:
 	// Login with the new password (updates docker config keychain).
 	sh.X("nerdctl", "login", "-u", regConfig.user, "-p", newPass, regConfig.host)
 
-	// Second run: check() fires. The cached AuthClient's Bearer handler tries
-	// to fetch a token from the token server using the OLD password (baked into
-	// the handler at creation time). The token server rejects it. This error
-	// occurs inside doBearerAuth → fetchToken, so AddResponses is never called
-	// and the handler is never deleted.
+	// Second run: check() fires (check_always=true). The cached AuthClient's
+	// docker.Authorizer has a Bearer handler whose token has expired.
+	// doBearerAuth calls fetchToken with the OLD password baked into the
+	// handler's TokenOptions. The token server rejects it. This error occurs
+	// inside doBearerAuth — AddResponses is never called, so the handler is
+	// never deleted. The Authorizer is stuck with stale credentials.
 	//
 	// Without InvalidateRegistryHosts: stuck with stale handler → permanent failure.
-	// With InvalidateRegistryHosts: cache cleared → fresh Authorizer → new handler
-	// with new password from docker config → token server accepts → success.
+	// With InvalidateRegistryHosts: cache cleared → fresh Authorizer → empty
+	// handlers map → first request goes unauthenticated → registry returns 401
+	// Bearer challenge → AddResponses creates new handler with fresh password
+	// from docker config → fetchToken succeeds → container runs.
 	_, err = sh.OLog(append(runSociCmd, "--name", "after-rotation", "--rm", image, "echo", "ok")...)
 	if err != nil {
 		t.Fatalf("expected container run to succeed after credential rotation, got: %v", err)

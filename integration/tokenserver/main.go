@@ -29,6 +29,7 @@ func main() {
 	passwordFile := flag.String("password-file", "", "File containing accepted password")
 	addr := flag.String("addr", ":5001", "Listen address")
 	issuer := flag.String("issuer", "test-issuer", "Token issuer")
+	tokenTTL := flag.Int("token-ttl", 3600, "Token TTL in seconds")
 	flag.Parse()
 
 	signingKeyPEM, err := os.ReadFile(*signingKeyFile)
@@ -64,7 +65,8 @@ func main() {
 		service := r.URL.Query().Get("service")
 		scope := r.URL.Query().Get("scope")
 
-		token, err := makeToken(signingKey, *issuer, service, user, scope)
+		ttl := time.Duration(*tokenTTL) * time.Second
+		token, err := makeToken(signingKey, *issuer, service, user, scope, ttl)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
@@ -73,7 +75,7 @@ func main() {
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(map[string]interface{}{
 			"token":      token,
-			"expires_in": 3600,
+			"expires_in": *tokenTTL,
 			"issued_at":  time.Now().UTC().Format(time.RFC3339),
 		})
 	})
@@ -84,7 +86,7 @@ func main() {
 	}
 }
 
-func makeToken(key *rsa.PrivateKey, issuer, service, subject, scope string) (string, error) {
+func makeToken(key *rsa.PrivateKey, issuer, service, subject, scope string, ttl time.Duration) (string, error) {
 	now := time.Now().UTC()
 
 	var access []map[string]interface{}
@@ -108,7 +110,7 @@ func makeToken(key *rsa.PrivateKey, issuer, service, subject, scope string) (str
 		"iss":    issuer,
 		"sub":    subject,
 		"aud":    service,
-		"exp":    now.Add(time.Hour).Unix(),
+		"exp":    now.Add(ttl).Unix(),
 		"nbf":    now.Add(-time.Second).Unix(),
 		"iat":    now.Unix(),
 		"jti":    fmt.Sprintf("%d", now.UnixNano()),
