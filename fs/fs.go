@@ -164,6 +164,7 @@ type Option func(*options)
 
 type options struct {
 	getSources        source.GetSources
+	invalidateHosts   source.InvalidateHosts
 	resolveHandlers   map[string]remote.Handler
 	metadataStore     metadata.Store
 	overlayOpaqueType layer.OverlayOpaqueType
@@ -174,6 +175,12 @@ type options struct {
 func WithGetSources(s source.GetSources) Option {
 	return func(opts *options) {
 		opts.getSources = s
+	}
+}
+
+func WithInvalidateHosts(f source.InvalidateHosts) Option {
+	return func(opts *options) {
+		opts.invalidateHosts = f
 	}
 }
 
@@ -320,6 +327,7 @@ func NewFilesystem(ctx context.Context, root string, cfg config.FSConfig, opts .
 		ctx:                         ctx,
 		resolver:                    r,
 		getSources:                  getSources,
+		invalidateHosts:             fsOpts.invalidateHosts,
 		debug:                       cfg.Debug,
 		layer:                       make(map[string]layer.Layer),
 		disableVerification:         cfg.DisableVerification,
@@ -414,6 +422,7 @@ type filesystem struct {
 	layerMu                     sync.Mutex
 	disableVerification         bool
 	getSources                  source.GetSources
+	invalidateHosts             source.InvalidateHosts
 	metricsController           *layermetrics.Controller
 	attrTimeout                 time.Duration
 	entryTimeout                time.Duration
@@ -1207,31 +1216,42 @@ func (fs *filesystem) check(ctx context.Context, l layer.Layer, labels map[strin
 	}
 	log.G(ctx).WithError(err).Warn("failed to connect to blob")
 
-	// Check failed. Try to refresh the connection with fresh source information
-	src, err := fs.getSources(labels)
-	if err != nil {
-		return err
-	}
-	var (
-		retrynum = 1
-		rErr     = fmt.Errorf("failed to refresh connection")
-	)
-	for retry := 0; retry < retrynum; retry++ {
-		log.G(ctx).Warnf("refreshing(%d)...", retry)
-		for _, s := range src {
-			err := l.Refresh(ctx, s.Hosts, s.Name, s.Target)
-			if err == nil {
-				log.G(ctx).Debug("Successfully refreshed connection")
-				return nil
-			}
-			log.G(ctx).WithError(err).Warnf("failed to refresh the layer %q from %q",
-				s.Target.Digest, s.Name)
-			rErr = fmt.Errorf("failed(layer:%q, ref:%q): %v: %w",
-				s.Target.Digest, s.Name, err, rErr)
-		}
+	// Try to refresh with current (possibly cached) sources.
+	src, err := fs.refreshLayer(ctx, l, labels)
+	if err == nil {
+		return nil
 	}
 
-	return rErr
+	// Invalidate cached registry hosts and retry with fresh credentials.
+	if fs.invalidateHosts != nil {
+		for _, s := range src {
+			fs.invalidateHosts(s.Name.String())
+		}
+		_, err = fs.refreshLayer(ctx, l, labels)
+		return err
+	}
+
+	return err
+}
+
+// refreshLayer fetches sources and attempts to refresh the layer connection.
+// It returns the sources that were tried (for cache invalidation) and any error.
+func (fs *filesystem) refreshLayer(ctx context.Context, l layer.Layer, labels map[string]string) ([]source.Source, error) {
+	src, err := fs.getSources(labels)
+	if err != nil {
+		return nil, err
+	}
+	var errs []error
+	for _, s := range src {
+		if err := l.Refresh(ctx, s.Hosts, s.Name, s.Target); err == nil {
+			return src, nil
+		} else {
+			log.G(ctx).WithError(err).Warnf("failed to refresh the layer %q from %q",
+				s.Target.Digest, s.Name)
+			errs = append(errs, err)
+		}
+	}
+	return src, errors.Join(errs...)
 }
 
 func isIDMappedDir(mountpoint string) bool {
