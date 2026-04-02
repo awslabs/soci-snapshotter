@@ -87,8 +87,11 @@ func NewSociSnapshotterService(ctx context.Context, root string, serviceCfg *con
 	registryConfig := serviceCfg.ResolverConfig
 
 	hosts := sOpts.registryHosts
+	var invalidateHosts source.InvalidateHosts
 	if hosts == nil {
-		hosts = resolver.NewRegistryManager(httpConfig, registryConfig, sOpts.credsFuncs).AsRegistryHosts()
+		rm := resolver.NewRegistryManager(httpConfig, registryConfig, sOpts.credsFuncs)
+		hosts = rm.AsRegistryHosts()
+		invalidateHosts = rm.InvalidateRegistryHosts
 	}
 	userxattr, err := overlayutils.NeedsUserXAttr(snapshotterRoot(root))
 	if err != nil {
@@ -101,6 +104,7 @@ func NewSociSnapshotterService(ctx context.Context, root string, serviceCfg *con
 	// Configure filesystem and snapshotter
 	getSources := source.FromDefaultLabels(source.RegistryHosts(hosts)) // provides source info based on default labels
 	fsOpts := append(sOpts.fsOpts, socifs.WithGetSources(getSources),
+		socifs.WithInvalidateHosts(invalidateHosts),
 		socifs.WithOverlayOpaqueType(opq),
 		socifs.WithPullModes(serviceCfg.PullModes),
 	)
