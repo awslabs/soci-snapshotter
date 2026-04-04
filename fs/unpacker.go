@@ -169,7 +169,7 @@ func AsyncTeeReader(r io.Reader, w io.WriteCloser, bp *bufferPool) io.Reader {
 				_, err = pw.Write((*b)[:n])
 			}
 			if err != nil {
-				if err != io.EOF {
+				if !errors.Is(err, io.EOF) {
 					pw.CloseWithError(err)
 				} else {
 					pw.Close()

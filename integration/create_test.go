@@ -410,7 +410,7 @@ func TestSociCreateGarbageCollection(t *testing.T) {
 	sh.X(append(imagePullCmd, "--soci-index-digest", indexDigest, imgInfo.ref)...)
 	curlOutput := string(sh.O("curl", tcpMetricsAddress+metricsPath))
 	if err := checkOverlayFallbackCount(curlOutput, 0); err != nil {
-		t.Fatal(fmt.Errorf("resources unexpectedly garbage collected: %v", err))
+		t.Fatal(fmt.Errorf("resources unexpectedly garbage collected: %w", err))
 	}
 }
 

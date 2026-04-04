@@ -119,7 +119,7 @@ func NewConfigFromToml(cfgPath string) (*Config, error) {
 func parseConfig(cfg *Config, cfgParsers []configParser) error {
 	for _, p := range cfgParsers {
 		if err := p(cfg); err != nil {
-			return fmt.Errorf("failed to parse config: %v", err)
+			return fmt.Errorf("failed to parse config: %w", err)
 		}
 	}
 	return nil

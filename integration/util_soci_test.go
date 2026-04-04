@@ -281,7 +281,7 @@ func sociIndexFromDigest(sh *shell.Shell, indexDigest string) (index soci.Index,
 		return
 	}
 	if err = soci.UnmarshalIndex(rawSociIndexJSON, &index); err != nil {
-		err = fmt.Errorf("invalid soci index from digest %s: %s", indexDigest, err)
+		err = fmt.Errorf("invalid soci index from digest %s: %w", indexDigest, err)
 	}
 	return
 }

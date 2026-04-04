@@ -779,7 +779,7 @@ func (o *snapshotter) createSnapshot(ctx context.Context, kind snapshots.Kind, k
 			if path != "" {
 				if err1 := o.cleanupSnapshotDirectory(ctx, path); err1 != nil {
 					log.G(ctx).WithError(err1).WithField("path", path).Error("failed to reclaim snapshot directory, directory may need removal")
-					err = fmt.Errorf("failed to remove path: %v: %w", err1, err)
+					err = fmt.Errorf("failed to remove path: %w: %w", err1, err)
 				}
 			}
 		}
