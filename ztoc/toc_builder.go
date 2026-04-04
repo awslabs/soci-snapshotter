@@ -19,6 +19,7 @@ package ztoc
 import (
 	"archive/tar"
 	"compress/gzip"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -97,7 +98,7 @@ func (tb TocBuilder) getFileMetadata(algorithm, filename string) ([]FileMetadata
 	// read compress file and create compress tar reader.
 	compressFile, err := os.Open(filename)
 	if err != nil {
-		return nil, 0, fmt.Errorf("could not open file for reading: %v", err)
+		return nil, 0, fmt.Errorf("could not open file for reading: %w", err)
 	}
 	defer compressFile.Close()
 
@@ -124,7 +125,7 @@ func metadataFromTarReader(r io.Reader) ([]FileMetadata, compression.Offset, err
 	for {
 		hdr, err := tarRdr.Next()
 		if err != nil {
-			if err == io.EOF {
+			if errors.Is(err, io.EOF) {
 				break
 			}
 			return nil, 0, fmt.Errorf("error while reading tar header: %w", err)

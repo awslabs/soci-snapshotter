@@ -349,7 +349,7 @@ func MonitorStartup() (func(string), chan error) {
 func TempDir(sh *shell.Shell) (string, error) {
 	out, err := sh.Command("mktemp", "-d").Output()
 	if err != nil {
-		return "", fmt.Errorf("failed to run mktemp: %v", err)
+		return "", fmt.Errorf("failed to run mktemp: %w", err)
 	}
 	return strings.TrimSpace(string(out)), nil
 }
@@ -475,7 +475,7 @@ func CopyInDir(sh *shell.Shell, from, to string) error {
 func KillMatchingProcess(sh *shell.Shell, psLinePattern string) error {
 	data, err := sh.Command("ps", "axo", "pid,command").Output()
 	if err != nil {
-		return fmt.Errorf("failed to run ps command: %v", err)
+		return fmt.Errorf("failed to run ps command: %w", err)
 	}
 	var targets []int
 	scanner := bufio.NewScanner(bytes.NewReader(data))

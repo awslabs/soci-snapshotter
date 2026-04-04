@@ -234,7 +234,7 @@ func cmdStream(cmd *exec.Cmd, in io.Reader) (io.ReadCloser, error) {
 
 	go func() {
 		if err := cmd.Wait(); err != nil {
-			writer.CloseWithError(fmt.Errorf("%s: %s", err, errBuf.String()))
+			writer.CloseWithError(fmt.Errorf("%w: %s", err, errBuf.String()))
 		} else {
 			writer.Close()
 		}

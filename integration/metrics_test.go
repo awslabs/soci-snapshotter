@@ -393,7 +393,7 @@ func buildIndexByManipulatingZtocData(sh *shell.Shell, indexDigest string, manip
 
 		newZtocReader, newZtocDesc, err := ztoc.Marshal(zt)
 		if err != nil {
-			return "", fmt.Errorf("unable to marshal ztoc %s: %s", newZtocDesc.Digest.String(), err)
+			return "", fmt.Errorf("unable to marshal ztoc %s: %w", newZtocDesc.Digest.String(), err)
 		}
 		err = testutil.InjectContentStoreContentFromReader(sh, config.DefaultContentStoreType, indexDigest, newZtocDesc, newZtocReader)
 		if err != nil {

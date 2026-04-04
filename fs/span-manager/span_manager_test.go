@@ -109,7 +109,7 @@ func TestSpanManager(t *testing.T) {
 				return
 			}
 
-			if tc.expectedError == ErrIncorrectMaxSpanID {
+			if errors.Is(tc.expectedError, ErrIncorrectMaxSpanID) {
 				toc.MaxSpanID++
 			}
 
@@ -198,7 +198,7 @@ func TestSpanManagerCache(t *testing.T) {
 				t.Fatalf("error resolving span from cache")
 			}
 			spanContent, err := io.ReadAll(spanR)
-			if err != nil && err != io.EOF {
+			if err != nil && !errors.Is(err, io.EOF) {
 				t.Fatalf("error reading span content")
 			}
 			if tc.size != compression.Offset(len(spanContent)) {

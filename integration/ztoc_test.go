@@ -21,6 +21,7 @@ import (
 	"bytes"
 	"compress/gzip"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"path/filepath"
@@ -401,7 +402,7 @@ func TestSociZtocGetFile(t *testing.T) {
 						var contents []byte
 						for {
 							h, err := tarReader.Next()
-							if err == io.EOF {
+							if errors.Is(err, io.EOF) {
 								break
 							}
 							if h.Name == f {

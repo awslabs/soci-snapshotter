@@ -154,7 +154,7 @@ func TestNegativeTOCRoundtrip(t *testing.T) {
 			if err == nil {
 				t.Fatal("toc deserialization did not produce expected error")
 			}
-			if tc.expectedError != anyError && !errors.Is(err, tc.expectedError) {
+			if !errors.Is(tc.expectedError, anyError) && !errors.Is(err, tc.expectedError) {
 				t.Fatalf("toc deserializtion did not produce the correct error. Actual %v, expected %v", err, tc.expectedError)
 			}
 		})

@@ -396,7 +396,7 @@ func (m *SpanManager) fetchSpanWithRetries(spanID compression.SpanID) ([]byte, e
 		n, err = m.r.ReadAt(compressedBuf, int64(offset))
 		// if the n = len(p) bytes returned by ReadAt are at the end of the input source,
 		// ReadAt may return either err == EOF or err == nil: https://pkg.go.dev/io#ReaderAt
-		if err != nil && err != io.EOF {
+		if err != nil && !errors.Is(err, io.EOF) {
 			return []byte{}, err
 		}
 

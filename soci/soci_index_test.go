@@ -264,7 +264,7 @@ func TestBuildSociIndexNotLayer(t *testing.T) {
 					t.Fatalf("%v: should error out as not a layer", tc.name)
 				}
 			} else {
-				if err == errNotLayerType {
+				if errors.Is(err, errNotLayerType) {
 					t.Fatalf("%v: should not error out for any of the layer types", tc.name)
 				}
 			}

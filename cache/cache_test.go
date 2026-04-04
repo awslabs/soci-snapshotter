@@ -40,6 +40,7 @@ package cache
 
 import (
 	"crypto/sha256"
+	"errors"
 	"fmt"
 	"io"
 	"testing"
@@ -185,7 +186,7 @@ func testBlob(t *testing.T, c BlobCache, key string, offset int64, sample string
 		t.Errorf("missed %v", key)
 		return
 	}
-	if n, err := r.ReadAt(p, offset); err != nil && err != io.EOF {
+	if n, err := r.ReadAt(p, offset); err != nil && !errors.Is(err, io.EOF) {
 		t.Errorf("failed to fetch blob %q: %v", key, err)
 		return
 	} else if n != len(sample) {

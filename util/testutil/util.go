@@ -73,7 +73,7 @@ func GetProjectRoot() (string, error) {
 		if gopath == "" {
 			gopathB, err := exec.Command("go", "env", "GOPATH").Output()
 			if len(gopathB) == 0 || err != nil {
-				return "", fmt.Errorf("project unknown; specify %v or GOPATH: %v", projectRootEnv, err)
+				return "", fmt.Errorf("project unknown; specify %v or GOPATH: %w", projectRootEnv, err)
 			}
 			gopath = strings.TrimSpace(string(gopathB))
 		}

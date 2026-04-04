@@ -41,6 +41,7 @@ package reader
 import (
 	"bytes"
 	"compress/gzip"
+	"errors"
 	"fmt"
 	"io"
 	"strings"
@@ -119,7 +120,7 @@ func testFileReadAt(t *testing.T, factory metadata.Store) {
 								// data we want to get.
 								wantData := make([]byte, wantN)
 								_, err := want.ReadAt(wantData, offset)
-								if err != nil && err != io.EOF {
+								if err != nil && !errors.Is(err, io.EOF) {
 									t.Fatalf("want.ReadAt (offset=%d,size=%d): %v", offset, wantN, err)
 								}
 
@@ -130,7 +131,7 @@ func testFileReadAt(t *testing.T, factory metadata.Store) {
 								// read the file
 								respData := make([]byte, size)
 								n, err := f.ReadAt(respData, offset)
-								if err != nil && err != io.EOF {
+								if err != nil && !errors.Is(err, io.EOF) {
 									t.Fatalf("failed to read off=%d, size=%d, filesize=%d: %v", offset, size, filesize, err)
 								}
 								respData = respData[:n]
@@ -244,7 +245,7 @@ func testFailReader(t *testing.T, factory metadata.Store) {
 			// tests for reading file
 			p := make([]byte, len(sampleData1))
 			n, err := fr.ReadAt(p, 0)
-			if (err != nil && err != io.EOF) || n != len(sampleData1) || !bytes.Equal([]byte(sampleData1), p) {
+			if (err != nil && !errors.Is(err, io.EOF)) || n != len(sampleData1) || !bytes.Equal([]byte(sampleData1), p) {
 				t.Errorf("failed to read data but wanted to succeed: %v", err)
 			}
 		})

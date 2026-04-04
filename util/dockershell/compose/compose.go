@@ -56,7 +56,7 @@ func Supported() error {
 		return err
 	}
 	if err := exec.Command("docker", "compose", "version").Run(); err != nil {
-		return fmt.Errorf("compose version check failed (is Docker Compose installed?); %v", err)
+		return fmt.Errorf("compose version check failed (is Docker Compose installed?); %w", err)
 	}
 	return nil
 }
