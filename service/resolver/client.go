@@ -21,6 +21,7 @@ import (
 	"context"
 	"encoding/json"
 	"encoding/xml"
+	"errors"
 	"fmt"
 	"io"
 	"math/rand/v2"
@@ -236,7 +237,8 @@ func shouldAuthenticate(resp *http.Response) bool {
 			return false
 		}
 		for _, e := range errs {
-			if err, ok := e.(docker.Error); ok {
+			var err docker.Error
+			if errors.As(e, &err) {
 				if err.Message == ecrTokenExpiredResponseMessage {
 					// ECR's 403 doesn't return a Www-Authenticate and so doesn't trigger the
 					// basic re-authentication in containerd's docker authorizer.

@@ -552,7 +552,7 @@ func (b *IndexBuilder) build(ctx context.Context, img images.Image, buildCfg bui
 				defer wg.Done()
 				desc, toc, err := b.buildSociLayer(ctx, l)
 				if err != nil {
-					if err != errUnsupportedLayerFormat {
+					if !errors.Is(err, errUnsupportedLayerFormat) {
 						errChan <- err
 					}
 					return
@@ -583,7 +583,7 @@ func (b *IndexBuilder) build(ctx context.Context, img images.Image, buildCfg bui
 	if len(errs) > 0 {
 		errWrap := errors.New("errors encountered while building soci layers")
 		for _, err := range errs {
-			errWrap = fmt.Errorf("%w; %v", errWrap, err)
+			errWrap = fmt.Errorf("%w; %w", errWrap, err)
 		}
 		return nil, errWrap
 	}
@@ -952,7 +952,7 @@ func NewIndex(version IndexVersion, blobs []ocispec.Descriptor, subject *ocispec
 func NewIndexFromReader(reader io.Reader) (*Index, error) {
 	index := new(Index)
 	if err := json.NewDecoder(reader).Decode(index); err != nil {
-		return nil, fmt.Errorf("unable to decode reader into index: %v", err)
+		return nil, fmt.Errorf("unable to decode reader into index: %w", err)
 	}
 	return index, nil
 }

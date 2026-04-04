@@ -479,7 +479,7 @@ func (fs *filesystem) preloadAllLayers(ctx context.Context, desc ocispec.Descrip
 	}
 	diffIDMap, err := fs.getDiffIDMap(ctx, manifest)
 	if err != nil {
-		return fmt.Errorf("error getting uncompressed shasums for image %s: %v", desc.Digest, err)
+		return fmt.Errorf("error getting uncompressed shasums for image %s: %w", desc.Digest, err)
 	}
 
 	ns, ok := namespaces.Namespace(ctx)
@@ -644,7 +644,7 @@ func (fs *filesystem) rebase(ctx context.Context, dgst digest.Digest, imageDiges
 			}
 
 			_, err = f.Readdirnames(1)
-			if err != io.EOF {
+			if !errors.Is(err, io.EOF) {
 				// If mountpoint is not empty, refuse to rebase to location
 				f.Close()
 				if err == nil {
@@ -684,7 +684,7 @@ func (fs *filesystem) getDiffIDMap(ctx context.Context, imageManifest *ocispec.M
 	imgConfig := ocispec.Image{}
 	err = json.Unmarshal(buf, &imgConfig)
 	if err != nil {
-		return nil, fmt.Errorf("error unmarshalling image config JSON: %v", err)
+		return nil, fmt.Errorf("error unmarshalling image config JSON: %w", err)
 	}
 
 	uncompressedShas := imgConfig.RootFS.DiffIDs
@@ -793,7 +793,7 @@ func (fs *filesystem) MountLocal(ctx context.Context, mountpoint string, labels 
 	}
 	diffIDMap, err := fs.getDiffIDMap(ctx, manifest)
 	if err != nil {
-		return fmt.Errorf("error getting uncompressed shasums for image %s: %v", desc.Digest, err)
+		return fmt.Errorf("error getting uncompressed shasums for image %s: %w", desc.Digest, err)
 	}
 	uncompressedDigest, ok := diffIDMap[desc.Digest.String()]
 	if !ok {
@@ -1226,7 +1226,7 @@ func (fs *filesystem) check(ctx context.Context, l layer.Layer, labels map[strin
 			}
 			log.G(ctx).WithError(err).Warnf("failed to refresh the layer %q from %q",
 				s.Target.Digest, s.Name)
-			rErr = fmt.Errorf("failed(layer:%q, ref:%q): %v: %w",
+			rErr = fmt.Errorf("failed(layer:%q, ref:%q): %w: %w",
 				s.Target.Digest, s.Name, err, rErr)
 		}
 	}

@@ -249,7 +249,7 @@ func (kc *keychain) processNextItem() bool {
 
 	obj, exists, err := kc.informer.GetIndexer().GetByKey(key.(string))
 	if err != nil {
-		utilruntime.HandleError(fmt.Errorf("failed to get object; don't sync %q: %v", key, err))
+		utilruntime.HandleError(fmt.Errorf("failed to get object; don't sync %q: %w", key, err))
 		return true
 	}
 	if !exists {
@@ -267,7 +267,7 @@ func (kc *keychain) processNextItem() bool {
 	}
 	configFile := dcfile.New("")
 	if err := configFile.LoadFromReader(bytes.NewReader(data)); err != nil {
-		utilruntime.HandleError(fmt.Errorf("broken data; don't sync %q: %v", key, err))
+		utilruntime.HandleError(fmt.Errorf("broken data; don't sync %q: %w", key, err))
 		return true
 	}
 	kc.configMu.Lock()
