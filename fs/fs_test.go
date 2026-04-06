@@ -77,6 +77,48 @@ func TestCheck(t *testing.T) {
 	}
 }
 
+func TestCheckSucceedsAfterInvalidation(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	refreshCount := 0
+	var invalidatedRef string
+
+	bl := &breakableLayer{}
+	bl.success = false
+
+	expectedRef := reference.Spec{Locator: "docker.io/library/alpine", Object: "latest"}
+
+	fs := &filesystem{
+		layer: map[string]layer.Layer{
+			"test": bl,
+		},
+		getSources: func(labels map[string]string) ([]source.Source, error) {
+			refreshCount++
+			// After invalidation, let Refresh succeed.
+			if refreshCount == 2 {
+				bl.success = true
+			}
+			return []source.Source{
+				{Name: expectedRef},
+			}, nil
+		},
+		invalidateHosts: func(ref string) {
+			invalidatedRef = ref
+		},
+	}
+
+	if err := fs.Check(ctx, "test", nil); err != nil {
+		t.Errorf("connection failed after invalidation; wanted to succeed: %v", err)
+	}
+	if invalidatedRef != expectedRef.String() {
+		t.Errorf("invalidateHosts called with %q; wanted %q", invalidatedRef, expectedRef.String())
+	}
+	if refreshCount != 2 {
+		t.Errorf("expected 2 refreshLayer calls, got %d", refreshCount)
+	}
+}
+
 type breakableLayer struct {
 	success bool
 }
