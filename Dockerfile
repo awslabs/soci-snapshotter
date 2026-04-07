@@ -19,7 +19,7 @@ ARG NERDCTL_VERSION=2.1.6
 ARG IGZIP_VERSION=2.31.1
 ARG RAPIDGZIP_VERSION=0.14.3
 
-FROM public.ecr.aws/docker/library/registry:3.0.0 AS registry
+FROM public.ecr.aws/docker/library/registry:3.1.0 AS registry
 
 # Build stage for Intel ISA-L (igzip)
 FROM public.ecr.aws/amazonlinux/amazonlinux:2023 AS igzip-builder
