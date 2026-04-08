@@ -36,6 +36,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"sort"
 	"sync"
 	"time"
 
@@ -46,14 +47,22 @@ import (
 	distribution "github.com/distribution/reference"
 )
 
-// NewCRIAlphaKeychain provides creds passed through CRI PullImage API.
-// This also returns a CRI image service server that works as a proxy backed by the specified CRI service.
-// This server reads all PullImageRequest and uses PullImageRequest.AuthConfig for authenticating snapshots.
-func NewCRIAlphaKeychain(ctx context.Context, connectCRI func() (runtime_alpha.ImageServiceClient, error)) (resolver.Credential, runtime_alpha.ImageServiceServer) {
-	server := &instrumentedAlphaService{config: make(map[string]*runtime_alpha.AuthConfig)}
+const (
+	maxPullRecordsPerRef = 5
+	maxRefsPerHost       = 50
+)
+
+type pullRecord struct {
+	auth *runtime_alpha.AuthConfig
+	time time.Time
+}
+
+func NewCRIAlphaKeychain(ctx context.Context, connectCRI func() (runtime_alpha.ImageServiceClient, error)) (resolver.Credential, func(string) []string, func(string, string), runtime_alpha.ImageServiceServer) {
+	server := &instrumentedAlphaService{
+		hostCreds: make(map[string]map[string][]*pullRecord),
+	}
 	go func() {
 		log.G(ctx).Debugf("Waiting for CRI service to start...")
-		// Attempt to establish a gRPC connection with the CRI backend.
 		for i := 0; i < 100; i++ {
 			client, err := connectCRI()
 			if err == nil {
@@ -68,7 +77,7 @@ func NewCRIAlphaKeychain(ctx context.Context, connectCRI func() (runtime_alpha.I
 		}
 		log.G(ctx).Errorf("no connection is available to CRI")
 	}()
-	return server.credentials, server
+	return server.credentials, server.HostRefs, server.RemoveLatestAuth, server
 }
 
 type instrumentedAlphaService struct {
@@ -77,21 +86,74 @@ type instrumentedAlphaService struct {
 	cri   runtime_alpha.ImageServiceClient
 	criMu sync.Mutex
 
-	config   map[string]*runtime_alpha.AuthConfig
-	configMu sync.Mutex
+	hostCreds map[string]map[string][]*pullRecord
+	configMu  sync.Mutex
 }
 
 func (in *instrumentedAlphaService) credentials(imgRefSpec reference.Spec, host string) (string, string, error) {
-	if host == "docker.io" || host == "registry-1.docker.io" {
-		// Creds of "docker.io" is stored keyed by "https://index.docker.io/v1/".
-		host = "index.docker.io"
-	}
+	host = normalizeHost(host)
 	in.configMu.Lock()
 	defer in.configMu.Unlock()
-	if cfg, ok := in.config[imgRefSpec.String()]; ok {
-		return resolver.ParseAlphaAuth(cfg, host)
+	refMap, ok := in.hostCreds[host]
+	if !ok {
+		return "", "", nil
 	}
-	return "", "", nil
+	records, ok := refMap[imgRefSpec.String()]
+	if !ok || len(records) == 0 {
+		return "", "", nil
+	}
+	return resolver.ParseAlphaAuth(records[len(records)-1].auth, host)
+}
+
+func (in *instrumentedAlphaService) HostRefs(host string) []string {
+	host = normalizeHost(host)
+	in.configMu.Lock()
+	defer in.configMu.Unlock()
+	refMap, ok := in.hostCreds[host]
+	if !ok {
+		return nil
+	}
+	type refTime struct {
+		ref    string
+		latest time.Time
+	}
+	var refs []refTime
+	for ref, records := range refMap {
+		if len(records) > 0 {
+			refs = append(refs, refTime{ref: ref, latest: records[len(records)-1].time})
+		}
+	}
+	sort.SliceStable(refs, func(i, j int) bool {
+		return refs[i].latest.After(refs[j].latest)
+	})
+	result := make([]string, len(refs))
+	for i, r := range refs {
+		result[i] = r.ref
+	}
+	return result
+}
+
+func (in *instrumentedAlphaService) RemoveLatestAuth(host, ref string) {
+	host = normalizeHost(host)
+	in.configMu.Lock()
+	defer in.configMu.Unlock()
+	refMap, ok := in.hostCreds[host]
+	if !ok {
+		return
+	}
+	records, ok := refMap[ref]
+	if !ok || len(records) == 0 {
+		return
+	}
+	records = records[:len(records)-1]
+	if len(records) == 0 {
+		delete(refMap, ref)
+		if len(refMap) == 0 {
+			delete(in.hostCreds, host)
+		}
+	} else {
+		refMap[ref] = records
+	}
 }
 
 func (in *instrumentedAlphaService) getCRI() (c runtime_alpha.ImageServiceClient) {
@@ -127,7 +189,34 @@ func (in *instrumentedAlphaService) PullImage(ctx context.Context, r *runtime_al
 		return nil, err
 	}
 	in.configMu.Lock()
-	in.config[imgRefSpec.String()] = r.GetAuth()
+	host := normalizeHost(imgRefSpec.Hostname())
+	if in.hostCreds[host] == nil {
+		in.hostCreds[host] = make(map[string][]*pullRecord)
+	}
+	ref := imgRefSpec.String()
+	in.hostCreds[host][ref] = append(in.hostCreds[host][ref], &pullRecord{
+		auth: r.GetAuth(),
+		time: time.Now(),
+	})
+	if len(in.hostCreds[host][ref]) > maxPullRecordsPerRef {
+		in.hostCreds[host][ref] = in.hostCreds[host][ref][len(in.hostCreds[host][ref])-maxPullRecordsPerRef:]
+	}
+	if len(in.hostCreds[host]) > maxRefsPerHost {
+		var oldestRef string
+		var oldestTime time.Time
+		for r, records := range in.hostCreds[host] {
+			if len(records) > 0 {
+				t := records[len(records)-1].time
+				if oldestRef == "" || t.Before(oldestTime) {
+					oldestRef = r
+					oldestTime = t
+				}
+			}
+		}
+		if oldestRef != "" {
+			delete(in.hostCreds[host], oldestRef)
+		}
+	}
 	in.configMu.Unlock()
 	return cri.PullImage(ctx, r)
 }
@@ -142,7 +231,13 @@ func (in *instrumentedAlphaService) RemoveImage(ctx context.Context, r *runtime_
 		return nil, err
 	}
 	in.configMu.Lock()
-	delete(in.config, imgRefSpec.String())
+	host := normalizeHost(imgRefSpec.Hostname())
+	if in.hostCreds[host] != nil {
+		delete(in.hostCreds[host], imgRefSpec.String())
+		if len(in.hostCreds[host]) == 0 {
+			delete(in.hostCreds, host)
+		}
+	}
 	in.configMu.Unlock()
 	return cri.RemoveImage(ctx, r)
 }
@@ -153,6 +248,13 @@ func (in *instrumentedAlphaService) ImageFsInfo(ctx context.Context, r *runtime_
 		return nil, errors.New("server is not initialized yet")
 	}
 	return cri.ImageFsInfo(ctx, r)
+}
+
+func normalizeHost(host string) string {
+	if host == "docker.io" || host == "registry-1.docker.io" {
+		return "index.docker.io"
+	}
+	return host
 }
 
 func parseReference(ref string) (reference.Spec, error) {

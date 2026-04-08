@@ -171,6 +171,8 @@ func buildApp() *cli.Command {
 			rpc := grpc.NewServer(serverOpts...)
 
 			// Configure keychain
+			var getHostRefs func(string) []string
+			var removeLatestAuth func(string, string)
 			credsFuncs := []resolver.Credential{dockerconfig.NewDockerConfigKeychain(ctx)}
 			if cfg.KubeconfigKeychainConfig.EnableKeychain {
 				var opts []kubeconfig.Option
@@ -198,14 +200,16 @@ func buildApp() *cli.Command {
 				}
 
 				// register v1alpha2 CRI server with the gRPC server
-				fAlpha, criServerAlpha := crialpha.NewCRIAlphaKeychain(ctx, connectV1AlphaCRI)
+				fAlpha, _, _, criServerAlpha := crialpha.NewCRIAlphaKeychain(ctx, connectV1AlphaCRI)
 				runtime_alpha.RegisterImageServiceServer(rpc, criServerAlpha)
 				credsFuncs = append(credsFuncs, fAlpha)
 
 				// register v1 CRI server with the gRPC server
-				f, criServer := cri.NewCRIKeychain(ctx, connectV1CRI)
+				f, hostRefsFn, removeLatestAuthFn, criServer := cri.NewCRIKeychain(ctx, connectV1CRI)
 				runtime.RegisterImageServiceServer(rpc, criServer)
 				credsFuncs = append(credsFuncs, f)
+				getHostRefs = hostRefsFn
+				removeLatestAuth = removeLatestAuthFn
 			}
 			var fsOpts []fs.Option
 			mt, err := getMetadataStore(ctx, rootDir, *cfg)
@@ -216,8 +220,17 @@ func buildApp() *cli.Command {
 			log.G(ctx).Debug("metadata store initialized")
 
 			fsOpts = append(fsOpts, fs.WithMetadataStore(mt))
-			rs, err := service.NewSociSnapshotterService(ctx, rootDir, &cfg.ServiceConfig,
-				service.WithCredsFuncs(credsFuncs...), service.WithFilesystemOptions(fsOpts...))
+			serviceOpts := []service.Option{
+				service.WithCredsFuncs(credsFuncs...),
+				service.WithFilesystemOptions(fsOpts...),
+			}
+			if getHostRefs != nil {
+				serviceOpts = append(serviceOpts, service.WithGetHostRefs(getHostRefs))
+			}
+			if removeLatestAuth != nil {
+				serviceOpts = append(serviceOpts, service.WithRemoveLatestAuth(removeLatestAuth))
+			}
+			rs, err := service.NewSociSnapshotterService(ctx, rootDir, &cfg.ServiceConfig, serviceOpts...)
 			if err != nil {
 				log.G(ctx).WithError(err).Fatalf("failed to configure snapshotter")
 				return err

@@ -131,12 +131,12 @@ func init() {
 				}
 
 				// register v1alpha2 CRI server with the gRPC server
-				fAlpha, criServerAlpha := crialpha.NewCRIAlphaKeychain(ctx, connectV1AlphaCRI)
+				fAlpha, _, _, criServerAlpha := crialpha.NewCRIAlphaKeychain(ctx, connectV1AlphaCRI)
 				runtime_alpha.RegisterImageServiceServer(rpc, criServerAlpha)
 				credsFuncs = append(credsFuncs, fAlpha)
 
 				// register v1 CRI server with the gRPC server
-				f, criServer := cri.NewCRIKeychain(ctx, connectV1CRI)
+				f, _, _, criServer := cri.NewCRIKeychain(ctx, connectV1CRI)
 				runtime.RegisterImageServiceServer(rpc, criServer)
 				credsFuncs = append(credsFuncs, f)
 
