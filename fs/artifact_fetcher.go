@@ -98,7 +98,7 @@ func (r *orasBlobStore) Resolve(ctx context.Context, reference string) (ocispec.
 	}
 
 	tr := &clientWrapper{r.Client}
-	url := sociremote.CraftBlobURL(reference, ref)
+	url := sociremote.CraftBlobURL(r.PlainHTTP, ref)
 	resp, err := sociremote.GetHeader(ctx, url, tr)
 	if err != nil {
 		return ocispec.Descriptor{}, err
@@ -166,7 +166,7 @@ func (r *orasBlobStore) FetchRange(ctx context.Context, reference string, lower,
 	}
 
 	tr := &clientWrapper{r.Client}
-	realURL := sociremote.CraftBlobURL(reference, ref)
+	realURL := sociremote.CraftBlobURL(r.PlainHTTP, ref)
 	resp, err := GetContentWithRange(ctx, realURL, tr, lower, upper)
 	if err != nil {
 		return nil, cleanFetchErrors(err)
@@ -205,7 +205,7 @@ func (r *orasBlobStore) doInitialFetch(ctx context.Context, reference string) (b
 	}
 
 	tr := &clientWrapper{r.Client}
-	url := sociremote.CraftBlobURL(reference, ref)
+	url := sociremote.CraftBlobURL(r.PlainHTTP, ref)
 	resp, err := sociremote.GetHeaderWithGet(ctx, url, tr)
 	if err != nil {
 		return false, fmt.Errorf("error getting header info: %v", err)
@@ -320,7 +320,6 @@ func constructRef(refspec reference.Spec, desc ocispec.Descriptor) string {
 // It first checks the local store for the artifact.
 // If not found, if constructs the ref and fetches it from remote.
 func (f *artifactFetcher) Fetch(ctx context.Context, desc ocispec.Descriptor) (io.ReadCloser, bool, error) {
-
 	// Check local store first
 	rc, err := f.localStore.Fetch(ctx, desc)
 	if err == nil {
