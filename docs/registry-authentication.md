@@ -106,7 +106,7 @@ The kubelet must be started with:
 
 **Kubernetes Only** - This option requires the CRI which is Kubernetes-specific
 
-**No Credential Rotation** - Credentials are only passed from the kubelet when pulling the image and they cannot be refreshed. If the credentials expire before the image is fully downloaded, any requests for data that is not downloaded will fail unless another image from the same registry is pulled with fresh credentials. Files that are already downloaded will not be affected.
+**No Credential Rotation** - Credentials are only passed from the kubelet when pulling the image and they cannot be refreshed. If the credentials expire before the image is fully downloaded, any requests for data that is not downloaded will fail unless the same image reference is pulled again with fresh credentials. Files that are already downloaded will not be affected.
 
 **In-memory Credentials** - Credentials are cached in-memory only and are lost if the SOCI-snapshotter retarts. Since credentials are lost, it may affect the ability for the node to recover. Images that have already been pulled according to containerd will not be able to re-establish connection to finish lazy loading which will behave similarly to credential expiration.
 
