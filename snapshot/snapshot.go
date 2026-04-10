@@ -393,8 +393,7 @@ func (o *snapshotter) Prepare(ctx context.Context, key, parent string, opts ...s
 
 	var deferToContainerRuntime bool
 
-	// remote snapshot prepare
-	// skip if parallel pull is enabled
+	// Attempt lazy load via remote snapshot (SOCI v2, then v1).
 	if !o.skipRemoteSnapshotPrepare(lCtx, base.Labels) {
 		err := o.prepareRemoteSnapshot(lCtx, key, base.Labels)
 		if err == nil {
@@ -430,16 +429,23 @@ func (o *snapshotter) Prepare(ctx context.Context, key, parent string, opts ...s
 		return nil, err
 	}
 
-	// If the underlying FileSystem deems that the image is unable to be lazy loaded,
-	// then we should completely fallback to the container runtime to handle
-	// pulling and unpacking all the layers in the image.
-	// The exception is if we are using parallel pull and unpack,
-	// in which case we want to handle all snapshots ourselves.
+	// Lazy loading did not succeed. If no SOCI index was found (ErrNoIndex)
+	// and parallel pull is not enabled, defer to the container runtime for
+	// a sequential pull. If parallel pull is enabled, fall through.
 	if deferToContainerRuntime {
-		log.G(lCtx).WithField(deferredSnapshotLogKey, prepareSucceeded).WithError(err).Warnf("%v; %v", ErrNoIndex, ErrDeferToContainerRuntime)
-		return mounts, nil
+		if o.parallelPullUnpack {
+			log.G(lCtx).WithField("layerDigest", base.Labels[ctdsnapshotters.TargetLayerDigestLabel]).
+				Info("no SOCI index found; falling back to parallel pull/unpack")
+		} else {
+			log.G(lCtx).WithField(deferredSnapshotLogKey, prepareSucceeded).WithError(err).Warnf("%v; %v", ErrNoIndex, ErrDeferToContainerRuntime)
+			return mounts, nil
+		}
 	}
 
+	// Lazy loading did not succeed — either no SOCI index was found
+	// (parallel pull enabled, fell through above) or a SOCI index exists
+	// but this layer has no ztoc (ErrNoZtoc). Use parallel pull if
+	// enabled, otherwise SOCI handles the sequential unpack itself.
 	if o.parallelPullUnpack {
 		log.G(ctx).WithField("layerDigest", base.Labels[ctdsnapshotters.TargetLayerDigestLabel]).Info("preparing snapshot with parallel pull/unpack")
 		err = o.prepareParallelPullSnapshot(lCtx, key, base.Labels, mounts)
@@ -479,9 +485,6 @@ func (o *snapshotter) Prepare(ctx context.Context, key, parent string, opts ...s
 }
 
 func (o *snapshotter) skipRemoteSnapshotPrepare(ctx context.Context, labels map[string]string) bool {
-	if o.parallelPullUnpack {
-		return true
-	}
 
 	if o.minLayerSize > 0 {
 		if strVal, ok := labels[source.TargetSizeLabel]; ok {
