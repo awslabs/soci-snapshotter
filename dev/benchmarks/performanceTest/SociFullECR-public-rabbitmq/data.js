@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1775075281298,
+  "lastUpdate": 1775870581544,
   "repoUrl": "https://github.com/awslabs/soci-snapshotter",
   "entries": {
     "Soci Benchmark": [
@@ -17127,6 +17127,48 @@ window.BENCHMARK_DATA = {
           {
             "name": "SociFullECR-public-rabbitmq-pullTaskDuration",
             "value": 2.5652,
+            "unit": "Seconds",
+            "extra": "P90"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49699333+dependabot[bot]@users.noreply.github.com",
+            "name": "dependabot[bot]",
+            "username": "dependabot[bot]"
+          },
+          "committer": {
+            "email": "arjunry@amazon.com",
+            "name": "Arjun",
+            "username": "coderbirju"
+          },
+          "distinct": true,
+          "id": "ad6c319baba9bcd99f7d12517aef095e9b6d7696",
+          "message": "Bump docker/library/registry from 3.0.0 to 3.1.0\n\nBumps docker/library/registry from 3.0.0 to 3.1.0.\n\n---\nupdated-dependencies:\n- dependency-name: docker/library/registry\n  dependency-version: 3.1.0\n  dependency-type: direct:production\n  update-type: version-update:semver-minor\n...\n\nSigned-off-by: dependabot[bot] <support@github.com>",
+          "timestamp": "2026-04-10T18:14:03-07:00",
+          "tree_id": "a5f792346ccbe957176fbdb8817925f6d85fd1c3",
+          "url": "https://github.com/awslabs/soci-snapshotter/commit/ad6c319baba9bcd99f7d12517aef095e9b6d7696"
+        },
+        "date": 1775870574252,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "SociFullECR-public-rabbitmq-lazyTaskDuration",
+            "value": 11.338600000000001,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-rabbitmq-localTaskDuration",
+            "value": 9.7506,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-rabbitmq-pullTaskDuration",
+            "value": 1.6396,
             "unit": "Seconds",
             "extra": "P90"
           }
