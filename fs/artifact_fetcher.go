@@ -150,7 +150,7 @@ func GetContentWithRange(ctx context.Context, realURL string, rt http.RoundTripp
 	if resp.StatusCode == http.StatusOK || resp.StatusCode == http.StatusPartialContent {
 		return resp, nil
 	}
-	return nil, fmt.Errorf("error getting range: %v", err)
+	return nil, fmt.Errorf("error getting range: %w", err)
 }
 
 // FetchRange returns the response body of the range requested.
@@ -179,17 +179,21 @@ func (r *orasBlobStore) FetchRange(ctx context.Context, reference string, lower,
 }
 
 func cleanFetchErrors(err error) error {
-	switch retErr := err.(type) {
-	// Redact URLs from ORAS errors, as they might have sensitive info cached
-	case *errcode.ErrorResponse:
-		socihttp.RedactHTTPQueryValuesFromURL(retErr.URL)
-		return retErr
-	// Eat URL errors as a malformed URL might still have credentials.
-	case *url.Error:
-		return errors.New("URL error during fetch")
-	// Otherwise it should be safe to print
-	default:
-		return err
+	{
+		var retErr *errcode.ErrorResponse
+		var retErr1 *url.Error
+		switch {
+		// Redact URLs from ORAS errors, as they might have sensitive info cached
+		case errors.As(err, &retErr):
+			socihttp.RedactHTTPQueryValuesFromURL(retErr.URL)
+			return retErr
+		// Eat URL errors as a malformed URL might still have credentials.
+		case errors.As(err, &retErr1):
+			return errors.New("URL error during fetch")
+		// Otherwise it should be safe to print
+		default:
+			return err
+		}
 	}
 }
 
@@ -206,7 +210,7 @@ func (r *orasBlobStore) doInitialFetch(ctx context.Context, reference string) (b
 	url := sociremote.CraftBlobURL(reference, ref)
 	resp, err := sociremote.GetHeaderWithGet(ctx, url, tr)
 	if err != nil {
-		return false, fmt.Errorf("error getting header info: %v", err)
+		return false, fmt.Errorf("error getting header info: %w", err)
 
 	}
 	socihttp.Drain(resp.Body)

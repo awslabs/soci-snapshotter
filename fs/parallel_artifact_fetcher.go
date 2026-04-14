@@ -210,7 +210,7 @@ func (f *parallelArtifactFetcher) oneRequestFetchWrite(ctx context.Context, desc
 
 	rc, err := f.remoteStore.Fetch(ctx, desc)
 	if err != nil {
-		return fmt.Errorf("error fetching from remote: %v", err)
+		return fmt.Errorf("error fetching from remote: %w", err)
 	}
 	return writeToEntireFile(file, rc)
 }

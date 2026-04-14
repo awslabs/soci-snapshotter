@@ -40,6 +40,7 @@ package remote
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"regexp"
@@ -240,7 +241,7 @@ func (b *blob) fetchRegion(reg region, w io.Writer, fetched bool, opts *options)
 
 	for {
 		_, p, err := mr.Next()
-		if err == io.EOF {
+		if errors.Is(err, io.EOF) {
 			break
 		} else if err != nil {
 			return fmt.Errorf("failed to read multipart resp: %w", err)

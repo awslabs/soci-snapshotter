@@ -40,6 +40,7 @@ package remote
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"io"
 	"mime"
@@ -165,7 +166,7 @@ func TestFailReadAt(t *testing.T) {
 	r := makeTestBlob(t, int64(len(sampleData1)), failRoundTripper())
 	respData := make([]byte, len(sampleData1))
 	_, err := r.ReadAt(respData, 0)
-	if err == nil || err == io.EOF {
+	if err == nil || errors.Is(err, io.EOF) {
 		t.Errorf("must be fail for http failure but err=%v", err)
 		return
 	}
@@ -196,7 +197,7 @@ func checkBrokenBody(t *testing.T, allowMultiRange bool) {
 func checkBrokenHeader(t *testing.T, allowMultiRange bool) {
 	r := makeTestBlob(t, int64(len(sampleData1)), brokenHeaderRoundTripper(t, []byte(sampleData1), allowMultiRange))
 	respData := make([]byte, len(sampleData1))
-	if _, err := r.ReadAt(respData[0:len(sampleData1)/2], 0); err == nil || err == io.EOF {
+	if _, err := r.ReadAt(respData[0:len(sampleData1)/2], 0); err == nil || errors.Is(err, io.EOF) {
 		t.Errorf("must be fail for broken multipart header but err=%v (allowMultiRange=%v)", err, allowMultiRange)
 		return
 	}

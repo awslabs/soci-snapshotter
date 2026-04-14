@@ -709,7 +709,7 @@ func getDirentAndNode(t *testing.T, root *node, path string) (ent fuse.DirEntry,
 		}
 		di, errno := d.Lookup(ctx, name, &eo)
 		if errno != 0 {
-			err = fmt.Errorf("failed to lookup directory %q: %v", name, errno)
+			err = fmt.Errorf("failed to lookup directory %q: %w", name, errno)
 			return
 		}
 		var ok bool
@@ -723,7 +723,7 @@ func getDirentAndNode(t *testing.T, root *node, path string) (ent fuse.DirEntry,
 	// get the target's direntry.
 	ents, errno := d.Readdir(ctx)
 	if errno != 0 {
-		err = fmt.Errorf("failed to open directory %q: %v", path, errno)
+		err = fmt.Errorf("failed to open directory %q: %w", path, errno)
 	}
 	ent, ok := hasEntry(t, base, ents)
 	if !ok {
@@ -733,7 +733,7 @@ func getDirentAndNode(t *testing.T, root *node, path string) (ent fuse.DirEntry,
 	// get the target's node.
 	n, errno = d.Lookup(ctx, base, &eo)
 	if errno != 0 {
-		err = fmt.Errorf("failed to lookup node %q: %v", path, errno)
+		err = fmt.Errorf("failed to lookup node %q: %w", path, errno)
 	}
 
 	return

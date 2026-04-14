@@ -94,7 +94,7 @@ func parseSize(sizeStr string) (int64, error) {
 	numStr, unitStr := matches[1], strings.ToLower(strings.TrimSpace(matches[4]))
 	num, err := strconv.ParseFloat(numStr, 64)
 	if err != nil {
-		return 0, fmt.Errorf("failed to parse size number: %v", err)
+		return 0, fmt.Errorf("failed to parse size number: %w", err)
 	}
 
 	multiplier, ok := unitMultipliers[unitStr]
