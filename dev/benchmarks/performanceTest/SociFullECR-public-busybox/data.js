@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1775870652209,
+  "lastUpdate": 1776200629286,
   "repoUrl": "https://github.com/awslabs/soci-snapshotter",
   "entries": {
     "Soci Benchmark": [
@@ -17333,6 +17333,48 @@ window.BENCHMARK_DATA = {
           {
             "name": "SociFullECR-public-busybox-pullTaskDuration",
             "value": 1.8166,
+            "unit": "Seconds",
+            "extra": "P90"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "deeppcs@amazon.com",
+            "name": "deeppcs",
+            "username": "deeppcs"
+          },
+          "committer": {
+            "email": "ayushkp@amazon.com",
+            "name": "ayush-panta",
+            "username": "ayush-panta"
+          },
+          "distinct": true,
+          "id": "f1fcd05ffd3c99eae1e6d6c69c992c428d54b425",
+          "message": "feat: add parallel_pull_as_fallback config option\n\nAdd a new config option parallel_pull_as_fallback under\n[pull_modes.parallel_pull_unpack] that enables parallel-pull as an\nautomatic fallback when lazy-load is the primary mode but no SOCI\nindex is found for an image.\n\nToday, lazy-load and parallel-pull are mutually exclusive at the daemon\nlevel. When lazy-load is enabled and no SOCI index exists, the\nsnapshotter defers to the container runtime's sequential pull, which is\n5-40% slower than Docker. This forces operators to choose between\noptimal performance for indexed images (lazy-load) or non-indexed\nimages (parallel-pull), but not both.\n\nWith parallel_pull_as_fallback = true (and enable = false), the\nsnapshotter first attempts lazy-load for every image. Only when no\nSOCI index is found does it fall back to parallel-pull instead of the\nslow sequential path. This gives optimal performance for both cases:\n- Images WITH a SOCI index: lazy-load (83-96% faster than Docker)\n- Images WITHOUT a SOCI index: parallel-pull (14-50% faster than Docker)\n\nThe option defaults to false, preserving existing behavior for all\ncurrent users. When enable = true, the fallback is a no-op since\nparallel-pull is already the primary mode.\n\nTested on AL2 and AL2023 instances with both small (nginx) and large\n(20GB+) container images. All existing unit tests pass.\n\nSigned-off-by: deeppcs <deeppcs@amazon.com>",
+          "timestamp": "2026-04-14T13:54:05-07:00",
+          "tree_id": "d3f0dc617f21d099e4f3f9de4980a5d5edf6a9a0",
+          "url": "https://github.com/awslabs/soci-snapshotter/commit/f1fcd05ffd3c99eae1e6d6c69c992c428d54b425"
+        },
+        "date": 1776200626713,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "SociFullECR-public-busybox-lazyTaskDuration",
+            "value": 0.015,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-busybox-localTaskDuration",
+            "value": 0.007,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-busybox-pullTaskDuration",
+            "value": 0.8308000000000001,
             "unit": "Seconds",
             "extra": "P90"
           }
