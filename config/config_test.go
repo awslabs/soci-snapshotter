@@ -47,6 +47,11 @@ func TestConfigDefaults(t *testing.T) {
 			actual:   cfg.PullModes.Parallel.Enable,
 		},
 		{
+			name:     "parallel pull as fallback",
+			expected: DefaultExperimentalParallelPullAsFallback,
+			actual:   cfg.PullModes.Parallel.ExperimentalParallelPullAsFallback,
+		},
+		{
 			name:     "metrics network",
 			expected: defaultMetricsNetwork,
 			actual:   cfg.MetricsNetwork,
@@ -284,6 +289,39 @@ concurrent_download_chunk_size = "badchunksize"
 			assert: func(t *testing.T, actual *Config, err error) {
 				if err == nil {
 					t.Error("Expected error, got none")
+				}
+			},
+		},
+		{
+			name: "ParallelPullAsFallback",
+			config: []byte(`
+[pull_modes.soci_v2]
+enable = true
+
+[pull_modes.parallel_pull_unpack]
+enable = false
+experimental_parallel_pull_as_fallback = true
+max_concurrent_downloads_per_image = 10
+concurrent_download_chunk_size = "16mb"
+`),
+			assert: func(t *testing.T, actual *Config, err error) {
+				if err != nil {
+					t.Errorf("Expected no error, got %v", err)
+				}
+				if !actual.PullModes.SOCIv2.Enable {
+					t.Error("Expected soci_v2 to be enabled")
+				}
+				if actual.PullModes.Parallel.Enable {
+					t.Error("Expected parallel_pull_unpack.enable to be false")
+				}
+				if !actual.PullModes.Parallel.ExperimentalParallelPullAsFallback {
+					t.Error("Expected experimental_parallel_pull_as_fallback to be true")
+				}
+				if actual.PullModes.Parallel.MaxConcurrentDownloadsPerImage != 10 {
+					t.Errorf("Expected max_concurrent_downloads_per_image to be 10, got %d", actual.PullModes.Parallel.MaxConcurrentDownloadsPerImage)
+				}
+				if actual.PullModes.Parallel.ConcurrentDownloadChunkSize != 16*1024*1024 {
+					t.Errorf("Expected concurrent_download_chunk_size to be %d, got %d", 16*1024*1024, actual.PullModes.Parallel.ConcurrentDownloadChunkSize)
 				}
 			},
 		},

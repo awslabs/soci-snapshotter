@@ -125,6 +125,7 @@ type SnapshotterConfig struct {
 	minLayerSize                int64
 	allowInvalidMountsOnRestart bool
 	parallelPullUnpack          bool
+	parallelPullAsFallback      bool
 }
 
 // Opt is an option to configure the remote snapshotter
@@ -157,6 +158,15 @@ func ParallelPullUnpack(config *SnapshotterConfig) error {
 	return nil
 }
 
+// ParallelPullAsFallback configures the snapshotter to use parallel-pull as an
+// automatic fallback when lazy-load is the primary mode but no SOCI index is
+// found for an image. This avoids the slow sequential containerd pull that
+// occurs when lazy-load is enabled and no SOCI index exists.
+func ParallelPullAsFallback(config *SnapshotterConfig) error {
+	config.parallelPullAsFallback = true
+	return nil
+}
+
 type snapshotter struct {
 	root        string
 	ms          *storage.MetaStore
@@ -168,6 +178,7 @@ type snapshotter struct {
 	minLayerSize                int64 // minimum layer size for remote mounting
 	allowInvalidMountsOnRestart bool
 	parallelPullUnpack          bool
+	parallelPullAsFallback      bool
 	idmapped                    *sync.Map
 }
 
@@ -223,6 +234,7 @@ func NewSnapshotter(ctx context.Context, root string, targetFs FileSystem, opts 
 		allowInvalidMountsOnRestart: config.allowInvalidMountsOnRestart,
 		idmapped:                    idMap,
 		parallelPullUnpack:          config.parallelPullUnpack,
+		parallelPullAsFallback:      config.parallelPullAsFallback,
 	}
 
 	if err := o.restoreRemoteSnapshot(ctx); err != nil {
@@ -433,14 +445,28 @@ func (o *snapshotter) Prepare(ctx context.Context, key, parent string, opts ...s
 	// If the underlying FileSystem deems that the image is unable to be lazy loaded,
 	// then we should completely fallback to the container runtime to handle
 	// pulling and unpacking all the layers in the image.
-	// The exception is if we are using parallel pull and unpack,
+	// The exception is if we are using parallel pull and unpack (or parallel-pull-as-fallback),
 	// in which case we want to handle all snapshots ourselves.
+	// If no SOCI index was found and neither parallel pull nor parallel-pull-as-fallback
+	// is enabled, defer to the container runtime for a sequential pull.
+	// Otherwise, fall through to parallel pull.
 	if deferToContainerRuntime {
-		log.G(lCtx).WithField(deferredSnapshotLogKey, prepareSucceeded).WithError(err).Warnf("%v; %v", ErrNoIndex, ErrDeferToContainerRuntime)
-		return mounts, nil
+		if o.parallelPullUnpack || o.parallelPullAsFallback {
+			log.G(lCtx).WithField("layerDigest", base.Labels[ctdsnapshotters.TargetLayerDigestLabel]).
+				Info("no SOCI index found; falling back to parallel pull/unpack")
+		} else {
+			log.G(lCtx).WithField(deferredSnapshotLogKey, prepareSucceeded).WithError(err).Warnf("%v; %v", ErrNoIndex, ErrDeferToContainerRuntime)
+			return mounts, nil
+		}
 	}
 
-	if o.parallelPullUnpack {
+	// Lazy loading did not succeed — either no SOCI index was found
+	// (parallel pull enabled, fell through above) or a SOCI index exists
+	// but this layer has no ztoc (ErrNoZtoc). Use parallel pull if
+	// enabled as primary or if falling back from a missing SOCI index.
+	// For ErrNoZtoc (sparse index), always use local snapshot to handle
+	// the individual layer — parallel pull would re-pull the entire image.
+	if o.parallelPullUnpack || (o.parallelPullAsFallback && deferToContainerRuntime) {
 		log.G(ctx).WithField("layerDigest", base.Labels[ctdsnapshotters.TargetLayerDigestLabel]).Info("preparing snapshot with parallel pull/unpack")
 		err = o.prepareParallelPullSnapshot(lCtx, key, base.Labels, mounts)
 	} else {
@@ -465,7 +491,7 @@ func (o *snapshotter) Prepare(ctx context.Context, key, parent string, opts ...s
 		return nil, err
 	}
 	log.G(lCtx).WithField(remoteSnapshotLogKey, prepareFailed).WithError(err).Debug("skipped preparing remote snapshot")
-	if o.parallelPullUnpack {
+	if o.parallelPullUnpack || (o.parallelPullAsFallback && deferToContainerRuntime) {
 		// If parallel pull/unpack fails, then we should not defer to the container runtime
 		// and just return the error.
 		return nil, err

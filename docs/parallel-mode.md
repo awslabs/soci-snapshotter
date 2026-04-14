@@ -94,6 +94,32 @@ If you have any questions or need further assistance, please don't hesitate to r
 
 ## Known Limitations
 
+### Parallel Pull as Fallback for Lazy-Load
+
+When using lazy-load as the primary pull mode (`soci_v2.enable = true` or `soci_v1.enable = true`), images without a SOCI index normally fall back to the container runtime's sequential pull, which can be slower than a standard image pull. To avoid this behavior, you can enable `experimental_parallel_pull_as_fallback`:
+
+```toml
+[pull_modes.soci_v2]
+  enable = true
+
+[pull_modes.parallel_pull_unpack]
+  enable = false
+  experimental_parallel_pull_as_fallback = true
+  max_concurrent_downloads_per_image = 10
+  concurrent_download_chunk_size = "16mb"
+  max_concurrent_unpacks_per_image = 10
+  discard_unpacked_layers = true
+```
+
+With this configuration:
+- Images **with** a SOCI index use lazy-load
+- Images **without** a SOCI index use parallel-pull
+- No image falls through to the slow sequential containerd pull
+
+> **EXPERIMENTAL**: This option requires the containerd content store (`type = "containerd"` under `[content_store]`) for both lazy-load and parallel-pull. Lazy-load with the containerd content store may have garbage collection edge cases and does not carry the same stability guarantees as using either mode independently. See [#1843](https://github.com/awslabs/soci-snapshotter/issues/1843) for details.
+
+Note: `experimental_parallel_pull_as_fallback` is ignored when `enable = true`, since parallel-pull is already the primary mode in that case.
+
 ### Registries
 
 Any registry that supports ranged GET requests and has sufficient request limits should work with parallel pull mode. If a registry is rate limiting image pull requests, users can attempt to lower `max_concurrent_downloads` or `max_concurrent_downloads_per_image` and see if it alleviates the issue, however this will result in less of a performance benefit compared to regular pulling.

@@ -123,6 +123,12 @@ const (
 	// DefaultParallelPullEnable is the default value for whether parallel pull and unpack is enabled
 	DefaultParallelPullUnpackEnable = false
 
+	// DefaultParallelPullAsFallback is the default value for whether parallel pull is used
+	// as a fallback when lazy-load finds no SOCI index.
+	// This is EXPERIMENTAL — lazy-load with containerd content store may have
+	// garbage collection edge cases. See https://github.com/awslabs/soci-snapshotter/issues/1843
+	DefaultExperimentalParallelPullAsFallback = false
+
 	// Defaults for ParallelPullUnpack.
 	// The default values should mirror default containerd values.
 
