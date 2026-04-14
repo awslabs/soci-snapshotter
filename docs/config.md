@@ -97,6 +97,24 @@ This set of variables must be at the top of your TOML file due to not belonging 
 
 ## config/service.go
 
+## config/pull_modes.go
+
+### [pull_modes.soci_v1]
+- `enable` (bool) — Enables SOCI v1 index discovery via the OCI Referrers API. Default: false.
+
+### [pull_modes.soci_v2]
+- `enable` (bool) — Enables SOCI v2 index discovery via image manifest annotations. Default: true.
+
+### [pull_modes.parallel_pull_unpack]
+- `enable` (bool) — Enables parallel pull and unpack as the primary pull mode. When true, lazy-load is skipped entirely. Default: false.
+- `experimental_parallel_pull_as_fallback` (bool) — **[EXPERIMENTAL]** When true (and `enable` is false), uses parallel-pull as an automatic fallback when lazy-load is the primary mode but no SOCI index is found for an image. Requires containerd content store (unless `discard_unpacked_layers = true`). Lazy-load with the containerd content store may have garbage collection edge cases. See [#1843](https://github.com/awslabs/soci-snapshotter/issues/1843). Ignored when `enable` is true. Default: false.
+- `max_concurrent_downloads` (int) — Max concurrent downloads across all images. -1 for unlimited. Default: -1.
+- `max_concurrent_downloads_per_image` (int) — Max concurrent downloads per image. Default: 3.
+- `concurrent_download_chunk_size` (string) — Size of each download chunk (e.g. "8mb", "16mb"). Empty means full layer. Default: "".
+- `max_concurrent_unpacks` (int) — Max concurrent unpacks across all images. -1 for unlimited. Default: -1.
+- `max_concurrent_unpacks_per_image` (int) — Max concurrent unpacks per image. Default: 1.
+- `discard_unpacked_layers` (bool) — Discard layer blobs after unpacking to save disk space. Default: false.
+
 ### [snapshotter]
 - `min_layer_size` (int) — Sets the minimum threshold for lazy loading a layer. Any layer smaller than this value will ignore the zTOC for the layer and pull the entire layer ahead of time. We generally recommend setting it to 10MiB (10000000). Default: 0.
 - `allow_invalid_mounts_on_restart` (bool) — Allows the snapshotter to start even if preexisting snapshots cannot connect to their data source on startup. Useful on unexpected daemon crashes/corruption. Default: false.

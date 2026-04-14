@@ -162,7 +162,7 @@ func checkParallelPullUnpack(cfg *config.Parallel) error {
 	if cfg == nil {
 		return errors.New("parallel pull config is nil")
 	}
-	if !cfg.Enable {
+	if !cfg.Enable && !cfg.ExperimentalParallelPullAsFallback {
 		return ErrParallelPullIsDisabled
 	}
 	// If global concurrent downloads/unpacks are unlimited, any value for per-image concurrent downloads/unpacks are valid

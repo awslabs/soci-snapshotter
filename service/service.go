@@ -124,6 +124,15 @@ func NewSociSnapshotterService(ctx context.Context, root string, serviceCfg *con
 	if serviceCfg.PullModes.Parallel.Enable {
 		snOpts = append(snOpts, snbase.ParallelPullUnpack)
 	}
+	if serviceCfg.PullModes.Parallel.ExperimentalParallelPullAsFallback && !serviceCfg.PullModes.Parallel.Enable {
+		log.G(ctx).Warn("EXPERIMENTAL: experimental_parallel_pull_as_fallback is enabled. " +
+			"Lazy-load and parallel-pull will coexist using the same content store. " +
+			"When using the containerd content store, this combination may have " +
+			"garbage collection edge cases and does not carry the same stability " +
+			"guarantees as using either mode independently. " +
+			"See https://github.com/awslabs/soci-snapshotter/issues/1843")
+		snOpts = append(snOpts, snbase.ParallelPullAsFallback)
+	}
 
 	snapshotter, err = snbase.NewSnapshotter(ctx, snapshotterRoot(root), fs, snOpts...)
 	if err != nil {

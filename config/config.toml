@@ -73,6 +73,7 @@ skip_check_snapshotter_supported = false
     max_concurrent_unpacks_per_image = 1
     discard_unpacked_layers = false
     enable = false
+    experimental_parallel_pull_as_fallback = false
 
 [kubeconfig_keychain]
   enable_keychain = false

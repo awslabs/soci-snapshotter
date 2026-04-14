@@ -242,7 +242,12 @@ func NewFilesystem(ctx context.Context, root string, cfg config.FSConfig, opts .
 	if pullModes.Parallel.Enable &&
 		cfg.ContentStoreConfig.Type != config.ContainerdContentStoreType &&
 		!pullModes.Parallel.DiscardUnpackedLayers {
-		return nil, errors.New("parallel_pull_unpack mode requires containerd content store (type=\"containerd\" under [content_store])")
+		return nil, errors.New("parallel_pull_unpack mode requires containerd content store (type=\"containerd\" under [content_store] or discard_unpacked_layers = true)")
+	}
+	if pullModes.Parallel.ExperimentalParallelPullAsFallback &&
+		cfg.ContentStoreConfig.Type != config.ContainerdContentStoreType &&
+		!pullModes.Parallel.DiscardUnpackedLayers {
+		return nil, errors.New("experimental_parallel_pull_as_fallback requires containerd content store (type=\"containerd\" under [content_store] or discard_unpacked_layers = true)")
 	}
 	client := store.NewContainerdClient(cfg.ContentStoreConfig.ContainerdAddress)
 
@@ -339,7 +344,7 @@ func NewFilesystem(ctx context.Context, root string, cfg config.FSConfig, opts .
 }
 
 func createParallelPullStructs(ctx context.Context, storage LayerUnpackJobStorage, parallelConfig *config.Parallel) (*unpackJobs, error) {
-	if !parallelConfig.Enable {
+	if !parallelConfig.Enable && !parallelConfig.ExperimentalParallelPullAsFallback {
 		return nil, nil
 	}
 
@@ -430,7 +435,7 @@ type filesystem struct {
 }
 
 func (fs *filesystem) MountParallel(ctx context.Context, mountpoint string, labels map[string]string, mounts []mount.Mount) error {
-	if !fs.pullModes.Parallel.Enable {
+	if !fs.pullModes.Parallel.Enable && !fs.pullModes.Parallel.ExperimentalParallelPullAsFallback {
 		return ErrParallelPullIsDisabled
 	}
 
@@ -727,7 +732,7 @@ func (fs *filesystem) getImageManifest(ctx context.Context, dgst string) (*ocisp
 // CleanImage stops all parallel operations for the specific image.
 // Generally this will be called when removing a snapshot for an image.
 func (fs *filesystem) CleanImage(ctx context.Context, imgDigest string) error {
-	if !fs.pullModes.Parallel.Enable {
+	if !fs.pullModes.Parallel.Enable && !fs.pullModes.Parallel.ExperimentalParallelPullAsFallback {
 		return nil
 	}
 

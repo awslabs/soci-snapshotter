@@ -44,6 +44,19 @@ type V2 struct {
 type Parallel struct {
 	ParallelConfig
 	Enable bool `toml:"enable"`
+
+	// ParallelPullAsFallback enables parallel-pull as an automatic fallback
+	// when lazy-load is the primary mode but no SOCI index is found for an image.
+	// When true (and Enable is false), the snapshotter will first attempt lazy-load;
+	// if no SOCI index exists, it falls back to parallel-pull instead of deferring
+	// to the container runtime's slower sequential pull.
+	// If Enable is true, this option is a no-op (parallel-pull is already the primary mode).
+	//
+	// EXPERIMENTAL: This requires the containerd content store for both lazy-load
+	// and parallel-pull (unless discard_unpacked_layers = true).
+	// Lazy-load with the containerd content store may have
+	// garbage collection edge cases. See https://github.com/awslabs/soci-snapshotter/issues/1843
+	ExperimentalParallelPullAsFallback bool `toml:"experimental_parallel_pull_as_fallback"`
 }
 
 func defaultPullModes(cfg *Config) error {

@@ -364,3 +364,159 @@ func testDanglingV2Annotation(t *testing.T, imgName string) {
 		t.Fatalf("expected v2 index digest %s, got %s", v2IndexDigest, indexDigestUsed)
 	}
 }
+
+func TestExperimentalParallelPullAsFallback(t *testing.T) {
+	for _, imgName := range pullModesImages {
+		t.Run(imgName, func(t *testing.T) {
+			testExperimentalParallelPullAsFallback(t, imgName)
+		})
+	}
+}
+
+func testExperimentalParallelPullAsFallback(t *testing.T, imgName string) {
+	regConfig := newRegistryConfig()
+	sh, done := newShellWithRegistry(t, regConfig)
+	defer done()
+
+	srcInfo := dockerhub(imgName)
+	dstInfo := regConfig.mirror(imgName)
+	sh.X("nerdctl", "login", "-u", regConfig.user, "-p", regConfig.pass, dstInfo.ref)
+
+	// Create a SOCI-indexed version of the image for lazy-load tests
+	rebootContainerd(t, sh, "", "")
+	v2IndexDigest := createAndPushV2Index(t, sh, srcInfo, dstInfo)
+
+	// Also push the original (non-indexed) image to a separate tag for fallback tests
+	rebootContainerd(t, sh, "", "")
+	noIndexInfo := regConfig.mirror(imgName)
+	noIndexRef, err := reference.Parse(noIndexInfo.ref)
+	if err != nil {
+		t.Fatal(err)
+	}
+	noIndexRef.Object = "no-soci-index"
+	sh.X("nerdctl", "pull", "-q", srcInfo.ref)
+	sh.X("nerdctl", "image", "tag", srcInfo.ref, noIndexRef.String())
+	sh.X("nerdctl", "push", noIndexRef.String())
+
+	tests := []struct {
+		name             string
+		pullModes        config.PullModes
+		contentStoreType store.ContentStoreType
+		imageRef         string
+		expectedDigest   string
+		// checkLocal means we expect local/parallel snapshots (not remote/lazy)
+		checkLocal bool
+		// checkDeferred means we expect deferred-to-runtime snapshots
+		checkDeferred bool
+	}{
+		{
+			// Fallback enabled + image WITH SOCI index → lazy-load should be used
+			name: "fallback enabled with indexed image uses lazy-load",
+			pullModes: config.PullModes{
+				SOCIv1: config.V1{Enable: false},
+				SOCIv2: config.V2{Enable: true},
+				Parallel: config.Parallel{
+					ExperimentalParallelPullAsFallback: true,
+				},
+			},
+			contentStoreType: store.ContainerdContentStoreType,
+			imageRef:         dstInfo.ref,
+			expectedDigest:   v2IndexDigest,
+		},
+		{
+			// Fallback enabled + image WITHOUT SOCI index → parallel-pull fallback
+			name: "fallback enabled with non-indexed image uses parallel pull",
+			pullModes: config.PullModes{
+				SOCIv1: config.V1{Enable: false},
+				SOCIv2: config.V2{Enable: true},
+				Parallel: config.Parallel{
+					ExperimentalParallelPullAsFallback: true,
+				},
+			},
+			contentStoreType: store.ContainerdContentStoreType,
+			imageRef:         noIndexRef.String(),
+			expectedDigest:   "",
+			checkLocal:       true,
+		},
+		{
+			// Fallback disabled + image WITHOUT SOCI index → defers to container runtime
+			name: "fallback disabled with non-indexed image defers to runtime",
+			pullModes: config.PullModes{
+				SOCIv1: config.V1{Enable: false},
+				SOCIv2: config.V2{Enable: true},
+			},
+			imageRef:       noIndexRef.String(),
+			expectedDigest: "",
+			checkDeferred:  true,
+		},
+		{
+			// enable=true takes precedence over fallback — parallel pull is primary
+			name: "enable true takes precedence over fallback",
+			pullModes: config.PullModes{
+				SOCIv1: config.V1{Enable: false},
+				SOCIv2: config.V2{Enable: true},
+				Parallel: config.Parallel{
+					Enable:                             true,
+					ExperimentalParallelPullAsFallback: true,
+				},
+			},
+			contentStoreType: store.ContainerdContentStoreType,
+			imageRef:         dstInfo.ref,
+			expectedDigest:   "",
+			checkLocal:       true,
+		},
+		{
+			// Fallback with SOCI content store + discard_unpacked_layers works
+			name: "fallback with soci content store and discard unpacked layers",
+			pullModes: config.PullModes{
+				SOCIv1: config.V1{Enable: false},
+				SOCIv2: config.V2{Enable: true},
+				Parallel: config.Parallel{
+					ExperimentalParallelPullAsFallback: true,
+					ParallelConfig: config.ParallelConfig{
+						DiscardUnpackedLayers: true,
+					},
+				},
+			},
+			// No contentStoreType set — defaults to SOCI content store
+			imageRef:       noIndexRef.String(),
+			expectedDigest: "",
+			checkLocal:     true,
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			opts := []snapshotterConfigOpt{withPullModes(test.pullModes)}
+			if test.contentStoreType == store.ContainerdContentStoreType {
+				opts = append(opts, withContainerdContentStore())
+			}
+			var indexDigestUsed string
+			monitorFunc := func(s string) {
+				structuredLog := make(map[string]string)
+				err := json.Unmarshal([]byte(s), &structuredLog)
+				if err != nil {
+					return
+				}
+				if structuredLog["msg"] == "fetching SOCI artifacts using index descriptor" {
+					indexDigestUsed = structuredLog["digest"]
+				}
+			}
+			rsm := testutil.NewRemoteSnapshotMonitor()
+			m := rebootContainerd(t, sh, "", getSnapshotterConfigToml(t, opts...), rsm.MonitorFunc, monitorFunc)
+			defer m.Cleanup(t)
+			sh.X(append(imagePullCmd, test.imageRef)...)
+
+			if test.expectedDigest != "" {
+				rsm.CheckAllRemoteSnapshots(t)
+			} else if test.checkLocal {
+				rsm.CheckAllLocalSnapshots(t)
+			} else if test.checkDeferred {
+				rsm.CheckAllDeferredSnapshots(t)
+			}
+			if indexDigestUsed != test.expectedDigest {
+				t.Fatalf("expected digest %s, got %s", test.expectedDigest, indexDigestUsed)
+			}
+		})
+	}
+}
