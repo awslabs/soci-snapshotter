@@ -178,9 +178,15 @@ func (rm *RegistryManager) AsRegistryHosts() RegistryHosts {
 	}
 }
 
+// InvalidateRegistryHosts removes cached registry host configurations for the
+// given image reference, forcing a fresh AuthClient to be created on the next request.
+func (rm *RegistryManager) InvalidateRegistryHosts(ref string) {
+	rm.registryHostMap.Delete(ref)
+}
+
 // multiCredsFuncs joins a list of credential functions into a single credential function.
 //
-// Note: We close over an image reference so that our invdidual credential providers
+// Note: We close over an image reference so that our individual credential providers
 // can store+index credentials at an image level.
 func multiCredsFuncs(imgRefSpec reference.Spec, credsFuncs ...Credential) func(string) (string, string, error) {
 	return func(host string) (string, string, error) {
