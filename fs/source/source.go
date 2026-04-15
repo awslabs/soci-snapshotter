@@ -96,6 +96,15 @@ const (
 // to reduce package dependency
 type RegistryHosts func(imgRefSpec reference.Spec) ([]docker.RegistryHost, error)
 
+// GetHostRefs returns all known image references for a registry host,
+// ordered by most recent PullImage time (latest first).
+type GetHostRefs func(host string) []string
+
+// RemoveLatestAuth removes the most recent credential for a given host+ref
+// from the credential pool. Called when the credential is confirmed invalid
+// (4xx auth error) for a layer that the ref is known to reference.
+type RemoveLatestAuth func(host, ref string)
+
 // FromDefaultLabels returns a function for converting snapshot labels to
 // source information based on labels.
 func FromDefaultLabels(hosts RegistryHosts) GetSources {

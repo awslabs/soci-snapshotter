@@ -50,9 +50,11 @@ import (
 type Option func(*options)
 
 type options struct {
-	credsFuncs    []resolver.Credential
-	registryHosts resolver.RegistryHosts
-	fsOpts        []socifs.Option
+	credsFuncs       []resolver.Credential
+	registryHosts    resolver.RegistryHosts
+	fsOpts           []socifs.Option
+	getHostRefs      source.GetHostRefs
+	removeLatestAuth source.RemoveLatestAuth
 }
 
 // WithCredsFuncs specifies credsFuncs to be used for connecting to the registries.
@@ -74,6 +76,14 @@ func WithFilesystemOptions(opts ...socifs.Option) Option {
 	return func(o *options) {
 		o.fsOpts = opts
 	}
+}
+
+func WithGetHostRefs(f source.GetHostRefs) Option {
+	return func(o *options) { o.getHostRefs = f }
+}
+
+func WithRemoveLatestAuth(f source.RemoveLatestAuth) Option {
+	return func(o *options) { o.removeLatestAuth = f }
 }
 
 // NewSociSnapshotterService returns soci snapshotter.
@@ -101,6 +111,8 @@ func NewSociSnapshotterService(ctx context.Context, root string, serviceCfg *con
 	// Configure filesystem and snapshotter
 	getSources := source.FromDefaultLabels(source.RegistryHosts(hosts)) // provides source info based on default labels
 	fsOpts := append(sOpts.fsOpts, socifs.WithGetSources(getSources),
+		socifs.WithGetHostRefs(sOpts.getHostRefs),
+		socifs.WithRemoveLatestAuth(sOpts.removeLatestAuth),
 		socifs.WithOverlayOpaqueType(opq),
 		socifs.WithPullModes(serviceCfg.PullModes),
 	)

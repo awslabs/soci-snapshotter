@@ -165,6 +165,8 @@ type Option func(*options)
 type options struct {
 	getSources        source.GetSources
 	resolveHandlers   map[string]remote.Handler
+	getHostRefs       source.GetHostRefs
+	removeLatestAuth  source.RemoveLatestAuth
 	metadataStore     metadata.Store
 	overlayOpaqueType layer.OverlayOpaqueType
 	maxConcurrency    int64
@@ -174,6 +176,18 @@ type options struct {
 func WithGetSources(s source.GetSources) Option {
 	return func(opts *options) {
 		opts.getSources = s
+	}
+}
+
+func WithGetHostRefs(f source.GetHostRefs) Option {
+	return func(opts *options) {
+		opts.getHostRefs = f
+	}
+}
+
+func WithRemoveLatestAuth(f source.RemoveLatestAuth) Option {
+	return func(opts *options) {
+		opts.removeLatestAuth = f
 	}
 }
 
@@ -325,6 +339,8 @@ func NewFilesystem(ctx context.Context, root string, cfg config.FSConfig, opts .
 		ctx:                         ctx,
 		resolver:                    r,
 		getSources:                  getSources,
+		getHostRefs:                 fsOpts.getHostRefs,
+		removeLatestAuth:            fsOpts.removeLatestAuth,
 		debug:                       cfg.Debug,
 		layer:                       make(map[string]layer.Layer),
 		disableVerification:         cfg.DisableVerification,
@@ -419,6 +435,9 @@ type filesystem struct {
 	layerMu                     sync.Mutex
 	disableVerification         bool
 	getSources                  source.GetSources
+	getHostRefs                 source.GetHostRefs
+	removeLatestAuth            source.RemoveLatestAuth
+	layerRefs                   sync.Map // mountpoint → *sync.Map (ref → struct{})
 	metricsController           *layermetrics.Controller
 	attrTimeout                 time.Duration
 	entryTimeout                time.Duration
@@ -432,6 +451,24 @@ type filesystem struct {
 	pullModes                   config.PullModes
 	containerd                  *store.ContainerdClient
 	inProgressImageUnpacks      *unpackJobs
+}
+
+func (fs *filesystem) addLayerRef(mountpoint, ref string) {
+	val, _ := fs.layerRefs.LoadOrStore(mountpoint, &sync.Map{})
+	val.(*sync.Map).Store(ref, struct{}{})
+}
+
+func (fs *filesystem) getLayerRefs(mountpoint string) []string {
+	val, ok := fs.layerRefs.Load(mountpoint)
+	if !ok {
+		return nil
+	}
+	var refs []string
+	val.(*sync.Map).Range(func(key, _ any) bool {
+		refs = append(refs, key.(string))
+		return true
+	})
+	return refs
 }
 
 func (fs *filesystem) MountParallel(ctx context.Context, mountpoint string, labels map[string]string, mounts []mount.Mount) error {
@@ -474,6 +511,8 @@ func (fs *filesystem) MountParallel(ctx context.Context, mountpoint string, labe
 	if err != nil {
 		return fmt.Errorf("failed to rebase layer %s: %w", desc.Digest, err)
 	}
+
+	fs.addLayerRef(mountpoint, imageRef)
 	return nil
 }
 
@@ -1128,6 +1167,11 @@ func (fs *filesystem) Mount(ctx context.Context, mountpoint string, labels map[s
 	fs.layerMu.Unlock()
 	fs.metricsController.Add(mountpoint, l)
 
+	// Track which image ref created this layer (for credential fallback)
+	if ref := labels[ctdsnapshotters.TargetRefLabel]; ref != "" {
+		fs.addLayerRef(mountpoint, ref)
+	}
+
 	// Pass in a logger to go-fuse with the layer digest
 	// The go-fuse logs are useful for tracing exactly what's happening at the fuse level.
 	fuseLogger := log.L.
@@ -1196,7 +1240,7 @@ func (fs *filesystem) Check(ctx context.Context, mountpoint string, labels map[s
 	if l.Info().FetchedSize < l.Info().Size {
 		// Image contents hasn't fully cached yet.
 		// Check the blob connectivity and try to refresh the connection on failure
-		if err := fs.check(ctx, l, labels); err != nil {
+		if err := fs.check(ctx, mountpoint, l, labels); err != nil {
 			log.G(ctx).WithError(err).Warn("check failed")
 			return err
 		}
@@ -1205,38 +1249,129 @@ func (fs *filesystem) Check(ctx context.Context, mountpoint string, labels map[s
 	return nil
 }
 
-func (fs *filesystem) check(ctx context.Context, l layer.Layer, labels map[string]string) error {
+// isAuthError returns true if the error indicates an authentication/authorization failure (401/403).
+func isAuthError(err error) bool {
+	if err == nil {
+		return false
+	}
+	if !errors.Is(err, remote.ErrUnexpectedStatusCode) {
+		return false
+	}
+	s := err.Error()
+	return strings.Contains(s, "on redirect 401") ||
+		strings.Contains(s, "on redirect 403") ||
+		strings.Contains(s, "on check: 401") ||
+		strings.Contains(s, "on check: 403")
+}
+
+func (fs *filesystem) check(ctx context.Context, mountpoint string, l layer.Layer, labels map[string]string) error {
 	err := l.Check()
 	if err == nil {
 		return nil
 	}
 	log.G(ctx).WithError(err).Warn("failed to connect to blob")
 
-	// Check failed. Try to refresh the connection with fresh source information
-	src, err := fs.getSources(labels)
-	if err != nil {
-		return err
+	// Try to refresh with current (possibly cached) sources.
+	_, err = fs.refreshLayer(ctx, l, labels)
+	if err == nil {
+		log.G(ctx).Debug("Successfully refreshed connection")
+		return nil
 	}
-	var (
-		retrynum = 1
-		rErr     = fmt.Errorf("failed to refresh connection")
-	)
-	for retry := 0; retry < retrynum; retry++ {
-		log.G(ctx).Warnf("refreshing(%d)...", retry)
-		for _, s := range src {
-			err := l.Refresh(ctx, s.Hosts, s.Name, s.Target)
-			if err == nil {
-				log.G(ctx).Debug("Successfully refreshed connection")
-				return nil
+
+	// All retries with the original ref's credentials failed.
+	// Try alternative image refs which may have fresh credentials for the same repository.
+	//
+	// Two tiers of candidates:
+	// 1. Per-layer refs (layerRefs) — refs known to reference THIS layer. 401 = truly invalid cred.
+	// 2. Host-level refs (getHostRefs) — all refs for the host. 401 may be wrong-scope, NOT invalid.
+	originalRef := labels[ctdsnapshotters.TargetRefLabel]
+
+	// Tier 1: Per-layer refs (registered during Mount for each image that uses this layer)
+	layerCandidates := fs.getLayerRefs(mountpoint)
+
+	seen := map[string]bool{originalRef: true}
+	for _, ref := range layerCandidates {
+		if seen[ref] {
+			continue
+		}
+		seen[ref] = true
+
+		log.G(ctx).Warnf("retrying with layer-scoped ref %q (original: %q)", ref, originalRef)
+		merged := make(map[string]string, len(labels))
+		for k, v := range labels {
+			merged[k] = v
+		}
+		merged[ctdsnapshotters.TargetRefLabel] = ref
+		_, err = fs.refreshLayer(ctx, l, merged)
+		if err == nil {
+			log.G(ctx).Debug("Successfully refreshed with layer-scoped ref")
+			return nil
+		}
+		// This ref is known to reference this layer, so a 4xx error means
+		// the credential is truly invalid (revoked), not wrong-scope.
+		if fs.removeLatestAuth != nil && isAuthError(err) {
+			if refspec, parseErr := reference.Parse(ref); parseErr == nil {
+				log.G(ctx).Debugf("Removing invalid credential for ref %q", ref)
+				fs.removeLatestAuth(refspec.Hostname(), ref)
 			}
-			log.G(ctx).WithError(err).Warnf("failed to refresh the layer %q from %q",
-				s.Target.Digest, s.Name)
-			rErr = fmt.Errorf("failed(layer:%q, ref:%q): %v: %w",
-				s.Target.Digest, s.Name, err, rErr)
 		}
 	}
 
-	return rErr
+	// Tier 2: Host-level refs as last resort (covers Mounts path where layer
+	// doesn't know about the current pull's ref yet)
+	if fs.getHostRefs != nil && originalRef != "" {
+		refspec, parseErr := reference.Parse(originalRef)
+		if parseErr != nil {
+			log.G(ctx).WithError(parseErr).Warnf("failed to parse image ref %q from snapshot labels", originalRef)
+		} else {
+			hostRefs := fs.getHostRefs(refspec.Hostname())
+			for _, ref := range hostRefs {
+				if seen[ref] {
+					continue
+				}
+				seen[ref] = true
+
+				log.G(ctx).Warnf("retrying with host-level ref %q (original: %q)", ref, originalRef)
+				merged := make(map[string]string, len(labels))
+				for k, v := range labels {
+					merged[k] = v
+				}
+				merged[ctdsnapshotters.TargetRefLabel] = ref
+				_, err = fs.refreshLayer(ctx, l, merged)
+				if err == nil {
+					log.G(ctx).Debug("Successfully refreshed with host-level ref")
+					fs.addLayerRef(mountpoint, ref)
+					return nil
+				}
+				// Do NOT remove auth from pool here — 401 may be wrong-scope, not invalid
+			}
+		}
+	}
+
+	return err
+}
+
+// refreshLayer fetches sources and attempts to refresh the layer connection.
+func (fs *filesystem) refreshLayer(ctx context.Context, l layer.Layer, labels map[string]string) ([]source.Source, error) {
+	src, err := fs.getSources(labels)
+	if err != nil {
+		return src, err
+	}
+	if len(src) == 0 {
+		return src, fmt.Errorf("no sources available for refresh")
+	}
+	var errs []error
+	for _, s := range src {
+		log.G(ctx).Warnf("refreshing connection (layer:%q, ref:%q)", s.Target.Digest, s.Name)
+		if err := l.Refresh(ctx, s.Hosts, s.Name, s.Target); err == nil {
+			return src, nil
+		} else {
+			log.G(ctx).WithError(err).Warnf("failed to refresh the layer %q from %q",
+				s.Target.Digest, s.Name)
+			errs = append(errs, fmt.Errorf("failed(layer:%q, ref:%q): %w", s.Target.Digest, s.Name, err))
+		}
+	}
+	return src, errors.Join(errs...)
 }
 
 func isIDMappedDir(mountpoint string) bool {
@@ -1253,6 +1388,7 @@ func (fs *filesystem) Unmount(ctx context.Context, mountpoint string) error {
 	}
 
 	delete(fs.layer, mountpoint)
+	fs.layerRefs.Delete(mountpoint)
 	// If the mountpoint is an id-mapped layer, it is pointing to the
 	// underlying layer, so we cannot call done on it.
 	// We do a evict call to call the registered evict functions.

@@ -180,7 +180,7 @@ func (rm *RegistryManager) AsRegistryHosts() RegistryHosts {
 
 // multiCredsFuncs joins a list of credential functions into a single credential function.
 //
-// Note: We close over an image reference so that our invdidual credential providers
+// Note: We close over an image reference so that our individual credential providers
 // can store+index credentials at an image level.
 func multiCredsFuncs(imgRefSpec reference.Spec, credsFuncs ...Credential) func(string) (string, string, error) {
 	return func(host string) (string, string, error) {
