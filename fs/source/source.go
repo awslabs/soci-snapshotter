@@ -96,6 +96,10 @@ const (
 // to reduce package dependency
 type RegistryHosts func(imgRefSpec reference.Spec) ([]docker.RegistryHost, error)
 
+// InvalidateHosts invalidates cached registry host configurations for a given
+// image reference, forcing fresh credentials to be fetched on the next request.
+type InvalidateHosts func(ref string)
+
 // FromDefaultLabels returns a function for converting snapshot labels to
 // source information based on labels.
 func FromDefaultLabels(hosts RegistryHosts) GetSources {
