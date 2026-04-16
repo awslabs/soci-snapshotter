@@ -56,6 +56,7 @@ FROM public.ecr.aws/amazonlinux/amazonlinux:2023 AS rapidgzip-builder
 
 ARG RAPIDGZIP_VERSION
 ARG TARGETARCH
+ENV SOCI_SNAPSHOTTER_SRC=/src/github.com/awslabs/soci-snapshotter
 
 RUN dnf update -y && dnf install -y \
     binutils \
@@ -90,7 +91,7 @@ RUN git clone https://github.com/mxmlnkn/rapidgzip.git && \
           -DCMAKE_C_FLAGS="-O2 -fPIC" \
           ${ISAL_FLAGS} \
           -DCMAKE_BUILD_TYPE=Release .. && \
-    make -j$(nproc) && \
+    cmake --build . --target rapidgzip --parallel "$(nproc)" && \
     cp src/tools/rapidgzip /opt/rapidgzip/usr/local/bin/ && \
     chmod +x /opt/rapidgzip/usr/local/bin/rapidgzip && \
     cd ../.. && \
@@ -104,9 +105,10 @@ ARG NERDCTL_VERSION
 ARG TARGETARCH
 ENV GOPROXY=direct
 ENV GOCOVERDIR=/test_coverage
+ENV SOCI_SNAPSHOTTER_SRC=/src/github.com/awslabs/soci-snapshotter
 
 COPY ./integ_entrypoint.sh /integ_entrypoint.sh
-COPY . $GOPATH/src/github.com/awslabs/soci-snapshotter
+COPY . ${SOCI_SNAPSHOTTER_SRC}
 RUN dnf update && dnf upgrade && dnf install -y \
     diffutils \
     findutils \
@@ -123,14 +125,14 @@ RUN dnf update && dnf upgrade && dnf install -y \
 COPY --from=igzip-builder /opt/igzip/usr /usr/local
 COPY --from=rapidgzip-builder /opt/rapidgzip/usr/local /usr/local
 
-RUN cp $GOPATH/src/github.com/awslabs/soci-snapshotter/out/soci /usr/local/bin/ \
-    && cp $GOPATH/src/github.com/awslabs/soci-snapshotter/out/soci-snapshotter-grpc /usr/local/bin/ \
+RUN cp ${SOCI_SNAPSHOTTER_SRC}/out/soci /usr/local/bin/ \
+    && cp ${SOCI_SNAPSHOTTER_SRC}/out/soci-snapshotter-grpc /usr/local/bin/ \
     && mkdir /etc/soci-snapshotter-grpc \
     && mkdir /etc/containerd/ \
-    && cp $GOPATH/src/github.com/awslabs/soci-snapshotter/integration/config/etc/soci-snapshotter-grpc/config.toml /etc/soci-snapshotter-grpc/ \
-    && cp $GOPATH/src/github.com/awslabs/soci-snapshotter/integration/config/etc/containerd/config.toml /etc/containerd/ \
-    && cp $GOPATH/src/github.com/awslabs/soci-snapshotter/soci-snapshotter.service /etc/systemd/system \
-    && cp $GOPATH/src/github.com/awslabs/soci-snapshotter/soci-snapshotter.socket /etc/systemd/system
+    && cp ${SOCI_SNAPSHOTTER_SRC}/integration/config/etc/soci-snapshotter-grpc/config.toml /etc/soci-snapshotter-grpc/ \
+    && cp ${SOCI_SNAPSHOTTER_SRC}/integration/config/etc/containerd/config.toml /etc/containerd/ \
+    && cp ${SOCI_SNAPSHOTTER_SRC}/soci-snapshotter.service /etc/systemd/system \
+    && cp ${SOCI_SNAPSHOTTER_SRC}/soci-snapshotter.socket /etc/systemd/system
 RUN curl -sSL --output /tmp/containerd.tgz https://github.com/containerd/containerd/releases/download/v${CONTAINERD_VERSION}/containerd-${CONTAINERD_VERSION}-linux-${TARGETARCH:-amd64}.tar.gz \
     && tar zxvf /tmp/containerd.tgz -C /usr/local/ \
     && rm -f /tmp/containerd.tgz

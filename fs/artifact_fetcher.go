@@ -25,7 +25,9 @@ import (
 	"mime"
 	"net/http"
 	"net/url"
+	"path"
 	"strconv"
+	"strings"
 
 	sociremote "github.com/awslabs/soci-snapshotter/fs/remote"
 	socihttp "github.com/awslabs/soci-snapshotter/internal/http"
@@ -75,8 +77,8 @@ type orasBlobStore struct {
 	*remote.Repository
 }
 
-func newRemoteBlobStore(refspec reference.Spec, client *http.Client) (*orasBlobStore, error) {
-	repo, err := newRemoteStore(refspec, client)
+func newRemoteBlobStoreFromHost(refspec reference.Spec, host docker.RegistryHost) (*orasBlobStore, error) {
+	repo, err := newRemoteStoreFromHost(refspec, host)
 	if err != nil {
 		return nil, fmt.Errorf("cannot create remote store: %w", err)
 	}
@@ -96,7 +98,7 @@ func (r *orasBlobStore) Resolve(ctx context.Context, reference string) (ocispec.
 	}
 
 	tr := &clientWrapper{r.Client}
-	url := sociremote.CraftBlobURL(reference, ref)
+	url := sociremote.CraftBlobURL(r.PlainHTTP, ref)
 	resp, err := sociremote.GetHeader(ctx, url, tr)
 	if err != nil {
 		return ocispec.Descriptor{}, err
@@ -164,7 +166,7 @@ func (r *orasBlobStore) FetchRange(ctx context.Context, reference string, lower,
 	}
 
 	tr := &clientWrapper{r.Client}
-	realURL := sociremote.CraftBlobURL(reference, ref)
+	realURL := sociremote.CraftBlobURL(r.PlainHTTP, ref)
 	resp, err := GetContentWithRange(ctx, realURL, tr, lower, upper)
 	if err != nil {
 		return nil, cleanFetchErrors(err)
@@ -203,7 +205,7 @@ func (r *orasBlobStore) doInitialFetch(ctx context.Context, reference string) (b
 	}
 
 	tr := &clientWrapper{r.Client}
-	url := sociremote.CraftBlobURL(reference, ref)
+	url := sociremote.CraftBlobURL(r.PlainHTTP, ref)
 	resp, err := sociremote.GetHeaderWithGet(ctx, url, tr)
 	if err != nil {
 		return false, fmt.Errorf("error getting header info: %v", err)
@@ -228,6 +230,38 @@ func (c *clientWrapper) RoundTrip(req *http.Request) (*http.Response, error) {
 	return c.Client.Do(req)
 }
 
+func withLocatorHost(refspec reference.Spec, host docker.RegistryHost) (reference.Spec, error) {
+	if host.Host == "" || strings.Contains(host.Host, "/") {
+		return reference.Spec{}, fmt.Errorf("invalid registry host %q", host.Host)
+	}
+
+	repoPath := strings.TrimPrefix(refspec.Locator, refspec.Hostname())
+	repoPath = strings.TrimPrefix(repoPath, "/")
+	if repoPath == "" {
+		return reference.Spec{}, fmt.Errorf("invalid image locator %q", refspec.Locator)
+	}
+
+	repoPrefix, err := repositoryPrefixFromHostPath(host.Path)
+	if err != nil {
+		return reference.Spec{}, err
+	}
+
+	refspec.Locator = path.Join(host.Host, repoPrefix, repoPath)
+	return refspec, nil
+}
+
+func repositoryPrefixFromHostPath(hostPath string) (string, error) {
+	clean := path.Clean(hostPath)
+	switch {
+	case clean == ".", clean == "/", clean == "/v2":
+		return "", nil
+	case strings.HasPrefix(clean, "/v2/"):
+		return strings.TrimPrefix(clean, "/v2/"), nil
+	default:
+		return "", fmt.Errorf("unsupported registry host path %q; expected /v2 or /v2/<prefix>", hostPath)
+	}
+}
+
 func newRemoteStore(refspec reference.Spec, client *http.Client) (*remote.Repository, error) {
 	repo, err := remote.NewRepository(refspec.Locator)
 	if err != nil {
@@ -237,6 +271,26 @@ func newRemoteStore(refspec reference.Spec, client *http.Client) (*remote.Reposi
 	repo.PlainHTTP, err = docker.MatchLocalhost(refspec.Hostname())
 	if err != nil {
 		return nil, fmt.Errorf("cannot create repository %s: %w", refspec.Locator, err)
+	}
+
+	return repo, nil
+}
+
+func newRemoteStoreFromHost(refspec reference.Spec, host docker.RegistryHost) (*remote.Repository, error) {
+	repo, err := newRemoteStore(refspec, host.Client)
+	if err != nil {
+		return nil, err
+	}
+
+	switch strings.ToLower(host.Scheme) {
+	case "http":
+		repo.PlainHTTP = true
+	case "", "https":
+		// Keep the default behavior from newRemoteStore:
+		// - localhost uses plain HTTP
+		// - all other hosts use HTTPS
+	default:
+		return nil, fmt.Errorf("unsupported registry scheme %q for host %q", host.Scheme, host.Host)
 	}
 
 	return repo, nil
@@ -266,7 +320,6 @@ func constructRef(refspec reference.Spec, desc ocispec.Descriptor) string {
 // It first checks the local store for the artifact.
 // If not found, if constructs the ref and fetches it from remote.
 func (f *artifactFetcher) Fetch(ctx context.Context, desc ocispec.Descriptor) (io.ReadCloser, bool, error) {
-
 	// Check local store first
 	rc, err := f.localStore.Fetch(ctx, desc)
 	if err == nil {

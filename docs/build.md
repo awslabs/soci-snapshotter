@@ -29,6 +29,7 @@ to install them on your machine:
 
 - **[go](https://go.dev/doc/install) >= 1.25** - required to build the project;
 to confirm please check with `go version`.
+- **[gotestsum](https://github.com/gotestyourself/gotestsum)** - used by `make integration` when available for richer test output; otherwise the Makefile falls back to `go test ./integration`.
 - **[containerd](https://github.com/containerd/containerd/blob/main/docs/getting-started.md) >= 1.4** -
 required to run the SOCI snapshotter; to confirm please check with `sudo containerd --version`.
 - **fuse** - used for mounting without root access (`sudo yum install fuse`).
