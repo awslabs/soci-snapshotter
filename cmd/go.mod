@@ -19,7 +19,7 @@ require (
 	go.etcd.io/bbolt v1.4.3
 	golang.org/x/sys v0.42.0
 	google.golang.org/grpc v1.80.0
-	k8s.io/cri-api v0.28.2
+	k8s.io/cri-api v0.35.4
 	oras.land/oras-go/v2 v2.6.0
 )
 
@@ -87,9 +87,9 @@ require (
 	go.opencensus.io v0.24.0 // indirect
 	go.opentelemetry.io/auto/sdk v1.2.1 // indirect
 	go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.45.0 // indirect
-	go.opentelemetry.io/otel v1.39.0 // indirect
-	go.opentelemetry.io/otel/metric v1.39.0 // indirect
-	go.opentelemetry.io/otel/trace v1.39.0 // indirect
+	go.opentelemetry.io/otel v1.41.0 // indirect
+	go.opentelemetry.io/otel/metric v1.41.0 // indirect
+	go.opentelemetry.io/otel/trace v1.41.0 // indirect
 	go.yaml.in/yaml/v2 v2.4.2 // indirect
 	golang.org/x/net v0.51.0 // indirect
 	golang.org/x/oauth2 v0.34.0 // indirect
