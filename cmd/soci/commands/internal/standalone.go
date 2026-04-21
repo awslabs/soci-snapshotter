@@ -70,20 +70,9 @@ func LoadImage(ctx context.Context, inputPath string, tmpDir string) (*Standalon
 	if err != nil {
 		return nil, fmt.Errorf("failed to read index.json from %s: %w", inputPath, err)
 	}
-	rootDesc, err := parseRootDescriptor(indexData)
+	rootDesc, err := resolveLayoutRoot(tmpDir, indexData)
 	if err != nil {
 		return nil, err
-	}
-
-	// If the root descriptor is a manifest list (e.g. from nerdctl save),
-	// resolve it to available platform manifests. This handles partial exports
-	// where the manifest list references all platforms but only a subset of
-	// platform blobs were exported.
-	if images.IsIndexType(rootDesc.MediaType) {
-		rootDesc, err = resolveManifestList(tmpDir, rootDesc)
-		if err != nil {
-			return nil, err
-		}
 	}
 
 	orasStore, err := oci.New(tmpDir)
@@ -139,73 +128,81 @@ func SaveImageToDir(srcDir string, desc ocispec.Descriptor, outputPath string) e
 	return os.WriteFile(filepath.Join(outputPath, "index.json"), indexData, 0644)
 }
 
-// parseRootDescriptor unmarshals OCI index JSON and returns the manifest descriptor.
-func parseRootDescriptor(indexData []byte) (ocispec.Descriptor, error) {
-	var index ocispec.Index
-	if err := json.Unmarshal(indexData, &index); err != nil {
-		return ocispec.Descriptor{}, fmt.Errorf("failed to unmarshal index.json: %w", err)
+// resolveLayoutRoot returns a root descriptor for the OCI image layout. The result
+// is either a single image manifest descriptor or a manifest list descriptor.
+//
+// It accepts index.json shapes produced by common tools: a single image manifest,
+// a single descriptor pointing at a nested manifest list (e.g. nerdctl save), or
+// a flat list of per-platform manifests (e.g. go-containerregistry layout.Write).
+// If some children are missing their blobs, they are filtered out and a new
+// manifest list blob is written into layoutDir.
+func resolveLayoutRoot(layoutDir string, indexData []byte) (ocispec.Descriptor, error) {
+	var top ocispec.Index
+	if err := json.Unmarshal(indexData, &top); err != nil {
+		return ocispec.Descriptor{}, fmt.Errorf("unmarshal index.json: %w", err)
 	}
-	if len(index.Manifests) == 0 {
+	if len(top.Manifests) == 0 {
 		return ocispec.Descriptor{}, errors.New("index.json contains no manifests")
 	}
-	return index.Manifests[0], nil
-}
-
-// resolveManifestList reads a manifest list blob and resolves it based on which
-// platform blobs are actually present in the layout. If all platforms are available,
-// it returns the original manifest list. If only one is available, it returns that
-// platform manifest directly. If multiple (but not all) are available, it writes a
-// filtered manifest list containing only the available platforms. This handles tools
-// like `nerdctl save` that export a manifest list referencing all platforms even when
-// only a subset was pulled.
-func resolveManifestList(layoutDir string, listDesc ocispec.Descriptor) (ocispec.Descriptor, error) {
-	blobPath := filepath.Join(layoutDir, "blobs", listDesc.Digest.Algorithm().String(), listDesc.Digest.Encoded())
-	listData, err := os.ReadFile(blobPath)
-	if err != nil {
-		return ocispec.Descriptor{}, fmt.Errorf("failed to read manifest list blob: %w", err)
+	// Single non-index entry: a plain single-platform image.
+	if len(top.Manifests) == 1 && !images.IsIndexType(top.Manifests[0].MediaType) {
+		return top.Manifests[0], nil
 	}
 
-	var manifestList ocispec.Index
-	if err := json.Unmarshal(listData, &manifestList); err != nil {
-		return ocispec.Descriptor{}, fmt.Errorf("failed to unmarshal manifest list: %w", err)
+	// Locate the manifest list to walk. Either index.json points at a nested list
+	// blob, or index.json is itself the list.
+	var (
+		listBytes = indexData
+		mediaType = top.MediaType
+	)
+	if len(top.Manifests) == 1 {
+		mediaType = top.Manifests[0].MediaType
+		b, err := os.ReadFile(blobPath(layoutDir, top.Manifests[0].Digest))
+		if err != nil {
+			return ocispec.Descriptor{}, fmt.Errorf("read manifest list: %w", err)
+		}
+		listBytes = b
+	}
+	if mediaType == "" {
+		mediaType = ocispec.MediaTypeImageIndex
 	}
 
-	// Find which platform manifests have their blobs present
-	var available []ocispec.Descriptor
-	for _, desc := range manifestList.Manifests {
-		p := filepath.Join(layoutDir, "blobs", desc.Digest.Algorithm().String(), desc.Digest.Encoded())
-		if _, err := os.Stat(p); err == nil {
-			available = append(available, desc)
+	var list ocispec.Index
+	if err := json.Unmarshal(listBytes, &list); err != nil {
+		return ocispec.Descriptor{}, fmt.Errorf("unmarshal manifest list: %w", err)
+	}
+
+	available := make([]ocispec.Descriptor, 0, len(list.Manifests))
+	for _, d := range list.Manifests {
+		if _, err := os.Stat(blobPath(layoutDir, d.Digest)); err == nil {
+			available = append(available, d)
 		}
 	}
-	if len(available) == 0 {
-		return ocispec.Descriptor{}, errors.New("manifest list contains no manifests with available blobs")
-	}
-
-	// If all platforms are available, keep the original manifest list
-	if len(available) == len(manifestList.Manifests) {
-		return listDesc, nil
-	}
-
-	// If only one platform is available, return it directly as a single manifest
-	if len(available) == 1 {
+	switch {
+	case len(available) == 0:
+		return ocispec.Descriptor{}, errors.New("manifest list contains no entries with available blobs")
+	case len(available) == 1 && images.IsManifestType(available[0].MediaType):
 		return available[0], nil
+	case len(top.Manifests) == 1 && len(available) == len(list.Manifests):
+		return top.Manifests[0], nil
 	}
 
-	// Multiple (but not all) platforms available: write a filtered manifest list
-	manifestList.Manifests = available
-	filteredData, err := json.Marshal(manifestList)
+	list.MediaType = mediaType
+	list.Manifests = available
+	data, err := json.Marshal(list)
 	if err != nil {
-		return ocispec.Descriptor{}, fmt.Errorf("failed to marshal filtered manifest list: %w", err)
+		return ocispec.Descriptor{}, fmt.Errorf("marshal manifest list: %w", err)
 	}
-	filteredDigest := digest.FromBytes(filteredData)
-	filteredPath := filepath.Join(layoutDir, "blobs", filteredDigest.Algorithm().String(), filteredDigest.Encoded())
-	if err := os.WriteFile(filteredPath, filteredData, 0644); err != nil {
-		return ocispec.Descriptor{}, fmt.Errorf("failed to write filtered manifest list: %w", err)
+	dgst := digest.FromBytes(data)
+	if err := os.MkdirAll(filepath.Dir(blobPath(layoutDir, dgst)), 0755); err != nil {
+		return ocispec.Descriptor{}, err
 	}
-	return ocispec.Descriptor{
-		MediaType: listDesc.MediaType,
-		Digest:    filteredDigest,
-		Size:      int64(len(filteredData)),
-	}, nil
+	if err := os.WriteFile(blobPath(layoutDir, dgst), data, 0644); err != nil {
+		return ocispec.Descriptor{}, err
+	}
+	return ocispec.Descriptor{MediaType: mediaType, Digest: dgst, Size: int64(len(data))}, nil
+}
+
+func blobPath(layoutDir string, dgst digest.Digest) string {
+	return filepath.Join(layoutDir, "blobs", dgst.Algorithm().String(), dgst.Encoded())
 }

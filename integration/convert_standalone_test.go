@@ -17,13 +17,16 @@
 package integration
 
 import (
+	"encoding/json"
 	"path/filepath"
 	"strings"
 	"testing"
 
+	"github.com/awslabs/soci-snapshotter/soci"
 	"github.com/awslabs/soci-snapshotter/util/dockershell"
 	"github.com/awslabs/soci-snapshotter/util/testutil"
 	"github.com/containerd/platforms"
+	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 )
 
 func TestStandaloneConvertBasic(t *testing.T) {
@@ -255,10 +258,98 @@ func TestStandaloneConvertIdempotent(t *testing.T) {
 	}
 }
 
-func exportToOCIDir(sh *dockershell.Shell, imageRef, outputDir string) {
+func exportToOCIDir(sh *dockershell.Shell, imageRef, outputDir string, saveArgs ...string) {
 	exportTar := outputDir + ".export.tar"
-	sh.X("nerdctl", "save", "-o", exportTar, imageRef)
+	sh.X(append(append([]string{"nerdctl", "save"}, saveArgs...), "-o", exportTar, imageRef)...)
 	sh.X("mkdir", "-p", outputDir)
 	sh.X("tar", "-xf", exportTar, "-C", outputDir)
 	sh.X("rm", "-f", exportTar)
+}
+
+func TestStandaloneConvertAllPlatforms(t *testing.T) {
+	regConfig := newRegistryConfig()
+	sh, done := newShellWithRegistry(t, regConfig)
+	defer done()
+
+	rebootContainerd(t, sh, getContainerdConfigToml(t, false), getSnapshotterConfigToml(t))
+
+	// Pull and save the multi-arch image directly from its public registry.
+	srcRef := dockerhub(nginxImage).ref
+
+	baseDir, err := testutil.TempDir(sh)
+	if err != nil {
+		t.Fatalf("failed to create temp dir: %v", err)
+	}
+	defer sh.X("rm", "-rf", baseDir)
+
+	inputDir := filepath.Join(baseDir, "input")
+	outputTar := filepath.Join(baseDir, "output.tar")
+
+	sh.X("nerdctl", "pull", "-q", "--all-platforms", srcRef)
+	exportToOCIDir(sh, srcRef, inputDir, "--all-platforms")
+
+	srcDigest := getImageDigest(sh, srcRef)
+	var srcPlatforms []string
+	for _, m := range readIndex(t, sh, srcDigest).Manifests {
+		if m.Platform != nil {
+			srcPlatforms = append(srcPlatforms, platforms.Format(*m.Platform))
+		}
+	}
+	if len(srcPlatforms) < 2 {
+		t.Skipf("expected multi-arch input, got %d platforms", len(srcPlatforms))
+	}
+
+	stopContainerd(t, sh)
+
+	sh.X("soci", "convert",
+		"--standalone",
+		"--all-platforms",
+		"--min-layer-size=0",
+		inputDir,
+		outputTar,
+	)
+
+	rebootContainerd(t, sh, getContainerdConfigToml(t, false), getSnapshotterConfigToml(t))
+
+	dstRef := srcRef + "-standalone-allplatforms"
+	sh.X("ctr", "images", "import", "--no-unpack", "--index-name", dstRef, outputTar)
+
+	dstDigest := getImageDigest(sh, dstRef)
+	validateConversion(t, sh, srcDigest, dstDigest)
+
+	imgs, sociIdx := map[string]bool{}, map[string]bool{}
+	for _, m := range readIndex(t, sh, dstDigest).Manifests {
+		if m.Platform == nil {
+			continue
+		}
+		key := platforms.Format(*m.Platform)
+		switch m.ArtifactType {
+		case soci.SociIndexArtifactTypeV2:
+			sociIdx[key] = true
+		case "":
+			imgs[key] = true
+		}
+	}
+	for _, p := range srcPlatforms {
+		if !imgs[p] {
+			t.Errorf("converted output missing image manifest for %s", p)
+		}
+		if !sociIdx[p] {
+			t.Errorf("converted output missing SOCI index for %s", p)
+		}
+	}
+}
+
+// readIndex fetches an OCI image index from the content store, unwrapping a
+// single-manifest wrapper (as produced by `ctr images import --index-name`).
+func readIndex(t *testing.T, sh *dockershell.Shell, indexDigest string) ocispec.Index {
+	t.Helper()
+	var idx ocispec.Index
+	if err := json.Unmarshal(sh.O("ctr", "content", "get", indexDigest), &idx); err != nil {
+		t.Fatalf("parse index %s: %v", indexDigest, err)
+	}
+	if len(idx.Manifests) == 1 && idx.Manifests[0].MediaType == ocispec.MediaTypeImageIndex {
+		return readIndex(t, sh, idx.Manifests[0].Digest.String())
+	}
+	return idx
 }
