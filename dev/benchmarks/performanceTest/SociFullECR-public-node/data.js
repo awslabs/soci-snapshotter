@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1776200633046,
+  "lastUpdate": 1777679218448,
   "repoUrl": "https://github.com/awslabs/soci-snapshotter",
   "entries": {
     "Soci Benchmark": [
@@ -17252,6 +17252,48 @@ window.BENCHMARK_DATA = {
           {
             "name": "SociFullECR-public-node-pullTaskDuration",
             "value": 1.8354000000000001,
+            "unit": "Seconds",
+            "extra": "P90"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "prafulgupta6@gmail.com",
+            "name": "Praful Gupta",
+            "username": "prafgup"
+          },
+          "committer": {
+            "email": "55555210+sondavidb@users.noreply.github.com",
+            "name": "David Son",
+            "username": "sondavidb"
+          },
+          "distinct": true,
+          "id": "ccf4c148ae4b46a387ba8093e019102b12a62bf9",
+          "message": "Upgrade to go 1.25.9\n\nSigned-off-by: Praful Gupta <prafulgupta6@gmail.com>",
+          "timestamp": "2026-05-01T16:34:29-07:00",
+          "tree_id": "d857d78dcdc3f94ee4cedec66b84173e514afb90",
+          "url": "https://github.com/awslabs/soci-snapshotter/commit/ccf4c148ae4b46a387ba8093e019102b12a62bf9"
+        },
+        "date": 1777679215808,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "SociFullECR-public-node-lazyTaskDuration",
+            "value": 10.4206,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-node-localTaskDuration",
+            "value": 0.4958,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-node-pullTaskDuration",
+            "value": 2.9342,
             "unit": "Seconds",
             "extra": "P90"
           }
