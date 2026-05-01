@@ -16,6 +16,7 @@
 ARG CONTAINERD_VERSION=1.7.30
 ARG RUNC_VERSION=1.3.3
 ARG NERDCTL_VERSION=2.1.6
+ARG CRICTL_VERSION=1.36.0
 ARG IGZIP_VERSION=2.31.1
 ARG RAPIDGZIP_VERSION=0.14.3
 
@@ -101,6 +102,7 @@ FROM public.ecr.aws/amazonlinux/amazonlinux:2023 AS containerd-snapshotter-base
 ARG CONTAINERD_VERSION
 ARG RUNC_VERSION
 ARG NERDCTL_VERSION
+ARG CRICTL_VERSION
 ARG TARGETARCH
 ENV GOPROXY=direct
 ENV GOCOVERDIR=/test_coverage
@@ -141,3 +143,6 @@ RUN curl -sSL --output /tmp/runc https://github.com/opencontainers/runc/releases
 RUN curl -sSL --output /tmp/nerdctl.tgz https://github.com/containerd/nerdctl/releases/download/v${NERDCTL_VERSION}/nerdctl-${NERDCTL_VERSION}-linux-${TARGETARCH:-amd64}.tar.gz \
     && tar zxvf /tmp/nerdctl.tgz -C /usr/local/bin/ \
     && rm -f /tmp/nerdctl.tgz
+RUN curl -sSL --output /tmp/crictl.tgz https://github.com/kubernetes-sigs/cri-tools/releases/download/v${CRICTL_VERSION}/crictl-v${CRICTL_VERSION}-linux-${TARGETARCH:-amd64}.tar.gz \
+    && tar zxvf /tmp/crictl.tgz -C /usr/local/bin/ \
+    && rm -f /tmp/crictl.tgz

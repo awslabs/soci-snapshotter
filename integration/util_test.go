@@ -84,6 +84,11 @@ const (
 var (
 	runSociCmd   = []string{"nerdctl", "run", "--pull", "never", "--net", "none", "--snapshotter", "soci"}
 	imagePullCmd = []string{"nerdctl", "pull", "-q", "--snapshotter", "soci"}
+	crictlCmd    = []string{
+		"crictl",
+		"--runtime-endpoint", "unix:///run/containerd/containerd.sock",
+		"--image-endpoint", "unix:///run/soci-snapshotter-grpc/soci-snapshotter-grpc.sock",
+	}
 )
 
 // These are images that we use in our integration tests
@@ -125,6 +130,44 @@ disabled_plugins = [
 	"io.containerd.internal.v1.tracing",
 	"io.containerd.grpc.v1.cri",
 ]
+
+[plugins."io.containerd.snapshotter.v1.soci"]
+root_path = "/var/lib/soci-snapshotter-grpc/"
+disable_verification = {{.DisableVerification}}
+
+[plugins."io.containerd.snapshotter.v1.soci".blob]
+check_always = true
+
+[debug]
+format = "json"
+level = "{{.LogLevel}}"
+
+{{.AdditionalConfig}}
+`
+
+// criContainerdConfigTemplate is the CRI counterpart to `containerdConfigTemplate`: it
+// leaves the containerd CRI plugin enabled and points it at the SOCI snapshotter.
+const criContainerdConfigTemplate = `
+version = 2
+
+disabled_plugins = [
+	"io.containerd.snapshotter.v1.aufs",
+	"io.containerd.snapshotter.v1.btrfs",
+	"io.containerd.snapshotter.v1.devmapper",
+	"io.containerd.snapshotter.v1.zfs",
+	"io.containerd.tracing.processor.v1.otlp",
+	"io.containerd.internal.v1.tracing",
+]
+
+# containerd 1.7.x
+[plugins."io.containerd.grpc.v1.cri".containerd]
+snapshotter = "soci"
+disable_snapshot_annotations = false
+
+# containerd 2.x
+[plugins."io.containerd.cri.v1.images"]
+snapshotter = "soci"
+disable_snapshot_annotations = false
 
 [plugins."io.containerd.snapshotter.v1.soci"]
 root_path = "/var/lib/soci-snapshotter-grpc/"
@@ -314,6 +357,27 @@ func getContainerdConfigToml(t *testing.T, disableVerification bool, additionalC
 	return s
 }
 
+// getCRIContainerdConfigToml is the CRI counterpart to `getContainerdConfigToml`,
+// rendering `criContainerdConfigTemplate` instead.
+func getCRIContainerdConfigToml(t *testing.T, disableVerification bool, additionalConfigs ...string) string {
+	if !isTestingBuiltinSnapshotter() {
+		additionalConfigs = append(additionalConfigs, proxySnapshotterConfig)
+	}
+	s, err := testutil.ApplyTextTemplate(criContainerdConfigTemplate, struct {
+		LogLevel            string
+		DisableVerification bool
+		AdditionalConfig    string
+	}{
+		LogLevel:            containerdLogLevel,
+		DisableVerification: disableVerification,
+		AdditionalConfig:    strings.Join(additionalConfigs, "\n"),
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	return s
+}
+
 type snapshotterConfigOpt func(*config.Config)
 
 func withTCPMetrics(cfg *config.Config) {
@@ -333,6 +397,10 @@ func withMaxConcurrency(m int64) snapshotterConfigOpt {
 
 func withDisableBgFetcher(cfg *config.Config) {
 	cfg.ServiceConfig.FSConfig.BackgroundFetchConfig.Disable = true
+}
+
+func withCRIKeychain(cfg *config.Config) {
+	cfg.ServiceConfig.CRIKeychainConfig.EnableKeychain = true
 }
 
 func withMinLayerSizeConfig(minLayerSize int64) snapshotterConfigOpt {
