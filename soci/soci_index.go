@@ -590,7 +590,10 @@ func (b *IndexBuilder) build(ctx context.Context, img images.Image, buildCfg bui
 
 	var prefetchDescs []*ocispec.Descriptor
 	if len(b.config.prefetchPaths) > 0 && len(builtZtocs) > 0 {
-		prefetchDescs = b.buildPrefetchLayer(ctx, builtZtocs, manifest.Layers)
+		prefetchDescs, err = b.buildPrefetchLayer(ctx, builtZtocs, manifest.Layers)
+		if err != nil {
+			return nil, fmt.Errorf("failed to build prefetch layers: %w", err)
+		}
 	}
 
 	ztocsDesc := make([]ocispec.Descriptor, 0, len(sociLayersDesc)+len(prefetchDescs))
@@ -752,9 +755,9 @@ func (b *IndexBuilder) buildSociLayer(ctx context.Context, desc ocispec.Descript
 }
 
 // buildPrefetchLayer builds and stores prefetch artifacts for layers that contain prefetch files
-func (b *IndexBuilder) buildPrefetchLayer(ctx context.Context, builtZtocs []*ztocWithLayer, layers []ocispec.Descriptor) []*ocispec.Descriptor {
+func (b *IndexBuilder) buildPrefetchLayer(ctx context.Context, builtZtocs []*ztocWithLayer, layers []ocispec.Descriptor) ([]*ocispec.Descriptor, error) {
 	if len(b.config.prefetchPaths) == 0 {
-		return nil
+		return nil, nil
 	}
 
 	layerZtocMap := make(map[string]*ztocWithLayer, len(builtZtocs))
@@ -765,6 +768,9 @@ func (b *IndexBuilder) buildPrefetchLayer(ctx context.Context, builtZtocs []*zto
 	layerPrefetchSpansMap := make(map[string][]PrefetchSpan)
 	for _, prefetchPath := range b.config.prefetchPaths {
 		found := false
+		// Strip leading slash if absolute path is given in prefetchPaths
+		// Copied from cleanEntryPath in metadata/reader.go
+		prefetchPath = strings.TrimPrefix(filepath.Clean(string(os.PathSeparator)+prefetchPath), string(os.PathSeparator))
 	PrefetchPathLoop:
 		for i := len(layers) - 1; i >= 0; i-- {
 			layer := layers[i]
@@ -775,9 +781,12 @@ func (b *IndexBuilder) buildPrefetchLayer(ctx context.Context, builtZtocs []*zto
 			}
 
 			for _, metadata := range zwl.ztoc.TOC.FileMetadata {
-				if filepath.Clean(metadata.Name) == prefetchPath {
+				// metadata name should already be cleaned when stored so we don't need to re-clean it
+				if metadata.Name == prefetchPath {
 					gz, err := zwl.ztoc.Zinfo()
 					if err != nil {
+						// The layer has issues but the prefetech path is potentially still findable.
+						// Proceed to search the next layer for the file.
 						log.G(ctx).WithError(err).Warnf("failed to get zinfo for layer %s", layerDigest)
 						break PrefetchPathLoop
 					}
@@ -806,7 +815,7 @@ func (b *IndexBuilder) buildPrefetchLayer(ctx context.Context, builtZtocs []*zto
 	}
 
 	if len(layerPrefetchSpansMap) == 0 {
-		return nil
+		return nil, nil
 	}
 
 	prefetchDescs := make([]*ocispec.Descriptor, 0, len(layerPrefetchSpansMap))
@@ -819,13 +828,13 @@ func (b *IndexBuilder) buildPrefetchLayer(ctx context.Context, builtZtocs []*zto
 
 		prefetchDesc, err := b.storePrefetchLayer(ctx, layerDigest, prefetchSpans)
 		if err != nil {
-			log.G(ctx).WithError(err).Warnf("failed to store prefetch artifact for layer %s", layerDigest)
+			return nil, fmt.Errorf("failed to store prefetch artifact for layer %s: %w", layerDigest, err)
 		} else if prefetchDesc != nil {
 			prefetchDescs = append(prefetchDescs, prefetchDesc)
 		}
 	}
 
-	return prefetchDescs
+	return prefetchDescs, nil
 }
 
 func (b *IndexBuilder) addSociLayerAnnotations(layerDesc *ocispec.Descriptor, ztocDesc *ocispec.Descriptor, toc *ztoc.Ztoc) {
