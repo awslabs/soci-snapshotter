@@ -332,56 +332,73 @@ func TestSociCreate(t *testing.T) {
 
 func TestSociCreateWithPrefetchArtifacts(t *testing.T) {
 	const (
-		// Tar headers record file paths without a leading slash, so the prefetch flag uses the tar path.
-		prefetchTarPath     = "etc/alpine-release"
-		runtimePrefetchPath = "/etc/alpine-release"
+		relativePath = "etc/alpine-release"
+		absolutePath = "/etc/alpine-release"
 	)
+	// Test both absolute and relative paths
+	paths := []string{relativePath, absolutePath}
 
-	regConfig := newRegistryConfig()
-	sh, done := newShellWithRegistry(t, regConfig)
-	defer done()
-
-	rebootContainerd(t, sh, "", "")
-
-	mirrorImg := regConfig.mirror(alpineImage)
-	copyImage(sh, dockerhub(alpineImage), mirrorImg)
-
-	indexDigest := buildIndex(sh, mirrorImg, withMinLayerSize(0), withPrefetchPaths(prefetchTarPath))
-	if indexDigest == "" {
-		t.Fatal("failed to build SOCI index with prefetch artifacts")
-	}
-
-	if err := assertPrefetchArtifactCreated(sh, indexDigest, mirrorImg, prefetchTarPath); err != nil {
-		t.Fatal(err)
-	}
-
-	sh.X("soci", "push", "--user", regConfig.creds(), mirrorImg.ref)
-
-	prefetchLogCh := make(chan struct{}, 1)
-	m := rebootContainerd(
-		t, sh, getContainerdConfigToml(t, false), getSnapshotterConfigToml(t, withPrefetch()),
-		func(line string) {
-			if strings.Contains(line, "Successfully loaded prefetch artifact") {
-				select {
-				case prefetchLogCh <- struct{}{}:
-				default:
-				}
+	for _, prefetchTarPath := range paths {
+		createName := "relative path"
+		if prefetchTarPath == absolutePath {
+			createName = "absolute path"
+		}
+		for _, runtimePrefetchPath := range paths {
+			runtimeName := "relative path"
+			if runtimePrefetchPath == absolutePath {
+				runtimeName = "absolute path"
 			}
-		},
-	)
-	defer m.Cleanup(t)
 
-	sh.X(append(imagePullCmd, "--soci-index-digest", indexDigest, mirrorImg.ref)...)
+			t.Run(fmt.Sprintf("created with %s, run with %s", createName, runtimeName), func(t *testing.T) {
+				regConfig := newRegistryConfig()
+				sh, done := newShellWithRegistry(t, regConfig)
+				defer done()
 
-	releaseContents := sh.O(append(runSociCmd, "--rm", mirrorImg.ref, "cat", runtimePrefetchPath)...)
-	if strings.TrimSpace(string(releaseContents)) == "" {
-		t.Fatalf("unexpected empty output when reading %s", runtimePrefetchPath)
-	}
+				rebootContainerd(t, sh, "", "")
 
-	select {
-	case <-prefetchLogCh:
-	case <-time.After(30 * time.Second):
-		t.Fatalf("did not observe snapshotter loading prefetch artifact")
+				mirrorImg := regConfig.mirror(alpineImage)
+				copyImage(sh, dockerhub(alpineImage), mirrorImg)
+
+				indexDigest := buildIndex(sh, mirrorImg, withMinLayerSize(0), withPrefetchPaths(prefetchTarPath))
+				if indexDigest == "" {
+					t.Fatal("failed to build SOCI index with prefetch artifacts")
+				}
+
+				if err := assertPrefetchArtifactCreated(sh, indexDigest, mirrorImg, prefetchTarPath); err != nil {
+					t.Fatal(err)
+				}
+
+				sh.X("soci", "push", "--user", regConfig.creds(), mirrorImg.ref)
+
+				prefetchLogCh := make(chan struct{}, 1)
+				m := rebootContainerd(
+					t, sh, getContainerdConfigToml(t, false), getSnapshotterConfigToml(t, withPrefetch()),
+					func(line string) {
+						if strings.Contains(line, "Successfully loaded prefetch artifact") {
+							select {
+							case prefetchLogCh <- struct{}{}:
+							default:
+							}
+						}
+					},
+				)
+				defer m.Cleanup(t)
+
+				sh.X(append(imagePullCmd, "--soci-index-digest", indexDigest, mirrorImg.ref)...)
+
+				releaseContents := sh.O(append(runSociCmd, "--rm", mirrorImg.ref, "cat", runtimePrefetchPath)...)
+				if strings.TrimSpace(string(releaseContents)) == "" {
+					t.Fatalf("unexpected empty output when reading %s", runtimePrefetchPath)
+				}
+
+				select {
+				case <-prefetchLogCh:
+				case <-time.After(30 * time.Second):
+					t.Fatalf("did not observe snapshotter loading prefetch artifact")
+				}
+			})
+
+		}
 	}
 }
 

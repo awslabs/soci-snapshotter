@@ -512,6 +512,11 @@ func TestBuildPrefetchLayer(t *testing.T) {
 			expectedPrefetchDesc: 0, // Will depend on whether files are found in ztoc
 		},
 		{
+			name:                 "successfully build prefetch layer with valid absolute paths",
+			prefetchPaths:        []string{"/test/file1.txt", "/test/file2.txt"},
+			expectedPrefetchDesc: 0, // Will depend on whether files are found in ztoc
+		},
+		{
 			name:                 "no prefetch layer when prefetchPaths is empty",
 			prefetchPaths:        []string{},
 			expectedPrefetchDesc: 0,
@@ -546,7 +551,10 @@ func TestBuildPrefetchLayer(t *testing.T) {
 			builtZtocs := []*ztocWithLayer{}
 			layers := []ocispec.Descriptor{}
 
-			prefetchDescs := builder.buildPrefetchLayer(ctx, builtZtocs, layers)
+			prefetchDescs, err := builder.buildPrefetchLayer(ctx, builtZtocs, layers)
+			if err != nil {
+				t.Fatal(err)
+			}
 
 			if len(prefetchDescs) != tc.expectedPrefetchDesc {
 				t.Fatalf("expected %d prefetch descriptors, got %d", tc.expectedPrefetchDesc, len(prefetchDescs))
