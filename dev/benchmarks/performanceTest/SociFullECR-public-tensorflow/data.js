@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1777679216671,
+  "lastUpdate": 1778129920569,
   "repoUrl": "https://github.com/awslabs/soci-snapshotter",
   "entries": {
     "Soci Benchmark": [
@@ -17500,6 +17500,48 @@ window.BENCHMARK_DATA = {
           {
             "name": "SociFullECR-public-tensorflow-pullTaskDuration",
             "value": 3.2666,
+            "unit": "Seconds",
+            "extra": "P90"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "prafulgupta6@gmail.com",
+            "name": "Praful Gupta",
+            "username": "prafgup"
+          },
+          "committer": {
+            "email": "swpnlg@amazon.com",
+            "name": "Swapnanil Gupta",
+            "username": "Swapnanil-Gupta"
+          },
+          "distinct": true,
+          "id": "c0390692bc20e936c4317df77040bc7e44e90288",
+          "message": "Upgrade cri-api for runtimeHandler parameter support\n\nSigned-off-by: Praful Gupta <prafulgupta6@gmail.com>",
+          "timestamp": "2026-05-06T21:48:17-07:00",
+          "tree_id": "57f61f61a8a3616df93191eef868fa3ae041459b",
+          "url": "https://github.com/awslabs/soci-snapshotter/commit/c0390692bc20e936c4317df77040bc7e44e90288"
+        },
+        "date": 1778129917316,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "SociFullECR-public-tensorflow-lazyTaskDuration",
+            "value": 17.86,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-tensorflow-localTaskDuration",
+            "value": 3.0032,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-tensorflow-pullTaskDuration",
+            "value": 2.0248,
             "unit": "Seconds",
             "extra": "P90"
           }
