@@ -268,7 +268,7 @@ func TestAsyncTeeReader(t *testing.T) {
 			}
 			w.Wait()
 			if w.Written() != len(tc.expected) {
-				t.Errorf("tee writer did not receive correct data: %q", w.Written())
+				t.Errorf("tee writer did not receive correct data: %d", w.Written())
 			}
 			if w.String() != tc.expected {
 				t.Errorf("tee writer output mismatch: got %q, want %q", w.String(), tc.expected)

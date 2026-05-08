@@ -360,7 +360,7 @@ func writeMetadataEntry(md *bolt.Bucket, m *metadataEntry) error {
 					}
 				}
 				if err := cbkt.Put([]byte(m.children[key].base), encodeID(m.children[key].id)); err != nil {
-					return fmt.Errorf("failed to add child ID %q: %w", m.children[key].id, err)
+					return fmt.Errorf("failed to add child ID %d: %w", m.children[key].id, err)
 				}
 			}
 		}

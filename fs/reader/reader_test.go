@@ -182,7 +182,7 @@ func makeFile(t *testing.T, contents []byte, prefix string, factory metadata.Sto
 	f, ok := ra.(*file)
 	if !ok {
 		r.Close()
-		t.Fatalf("invalid type of file %q", tid)
+		t.Fatalf("invalid type of file %d", tid)
 	}
 	return f, r.Close
 }
