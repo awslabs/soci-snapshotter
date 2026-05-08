@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1778171341087,
+  "lastUpdate": 1778278818263,
   "repoUrl": "https://github.com/awslabs/soci-snapshotter",
   "entries": {
     "Soci Benchmark": [
@@ -17543,6 +17543,48 @@ window.BENCHMARK_DATA = {
           {
             "name": "SociFullECR-public-ffmpeg-pullTaskDuration",
             "value": 5.1166,
+            "unit": "Seconds",
+            "extra": "P90"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49699333+dependabot[bot]@users.noreply.github.com",
+            "name": "dependabot[bot]",
+            "username": "dependabot[bot]"
+          },
+          "committer": {
+            "email": "55555210+sondavidb@users.noreply.github.com",
+            "name": "David Son",
+            "username": "sondavidb"
+          },
+          "distinct": true,
+          "id": "9442946e34135f88257209f308328bb33ab10da7",
+          "message": "Bump docker/library/registry from 3.1.0 to 3.1.1\n\nBumps docker/library/registry from 3.1.0 to 3.1.1.\n\n---\nupdated-dependencies:\n- dependency-name: docker/library/registry\n  dependency-version: 3.1.1\n  dependency-type: direct:production\n  update-type: version-update:semver-patch\n...\n\nSigned-off-by: dependabot[bot] <support@github.com>",
+          "timestamp": "2026-05-08T15:07:51-07:00",
+          "tree_id": "60fd8f219e4558bc3dd5401006db636d46a10b0e",
+          "url": "https://github.com/awslabs/soci-snapshotter/commit/9442946e34135f88257209f308328bb33ab10da7"
+        },
+        "date": 1778278814954,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "SociFullECR-public-ffmpeg-lazyTaskDuration",
+            "value": 0.1594,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-ffmpeg-localTaskDuration",
+            "value": 0.008,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-ffmpeg-pullTaskDuration",
+            "value": 1.7224,
             "unit": "Seconds",
             "extra": "P90"
           }
