@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1778278730736,
+  "lastUpdate": 1778278822560,
   "repoUrl": "https://github.com/awslabs/soci-snapshotter",
   "entries": {
     "Soci Benchmark": [
@@ -17462,6 +17462,48 @@ window.BENCHMARK_DATA = {
           {
             "name": "SociFullECR-public-tensorflow_gpu-pullTaskDuration",
             "value": 2.6268,
+            "unit": "Seconds",
+            "extra": "P90"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "davbson@amazon.com",
+            "name": "David Son",
+            "username": "sondavidb"
+          },
+          "committer": {
+            "email": "55555210+sondavidb@users.noreply.github.com",
+            "name": "David Son",
+            "username": "sondavidb"
+          },
+          "distinct": true,
+          "id": "196090c8257ec569bb8323a294b6fc3f11f64dd6",
+          "message": "Add errorlint to golangci-lint\n\nSigned-off-by: David Son <davbson@amazon.com>",
+          "timestamp": "2026-05-08T15:07:02-07:00",
+          "tree_id": "2ec0cfd9afb3d2bf82a65140b3b2f93d691f6c3d",
+          "url": "https://github.com/awslabs/soci-snapshotter/commit/196090c8257ec569bb8323a294b6fc3f11f64dd6"
+        },
+        "date": 1778278816659,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "SociFullECR-public-tensorflow_gpu-lazyTaskDuration",
+            "value": 38.2884,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-tensorflow_gpu-localTaskDuration",
+            "value": 2.925,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-tensorflow_gpu-pullTaskDuration",
+            "value": 2.3828,
             "unit": "Seconds",
             "extra": "P90"
           }
