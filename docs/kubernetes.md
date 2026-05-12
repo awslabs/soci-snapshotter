@@ -53,6 +53,8 @@ Breaking it down line-by-line:
 #### containerd 2.x configuration
 
 ```toml
+version = 2
+
 [proxy_plugins.soci]
 type = "snapshot"
 address = "/run/soci-snapshotter-grpc/soci-snapshotter-grpc.sock"
@@ -68,6 +70,37 @@ address = "/run/soci-snapshotter-grpc/soci-snapshotter-grpc.sock"
 > **NOTE**
 >
 > The change from the containerd 1.x configuration is the header for kubernetes-specific configuration.
+
+#### Transfer service configuration
+
+From containerd 2.1, remote snapshotters can now use the transfer service. With these changes, `disable_snapshot_annotations = false` will explicitly disable the transfer service, and remote snapshotters instead have a new variable, `enable_remote_snapshot_annotations`, which can be true if the snapshotter needs access to labels.
+
+The following config will enable the transfer service for SOCI and CRI:
+
+```toml
+version = 3
+
+[plugins]
+  [plugins.'io.containerd.cri.v1.images']
+    snapshotter = 'soci'
+
+  [plugins.'io.containerd.transfer.v1.local']
+    [[plugins.'io.containerd.transfer.v1.local'.unpack_config]]
+      platform = 'linux'
+      snapshotter = 'soci'
+
+[proxy_plugins]
+  [proxy_plugins.soci]
+    type = 'snapshot'
+    address = '/run/soci-snapshotter-grpc/soci-snapshotter-grpc.sock'
+
+    [proxy_plugins.soci.exports]
+      address = '/run/soci-snapshotter-grpc/soci-snapshotter-grpc.sock'
+      enable_remote_snapshot_annotations = 'true'
+      root = '/var/lib/soci-snapshotter-grpc/'
+```
+
+Note that `disable_snapshot_annorations = false` is missing and we instead use the new variable, `enable_remote_snapshot_annotations = 'true'` to get the needed labels for SOCI.
 
 ### Registry Authentication Configuration
 
