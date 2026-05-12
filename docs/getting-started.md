@@ -162,6 +162,8 @@ Next we need to modify containerd's config file (`/etc/containerd/config.toml`).
 Let's add the following config to the file to enable the SOCI snapshotter as a plugin:
 
 ```toml
+version = 3
+
 [proxy_plugins]
   [proxy_plugins.soci]
     type = "snapshot"
@@ -170,6 +172,32 @@ Let's add the following config to the file to enable the SOCI snapshotter as a p
 
 This config section tells containerd that there is a snapshot plugin named `soci`
 and to communicate with it via a socket file.
+
+If you are interested in using the transfer service with containerd, this config should be a little different.
+
+```toml
+version = 3
+
+[plugins]
+  [plugins.'io.containerd.transfer.v1.local']
+    [[plugins.'io.containerd.transfer.v1.local'.unpack_config]]
+      platform = 'linux'
+      snapshotter = 'soci'
+
+[proxy_plugins]
+  [proxy_plugins.soci]
+    type = 'snapshot'
+    address = '/run/soci-snapshotter-grpc/soci-snapshotter-grpc.sock'
+
+    [proxy_plugins.soci.exports]
+      address = '/run/soci-snapshotter-grpc/soci-snapshotter-grpc.sock'
+      enable_remote_snapshot_annotations = 'true'
+      root = '/var/lib/soci-snapshotter-grpc/'
+```
+
+Two important changes are noted here:
+- In the unpack config, we are specifying SOCI so the transfer service knows to use SOCI to unpack images.
+- `enable_remote_snapshot_annotations = 'true` is passed so that SOCI will have access to the labels needed to set up image pulls.
 
 Now let's restart containerd and confirm containerd knows about the SOCI snapshotter plugin:
 
