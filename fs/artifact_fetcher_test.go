@@ -23,11 +23,16 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/http/httptest"
+	"strconv"
+	"strings"
+	"sync/atomic"
 	"testing"
 
 	"github.com/awslabs/soci-snapshotter/soci"
 	"github.com/awslabs/soci-snapshotter/soci/store"
 	"github.com/containerd/containerd/reference"
+	"github.com/containerd/containerd/remotes/docker"
 	"github.com/google/go-cmp/cmp"
 	"github.com/opencontainers/go-digest"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
@@ -305,6 +310,133 @@ func TestNewRemoteStore(t *testing.T) {
 	}
 }
 
+func TestWithLocatorHost(t *testing.T) {
+	testCases := []struct {
+		name            string
+		host            docker.RegistryHost
+		expectedLocator string
+		expectedError   string
+	}{
+		{
+			name: "rewrites locator with mirror host",
+			host: docker.RegistryHost{
+				Host: "example-mirror.local",
+				Path: "/v2",
+			},
+			expectedLocator: "example-mirror.local/library/nginx",
+		},
+		{
+			name: "rewrites locator with mirror path prefix",
+			host: docker.RegistryHost{
+				Host: "example-mirror.local",
+				Path: "/v2/team-a",
+			},
+			expectedLocator: "example-mirror.local/team-a/library/nginx",
+		},
+		{
+			name: "invalid mirror path",
+			host: docker.RegistryHost{
+				Host: "example-mirror.local",
+				Path: "/custom/path",
+			},
+			expectedError: "unsupported registry host path",
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			refspec, err := reference.Parse("docker.io/library/nginx:latest")
+			if err != nil {
+				t.Fatalf("unexpected failure parsing reference: %v", err)
+			}
+			rewritten, err := withLocatorHost(refspec, tc.host)
+			if tc.expectedError != "" {
+				if err == nil {
+					t.Fatalf("expected error containing %q, got nil", tc.expectedError)
+				}
+				if got := err.Error(); !strings.Contains(got, tc.expectedError) {
+					t.Fatalf("unexpected error, expected substring %q, got %q", tc.expectedError, got)
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("unexpected failure rewriting reference: %v", err)
+			}
+			if rewritten.Locator != tc.expectedLocator {
+				t.Fatalf("unexpected locator, expected %q, got %q", tc.expectedLocator, rewritten.Locator)
+			}
+		})
+	}
+}
+
+func TestNewRemoteStoreFromHost(t *testing.T) {
+	client := &http.Client{}
+	refspec, err := reference.Parse("docker.io/library/nginx:latest")
+	if err != nil {
+		t.Fatalf("unexpected failure parsing reference: %v", err)
+	}
+
+	testCases := []struct {
+		name              string
+		host              docker.RegistryHost
+		shouldBePlainHTTP bool
+		expectedError     string
+	}{
+		{
+			name: "http mirror uses plain http",
+			host: docker.RegistryHost{
+				Host:   "example-mirror.local",
+				Scheme: "http",
+				Client: client,
+			},
+			shouldBePlainHTTP: true,
+		},
+		{
+			name: "https mirror does not use plain http",
+			host: docker.RegistryHost{
+				Host:   "example-mirror.local",
+				Scheme: "https",
+				Client: client,
+			},
+			shouldBePlainHTTP: false,
+		},
+		{
+			name: "invalid scheme fails",
+			host: docker.RegistryHost{
+				Host:   "example-mirror.local",
+				Scheme: "ftp",
+				Client: client,
+			},
+			expectedError: "unsupported registry scheme",
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			rewritten, err := withLocatorHost(refspec, docker.RegistryHost{Host: tc.host.Host, Path: "/v2"})
+			if err != nil {
+				t.Fatalf("unexpected failure rewriting reference: %v", err)
+			}
+			store, err := newRemoteStoreFromHost(rewritten, tc.host)
+			if tc.expectedError != "" {
+				if err == nil {
+					t.Fatalf("expected error containing %q, got nil", tc.expectedError)
+				}
+				if got := err.Error(); !strings.Contains(got, tc.expectedError) {
+					t.Fatalf("unexpected error, expected substring %q, got %q", tc.expectedError, got)
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("unexpected error, got %v", err)
+			}
+			if store.PlainHTTP != tc.shouldBePlainHTTP {
+				t.Fatalf("unexpected plain http setting, expected %v, got %v", tc.shouldBePlainHTTP, store.PlainHTTP)
+			}
+		})
+	}
+}
+
 func TestFetchSociArtifacts(t *testing.T) {
 	fakeZtoc := []byte("test data")
 	fakeZtocDesc := ocispec.Descriptor{
@@ -378,6 +510,133 @@ func TestFetchSociArtifacts(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestOrasBlobStoreHonorsPlainHTTPMirror(t *testing.T) {
+	blob := []byte("plain http blob")
+	registry, blobDigest, headRequests, getRequests := newPlainHTTPBlobRegistry(t, blob)
+	defer registry.Close()
+
+	store, rewritten := newPlainHTTPBlobStore(t, registry)
+	ref := constructRef(rewritten, ocispec.Descriptor{Digest: blobDigest})
+
+	t.Run("Resolve", func(t *testing.T) {
+		desc, err := store.Resolve(context.Background(), ref)
+		if err != nil {
+			t.Fatalf("unexpected resolve failure: %v", err)
+		}
+		if got, want := desc.Digest, blobDigest; got != want {
+			t.Fatalf("unexpected digest, got %s, want %s", got, want)
+		}
+		if got, want := desc.Size, int64(len(blob)); got != want {
+			t.Fatalf("unexpected size, got %d, want %d", got, want)
+		}
+		if got := atomic.LoadInt32(headRequests); got == 0 {
+			t.Fatal("expected mirror host to receive a HEAD request")
+		}
+	})
+
+	t.Run("FetchRange", func(t *testing.T) {
+		rc, err := store.FetchRange(context.Background(), ref, 1, 5)
+		if err != nil {
+			t.Fatalf("unexpected range fetch failure: %v", err)
+		}
+		defer rc.Close()
+		data, err := io.ReadAll(rc)
+		if err != nil {
+			t.Fatalf("unexpected read failure: %v", err)
+		}
+		if got, want := string(data), string(blob[1:6]); got != want {
+			t.Fatalf("unexpected ranged bytes, got %q, want %q", got, want)
+		}
+		if got := atomic.LoadInt32(getRequests); got == 0 {
+			t.Fatal("expected mirror host to receive a GET request")
+		}
+	})
+
+	t.Run("InitialFetch", func(t *testing.T) {
+		ok, err := store.doInitialFetch(context.Background(), ref)
+		if err != nil {
+			t.Fatalf("unexpected initial fetch failure: %v", err)
+		}
+		if !ok {
+			t.Fatal("expected initial fetch to observe ranged GET support")
+		}
+	})
+}
+
+func newPlainHTTPBlobStore(t *testing.T, registry *httptest.Server) (*orasBlobStore, reference.Spec) {
+	t.Helper()
+
+	host := registryHostFromServer(registry)
+	refspec, err := reference.Parse("docker.io/library/nginx:latest")
+	if err != nil {
+		t.Fatalf("unexpected failure parsing reference: %v", err)
+	}
+	rewritten, err := withLocatorHost(refspec, host)
+	if err != nil {
+		t.Fatalf("unexpected failure rewriting reference: %v", err)
+	}
+	store, err := newRemoteBlobStoreFromHost(rewritten, host)
+	if err != nil {
+		t.Fatalf("unexpected failure creating remote blob store: %v", err)
+	}
+	return store, rewritten
+}
+
+func newPlainHTTPBlobRegistry(t *testing.T, blob []byte) (*httptest.Server, digest.Digest, *int32, *int32) {
+	t.Helper()
+
+	blobDigest := digest.FromBytes(blob)
+	blobPath := "/v2/library/nginx/blobs/" + blobDigest.String()
+	var headRequests int32
+	var getRequests int32
+
+	registry := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != blobPath {
+			http.NotFound(w, r)
+			return
+		}
+		w.Header().Set("Accept-Ranges", "bytes")
+		switch r.Method {
+		case http.MethodHead:
+			atomic.AddInt32(&headRequests, 1)
+			w.Header().Set("Content-Type", "application/octet-stream")
+			w.Header().Set("Content-Length", strconv.Itoa(len(blob)))
+			w.WriteHeader(http.StatusOK)
+		case http.MethodGet:
+			atomic.AddInt32(&getRequests, 1)
+			w.Header().Set("Content-Type", "application/octet-stream")
+			if r.Header.Get("Range") == "" {
+				w.Header().Set("Content-Length", strconv.Itoa(len(blob)))
+				w.WriteHeader(http.StatusOK)
+				_, _ = w.Write(blob)
+				return
+			}
+			chunk := rangedBlobChunk(t, blob, r.Header.Get("Range"))
+			w.Header().Set("Content-Length", strconv.Itoa(len(chunk)))
+			w.Header().Set("Content-Range", fmt.Sprintf("bytes %s/%d", strings.TrimPrefix(r.Header.Get("Range"), "bytes="), len(blob)))
+			w.WriteHeader(http.StatusPartialContent)
+			_, _ = w.Write(chunk)
+		default:
+			w.WriteHeader(http.StatusMethodNotAllowed)
+		}
+	}))
+
+	return registry, blobDigest, &headRequests, &getRequests
+}
+
+func rangedBlobChunk(t *testing.T, blob []byte, rangeHeader string) []byte {
+	t.Helper()
+
+	var lower, upper int
+	if _, err := fmt.Sscanf(rangeHeader, "bytes=%d-%d", &lower, &upper); err != nil {
+		t.Fatalf("unexpected range header %q: %v", rangeHeader, err)
+	}
+	if lower < 0 || upper >= len(blob) || lower > upper {
+		t.Fatalf("unexpected byte range [%d,%d] for blob size %d", lower, upper, len(blob))
+	}
+	return blob[lower : upper+1]
 }
 
 func newFakeArtifactFetcher(ref string, contents []byte) (*artifactFetcher, error) {

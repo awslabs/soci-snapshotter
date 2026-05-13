@@ -686,7 +686,10 @@ func TestMirror(t *testing.T) {
 [[plugins."io.containerd.snapshotter.v1.soci".resolver.host."%s".mirrors]]
 host = "%s"
 insecure = true
-`, regConfig.host, regAltConfig.hostWithPort())
+[[plugins."io.containerd.snapshotter.v1.soci".resolver.host."%s".mirrors]]
+host = "%s"
+insecure = true
+`, regConfig.host, "127.0.0.1:1", regConfig.host, regAltConfig.hostWithPort())
 
 	var withCustomMirrorConfig = func(cfg *config.Config) {
 		cfg.ServiceConfig.FSConfig.BlobConfig.CheckAlways = true
@@ -696,6 +699,10 @@ insecure = true
 		}
 		cfg.ServiceConfig.ResolverConfig.Host[regConfig.host] = config.HostConfig{
 			Mirrors: []config.MirrorConfig{
+				{
+					Host:     "127.0.0.1:1",
+					Insecure: true,
+				},
 				{
 					Host:     regAltConfig.hostWithPort(),
 					Insecure: true,
@@ -736,7 +743,7 @@ insecure = true
 		sh.Pipe(nil, shell.C("nerdctl", "run", "--name", "test", "--pull", "never", "--net", "none", "--rm", regConfig.mirror(imageName).ref, "tar", "-zc", "/usr"), tarExportArgs)
 	}
 
-	// test if mirroring is working (switching to registryAltHost)
+	// test if mirror fallback is working (dead mirror -> registryAltHost)
 	testSameTarContents(t, sh, sample,
 		func(t *testing.T, tarExportArgs ...string) {
 			sh.
