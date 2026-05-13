@@ -48,7 +48,8 @@
 #include <stdlib.h>
 #include <string.h>
 
-#define CHUNK (1 << 14) // file input buffer size
+#define CHUNK (1 << 14)         // file input buffer size
+#define GZIP_TRAILER_SIZE 8    // gzip trailer: 4-byte CRC32 + 4-byte ISIZE
 
 
 // zinfo - internal helpers start.
@@ -253,8 +254,19 @@ int generate_zinfo_from_fp(FILE* in, offset_t span, struct gzip_zinfo** idx) {
                 ret = Z_DATA_ERROR;
             if (ret == Z_MEM_ERROR || ret == Z_DATA_ERROR)
                 goto build_index_error;
-            if (ret == Z_STREAM_END)
+            if (ret == Z_STREAM_END) {
+                /* Handle concatenated gzip streams (e.g., mgzip/pigz).
+                   If there's more data, reset inflate for the next member. */
+                if (strm.avail_in > 0 ||
+                    ungetc(getc(in), in) != EOF) {
+                    ret = inflateReset2(&strm, 47);
+                    if (ret != Z_OK)
+                        goto build_index_error;
+                    if (strm.avail_in > 0)
+                        continue;
+                }
                 break;
+            }
 
             /* if at end of block, consider adding an index entry (note that if
                data_type indicates an end-of-block, then all of the
@@ -308,10 +320,11 @@ int generate_zinfo_from_file(const char *filepath, offset_t span, struct gzip_zi
 
 int extract_data_from_fp(FILE *in, struct gzip_zinfo *index, offset_t offset, void *buffer, int len) {
     int ret, skip;
+    int raw_mode = 1;  // track if we're in initial raw inflate mode 
     z_stream strm;
     struct gzip_checkpoint *here;
     unsigned char input[CHUNK], discard[WINSIZE];
-    uchar* buf = buffer; 
+    uchar* buf = buffer;
 
     /* proceed only if something reasonable to do */
     if (len < 0)
@@ -379,8 +392,43 @@ int extract_data_from_fp(FILE *in, struct gzip_zinfo *index, offset_t offset, vo
                 ret = Z_DATA_ERROR;
             if (ret == Z_MEM_ERROR || ret == Z_DATA_ERROR)
                 goto extract_ret;
-            if (ret == Z_STREAM_END)
+            if (ret == Z_STREAM_END) {
+                /* Handle concatenated gzip member boundary */
+                if (skip || strm.avail_out > 0) {
+                    if (raw_mode) {
+                        /* Skip the 8-byte gzip trailer (CRC32 + ISIZE).
+                           In raw inflate mode (-15), the trailer is NOT
+                           consumed by inflate. After resetting to gzip mode
+                           (47), subsequent trailers are consumed automatically,
+                           so this is only needed once. */
+                        unsigned drop = GZIP_TRAILER_SIZE;
+                        if (strm.avail_in >= drop) {
+                            strm.avail_in -= drop;
+                            strm.next_in += drop;
+                        } else {
+                            drop -= strm.avail_in;
+                            strm.avail_in = 0;
+                            do {
+                                if (getc(in) == EOF) {
+                                    ret = ferror(in) ? Z_ERRNO : Z_BUF_ERROR;
+                                    goto extract_ret;
+                                }
+                            } while (--drop);
+                        }
+                        raw_mode = 0;
+                    }
+                    if (strm.avail_in > 0 ||
+                        ungetc(getc(in), in) != EOF) {
+                        ret = inflateReset2(&strm, 47);
+                        if (ret != Z_OK)
+                            goto extract_ret;
+                        if (strm.avail_out > 0)
+                            continue;
+                        break;
+                    }
+                }
                 break;
+            }
         } while (strm.avail_out != 0);
 
         /* if reach end of stream, then don't keep trying to get more */
@@ -414,6 +462,7 @@ int extract_data_from_buffer(void *d, offset_t datalen,
                              struct gzip_zinfo *index, offset_t offset,
                              void *buffer, offset_t len, int first_checkpoint) {
     int ret, skip;
+    int raw_mode = 1;  // track if we're in initial raw inflate mode 
     z_stream strm;
     unsigned char input[CHUNK], discard[WINSIZE];
     uchar *buf = buffer;
@@ -430,8 +479,8 @@ int extract_data_from_buffer(void *d, offset_t datalen,
         return ret;
 
     if (bits) {
-        int ret = data[0];
-        inflatePrime(&strm, bits, ret >> (8 - bits));
+        int byte_val = data[0];
+        inflatePrime(&strm, bits, byte_val >> (8 - bits));
         data++;
     }
     (void)inflateSetDictionary(&strm, index->list[first_checkpoint].window,
@@ -471,8 +520,39 @@ int extract_data_from_buffer(void *d, offset_t datalen,
                 ret = Z_DATA_ERROR;
             if (ret == Z_MEM_ERROR || ret == Z_DATA_ERROR)
                 goto extract_ret;
-            if (ret == Z_STREAM_END)
+            if (ret == Z_STREAM_END) {
+                /* Handle concatenated gzip member boundary */
+                if (skip || strm.avail_out > 0) {
+                    if (raw_mode) {
+                        /* Skip the 8-byte gzip trailer (CRC32 + ISIZE).
+                           See comment in extract_data_from_fp. */
+                        unsigned drop = GZIP_TRAILER_SIZE;
+                        if (strm.avail_in >= drop) {
+                            strm.avail_in -= drop;
+                            strm.next_in += drop;
+                        } else {
+                            drop -= strm.avail_in;
+                            strm.avail_in = 0;
+                            if (remaining < (int)drop) {
+                                ret = Z_BUF_ERROR;
+                                goto extract_ret;
+                            }
+                            data += drop;
+                            remaining -= drop;
+                        }
+                        raw_mode = 0;
+                    }
+                    if (strm.avail_in > 0 || remaining > 0) {
+                        ret = inflateReset2(&strm, 47);
+                        if (ret != Z_OK)
+                            goto extract_ret;
+                        if (strm.avail_out > 0)
+                            continue;
+                        break;  // let outer loop set up next buffer
+                    }
+                }
                 break;
+            }
         } while (strm.avail_out != 0);
 
         /* if reach end of stream, then don't keep trying to get more */
