@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1778701506893,
+  "lastUpdate": 1778701803376,
   "repoUrl": "https://github.com/awslabs/soci-snapshotter",
   "entries": {
     "Soci Benchmark": [
@@ -17753,6 +17753,48 @@ window.BENCHMARK_DATA = {
           {
             "name": "SociFullECR-public-ffmpeg-pullTaskDuration",
             "value": 1.559,
+            "unit": "Seconds",
+            "extra": "P90"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49699333+dependabot[bot]@users.noreply.github.com",
+            "name": "dependabot[bot]",
+            "username": "dependabot[bot]"
+          },
+          "committer": {
+            "email": "55555210+sondavidb@users.noreply.github.com",
+            "name": "David Son",
+            "username": "sondavidb"
+          },
+          "distinct": true,
+          "id": "ada2da64b93988d2c7266a0cb33f828b04da10cf",
+          "message": "Bump actions/dependency-review-action from 4 to 5\n\nBumps [actions/dependency-review-action](https://github.com/actions/dependency-review-action) from 4 to 5.\n- [Release notes](https://github.com/actions/dependency-review-action/releases)\n- [Commits](https://github.com/actions/dependency-review-action/compare/v4...v5)\n\n---\nupdated-dependencies:\n- dependency-name: actions/dependency-review-action\n  dependency-version: '5'\n  dependency-type: direct:production\n  update-type: version-update:semver-major\n...\n\nSigned-off-by: dependabot[bot] <support@github.com>",
+          "timestamp": "2026-05-13T12:30:47-07:00",
+          "tree_id": "cf6f0a49b609efbe5b2c6b0e06f3a926dba29364",
+          "url": "https://github.com/awslabs/soci-snapshotter/commit/ada2da64b93988d2c7266a0cb33f828b04da10cf"
+        },
+        "date": 1778701800921,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "SociFullECR-public-ffmpeg-lazyTaskDuration",
+            "value": 0.1502,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-ffmpeg-localTaskDuration",
+            "value": 0.0086,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-ffmpeg-pullTaskDuration",
+            "value": 2.6412000000000004,
             "unit": "Seconds",
             "extra": "P90"
           }
