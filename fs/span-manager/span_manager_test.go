@@ -19,6 +19,7 @@ package spanmanager
 import (
 	"bytes"
 	"compress/gzip"
+	"encoding/binary"
 	"errors"
 	"fmt"
 	"io"
@@ -52,6 +53,11 @@ func TestSpanManager(t *testing.T) {
 			name:          "bad MaxSpanID",
 			maxSpans:      5,
 			expectedError: ErrIncorrectMaxSpanID,
+		},
+		{
+			name:          "bad span start/end",
+			maxSpans:      3,
+			expectedError: ErrNonMonotonicCheckpoints,
 		},
 		{
 			name:     "header verification fails",
@@ -109,8 +115,11 @@ func TestSpanManager(t *testing.T) {
 				return
 			}
 
+			// Make TOC mutations as needed
 			if errors.Is(tc.expectedError, ErrIncorrectMaxSpanID) {
 				toc.MaxSpanID++
+			} else if errors.Is(tc.expectedError, ErrNonMonotonicCheckpoints) {
+				corruptCheckpoints(toc)
 			}
 
 			if tc.sectionReader != nil {
@@ -438,6 +447,37 @@ func (r *retryableReaderAt) ReadAt(buf []byte, off int64) (int, error) {
 		}
 	}
 	return n, err
+}
+
+// corruptCheckpoint will corrupt a particular checkpoint to create a non-monotonic offset list
+// (i.e. checkpoint 1 -> offset 0, checkpoint 2 -> offset 100, checkpoint 3 -> offset 10)
+// This is separated out from the main test function just to put a lot of text
+// without making it hard to read for all the other test cases.
+func corruptCheckpoints(toc *ztoc.Ztoc) {
+	// Numbers below are from gzip_zinfo.h, copy-pasting for clarity
+
+	/* Since gzip is compressed with 32 KiB window size, WINDOW_SIZE is fixed
+		#define WINSIZE 32768U
+
+	    -  8 bytes, compressed offset
+	    -  8 bytes, uncompressed offset
+	    -  1 byte, bits
+	    -  32768 bytes, window
+
+		#define PACKED_CHECKPOINT_SIZE (8 + 8 + 1 + WINSIZE)
+
+		-  4 bytes, number of checkpoints
+	    -  8 bytes, span size
+		#define BLOB_HEADER_SIZE (4 + 8)
+	*/
+	const (
+		blobHeaderSize       = 4 + 8
+		packedCheckpointSize = 8 + 8 + 1 + 32768
+	)
+
+	startChkpt2 := blobHeaderSize + 2*packedCheckpointSize
+	// 0x1 is arbitrary, any value reasonably less than the previous checkpoint's offest will do
+	binary.LittleEndian.PutUint64(toc.Checkpoints[startChkpt2:startChkpt2+8], 0x1)
 }
 
 func getFileContentFromSpans(m *SpanManager, toc *ztoc.Ztoc, fileName string) ([]byte, error) {
