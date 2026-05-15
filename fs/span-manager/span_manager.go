@@ -36,10 +36,11 @@ import (
 
 // Specific error types raised by SpanManager.
 var (
-	ErrSpanNotAvailable    = errors.New("span not available in cache")
-	ErrIncorrectSpanDigest = errors.New("span digests do not match")
-	ErrExceedMaxSpan       = errors.New("span id larger than max span id")
-	ErrIncorrectMaxSpanID  = errors.New("given max span ID differs from calculated max span ID")
+	ErrSpanNotAvailable        = errors.New("span not available in cache")
+	ErrIncorrectSpanDigest     = errors.New("span digests do not match")
+	ErrExceedMaxSpan           = errors.New("span id larger than max span id")
+	ErrNonMonotonicCheckpoints = errors.New("span offsets are non-monotonic")
+	ErrIncorrectMaxSpanID      = errors.New("given max span ID differs from calculated max span ID")
 )
 
 // SpanManager fetches and caches spans of a given layer.
@@ -109,7 +110,11 @@ func New(ztoc *ztoc.Ztoc, r *io.SectionReader, cache cache.BlobCache, retries in
 	if m.maxSpanVerificationFailureRetries < 0 {
 		m.maxSpanVerificationFailureRetries = defaultSpanVerificationFailureRetries
 	}
-	m.buildAllSpans()
+	err = m.buildAllSpans()
+	if err != nil {
+		m.Close()
+		return nil, err
+	}
 	runtime.SetFinalizer(m, func(m *SpanManager) {
 		m.Close()
 	})
@@ -117,7 +122,7 @@ func New(ztoc *ztoc.Ztoc, r *io.SectionReader, cache cache.BlobCache, retries in
 	return m, nil
 }
 
-func (m *SpanManager) buildAllSpans() {
+func (m *SpanManager) buildAllSpans() error {
 	var i compression.SpanID
 	for i = 0; i <= m.ztoc.MaxSpanID; i++ {
 		s := span{
@@ -130,7 +135,16 @@ func (m *SpanManager) buildAllSpans() {
 
 		m.spans[i] = &s
 		m.spans[i].state.Store(unrequested)
+
+		// Ensure all offsets are larger than the previous offset
+		if i < m.ztoc.MaxSpanID {
+			if s.startCompOffset >= s.endCompOffset ||
+				s.startUncompOffset >= s.endUncompOffset {
+				return ErrNonMonotonicCheckpoints
+			}
+		}
 	}
+	return nil
 }
 
 // FetchSingleSpan invokes the reader to fetch the span in the background and cache
