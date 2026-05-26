@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1779836677089,
+  "lastUpdate": 1779836758663,
   "repoUrl": "https://github.com/awslabs/soci-snapshotter",
   "entries": {
     "Soci Benchmark": [
@@ -17799,6 +17799,48 @@ window.BENCHMARK_DATA = {
           {
             "name": "SociFullECR-public-rabbitmq-pullTaskDuration",
             "value": 1.3992,
+            "unit": "Seconds",
+            "extra": "P90"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "davbson@amazon.com",
+            "name": "David Son",
+            "username": "sondavidb"
+          },
+          "committer": {
+            "email": "55555210+sondavidb@users.noreply.github.com",
+            "name": "David Son",
+            "username": "sondavidb"
+          },
+          "distinct": true,
+          "id": "e0533d1d57c652b6c69bf37a3d623c30e29f59c8",
+          "message": "Upgrade containerd versions in CI\n\nMore than a version bump so worth adding details.\n\nPer https://containerd.io/releases/, 2.0 is now LTS and 2.1 is EOL. So\nwe should start to test on 2.0 instead of 2.1. Additionally, 2.3 has\ncome out recently so we should start testing against it.\n\nSigned-off-by: David Son <davbson@amazon.com>",
+          "timestamp": "2026-05-26T18:56:02-04:00",
+          "tree_id": "9fd89bf78ef3e39b7c3e0fdcd6d93b2be85cdfb8",
+          "url": "https://github.com/awslabs/soci-snapshotter/commit/e0533d1d57c652b6c69bf37a3d623c30e29f59c8"
+        },
+        "date": 1779836749467,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "SociFullECR-public-rabbitmq-lazyTaskDuration",
+            "value": 15.592,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-rabbitmq-localTaskDuration",
+            "value": 9.7574,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-rabbitmq-pullTaskDuration",
+            "value": 1.0766,
             "unit": "Seconds",
             "extra": "P90"
           }
