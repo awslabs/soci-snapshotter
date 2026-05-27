@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1779906520263,
+  "lastUpdate": 1779906635366,
   "repoUrl": "https://github.com/awslabs/soci-snapshotter",
   "entries": {
     "Soci Benchmark": [
@@ -18088,6 +18088,48 @@ window.BENCHMARK_DATA = {
           {
             "name": "SociFullECR-public-tensorflow-pullTaskDuration",
             "value": 1.5662,
+            "unit": "Seconds",
+            "extra": "P90"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "davbson@amazon.com",
+            "name": "David Son",
+            "username": "sondavidb"
+          },
+          "committer": {
+            "email": "55555210+sondavidb@users.noreply.github.com",
+            "name": "David Son",
+            "username": "sondavidb"
+          },
+          "distinct": true,
+          "id": "d547bc687817fb134fbeee5780f9b1b9c8db0ee3",
+          "message": "Enforce monotonic checkpoint offsets\n\nOur zTOC logic assumes monotonic checkpoint offsets for its logic to\nchange but never enforced it. This change enforces this logic by forcing\nstrictly increasing start and end of checkpoints.\n\nThere's technically no reason a checkpoint can't be zero length so we\ncan maybe make the change to allow that but it's probably more sensical\nto not allow it to begin with.\n\nSigned-off-by: David Son <davbson@amazon.com>",
+          "timestamp": "2026-05-27T14:20:59-04:00",
+          "tree_id": "fbe3dec3790c0d0bb4a90d5e56d293c56ad1e45c",
+          "url": "https://github.com/awslabs/soci-snapshotter/commit/d547bc687817fb134fbeee5780f9b1b9c8db0ee3"
+        },
+        "date": 1779906620457,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "SociFullECR-public-tensorflow-lazyTaskDuration",
+            "value": 11.1614,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-tensorflow-localTaskDuration",
+            "value": 2.8696,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-tensorflow-pullTaskDuration",
+            "value": 2.3648,
             "unit": "Seconds",
             "extra": "P90"
           }
