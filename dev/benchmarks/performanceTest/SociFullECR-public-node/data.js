@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1779906632983,
+  "lastUpdate": 1779906671971,
   "repoUrl": "https://github.com/awslabs/soci-snapshotter",
   "entries": {
     "Soci Benchmark": [
@@ -17924,6 +17924,48 @@ window.BENCHMARK_DATA = {
           {
             "name": "SociFullECR-public-node-pullTaskDuration",
             "value": 2.2546,
+            "unit": "Seconds",
+            "extra": "P90"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "davbson@amazon.com",
+            "name": "David Son",
+            "username": "sondavidb"
+          },
+          "committer": {
+            "email": "55555210+sondavidb@users.noreply.github.com",
+            "name": "David Son",
+            "username": "sondavidb"
+          },
+          "distinct": true,
+          "id": "847bc6e4223bbb06d63038bd57a1dac11baaf35b",
+          "message": "Properly find preload files with absolute path\n\nfilepath.Clean does not remove the leading slash, so we would previously\nfail to add files to preloading if an absolute path was specified during\nthe index creation process. Removing the leading slash manually should\nfix this behavior.\n\nSigned-off-by: David Son <davbson@amazon.com>",
+          "timestamp": "2026-05-27T14:20:41-04:00",
+          "tree_id": "ad5c6e8cce05d2a7203d5ec26d6c1d2ab4c89a7e",
+          "url": "https://github.com/awslabs/soci-snapshotter/commit/847bc6e4223bbb06d63038bd57a1dac11baaf35b"
+        },
+        "date": 1779906668748,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "SociFullECR-public-node-lazyTaskDuration",
+            "value": 1.6326,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-node-localTaskDuration",
+            "value": 0.4092,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-node-pullTaskDuration",
+            "value": 2.667,
             "unit": "Seconds",
             "extra": "P90"
           }
