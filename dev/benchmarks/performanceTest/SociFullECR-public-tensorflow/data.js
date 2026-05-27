@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1779906682461,
+  "lastUpdate": 1779920864444,
   "repoUrl": "https://github.com/awslabs/soci-snapshotter",
   "entries": {
     "Soci Benchmark": [
@@ -18172,6 +18172,48 @@ window.BENCHMARK_DATA = {
           {
             "name": "SociFullECR-public-tensorflow-pullTaskDuration",
             "value": 2.9438,
+            "unit": "Seconds",
+            "extra": "P90"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "davbson@amazon.com",
+            "name": "David Son",
+            "username": "sondavidb"
+          },
+          "committer": {
+            "email": "55555210+sondavidb@users.noreply.github.com",
+            "name": "David Son",
+            "username": "sondavidb"
+          },
+          "distinct": true,
+          "id": "238519faff12845e274442e661d6bae3848fabaa",
+          "message": "Upgrade Go version in build CI\n\nSigned-off-by: David Son <davbson@amazon.com>",
+          "timestamp": "2026-05-27T15:18:03-07:00",
+          "tree_id": "8a85246933a7274b012697fc5bd8ec5489155960",
+          "url": "https://github.com/awslabs/soci-snapshotter/commit/238519faff12845e274442e661d6bae3848fabaa"
+        },
+        "date": 1779920860505,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "SociFullECR-public-tensorflow-lazyTaskDuration",
+            "value": 21.478,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-tensorflow-localTaskDuration",
+            "value": 3.1052,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-tensorflow-pullTaskDuration",
+            "value": 2.3962,
             "unit": "Seconds",
             "extra": "P90"
           }
