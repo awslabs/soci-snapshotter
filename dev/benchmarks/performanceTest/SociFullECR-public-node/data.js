@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1779906671971,
+  "lastUpdate": 1779920871507,
   "repoUrl": "https://github.com/awslabs/soci-snapshotter",
   "entries": {
     "Soci Benchmark": [
@@ -17966,6 +17966,48 @@ window.BENCHMARK_DATA = {
           {
             "name": "SociFullECR-public-node-pullTaskDuration",
             "value": 2.667,
+            "unit": "Seconds",
+            "extra": "P90"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "davbson@amazon.com",
+            "name": "David Son",
+            "username": "sondavidb"
+          },
+          "committer": {
+            "email": "55555210+sondavidb@users.noreply.github.com",
+            "name": "David Son",
+            "username": "sondavidb"
+          },
+          "distinct": true,
+          "id": "238519faff12845e274442e661d6bae3848fabaa",
+          "message": "Upgrade Go version in build CI\n\nSigned-off-by: David Son <davbson@amazon.com>",
+          "timestamp": "2026-05-27T15:18:03-07:00",
+          "tree_id": "8a85246933a7274b012697fc5bd8ec5489155960",
+          "url": "https://github.com/awslabs/soci-snapshotter/commit/238519faff12845e274442e661d6bae3848fabaa"
+        },
+        "date": 1779920863141,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "SociFullECR-public-node-lazyTaskDuration",
+            "value": 1.8624,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-node-localTaskDuration",
+            "value": 0.5416000000000001,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-node-pullTaskDuration",
+            "value": 2.028,
             "unit": "Seconds",
             "extra": "P90"
           }
