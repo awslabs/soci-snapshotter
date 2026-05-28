@@ -46,11 +46,13 @@ import (
 	"github.com/awslabs/soci-snapshotter/service/keychain/dockerconfig"
 	"github.com/awslabs/soci-snapshotter/service/keychain/kubeconfig"
 	"github.com/awslabs/soci-snapshotter/service/resolver"
-	"github.com/containerd/containerd/defaults"
-	"github.com/containerd/containerd/pkg/dialer"
-	ctdplugin "github.com/containerd/containerd/plugin"
+	"github.com/containerd/containerd/v2/defaults"
+	"github.com/containerd/containerd/v2/pkg/dialer"
+	pluginTypes "github.com/containerd/containerd/v2/plugins"
 	"github.com/containerd/log"
 	"github.com/containerd/platforms"
+	ctdplugin "github.com/containerd/plugin"
+	"github.com/containerd/plugin/registry"
 	grpc "google.golang.org/grpc"
 	"google.golang.org/grpc/backoff"
 	"google.golang.org/grpc/credentials/insecure"
@@ -72,8 +74,9 @@ type Config struct {
 }
 
 func init() {
-	ctdplugin.Register(&ctdplugin.Registration{
-		Type:   ctdplugin.SnapshotPlugin,
+
+	registry.Register(&ctdplugin.Registration{
+		Type:   pluginTypes.SnapshotPlugin,
 		ID:     "soci",
 		Config: &Config{},
 		InitFn: func(ic *ctdplugin.InitContext) (interface{}, error) {
@@ -85,7 +88,7 @@ func init() {
 				return nil, errors.New("invalid soci snapshotter configuration")
 			}
 
-			root := ic.Root
+			root := ic.Properties["root"]
 			if config.RootPath != "" {
 				root = config.RootPath
 			}
@@ -102,7 +105,7 @@ func init() {
 			}
 			if addr := config.CRIKeychainImageServicePath; config.CRIKeychainConfig.EnableKeychain && addr != "" {
 				// connects to the backend CRI service (defaults to containerd socket)
-				criAddr := ic.Address
+				criAddr := ic.Properties["address"]
 				if cp := config.CRIKeychainConfig.ImageServicePath; cp != "" {
 					criAddr = cp
 				}

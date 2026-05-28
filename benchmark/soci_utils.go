@@ -28,8 +28,8 @@ import (
 
 	"github.com/awslabs/soci-snapshotter/benchmark/framework"
 	"github.com/awslabs/soci-snapshotter/fs/source"
-	"github.com/containerd/containerd"
-	ctdsnapshotters "github.com/containerd/containerd/pkg/snapshotters"
+	containerd "github.com/containerd/containerd/v2/client"
+	ctdsnapshotters "github.com/containerd/containerd/v2/pkg/snapshotters"
 )
 
 var (
@@ -140,8 +140,6 @@ func (proc *SociContainerdProcess) SociRPullImageFromRegistry(
 	sociIndexDigest string) (containerd.Image, error) {
 	image, err := proc.Client.Pull(ctx, imageRef, []containerd.RemoteOpt{
 		containerd.WithResolver(framework.GetResolver(ctx, imageRef)),
-		//nolint:staticcheck
-		// containerd.WithSchema1Conversion, //lint:ignore SA1019
 		containerd.WithPullUnpack,
 		containerd.WithPullSnapshotter("soci"),
 		containerd.WithImageHandlerWrapper(source.AppendDefaultLabelsHandlerWrapper(

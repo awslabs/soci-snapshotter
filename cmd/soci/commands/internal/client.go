@@ -37,9 +37,9 @@ import (
 
 	"github.com/awslabs/soci-snapshotter/cmd/soci/commands/global"
 	"github.com/awslabs/soci-snapshotter/config"
-	"github.com/containerd/containerd"
-	"github.com/containerd/containerd/namespaces"
-	"github.com/containerd/containerd/pkg/epoch"
+	containerd "github.com/containerd/containerd/v2/client"
+	"github.com/containerd/containerd/v2/pkg/epoch"
+	"github.com/containerd/containerd/v2/pkg/namespaces"
 	"github.com/containerd/log"
 	"github.com/urfave/cli/v3"
 )
@@ -72,7 +72,7 @@ func AppContext(ctx context.Context, cmd *cli.Command) (context.Context, context
 }
 
 // NewClient returns a new containerd client
-func NewClient(ctx context.Context, cmd *cli.Command, opts ...containerd.ClientOpt) (*containerd.Client, context.Context, context.CancelFunc, error) {
+func NewClient(ctx context.Context, cmd *cli.Command, opts ...containerd.Opt) (*containerd.Client, context.Context, context.CancelFunc, error) {
 	if timeout := cmd.Duration(global.TimeoutFlag); timeout > 0 {
 		opts = append(opts, containerd.WithTimeout(timeout))
 	}

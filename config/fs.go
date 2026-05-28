@@ -41,7 +41,7 @@ package config
 import (
 	"strings"
 
-	"github.com/containerd/containerd/defaults"
+	"github.com/containerd/containerd/v2/defaults"
 )
 
 type FSConfig struct {

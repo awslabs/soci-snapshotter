@@ -51,10 +51,9 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/containerd/containerd/reference"
-	"github.com/containerd/containerd/remotes/docker"
-	dconfig "github.com/containerd/containerd/remotes/docker/config"
-	runtime_alpha "github.com/containerd/containerd/third_party/k8s.io/cri-api/pkg/apis/runtime/v1alpha2"
+	"github.com/containerd/containerd/v2/core/remotes/docker"
+	dconfig "github.com/containerd/containerd/v2/core/remotes/docker/config"
+	"github.com/containerd/containerd/v2/pkg/reference"
 	"github.com/containerd/errdefs"
 	rhttp "github.com/hashicorp/go-retryablehttp"
 	runtime "k8s.io/cri-api/pkg/apis/runtime/v1"
@@ -319,7 +318,7 @@ func registryEndpoints(config Registry, host string) ([]string, error) {
 // ParseAlphaAuth parses AuthConfig and returns username and password/secret required by containerd.
 // Ported from https://github.com/containerd/containerd/blob/v1.5.2/pkg/cri/server/image_pull.go#L176-L214
 // TODO: import this from CRI package once we drop support to continerd v1.4.x
-func ParseAlphaAuth(auth *runtime_alpha.AuthConfig, host string) (string, string, error) {
+func ParseAlphaAuth(auth *runtime.AuthConfig, host string) (string, string, error) {
 	if auth == nil {
 		return "", "", nil
 	}

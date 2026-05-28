@@ -45,7 +45,7 @@ import (
 
 	"github.com/awslabs/soci-snapshotter/config"
 	intos "github.com/awslabs/soci-snapshotter/internal/os"
-	"github.com/containerd/containerd/archive/compression"
+	"github.com/containerd/containerd/v2/pkg/archive/compression"
 	"github.com/containerd/log"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 )
