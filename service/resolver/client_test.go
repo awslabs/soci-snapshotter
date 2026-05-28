@@ -25,7 +25,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/containerd/containerd/remotes/docker"
+	"github.com/containerd/containerd/v2/core/remotes/docker"
 )
 
 const (

@@ -18,8 +18,8 @@ package global
 
 import (
 	"github.com/awslabs/soci-snapshotter/config"
-	"github.com/containerd/containerd/defaults"
-	"github.com/containerd/containerd/namespaces"
+	"github.com/containerd/containerd/v2/defaults"
+	"github.com/containerd/containerd/v2/pkg/namespaces"
 	"github.com/urfave/cli/v3"
 )
 

@@ -25,7 +25,7 @@ import (
 	"github.com/awslabs/soci-snapshotter/soci/store"
 	"github.com/awslabs/soci-snapshotter/util/dockershell"
 	"github.com/awslabs/soci-snapshotter/util/testutil"
-	"github.com/containerd/containerd/reference"
+	"github.com/containerd/containerd/v2/pkg/reference"
 	"github.com/containerd/platforms"
 )
 
