@@ -53,7 +53,6 @@ import (
 	"github.com/awslabs/soci-snapshotter/metadata"
 	"github.com/awslabs/soci-snapshotter/service"
 	"github.com/awslabs/soci-snapshotter/service/keychain/cri/v1"
-	crialpha "github.com/awslabs/soci-snapshotter/service/keychain/cri/v1alpha"
 	"github.com/awslabs/soci-snapshotter/soci"
 
 	"github.com/awslabs/soci-snapshotter/service/keychain/dockerconfig"
@@ -66,7 +65,6 @@ import (
 	"github.com/containerd/containerd/defaults"
 	"github.com/containerd/containerd/pkg/dialer"
 	"github.com/containerd/containerd/snapshots"
-	runtime_alpha "github.com/containerd/containerd/third_party/k8s.io/cri-api/pkg/apis/runtime/v1alpha2"
 	"github.com/containerd/log"
 	"github.com/coreos/go-systemd/v22/activation"
 	sddaemon "github.com/coreos/go-systemd/v22/daemon"
@@ -181,14 +179,6 @@ func buildApp() *cli.Command {
 			}
 			if cfg.CRIKeychainConfig.EnableKeychain {
 
-				connectV1AlphaCRI := func() (runtime_alpha.ImageServiceClient, error) {
-					criConn, err := getCriConn(cfg.CRIKeychainConfig.ImageServicePath)
-					if err != nil {
-						return nil, err
-					}
-					return runtime_alpha.NewImageServiceClient(criConn), nil
-				}
-
 				connectV1CRI := func() (runtime.ImageServiceClient, error) {
 					criConn, err := getCriConn(cfg.CRIKeychainConfig.ImageServicePath)
 					if err != nil {
@@ -196,11 +186,6 @@ func buildApp() *cli.Command {
 					}
 					return runtime.NewImageServiceClient(criConn), nil
 				}
-
-				// register v1alpha2 CRI server with the gRPC server
-				fAlpha, criServerAlpha := crialpha.NewCRIAlphaKeychain(ctx, connectV1AlphaCRI)
-				runtime_alpha.RegisterImageServiceServer(rpc, criServerAlpha)
-				credsFuncs = append(credsFuncs, fAlpha)
 
 				// register v1 CRI server with the gRPC server
 				f, criServer := cri.NewCRIKeychain(ctx, connectV1CRI)
