@@ -132,7 +132,7 @@ func (proc *StargzContainerdProcess) StargzRpullImageFromRegistry(
 	image, err := proc.Client.Pull(ctx, imageRef, []containerd.RemoteOpt{
 		containerd.WithResolver(framework.GetResolver(ctx, imageRef)),
 		//nolint:staticcheck
-		containerd.WithSchema1Conversion, //lint:ignore SA1019
+		// containerd.WithSchema1Conversion, //lint:ignore SA1019
 		containerd.WithPullUnpack,
 		containerd.WithPullSnapshotter("stargz"),
 		containerd.WithImageHandlerWrapper(ctdsnapshotters.AppendInfoHandlerWrapper(imageRef)),
