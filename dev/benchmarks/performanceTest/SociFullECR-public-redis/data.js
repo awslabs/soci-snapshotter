@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1779920873454,
+  "lastUpdate": 1780355438335,
   "repoUrl": "https://github.com/awslabs/soci-snapshotter",
   "entries": {
     "Soci Benchmark": [
@@ -18172,6 +18172,48 @@ window.BENCHMARK_DATA = {
           {
             "name": "SociFullECR-public-redis-pullTaskDuration",
             "value": 4.598400000000001,
+            "unit": "Seconds",
+            "extra": "P90"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "davbson@amazon.com",
+            "name": "David Son",
+            "username": "sondavidb"
+          },
+          "committer": {
+            "email": "55555210+sondavidb@users.noreply.github.com",
+            "name": "David Son",
+            "username": "sondavidb"
+          },
+          "distinct": true,
+          "id": "2116e1d1d295556e523306037db16dd78b1f187c",
+          "message": "Upgrade to containerd v2.2.4\n\nv2.3.1 (latest as of this commit) requires Go 1.26 which is why we chose\nto use v2.2.4 instead. This should be an easy upgrade to 2.3 anyway\nshould we choose to upgrade it down the line.\n\nThis naturally means we are also upgrading a ton of transitive\ndependencies (as this is an update we have been putting off for a while)\nso hoping this won't break anything too major...\n\nSigned-off-by: David Son <davbson@amazon.com>",
+          "timestamp": "2026-06-01T16:00:43-07:00",
+          "tree_id": "ba605e9c314d0ee3cbb57428cf5c223ee3e4c2c6",
+          "url": "https://github.com/awslabs/soci-snapshotter/commit/2116e1d1d295556e523306037db16dd78b1f187c"
+        },
+        "date": 1780355428120,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "SociFullECR-public-redis-lazyTaskDuration",
+            "value": 1.2573999999999999,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-redis-localTaskDuration",
+            "value": 0.0266,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-redis-pullTaskDuration",
+            "value": 1.3494,
             "unit": "Seconds",
             "extra": "P90"
           }
