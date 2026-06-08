@@ -210,3 +210,69 @@ func SimpleMockAuthClient(tr http.RoundTripper, header http.Header) *AuthClient 
 	ac, _ := NewAuthClient(&emptyAuthHandler{}, WithRetryableClient(rc), WithHeader(header))
 	return ac
 }
+
+// redirectRoundTripper simulates a server that redirects requests.
+// On the first request it returns a response whose Request.URL differs
+// from the original (simulating a followed redirect). On subsequent
+// requests it records the incoming request for inspection.
+type redirectRoundTripper struct {
+	callCount   int
+	redirectURL string
+	lastRequest *http.Request
+}
+
+func (rt *redirectRoundTripper) RoundTrip(req *http.Request) (*http.Response, error) {
+	rt.callCount++
+	rt.lastRequest = req
+
+	// Simulate that the HTTP client followed a redirect:
+	// resp.Request.URL is the final URL after redirect.
+	finalURL, _ := http.NewRequest(req.Method, rt.redirectURL, nil)
+	return &http.Response{
+		StatusCode: http.StatusOK,
+		Request:    finalURL,
+	}, nil
+}
+
+func TestRedirectCacheSetsRefererHeader(t *testing.T) {
+	originalURL := "http://registry.example.com/v2/repo/blobs/sha256:abc123"
+	redirectTarget := "http://storage.example.com/blob?sig=xyz"
+
+	rt := &redirectRoundTripper{redirectURL: redirectTarget}
+	rc := rhttp.NewClient()
+	rc.RetryMax = 0
+	rc.HTTPClient.Transport = rt
+
+	ac, err := NewAuthClient(&emptyAuthHandler{}, WithRetryableClient(rc))
+	if err != nil {
+		t.Fatal(err)
+	}
+	ac.CacheRedirects(true)
+
+	ctx := context.Background()
+
+	// First request: populates the redirect cache
+	req1, _ := http.NewRequestWithContext(ctx, "GET", originalURL, nil)
+	_, err = ac.Do(req1)
+	if err != nil {
+		t.Fatalf("first request failed: %v", err)
+	}
+
+	// Second request: should hit the cache and set Referer
+	req2, _ := http.NewRequestWithContext(ctx, "GET", originalURL, nil)
+	_, err = ac.Do(req2)
+	if err != nil {
+		t.Fatalf("second request failed: %v", err)
+	}
+
+	// Verify the second request was sent to the redirect target
+	if rt.lastRequest.URL.String() != redirectTarget {
+		t.Fatalf("expected request URL %q, got %q", redirectTarget, rt.lastRequest.URL.String())
+	}
+
+	// Verify the Referer header is set to the original URL
+	referer := rt.lastRequest.Header.Get("Referer")
+	if referer != originalURL {
+		t.Fatalf("expected Referer header %q, got %q", originalURL, referer)
+	}
+}
