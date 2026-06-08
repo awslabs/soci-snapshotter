@@ -257,6 +257,7 @@ func (ac *AuthClient) redirected(req *http.Request) *http.Request {
 		return nil
 	}
 	r := req.Clone(ac.getAuthCtx(req.Context()))
+	r.Header.Set("Referer", req.URL.String())
 	r.URL = newURL
 	r.Host = newURL.Host
 	return r
