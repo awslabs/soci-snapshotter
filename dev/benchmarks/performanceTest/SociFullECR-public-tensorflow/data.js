@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1780355434761,
+  "lastUpdate": 1780968844674,
   "repoUrl": "https://github.com/awslabs/soci-snapshotter",
   "entries": {
     "Soci Benchmark": [
@@ -18256,6 +18256,48 @@ window.BENCHMARK_DATA = {
           {
             "name": "SociFullECR-public-tensorflow-pullTaskDuration",
             "value": 2.1366,
+            "unit": "Seconds",
+            "extra": "P90"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "ayushkp@amazon.com",
+            "name": "ayush-panta",
+            "username": "ayush-panta"
+          },
+          "committer": {
+            "email": "ayushkp@amazon.com",
+            "name": "ayush-panta",
+            "username": "ayush-panta"
+          },
+          "distinct": true,
+          "id": "f268898c03a868fc5f6f3494e654765a8aa0a458",
+          "message": "fix(http): set Referer header on redirect-cached requests\n\nWhen the AuthClient serves a request from its redirect cache, it\nbypasses the 307 redirect hop and sends directly to the cached target.\nThis causes Go's HTTP client to never set the Referer header, breaking\nregistries that use Referer-based hot-link protection.\n\nThe fix sets Referer to the original registry URL before rewriting the\nrequest, simulating what Go would set during a real redirect. This is\nsafe for all registries: those that don't check Referer simply ignore it.\n\nOnly affects parallel-pull-unpack mode (the only path enabling redirect\ncaching). Lazy SOCI mode and standard containerd pulls are unaffected.\n\nSigned-off-by: ayush-panta <ayushkp@amazon.com>",
+          "timestamp": "2026-06-08T18:24:24-07:00",
+          "tree_id": "0bd8e2585eb530bcea42b2905dd4279a4ba8ee5e",
+          "url": "https://github.com/awslabs/soci-snapshotter/commit/f268898c03a868fc5f6f3494e654765a8aa0a458"
+        },
+        "date": 1780968837360,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "SociFullECR-public-tensorflow-lazyTaskDuration",
+            "value": 19.901200000000003,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-tensorflow-localTaskDuration",
+            "value": 2.3836,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-tensorflow-pullTaskDuration",
+            "value": 2.4488,
             "unit": "Seconds",
             "extra": "P90"
           }
