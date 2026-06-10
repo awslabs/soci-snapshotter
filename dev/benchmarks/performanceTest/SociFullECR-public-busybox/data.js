@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1781130114419,
+  "lastUpdate": 1781130145239,
   "repoUrl": "https://github.com/awslabs/soci-snapshotter",
   "entries": {
     "Soci Benchmark": [
@@ -18341,6 +18341,48 @@ window.BENCHMARK_DATA = {
           {
             "name": "SociFullECR-public-busybox-pullTaskDuration",
             "value": 1.7978,
+            "unit": "Seconds",
+            "extra": "P90"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49699333+dependabot[bot]@users.noreply.github.com",
+            "name": "dependabot[bot]",
+            "username": "dependabot[bot]"
+          },
+          "committer": {
+            "email": "arjunry@amazon.com",
+            "name": "Arjun",
+            "username": "coderbirju"
+          },
+          "distinct": true,
+          "id": "2d8ea2bb3c185d80afec1514519f26e39217bbfc",
+          "message": "Bump oras.land/oras-go/v2 from 2.6.0 to 2.6.1 in /cmd\n\nBumps [oras.land/oras-go/v2](https://github.com/oras-project/oras-go) from 2.6.0 to 2.6.1.\n- [Release notes](https://github.com/oras-project/oras-go/releases)\n- [Commits](https://github.com/oras-project/oras-go/compare/v2.6.0...v2.6.1)\n\n---\nupdated-dependencies:\n- dependency-name: oras.land/oras-go/v2\n  dependency-version: 2.6.1\n  dependency-type: direct:production\n  update-type: version-update:semver-patch\n...\n\nSigned-off-by: dependabot[bot] <support@github.com>",
+          "timestamp": "2026-06-10T15:10:51-07:00",
+          "tree_id": "457d17e2e53c21138b21c93fab82c15e481221c3",
+          "url": "https://github.com/awslabs/soci-snapshotter/commit/2d8ea2bb3c185d80afec1514519f26e39217bbfc"
+        },
+        "date": 1781130136190,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "SociFullECR-public-busybox-lazyTaskDuration",
+            "value": 0.0166,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-busybox-localTaskDuration",
+            "value": 0.007,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-busybox-pullTaskDuration",
+            "value": 1.4438,
             "unit": "Seconds",
             "extra": "P90"
           }
