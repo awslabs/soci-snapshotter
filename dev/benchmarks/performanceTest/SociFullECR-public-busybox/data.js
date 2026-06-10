@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1781129783508,
+  "lastUpdate": 1781130097701,
   "repoUrl": "https://github.com/awslabs/soci-snapshotter",
   "entries": {
     "Soci Benchmark": [
@@ -18257,6 +18257,48 @@ window.BENCHMARK_DATA = {
           {
             "name": "SociFullECR-public-busybox-pullTaskDuration",
             "value": 0.847,
+            "unit": "Seconds",
+            "extra": "P90"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49699333+dependabot[bot]@users.noreply.github.com",
+            "name": "dependabot[bot]",
+            "username": "dependabot[bot]"
+          },
+          "committer": {
+            "email": "arjunry@amazon.com",
+            "name": "Arjun",
+            "username": "coderbirju"
+          },
+          "distinct": true,
+          "id": "7b9874d992b9522e62c05a70188d313f62bf9e41",
+          "message": "Bump golang.org/x/sys from 0.45.0 to 0.46.0 in /cmd\n\nBumps [golang.org/x/sys](https://github.com/golang/sys) from 0.45.0 to 0.46.0.\n- [Commits](https://github.com/golang/sys/compare/v0.45.0...v0.46.0)\n\n---\nupdated-dependencies:\n- dependency-name: golang.org/x/sys\n  dependency-version: 0.46.0\n  dependency-type: direct:production\n  update-type: version-update:semver-minor\n...\n\nSigned-off-by: dependabot[bot] <support@github.com>",
+          "timestamp": "2026-06-10T15:11:27-07:00",
+          "tree_id": "6e0791e5e0d16602d841d4b73de3a5ceb09a1eee",
+          "url": "https://github.com/awslabs/soci-snapshotter/commit/7b9874d992b9522e62c05a70188d313f62bf9e41"
+        },
+        "date": 1781130094487,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "SociFullECR-public-busybox-lazyTaskDuration",
+            "value": 0.014,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-busybox-localTaskDuration",
+            "value": 0.0076,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-busybox-pullTaskDuration",
+            "value": 0.7468,
             "unit": "Seconds",
             "extra": "P90"
           }
