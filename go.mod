@@ -10,7 +10,7 @@ require (
 	github.com/containerd/platforms v1.0.0-rc.4
 	github.com/containerd/plugin v1.1.0
 	github.com/distribution/reference v0.6.0
-	github.com/docker/cli v29.5.2+incompatible
+	github.com/docker/cli v29.5.3+incompatible
 	github.com/docker/go-metrics v0.0.1
 	github.com/golang/groupcache v0.0.0-20241129210726-2c02b8208cf8
 	github.com/google/flatbuffers v25.12.19+incompatible
