@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1780968836622,
+  "lastUpdate": 1781129794354,
   "repoUrl": "https://github.com/awslabs/soci-snapshotter",
   "entries": {
     "Soci Benchmark": [
@@ -18134,6 +18134,48 @@ window.BENCHMARK_DATA = {
           {
             "name": "SociFullECR-public-tensorflow_gpu-pullTaskDuration",
             "value": 2.812,
+            "unit": "Seconds",
+            "extra": "P90"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "macedonv@amazon.com",
+            "name": "Austin Vazquez",
+            "username": "austinvazquez"
+          },
+          "committer": {
+            "email": "ayushkp@amazon.com",
+            "name": "ayush-panta",
+            "username": "ayush-panta"
+          },
+          "distinct": true,
+          "id": "66a98bfb417b361e3f0d34e60949263adb2e0287",
+          "message": "Add workflow for creating release branches\n\nThis change adds a GitHub Actions workflow for creating release branches\nwith jobs to 1) create the branch and 2) open a pull request with the\ngenerated THIRD_PARTY_LICENSES file and updated getting started guide\nversion.\n\nSigned-off-by: Austin Vazquez <macedonv@amazon.com>\n(cherry picked from commit 916aae96a8ce8738eecc12bf240b318c828f8128)\nSigned-off-by: David Son <davbson@amazon.com>",
+          "timestamp": "2026-06-10T15:02:44-07:00",
+          "tree_id": "8dd960ea2f361afe23800ec20409fd045e745c41",
+          "url": "https://github.com/awslabs/soci-snapshotter/commit/66a98bfb417b361e3f0d34e60949263adb2e0287"
+        },
+        "date": 1781129791070,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "SociFullECR-public-tensorflow_gpu-lazyTaskDuration",
+            "value": 13.2974,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-tensorflow_gpu-localTaskDuration",
+            "value": 3.1096,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-tensorflow_gpu-pullTaskDuration",
+            "value": 2.9466,
             "unit": "Seconds",
             "extra": "P90"
           }
