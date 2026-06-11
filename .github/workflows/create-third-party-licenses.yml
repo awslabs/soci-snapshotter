@@ -22,7 +22,7 @@ on:
     branches: ['release/**']
 
 env:
-  GO_VERSION: '1.25.10'
+  GO_VERSION: '1.25.11'
 
 jobs:
   test-build:
