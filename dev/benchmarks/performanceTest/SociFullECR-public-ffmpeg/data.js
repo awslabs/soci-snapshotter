@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1781209757929,
+  "lastUpdate": 1781216697370,
   "repoUrl": "https://github.com/awslabs/soci-snapshotter",
   "entries": {
     "Soci Benchmark": [
@@ -18551,6 +18551,48 @@ window.BENCHMARK_DATA = {
           {
             "name": "SociFullECR-public-ffmpeg-pullTaskDuration",
             "value": 4.7540000000000004,
+            "unit": "Seconds",
+            "extra": "P90"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "davbson@amazon.com",
+            "name": "David Son",
+            "username": "sondavidb"
+          },
+          "committer": {
+            "email": "ayushkp@amazon.com",
+            "name": "ayush-panta",
+            "username": "ayush-panta"
+          },
+          "distinct": true,
+          "id": "62a1bd24096a08f8659e8701d578f3ffcfdac31b",
+          "message": "Update to Go 1.25.11\n\nSigned-off-by: David Son <davbson@amazon.com>",
+          "timestamp": "2026-06-11T15:15:59-07:00",
+          "tree_id": "e51930ed9ed8a31454cdbdb1eda57bf3f737d8bb",
+          "url": "https://github.com/awslabs/soci-snapshotter/commit/62a1bd24096a08f8659e8701d578f3ffcfdac31b"
+        },
+        "date": 1781216692526,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "SociFullECR-public-ffmpeg-lazyTaskDuration",
+            "value": 0.5178,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-ffmpeg-localTaskDuration",
+            "value": 0.0076,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-ffmpeg-pullTaskDuration",
+            "value": 1.7242,
             "unit": "Seconds",
             "extra": "P90"
           }
