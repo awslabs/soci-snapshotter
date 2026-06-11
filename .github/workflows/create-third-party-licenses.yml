@@ -103,7 +103,7 @@ jobs:
         run: bash scripts/build-third-party-licenses.sh
 
       - name: Create PR
-        uses: peter-evans/create-pull-request@v6
+        uses: peter-evans/create-pull-request@v8
         with:
           title: 'Add third party licenses for ${{ env.TAG_NAME }}'
           commit-message: |
