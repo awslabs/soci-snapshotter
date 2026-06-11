@@ -23,7 +23,7 @@ on:
       - 'scripts/update-version-in-docs.sh'
 
 env:
-  GO_VERSION: '1.25.10'
+  GO_VERSION: '1.25.11'
 
 jobs:
   test-create-branch:
