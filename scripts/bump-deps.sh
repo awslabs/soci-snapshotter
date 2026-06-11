@@ -21,19 +21,28 @@ SOCI_SNAPSHOTTER_PROJECT_ROOT="${CUR_DIR}/.."
 
 pushd "${SOCI_SNAPSHOTTER_PROJECT_ROOT}"
 
+# Only allow patch version bumps for containerd as minor version bumps should be intentional
+go get -u=patch github.com/containerd/containerd/v2
+
 # skip k8s deps since they use the latest go version/features that may not be in the go version soci uses
 # Also ignored in /dependabot.yml
 # shellcheck disable=SC2046
 go get $(go list -m -f '{{if not (or .Indirect .Main)}}{{.Path}}{{end}}' all | \
+    grep -v "^github.com/containerd/containerd/v2$" | \
     grep -v "^k8s.io/")
 make tidy
 
 pushd ./cmd
+
+# Only allow patch version bumps for containerd as minor version bumps should be intentional
+go get -u=patch github.com/containerd/containerd/v2
+
 # skip k8s deps and soci-snapshotter itself
 # Also ignored in /dependabot.yml
 # shellcheck disable=SC2046
 go get $(go list -m -f '{{if not (or .Indirect .Main)}}{{.Path}}{{end}}' all | \
     grep -v "^github.com/awslabs/soci-snapshotter" | \
+    grep -v "^github.com/containerd/containerd/v2$" | \
     grep -v "^k8s.io/")
 popd
 make tidy
