@@ -178,8 +178,6 @@ func (sf *file) ReadAt(p []byte, offset int64) (int, error) {
 	}
 	defer r.Close()
 
-	// TODO this is not the right place for this metric to be. It needs to go down the BlobReader, when the HTTP request is issued
-	commonmetrics.IncOperationCount(commonmetrics.SynchronousReadRegistryFetchCount, sf.gr.layerSha) // increment the number of on demand file fetches from remote registry
 	sf.gr.setLastReadTime(time.Now())
 
 	n, err := io.ReadFull(r, p[0:expectedSize])

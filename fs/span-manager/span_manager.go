@@ -26,6 +26,7 @@ import (
 	"sync"
 
 	"github.com/awslabs/soci-snapshotter/cache"
+	commonmetrics "github.com/awslabs/soci-snapshotter/fs/metrics/common"
 	"github.com/awslabs/soci-snapshotter/util/ioutils"
 	"github.com/awslabs/soci-snapshotter/ztoc"
 	"github.com/awslabs/soci-snapshotter/ztoc/compression"
@@ -51,6 +52,7 @@ type SpanManager struct {
 	r                                 *io.SectionReader // reader for contents of the spans managed by SpanManager
 	spans                             []*span
 	ztoc                              *ztoc.Ztoc
+	layerSha                          digest.Digest
 	maxSpanVerificationFailureRetries int
 	closeOnce                         sync.Once
 }
@@ -71,7 +73,7 @@ type spanInfo struct {
 // New creates a SpanManager with given ztoc and content reader, and builds all
 // spans based on the ztoc.
 
-func New(ztoc *ztoc.Ztoc, r *io.SectionReader, cache cache.BlobCache, retries int, cacheOpt ...cache.Option) (*SpanManager, error) {
+func New(ztoc *ztoc.Ztoc, r *io.SectionReader, cache cache.BlobCache, retries int, layerSha digest.Digest, cacheOpt ...cache.Option) (*SpanManager, error) {
 	index, err := ztoc.Zinfo()
 	if err != nil {
 		return nil, err
@@ -105,6 +107,7 @@ func New(ztoc *ztoc.Ztoc, r *io.SectionReader, cache cache.BlobCache, retries in
 		r:                                 r,
 		spans:                             spans,
 		ztoc:                              ztoc,
+		layerSha:                          layerSha,
 		maxSpanVerificationFailureRetries: retries,
 	}
 	if m.maxSpanVerificationFailureRetries < 0 {
@@ -336,6 +339,7 @@ func (m *SpanManager) getSpanContent(spanID compression.SpanID, offsetStart, off
 
 	// fetch-uncompress-cache span: span state can only be `unrequested` since
 	// no goroutine will release span state lock in `requested` state
+	commonmetrics.IncOperationCount(commonmetrics.SynchronousReadRegistryFetchCount, m.layerSha)
 	uncompBuf, err := m.fetchAndCacheSpan(s.id, true)
 	if err != nil {
 		return nil, err

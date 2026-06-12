@@ -51,7 +51,7 @@ func TestSequentialResolver(t *testing.T) {
 			if err != nil {
 				t.Fatalf("error build ztoc and section reader: %v", err)
 			}
-			sm, err := spanmanager.New(ztoc, sr, cache.NewMemoryCache(), 0)
+			sm, err := spanmanager.New(ztoc, sr, cache.NewMemoryCache(), 0, digest.FromString(""))
 			assert.Nil(t, err)
 			sequentialResolver := NewSequentialResolver(digest.FromString("test"), sm)
 
