@@ -26,9 +26,11 @@ import (
 	"testing"
 
 	"github.com/awslabs/soci-snapshotter/cache"
+	commonmetrics "github.com/awslabs/soci-snapshotter/fs/metrics/common"
 	"github.com/awslabs/soci-snapshotter/util/testutil"
 	"github.com/awslabs/soci-snapshotter/ztoc"
 	"github.com/awslabs/soci-snapshotter/ztoc/compression"
+	"github.com/opencontainers/go-digest"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -128,7 +130,7 @@ func TestSpanManager(t *testing.T) {
 
 			cache := cache.NewMemoryCache()
 			defer cache.Close()
-			m, err := New(toc, r, cache, 0)
+			m, err := New(toc, r, cache, 0, digest.FromString(""))
 			if err != nil {
 				return
 			}
@@ -174,7 +176,7 @@ func TestSpanManagerCache(t *testing.T) {
 	}
 	cache := cache.NewMemoryCache()
 	defer cache.Close()
-	m, err := New(toc, r, cache, 0)
+	m, err := New(toc, r, cache, 0, digest.FromString(""))
 	assert.Nil(t, err)
 	spanID := 0
 	err = m.resolveSpan(compression.SpanID(spanID))
@@ -230,7 +232,7 @@ func TestStateTransition(t *testing.T) {
 	}
 	cache := cache.NewMemoryCache()
 	defer cache.Close()
-	m, err := New(toc, r, cache, 0)
+	m, err := New(toc, r, cache, 0, digest.FromString(""))
 	assert.Nil(t, err)
 
 	// check initial span states
@@ -401,7 +403,7 @@ func TestSpanManagerRetries(t *testing.T) {
 			}
 			rdr := newRetryableReaderAt(sr, tc.readerErrors)
 			sr = io.NewSectionReader(rdr, 0, 10000000)
-			sm, err := New(ztoc, sr, cache.NewMemoryCache(), tc.spanManagerRetries)
+			sm, err := New(ztoc, sr, cache.NewMemoryCache(), tc.spanManagerRetries, digest.FromString(""))
 			assert.Nil(t, err)
 
 			for i := 0; i < int(ztoc.MaxSpanID); i++ {
@@ -502,4 +504,56 @@ type readerFn func([]byte, int64) (int, error)
 
 func (f readerFn) ReadAt(b []byte, n int64) (int, error) {
 	return f(b, n)
+}
+
+func TestSynchronousFetchMetricOnlyFiresOnNetworkFetch(t *testing.T) {
+	tRand := testutil.NewTestRand(t)
+	var spanSize compression.Offset = 65536
+	// Create content spanning at least 2 spans
+	content := tRand.RandomByteData(int64(spanSize) * 2)
+	tarEntries := []testutil.TarEntry{
+		testutil.File("metric-test", string(content)),
+	}
+	toc, r, err := ztoc.BuildZtocReader(t, tarEntries, gzip.BestCompression, int64(spanSize))
+	if err != nil {
+		t.Fatalf("failed to create ztoc: %v", err)
+	}
+	c := cache.NewMemoryCache()
+	defer c.Close()
+
+	layerDigest := digest.FromString("metric-test-layer")
+	m, err := New(toc, r, c, 0, layerDigest)
+	assert.Nil(t, err)
+
+	getCount := func() float64 {
+		return commonmetrics.GetOperationCount(commonmetrics.SynchronousReadRegistryFetchCount, layerDigest)
+	}
+
+	// Span 0: unrequested -> should increment metric
+	before := getCount()
+	s := m.spans[0]
+	_, err = m.getSpanContent(0, 0, s.endUncompOffset-s.startUncompOffset)
+	assert.Nil(t, err)
+	after := getCount()
+	assert.Equal(t, before+1, after, "metric should increment on network fetch")
+
+	// Span 0 again: now uncompressed/cached -> should NOT increment
+	before = getCount()
+	_, err = m.getSpanContent(0, 0, s.endUncompOffset-s.startUncompOffset)
+	assert.Nil(t, err)
+	after = getCount()
+	assert.Equal(t, before, after, "metric should not increment on cache hit")
+
+	// Span 1: bg-fetch first, then getSpanContent -> should NOT increment
+	if toc.MaxSpanID >= 1 {
+		err = m.FetchSingleSpan(1)
+		assert.Nil(t, err)
+
+		before = getCount()
+		s1 := m.spans[1]
+		_, err = m.getSpanContent(1, 0, s1.endUncompOffset-s1.startUncompOffset)
+		assert.Nil(t, err)
+		after = getCount()
+		assert.Equal(t, before, after, "metric should not increment when bg fetcher already fetched span")
+	}
 }
