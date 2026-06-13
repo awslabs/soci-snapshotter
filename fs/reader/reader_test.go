@@ -163,7 +163,7 @@ func makeFile(t *testing.T, contents []byte, prefix string, factory metadata.Sto
 	if err != nil {
 		t.Fatalf("failed to create reader: %v", err)
 	}
-	spanManager, err := spanmanager.New(ztoc, sr, cache.NewMemoryCache(), 0)
+	spanManager, err := spanmanager.New(ztoc, sr, cache.NewMemoryCache(), 0, digest.FromString(""))
 	assert.Nil(t, err)
 	r, err := NewReader(mr, digest.FromString(""), spanManager, false)
 	if err != nil {
@@ -219,7 +219,7 @@ func testFailReader(t *testing.T, factory metadata.Store) {
 			if !found {
 				t.Fatalf("free ID not found")
 			}
-			spanManager, err := spanmanager.New(ztoc, sr, cache.NewMemoryCache(), 0)
+			spanManager, err := spanmanager.New(ztoc, sr, cache.NewMemoryCache(), 0, digest.FromString(""))
 			assert.Nil(t, err)
 			r, err := NewReader(mr, digest.FromString(""), spanManager, false)
 			if err != nil {

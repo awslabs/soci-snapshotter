@@ -39,6 +39,7 @@ import (
 
 	digest "github.com/opencontainers/go-digest"
 	"github.com/prometheus/client_golang/prometheus"
+	dto "github.com/prometheus/client_model/go"
 )
 
 const (
@@ -86,7 +87,7 @@ const (
 	BackgroundFetch   = "background_fetch"
 
 	SynchronousReadCount              = "synchronous_read_count"
-	SynchronousReadRegistryFetchCount = "synchronous_read_remote_registry_fetch_count" // TODO revisit (wrong place)
+	SynchronousReadRegistryFetchCount = "synchronous_read_remote_registry_fetch_count"
 	SynchronousBytesServed            = "synchronous_bytes_served"
 
 	// Global fuse failure state
@@ -236,6 +237,15 @@ func MeasureLatencyInMicroseconds(operation string, layer digest.Digest, start t
 // IncOperationCount wraps the labels attachment as well as calling Inc into a single method.
 func IncOperationCount(operation string, layer digest.Digest) {
 	operationCount.WithLabelValues(operation, layer.String()).Inc()
+}
+
+// GetOperationCount returns the current value of an operation count metric for a given layer.
+func GetOperationCount(operation string, layer digest.Digest) float64 {
+	m := &dto.Metric{}
+	if err := operationCount.WithLabelValues(operation, layer.String()).Write(m); err != nil {
+		return 0
+	}
+	return m.GetCounter().GetValue()
 }
 
 // AddBytesCount wraps the labels attachment as well as calling Add into a single method.
