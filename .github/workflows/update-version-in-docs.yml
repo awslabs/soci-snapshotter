@@ -116,8 +116,8 @@ jobs:
       - name: Create PR
         uses: peter-evans/create-pull-request@v8
         with:
-          title: 'Update version in docs to ${{ env.TAG_NAME }}'
-          commit-message: 'Update version in docs to ${{ env.TAG_NAME }}'
+          title: 'Update version in docs to ${{ env.TAG_NAME }} in ${{ env.TARGET_BRANCH }}'
+          commit-message: 'Update version in docs to ${{ env.TAG_NAME }} in ${{ env.TARGET_BRANCH }}'
           body: |
             This change updates SOCI docs to point to ${{ env.TAG_NAME }}.
 
