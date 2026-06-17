@@ -19,7 +19,68 @@ permissions:
   deployments: write
 
 jobs:
+  # Ensure all the correct artifacts are in the release branch
+  # setup needs this on PR to test the release workflow on PR
+  # and there's no easy way to skip all steps while allowing
+  # setup workflow to run so just skip all the steps that can fail.
+  check-release-branch-state:
+    runs-on: ubuntu-22.04
+
+    env:
+      CHECKOUT_REF: '' # Filled in first steps
+      RELEASE_TAG: '' # Filled in first steps
+
+    steps:
+      - name: Set target branch as main for pull request
+        if: github.event_name == 'pull_request'
+        run: |
+          echo "CHECKOUT_REF=main" >> $GITHUB_ENV
+          echo "RELEASE_TAG=v0.0.0" >> $GITHUB_ENV
+
+      - name: Check provided tag is properly formatted for push
+        if: github.event_name == 'push'
+        run: |
+          release_tag=${GITHUB_REF#refs/*/} # Strip down to raw tag name
+          echo "${release_tag}" | grep -qP '^v[0-9]+\.[0-9]+\.[0-9]+$'
+          echo "Got tag ${release_tag} from input"
+          echo "RELEASE_TAG=${release_tag}" >> $GITHUB_ENV
+
+          # Export commit sha
+          echo "CHECKOUT_REF=${GITHUB_SHA}" >> $GITHUB_ENV
+
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ env.CHECKOUT_REF }}
+
+      - uses: actions/setup-go@v6
+        with:
+          go-version: ${{ env.GO_VERSION }}
+
+      - name: Install go-licenses
+        run: go install github.com/google/go-licenses/v2@v2.0.1
+
+      - name: Generate third party licenses file
+        run: bash scripts/build-third-party-licenses.sh
+
+      - name: Check diff is empty
+        if: github.event_name == 'push'
+        run: |
+          git add THIRD_PARTY_LICENSES
+          git diff HEAD --exit-code
+
+      - name: Increment version in docs
+        run: bash scripts/update-version-in-docs.sh ${{ env.RELEASE_TAG }}
+
+      - name: Check diff is empty
+        if: github.event_name == 'push'
+        run: |
+          git add docs/
+          git diff HEAD --exit-code
+
   setup:
+    # Only run this if either of the previous two are a success.
+    # We still need this to run after the checks but don't need the checks on a PR.
+    needs: check-release-branch-state
     uses: ./.github/workflows/setup.yml
 
   generate-artifacts:
@@ -34,7 +95,7 @@ jobs:
       DYNAMIC_BINARY_NAME: ''
       STATIC_BINARY_NAME: ''
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - uses: actions/setup-go@v6
         with:
           go-version: ${{ env.GO_VERSION }}
@@ -78,7 +139,7 @@ jobs:
       matrix:
         os: ${{ fromJSON(needs.setup.outputs.available-runners) }}
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - uses: actions/download-artifact@v8
         with:
           name: artifacts-${{ matrix.os }}
@@ -90,7 +151,7 @@ jobs:
     needs: validate-artifacts
     runs-on: ubuntu-22.04
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - uses: actions/download-artifact@v8
         with:
           path: assets/
