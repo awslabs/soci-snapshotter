@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1781216744414,
+  "lastUpdate": 1781725350727,
   "repoUrl": "https://github.com/awslabs/soci-snapshotter",
   "entries": {
     "Soci Benchmark": [
@@ -18634,6 +18634,48 @@ window.BENCHMARK_DATA = {
           {
             "name": "SociFullECR-public-tensorflow-pullTaskDuration",
             "value": 1.8036,
+            "unit": "Seconds",
+            "extra": "P90"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "davbson@amazon.com",
+            "name": "David Son",
+            "username": "sondavidb"
+          },
+          "committer": {
+            "email": "55555210+sondavidb@users.noreply.github.com",
+            "name": "David Son",
+            "username": "sondavidb"
+          },
+          "distinct": true,
+          "id": "328bd089303cdc549a6e12f3937d388b18ba9280",
+          "message": "Fix automated doc update workflow\n\nWe were overwriting our PRs to the release branch with the one to main\nbranch. This shouldn't be happening to begin with, but will add a\nsafeguard to guarantee this. Future PRs should add safeguards for\ndisallowing pushes without having the requisite changes merged.\n\nSigned-off-by: David Son <davbson@amazon.com>",
+          "timestamp": "2026-06-17T15:30:45-04:00",
+          "tree_id": "e63c80c6cc60e3c5f27e4cc951594237a913f6e6",
+          "url": "https://github.com/awslabs/soci-snapshotter/commit/328bd089303cdc549a6e12f3937d388b18ba9280"
+        },
+        "date": 1781725348038,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "SociFullECR-public-tensorflow-lazyTaskDuration",
+            "value": 37.3072,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-tensorflow-localTaskDuration",
+            "value": 2.793,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-tensorflow-pullTaskDuration",
+            "value": 2.4181999999999997,
             "unit": "Seconds",
             "extra": "P90"
           }
