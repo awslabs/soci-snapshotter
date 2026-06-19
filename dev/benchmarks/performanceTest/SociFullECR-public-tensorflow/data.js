@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1781725350727,
+  "lastUpdate": 1781912424625,
   "repoUrl": "https://github.com/awslabs/soci-snapshotter",
   "entries": {
     "Soci Benchmark": [
@@ -18676,6 +18676,48 @@ window.BENCHMARK_DATA = {
           {
             "name": "SociFullECR-public-tensorflow-pullTaskDuration",
             "value": 2.4181999999999997,
+            "unit": "Seconds",
+            "extra": "P90"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "ayushkp@amazon.com",
+            "name": "ayush-panta",
+            "username": "ayush-panta"
+          },
+          "committer": {
+            "email": "ayushkp@amazon.com",
+            "name": "ayush-panta",
+            "username": "ayush-panta"
+          },
+          "distinct": true,
+          "id": "50f8f8ad7e24ad5e750cfac55248c4c295a2c47b",
+          "message": "fix(metrics): Increment SynchronousReadRegistryFetchCount only on registry fetch\n\nMove the metric from reader.go (fired on every ReadAt, including cache\nhits) to span_manager.go's getSpanContent (fired only when a span is in\nunrequested state and an actual network fetch is issued). Pass the layer\ndigest into SpanManager so the metric retains its layer dimension.\n\nSigned-off-by: ayush-panta <ayushkp@amazon.com>",
+          "timestamp": "2026-06-19T16:30:41-07:00",
+          "tree_id": "57d8cce0308d9bc181ca17c5af408700d5fea7d8",
+          "url": "https://github.com/awslabs/soci-snapshotter/commit/50f8f8ad7e24ad5e750cfac55248c4c295a2c47b"
+        },
+        "date": 1781912420696,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "SociFullECR-public-tensorflow-lazyTaskDuration",
+            "value": 21.1014,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-tensorflow-localTaskDuration",
+            "value": 2.8254,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-tensorflow-pullTaskDuration",
+            "value": 2.0674,
             "unit": "Seconds",
             "extra": "P90"
           }
