@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1781725354455,
+  "lastUpdate": 1781912426414,
   "repoUrl": "https://github.com/awslabs/soci-snapshotter",
   "entries": {
     "Soci Benchmark": [
@@ -18551,6 +18551,48 @@ window.BENCHMARK_DATA = {
           {
             "name": "SociFullECR-public-busybox-pullTaskDuration",
             "value": 1.54,
+            "unit": "Seconds",
+            "extra": "P90"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "ayushkp@amazon.com",
+            "name": "ayush-panta",
+            "username": "ayush-panta"
+          },
+          "committer": {
+            "email": "ayushkp@amazon.com",
+            "name": "ayush-panta",
+            "username": "ayush-panta"
+          },
+          "distinct": true,
+          "id": "50f8f8ad7e24ad5e750cfac55248c4c295a2c47b",
+          "message": "fix(metrics): Increment SynchronousReadRegistryFetchCount only on registry fetch\n\nMove the metric from reader.go (fired on every ReadAt, including cache\nhits) to span_manager.go's getSpanContent (fired only when a span is in\nunrequested state and an actual network fetch is issued). Pass the layer\ndigest into SpanManager so the metric retains its layer dimension.\n\nSigned-off-by: ayush-panta <ayushkp@amazon.com>",
+          "timestamp": "2026-06-19T16:30:41-07:00",
+          "tree_id": "57d8cce0308d9bc181ca17c5af408700d5fea7d8",
+          "url": "https://github.com/awslabs/soci-snapshotter/commit/50f8f8ad7e24ad5e750cfac55248c4c295a2c47b"
+        },
+        "date": 1781912422027,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "SociFullECR-public-busybox-lazyTaskDuration",
+            "value": 0.039400000000000004,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-busybox-localTaskDuration",
+            "value": 0.0066,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-busybox-pullTaskDuration",
+            "value": 1.4023999999999999,
             "unit": "Seconds",
             "extra": "P90"
           }
