@@ -29,7 +29,7 @@ jobs:
     if: github.event_name == 'pull_request'
     runs-on: ubuntu-22.04
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - uses: actions/setup-go@v6
         with:
           go-version: ${{ env.GO_VERSION }}
@@ -87,7 +87,7 @@ jobs:
           echo "TAG_NAME=${latest_tag}" >> $GITHUB_ENV
           echo "TARGET_BRANCH=${{ github.ref_name }}" >> $GITHUB_ENV
 
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           ref: ${{ env.TARGET_BRANCH }}
 
