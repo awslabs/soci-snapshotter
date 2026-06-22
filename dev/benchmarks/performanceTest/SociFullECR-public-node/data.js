@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1781912428147,
+  "lastUpdate": 1782149990559,
   "repoUrl": "https://github.com/awslabs/soci-snapshotter",
   "entries": {
     "Soci Benchmark": [
@@ -18512,6 +18512,48 @@ window.BENCHMARK_DATA = {
           {
             "name": "SociFullECR-public-node-pullTaskDuration",
             "value": 2.3306,
+            "unit": "Seconds",
+            "extra": "P90"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "davbson@amazon.com",
+            "name": "David Son",
+            "username": "sondavidb"
+          },
+          "committer": {
+            "email": "55555210+sondavidb@users.noreply.github.com",
+            "name": "David Son",
+            "username": "sondavidb"
+          },
+          "distinct": true,
+          "id": "bea655f35ac1755bfdd96ffd1fe6ab93e2560af5",
+          "message": "Add checks before generating a release\n\nIdeally we would want to run checks before pushing a tag, however the\ninfra required for the GPG key does not currently exist and would\nrequire a revamp of our existing architecture. So this is the stop-gap\nsolution I've arrived at, which will let maintainers push a tag but not\nallow the release to be created if the requisite checks don't pass.\n\nThis isn't an amazing solution but having a dead tag floating around for\na couple of minutes is definitely better than missing release artifacts.\n\nSigned-off-by: David Son <davbson@amazon.com>",
+          "timestamp": "2026-06-22T13:29:49-04:00",
+          "tree_id": "a4b1672c32612e509c167e83b1ad9863d772a9f9",
+          "url": "https://github.com/awslabs/soci-snapshotter/commit/bea655f35ac1755bfdd96ffd1fe6ab93e2560af5"
+        },
+        "date": 1782149987708,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "SociFullECR-public-node-lazyTaskDuration",
+            "value": 6.7734000000000005,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-node-localTaskDuration",
+            "value": 0.5532,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-node-pullTaskDuration",
+            "value": 2.168,
             "unit": "Seconds",
             "extra": "P90"
           }
