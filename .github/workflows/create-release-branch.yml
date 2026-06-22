@@ -34,7 +34,7 @@ jobs:
       VERSION: ''
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Mock workflow inputs on pull request
         run: |
@@ -70,7 +70,7 @@ jobs:
       VERSION: ''
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           ref: main
           sparse-checkout:
