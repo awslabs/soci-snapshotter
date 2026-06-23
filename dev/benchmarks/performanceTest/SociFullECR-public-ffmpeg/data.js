@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1782153479329,
+  "lastUpdate": 1782249774242,
   "repoUrl": "https://github.com/awslabs/soci-snapshotter",
   "entries": {
     "Soci Benchmark": [
@@ -18803,6 +18803,48 @@ window.BENCHMARK_DATA = {
           {
             "name": "SociFullECR-public-ffmpeg-pullTaskDuration",
             "value": 1.826,
+            "unit": "Seconds",
+            "extra": "P90"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "no-reply@github.com",
+            "name": "GitHub",
+            "username": "invalid-email-address"
+          },
+          "committer": {
+            "email": "55555210+sondavidb@users.noreply.github.com",
+            "name": "David Son",
+            "username": "sondavidb"
+          },
+          "distinct": true,
+          "id": "65c76c8ccac3e4f308e811ba6a76a93dc5f3048c",
+          "message": "Bump dependencies using scripts/bump-deps.sh\n\nThis includes a manual change to the config, as go-toml had an update to\nthe TOML output. Very small change but needed for checks to pass.\n\nSigned-off-by: github-actions[bot] <41898282+github-actions[bot]@users.noreply.github.com>",
+          "timestamp": "2026-06-23T14:12:07-07:00",
+          "tree_id": "01110549a61d86e97e779274837a9fe64140b7a4",
+          "url": "https://github.com/awslabs/soci-snapshotter/commit/65c76c8ccac3e4f308e811ba6a76a93dc5f3048c"
+        },
+        "date": 1782249763845,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "SociFullECR-public-ffmpeg-lazyTaskDuration",
+            "value": 0.2994,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-ffmpeg-localTaskDuration",
+            "value": 0.009,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-ffmpeg-pullTaskDuration",
+            "value": 1.7464,
             "unit": "Seconds",
             "extra": "P90"
           }
