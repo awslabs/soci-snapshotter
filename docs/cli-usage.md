@@ -92,14 +92,14 @@ Standalone mode does not require containerd, sudo, or any other daemon. You can 
 ```shell
 skopeo copy docker://public.ecr.aws/soci-workshop-examples/ffmpeg:latest oci-archive:ffmpeg.tar
 soci convert --standalone ffmpeg.tar ffmpeg-soci.tar
-skopeo copy oci-archive:ffmpeg-soci.tar docker://public.ecr.aws/soci-workshop-examples/ffmpeg:latest-soci
+skopeo copy --all oci-archive:ffmpeg-soci.tar docker://public.ecr.aws/soci-workshop-examples/ffmpeg:latest-soci
 ```
 
 **Directory output format workflow** (using skopeo):
 ```shell
 skopeo copy docker://public.ecr.aws/soci-workshop-examples/ffmpeg:latest oci:ffmpeg-oci
 soci convert --standalone --format oci-dir ffmpeg-oci ffmpeg-soci-oci
-skopeo copy oci:ffmpeg-soci-oci docker://public.ecr.aws/soci-workshop-examples/ffmpeg:latest-soci
+skopeo copy --all oci:ffmpeg-soci-oci docker://public.ecr.aws/soci-workshop-examples/ffmpeg:latest-soci
 ```
 
 ### soci push
