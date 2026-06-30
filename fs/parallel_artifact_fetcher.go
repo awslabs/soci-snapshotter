@@ -208,6 +208,11 @@ func (f *parallelArtifactFetcher) fetchFromRemoteAndWriteToTempDir(ctx context.C
 
 	doMultipleFetches := false
 	numLoops := f.calcNumLoops(desc.Size)
+	logger.WithFields(log.Fields{
+		"chunkSize": f.chunkSize,
+		"layerSize": desc.Size,
+		"numLoops":  numLoops,
+	}).Info("chunk calculation for layer download")
 	if numLoops > 1 {
 		if rs, ok := f.remoteStore.(*orasBlobStore); ok {
 			// If this layer does not support ranged GET, it is very likely
@@ -216,7 +221,11 @@ func (f *parallelArtifactFetcher) fetchFromRemoteAndWriteToTempDir(ctx context.C
 			if err != nil {
 				return nil, fmt.Errorf("error doing initial authorization for layer: %w", err)
 			}
+		} else {
+			logger.Warn("remoteStore is not *orasBlobStore, cannot use range requests")
 		}
+	} else {
+		logger.Info("numLoops <= 1, using single request (set concurrent_download_chunk_size in config to enable chunking)")
 	}
 	logger.WithField("doMultipleFetches", doMultipleFetches).Debug("starting fetch write")
 	if doMultipleFetches {
