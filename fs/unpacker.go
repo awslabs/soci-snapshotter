@@ -47,10 +47,11 @@ type Archive interface {
 }
 
 type layerArchive struct {
-	compressed       *asyncVerifier
-	uncompressed     *asyncVerifier
-	decompressStream socicompression.DecompressStream
-	bufferPool       *bufferPool
+	compressed         *asyncVerifier
+	uncompressed       *asyncVerifier
+	decompressStream   socicompression.DecompressStream
+	bufferPool         *bufferPool
+	parallelApplyConfig *ParallelApplyConfig // nil means use sequential (containerd default)
 }
 
 type asyncVerifier struct {
@@ -121,6 +122,10 @@ func (p *bufferPool) Put(buffer *[]byte) {
 }
 
 func NewLayerArchive(compressedVerifier, uncompressedVerifier *asyncVerifier, decompressStream socicompression.DecompressStream, bufPool *bufferPool) Archive {
+	return NewLayerArchiveWithParallelConfig(compressedVerifier, uncompressedVerifier, decompressStream, bufPool, nil)
+}
+
+func NewLayerArchiveWithParallelConfig(compressedVerifier, uncompressedVerifier *asyncVerifier, decompressStream socicompression.DecompressStream, bufPool *bufferPool, parallelCfg *ParallelApplyConfig) Archive {
 	// If no layer decompress stream was provided, then use containerd's decompress stream implementation.
 	if decompressStream == nil {
 		decompressStream = compression.DecompressStream
@@ -129,10 +134,11 @@ func NewLayerArchive(compressedVerifier, uncompressedVerifier *asyncVerifier, de
 		bufPool = newbufferPool(64 * 1024)
 	}
 	return &layerArchive{
-		compressed:       compressedVerifier,
-		uncompressed:     uncompressedVerifier,
-		decompressStream: decompressStream,
-		bufferPool:       bufPool,
+		compressed:          compressedVerifier,
+		uncompressed:        uncompressedVerifier,
+		decompressStream:    decompressStream,
+		bufferPool:          bufPool,
+		parallelApplyConfig: parallelCfg,
 	}
 }
 
@@ -208,7 +214,14 @@ func (la *layerArchive) Apply(ctx context.Context, root string, r io.Reader, opt
 		la.uncompressed.AsyncVerify(pr)
 	}
 
-	n, err := archive.Apply(ctx, root, reader, opts...)
+	var n int64
+	if la.parallelApplyConfig != nil {
+		// Use parallel tar extraction for better NVMe performance
+		n, err = ParallelApply(ctx, root, reader, *la.parallelApplyConfig, opts...)
+	} else {
+		// Use standard containerd sequential extraction
+		n, err = archive.Apply(ctx, root, reader, opts...)
+	}
 	drain()
 	if err != nil {
 		return 0, err

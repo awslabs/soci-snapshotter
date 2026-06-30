@@ -586,7 +586,17 @@ func (fs *filesystem) premount(ctx context.Context, desc ocispec.Descriptor, ref
 		compressedVerifier = newAsyncVerifier(desc.Digest.Verifier())
 	}
 
-	archive := NewLayerArchive(compressedVerifier, newAsyncVerifier(uncompressedDigest.Verifier()), decompressStream, layerJob.bufferPool)
+	// Create parallel apply config if enabled
+	var parallelApplyCfg *ParallelApplyConfig
+	if fs.pullModes.Parallel.ParallelFileWrites {
+		parallelApplyCfg = &ParallelApplyConfig{
+			NumWorkers: fs.pullModes.Parallel.ParallelFileWriteWorkers,
+			BufferSize: fs.pullModes.Parallel.ParallelFileWriteBufferSize,
+			QueueSize:  64,
+		}
+	}
+
+	archive := NewLayerArchiveWithParallelConfig(compressedVerifier, newAsyncVerifier(uncompressedDigest.Verifier()), decompressStream, layerJob.bufferPool, parallelApplyCfg)
 	chunkSize := fs.pullModes.Parallel.ConcurrentDownloadChunkSize
 	fetcher, err := newParallelArtifactFetcher(refspec, fs.contentStore, remoteStore, layerJob, chunkSize, compressedVerifier)
 	if err != nil {
