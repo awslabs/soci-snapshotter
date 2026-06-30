@@ -51,7 +51,8 @@ const (
 var (
 	// TODO: pipe through garbage collection frequency to configuration.
 	// The default frequency for garbage collection. This value was arbitrarily chosen.
-	garbageCollectionInterval = 10 * time.Second
+	// TEMP: increased from 10s to 10m for debugging file disappearance issue
+	garbageCollectionInterval = 10 * time.Minute
 
 	// TODO: pipe through garbage collection job expiration.
 	// The default expiration time for in progress jobs to be garbage collected.
@@ -804,6 +805,12 @@ type garbageCollectIfNotFoundInMemory struct {
 func (gcp garbageCollectIfNotFoundInMemory) MarkAndSweep(ctx context.Context, jobs *unpackJobsSnapshot) {
 	logger := log.G(ctx).WithField("policy", "NotFoundInMemory")
 
+	// Debug: log the state before deletion
+	logger.WithFields(log.Fields{
+		"inMemoryCount":  len(jobs.inMemory),
+		"inStorageCount": len(jobs.inStorage),
+	}).Debug("GC starting MarkAndSweep")
+
 	jobs.inStorage = slices.DeleteFunc(jobs.inStorage, func(id string) bool {
 		if _, ok := jobs.inMemory[id]; ok {
 			// Job is tracked in-memory, skip.
@@ -811,7 +818,7 @@ func (gcp garbageCollectIfNotFoundInMemory) MarkAndSweep(ctx context.Context, jo
 		}
 
 		jobCtxLogger := logger.WithField("id", id)
-		jobCtxLogger.Trace("Marked for cleanup")
+		jobCtxLogger.Warn("GC deleting directory not found in memory")
 
 		if err := gcp.storage.Delete(id); err != nil {
 			jobCtxLogger.WithError(err).Error("Failed to free resources for untracked image unpack")
