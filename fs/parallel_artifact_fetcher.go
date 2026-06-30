@@ -347,20 +347,29 @@ func (f *parallelArtifactFetcher) multiRequestFetchWrite(ctx context.Context, de
 	}
 
 	for i := range numLoops {
+		semAcquireStart := time.Now()
 		err := f.layerUnpackJob.AcquireDownload(ctx, 1)
 		if err != nil {
 			return fmt.Errorf("error acquiring semaphore: %w", err)
 		}
+		semWaitMs := time.Since(semAcquireStart).Milliseconds()
 
 		eg.Go(func() error {
 			defer f.layerUnpackJob.ReleaseDownload(1)
 
 			lower, upper := f.getRange(i, desc.Size)
+			chunkSize := upper - lower + 1
+
+			// Time the HTTP fetch
+			fetchStart := time.Now()
 			rc, err := blobStore.FetchRange(egCtx, reference, lower, upper)
+			fetchMs := time.Since(fetchStart).Milliseconds()
 			if err != nil {
 				return err
 			}
 
+			// Time the disk write
+			writeStart := time.Now()
 			errCh := make(chan error, 1)
 			defer close(errCh)
 
@@ -376,6 +385,22 @@ func (f *parallelArtifactFetcher) multiRequestFetchWrite(ctx context.Context, de
 				err = egCtx.Err()
 			case err = <-copyFunc():
 			}
+			writeMs := time.Since(writeStart).Milliseconds()
+
+			// Log timing for chunks that took longer than expected
+			totalMs := fetchMs + writeMs
+			if semWaitMs > 100 || totalMs > 500 {
+				log.G(egCtx).WithFields(log.Fields{
+					"chunk":       i,
+					"chunkSize":   chunkSize,
+					"semWait_ms":  semWaitMs,
+					"fetch_ms":    fetchMs,
+					"write_ms":    writeMs,
+					"total_ms":    totalMs,
+					"offset":      lower,
+				}).Info("chunk download timing (slow)")
+			}
+
 			return err
 		})
 	}
