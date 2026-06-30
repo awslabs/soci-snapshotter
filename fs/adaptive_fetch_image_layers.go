@@ -445,16 +445,27 @@ func (jobs *unpackJobs) Remove(job *layerUnpackJob, cause error) error {
 
 func (jobs *unpackJobs) RemoveImageWithError(imageDigest string, cause error) error {
 	jobs.mu.Lock()
-	defer jobs.mu.Unlock()
-
 	imageJob, ok := jobs.images[imageDigest]
 	if !ok {
+		jobs.mu.Unlock()
 		return fmt.Errorf("%w: %s", ErrImageUnpackJobNotFound, imageDigest)
 	}
 
 	// Cancelling an image will cancel all layer unpack jobs.
 	imageJob.Cancel(cause)
-	delete(jobs.images, imageDigest)
+	jobs.mu.Unlock()
+
+	// Wait for all layer goroutines to complete before removing from memory.
+	// This prevents the garbage collector from cleaning up disk resources
+	// while layer operations are still in progress.
+	imageJob.WaitForGoroutines()
+
+	jobs.mu.Lock()
+	defer jobs.mu.Unlock()
+	// Check again in case another goroutine already removed it
+	if _, ok := jobs.images[imageDigest]; ok {
+		delete(jobs.images, imageDigest)
+	}
 	return nil
 }
 
@@ -507,6 +518,11 @@ type imageUnpackJob struct {
 
 	layers     map[string][]*layerUnpackJob
 	bufferPool *bufferPool
+
+	// activeGoroutines tracks the number of layer goroutines currently running.
+	// This is used to ensure disk resources are not garbage collected while
+	// layer operations are still in progress.
+	activeGoroutines sync.WaitGroup
 }
 
 type imageUnpackOption func(*imageUnpackJob)
@@ -576,6 +592,23 @@ func newImageUnpackJob(imageDigest string, opts ...imageUnpackOption) *imageUnpa
 
 func (job *imageUnpackJob) Cancel(cause error) {
 	job.cancel(cause)
+}
+
+// TrackGoroutine increments the active goroutine count. Call this before launching
+// a layer goroutine, and call GoroutineDone when the goroutine completes.
+func (job *imageUnpackJob) TrackGoroutine() {
+	job.activeGoroutines.Add(1)
+}
+
+// GoroutineDone decrements the active goroutine count. Call this when a layer
+// goroutine completes (typically in a defer).
+func (job *imageUnpackJob) GoroutineDone() {
+	job.activeGoroutines.Done()
+}
+
+// WaitForGoroutines blocks until all tracked goroutines have completed.
+func (job *imageUnpackJob) WaitForGoroutines() {
+	job.activeGoroutines.Wait()
 }
 
 type layerUnpackJobStatus int

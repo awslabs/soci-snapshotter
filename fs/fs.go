@@ -541,7 +541,13 @@ func (fs *filesystem) preloadAllLayers(ctx context.Context, desc ocispec.Descrip
 					if err != nil {
 						return fmt.Errorf("error adding layer job: %w", err)
 					}
-					go fs.premount(premountCtx, l, refspec, remoteStore, diffIDMap, layerJob)
+					// Track the goroutine so RemoveImageWithError waits for it to complete
+					// before allowing garbage collection of disk resources
+					imageJob.TrackGoroutine()
+					go func(desc ocispec.Descriptor) {
+						defer imageJob.GoroutineDone()
+						fs.premount(premountCtx, desc, refspec, remoteStore, diffIDMap, layerJob)
+					}(l)
 				}
 			}
 		}
