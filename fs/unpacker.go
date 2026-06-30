@@ -59,6 +59,7 @@ type asyncVerifier struct {
 	v       digest.Verifier
 	waitCh  chan struct{}
 	started bool
+	skipped bool // true when verification was intentionally skipped (e.g., local store fetch)
 }
 
 func newAsyncVerifier(v digest.Verifier) *asyncVerifier {
@@ -78,6 +79,7 @@ func (av *asyncVerifier) SkipVerification() {
 	if av.started {
 		return // Already started, don't interfere
 	}
+	av.skipped = true
 	av.started = true
 	close(av.waitCh)
 }
@@ -102,6 +104,10 @@ func (av *asyncVerifier) Verified(ctx context.Context) bool {
 	if !av.started {
 		log.G(ctx).Warn("asyncVerifier.Verified called but verification was never started")
 		return false
+	}
+	// If verification was skipped (e.g., local store fetch), return true without checking digest
+	if av.skipped {
+		return true
 	}
 	select {
 	case <-ctx.Done():
