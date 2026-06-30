@@ -606,14 +606,18 @@ func (fs *filesystem) premount(ctx context.Context, desc ocispec.Descriptor, ref
 	}
 
 	// Create parallel apply config if enabled
+	// NOTE: ParallelApply is currently disabled because it doesn't handle all metadata
+	// operations (timestamps, ownership, whiteouts) that containerd's archive.Apply does.
+	// TODO: Fix ParallelApply to handle these cases, then re-enable.
 	var parallelApplyCfg *ParallelApplyConfig
-	if fs.pullModes.Parallel.ParallelFileWrites {
-		parallelApplyCfg = &ParallelApplyConfig{
-			NumWorkers: fs.pullModes.Parallel.ParallelFileWriteWorkers,
-			BufferSize: fs.pullModes.Parallel.ParallelFileWriteBufferSize,
-			QueueSize:  64,
-		}
-	}
+	_ = fs.pullModes.Parallel.ParallelFileWrites // Silence unused warning
+	// if fs.pullModes.Parallel.ParallelFileWrites {
+	// 	parallelApplyCfg = &ParallelApplyConfig{
+	// 		NumWorkers: fs.pullModes.Parallel.ParallelFileWriteWorkers,
+	// 		BufferSize: fs.pullModes.Parallel.ParallelFileWriteBufferSize,
+	// 		QueueSize:  64,
+	// 	}
+	// }
 
 	archive := NewLayerArchiveWithParallelConfig(compressedVerifier, newAsyncVerifier(uncompressedDigest.Verifier()), decompressStream, layerJob.bufferPool, parallelApplyCfg)
 	chunkSize := fs.pullModes.Parallel.ConcurrentDownloadChunkSize
