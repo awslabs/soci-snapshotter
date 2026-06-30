@@ -561,16 +561,29 @@ func (fs *filesystem) preloadAllLayers(ctx context.Context, desc ocispec.Descrip
 }
 
 func (fs *filesystem) premount(ctx context.Context, desc ocispec.Descriptor, refspec reference.Spec, remoteStore resolverStorage, diffIDMap map[string]digest.Digest, layerJob *layerUnpackJob) error {
+	logger := log.G(ctx).WithFields(log.Fields{
+		"layerDigest":   desc.Digest.String(),
+		"layerUnpackID": layerJob.layerUnpackID,
+		"imageDigest":   layerJob.imageDigest,
+		"ingestPath":    layerJob.GetIngestLocation(),
+		"upperPath":     layerJob.GetUnpackUpperPath(),
+	})
+	logger.Info("premount starting for layer")
+
 	var err error
 	defer func() {
 		// If there is a context error (usually context cancelled),
 		// rebase will not get called for this layer,
 		// so we need to make sure to remove this job.
 		if cErr := ctx.Err(); cErr != nil {
+			logger.WithError(cErr).Warn("context error detected in premount defer")
 			err = cErr
 		}
 		if err != nil {
+			logger.WithError(err).Error("premount failed, calling RemoveImageWithError")
 			fs.inProgressImageUnpacks.RemoveImageWithError(layerJob.imageDigest, err)
+		} else {
+			logger.Info("premount completed successfully")
 		}
 		layerJob.errCh <- err
 		close(layerJob.errCh)

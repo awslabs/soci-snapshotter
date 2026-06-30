@@ -390,7 +390,12 @@ func (disk LayerUnpackDiskStorage) Delete(id string) error {
 	if id == "" {
 		return errEmptyJobID
 	}
-	return os.RemoveAll(disk.getJobPath(id))
+	path := disk.getJobPath(id)
+	log.L.WithFields(log.Fields{
+		"id":   id,
+		"path": path,
+	}).Warn("LayerUnpackDiskStorage.Delete called - removing directory from disk")
+	return os.RemoveAll(path)
 }
 
 type unpackJobsSnapshot struct {
@@ -452,6 +457,23 @@ func (jobs *unpackJobs) RemoveImageWithError(imageDigest string, cause error) er
 		return fmt.Errorf("%w: %s", ErrImageUnpackJobNotFound, imageDigest)
 	}
 
+	// Count layer jobs for logging
+	layerCount := 0
+	layerJobIDs := make([]string, 0)
+	for _, layerJobs := range imageJob.layers {
+		for _, lj := range layerJobs {
+			layerCount++
+			layerJobIDs = append(layerJobIDs, lj.layerUnpackID)
+		}
+	}
+
+	log.L.WithFields(log.Fields{
+		"imageDigest":  imageDigest,
+		"cause":        cause,
+		"layerCount":   layerCount,
+		"layerJobIDs":  layerJobIDs,
+	}).Warn("RemoveImageWithError called - cancelling all layer jobs")
+
 	// Cancelling an image will cancel all layer unpack jobs.
 	imageJob.Cancel(cause)
 	jobs.mu.Unlock()
@@ -461,12 +483,15 @@ func (jobs *unpackJobs) RemoveImageWithError(imageDigest string, cause error) er
 	// tracked goroutine) while still ensuring the garbage collector doesn't
 	// clean up disk resources while layer operations are still in progress.
 	go func() {
+		log.L.WithField("imageDigest", imageDigest).Debug("waiting for goroutines to complete before removing image from memory")
 		imageJob.WaitForGoroutines()
+		log.L.WithField("imageDigest", imageDigest).Debug("all goroutines completed, removing image from memory")
 		jobs.mu.Lock()
 		defer jobs.mu.Unlock()
 		// Check again in case another goroutine already removed it
 		if _, ok := jobs.images[imageDigest]; ok {
 			delete(jobs.images, imageDigest)
+			log.L.WithField("imageDigest", imageDigest).Info("image removed from memory")
 		}
 	}()
 
@@ -685,11 +710,37 @@ func newLayerUnpackJob(layerDigest string, storage LayerUnpackJobStorage, opts .
 		return nil, fmt.Errorf("failed to fetch unpack root for layer %s: %w", layerDigest, err)
 	}
 
+	ingestPath := filepath.Join(path, layerDigest)
+	upperPath := filepath.Join(path, layerUnpackDir)
+
+	// Debug: verify the directories were created correctly
+	log.L.WithFields(log.Fields{
+		"layerUnpackID": id,
+		"layerDigest":   layerDigest,
+		"jobPath":       path,
+		"ingestPath":    ingestPath,
+		"upperPath":     upperPath,
+	}).Debug("creating new layer unpack job")
+
+	// Verify the job path exists
+	if pathInfo, pathErr := os.Stat(path); pathErr != nil {
+		log.L.WithError(pathErr).WithField("path", path).Error("job path does not exist after storage.Create")
+	} else if !pathInfo.IsDir() {
+		log.L.WithField("path", path).Error("job path is not a directory")
+	}
+
+	// Verify the upper path (fs dir) exists
+	if upperInfo, upperErr := os.Stat(upperPath); upperErr != nil {
+		log.L.WithError(upperErr).WithField("upperPath", upperPath).Error("upper path does not exist after storage.Create")
+	} else if !upperInfo.IsDir() {
+		log.L.WithField("upperPath", upperPath).Error("upper path is not a directory")
+	}
+
 	luj := &layerUnpackJob{
 		layerUnpackID: id,
 		layerDigest:   layerDigest,
-		ingestPath:    filepath.Join(path, layerDigest),
-		upperPath:     filepath.Join(path, layerUnpackDir),
+		ingestPath:    ingestPath,
+		upperPath:     upperPath,
 		status:        atomic.Value{},
 		errCh:         make(chan error, 1),
 	}
@@ -699,6 +750,12 @@ func newLayerUnpackJob(layerDigest string, storage LayerUnpackJobStorage, opts .
 	}
 
 	luj.status.Store(LayerUnpackJobInProgress)
+
+	log.L.WithFields(log.Fields{
+		"layerUnpackID": id,
+		"layerDigest":   layerDigest,
+		"imageDigest":   luj.imageDigest,
+	}).Debug("layer unpack job created successfully")
 
 	return luj, nil
 }

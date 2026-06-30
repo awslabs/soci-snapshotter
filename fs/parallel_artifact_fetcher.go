@@ -137,6 +137,35 @@ func (f *parallelArtifactFetcher) calcNumLoops(size int64) int64 {
 // not from upstream.
 func (f *parallelArtifactFetcher) fetchFromRemoteAndWriteToTempDir(ctx context.Context, desc ocispec.Descriptor) (io.ReadCloser, error) {
 	ingestPath := f.layerUnpackJob.GetIngestLocation()
+	layerUnpackID := f.layerUnpackJob.layerUnpackID
+	parentDir := filepath.Dir(ingestPath)
+
+	logger := log.G(ctx).WithFields(log.Fields{
+		"ingestPath":    ingestPath,
+		"layerUnpackID": layerUnpackID,
+		"parentDir":     parentDir,
+		"digest":        desc.Digest.String(),
+	})
+
+	// Verify parent directory exists
+	if parentInfo, parentErr := os.Stat(parentDir); parentErr != nil {
+		logger.WithError(parentErr).Error("parent directory does not exist before file creation")
+		return nil, fmt.Errorf("parent directory does not exist at %s: %w", parentDir, parentErr)
+	} else {
+		logger.WithField("parentIsDir", parentInfo.IsDir()).Debug("parent directory check passed")
+	}
+
+	// List contents of parent directory for debugging
+	entries, listErr := os.ReadDir(parentDir)
+	if listErr != nil {
+		logger.WithError(listErr).Warn("failed to list parent directory contents")
+	} else {
+		entryNames := make([]string, len(entries))
+		for i, e := range entries {
+			entryNames[i] = e.Name()
+		}
+		logger.WithField("parentContents", entryNames).Debug("parent directory contents before file creation")
+	}
 
 	// Refuse to unpack if file already exists
 	_, err := os.Stat(ingestPath)
@@ -147,9 +176,18 @@ func (f *parallelArtifactFetcher) fetchFromRemoteAndWriteToTempDir(ctx context.C
 		return nil, fmt.Errorf("error setting up temporary file: %w", err)
 	}
 
+	logger.Debug("creating ingest file")
 	file, err := os.Create(ingestPath)
 	if err != nil {
 		return nil, fmt.Errorf("error creating temp ingest file at %s: %w", ingestPath, err)
+	}
+	logger.WithField("fd", file.Fd()).Debug("file created successfully")
+
+	// Verify file exists immediately after creation
+	if statInfo, statErr := os.Stat(ingestPath); statErr != nil {
+		logger.WithError(statErr).Error("file does not exist immediately after os.Create")
+	} else {
+		logger.WithField("size", statInfo.Size()).Debug("file exists after creation")
 	}
 
 	defer func() {
@@ -162,6 +200,7 @@ func (f *parallelArtifactFetcher) fetchFromRemoteAndWriteToTempDir(ctx context.C
 	if err != nil {
 		return nil, fmt.Errorf("error truncating temp ingest file at %s: %w", ingestPath, err)
 	}
+	logger.WithField("targetSize", desc.Size).Debug("file truncated")
 
 	doMultipleFetches := false
 	numLoops := f.calcNumLoops(desc.Size)
@@ -175,6 +214,7 @@ func (f *parallelArtifactFetcher) fetchFromRemoteAndWriteToTempDir(ctx context.C
 			}
 		}
 	}
+	logger.WithField("doMultipleFetches", doMultipleFetches).Debug("starting fetch write")
 	if doMultipleFetches {
 		err = f.multiRequestFetchWrite(ctx, desc, file, numLoops)
 	} else {
@@ -182,13 +222,44 @@ func (f *parallelArtifactFetcher) fetchFromRemoteAndWriteToTempDir(ctx context.C
 	}
 
 	if err != nil {
+		// Check if file still exists after write error
+		if statInfo, statErr := os.Stat(ingestPath); statErr != nil {
+			logger.WithError(statErr).Error("file does not exist after write error")
+		} else {
+			logger.WithField("size", statInfo.Size()).Debug("file exists after write error")
+		}
 		return nil, fmt.Errorf("error writing to temp ingest file at %s: %w", ingestPath, err)
 	}
 
+	logger.Debug("fetch write completed, checking file state before sync")
+
+	// Check file state before sync
+	if statInfo, statErr := os.Stat(ingestPath); statErr != nil {
+		logger.WithError(statErr).Error("file does not exist after write but before sync")
+		// Also check parent directory
+		if _, parentErr := os.Stat(parentDir); parentErr != nil {
+			logger.WithError(parentErr).Error("parent directory also does not exist")
+		} else {
+			// List what's in parent directory
+			if entries, listErr := os.ReadDir(parentDir); listErr == nil {
+				entryNames := make([]string, len(entries))
+				for i, e := range entries {
+					entryNames[i] = e.Name()
+				}
+				logger.WithField("parentContents", entryNames).Error("parent directory contents at time of disappearance")
+			}
+		}
+		return nil, fmt.Errorf("file disappeared before sync at %s: %w", ingestPath, statErr)
+	} else {
+		logger.WithField("size", statInfo.Size()).Debug("file exists before sync")
+	}
+
 	// Sync file to disk before verification
+	logger.Debug("starting file sync")
 	if err = file.Sync(); err != nil {
 		return nil, fmt.Errorf("error syncing file at %s: %w", ingestPath, err)
 	}
+	logger.Debug("file sync completed")
 
 	n, err := file.Seek(0, io.SeekStart)
 	if n != 0 {
@@ -197,11 +268,27 @@ func (f *parallelArtifactFetcher) fetchFromRemoteAndWriteToTempDir(ctx context.C
 	if err != nil {
 		return nil, fmt.Errorf("error reopening file at %s after writing: %w", ingestPath, err)
 	}
+	logger.Debug("file seeked to start")
 
 	// Verify the file exists before async verification
-	if _, statErr := os.Stat(ingestPath); statErr != nil {
-		log.G(ctx).WithError(statErr).WithField("path", ingestPath).Error("file does not exist after write - possible race condition")
+	if statInfo, statErr := os.Stat(ingestPath); statErr != nil {
+		logger.WithError(statErr).Error("file does not exist after sync - possible race condition")
+		// Also check parent directory
+		if _, parentErr := os.Stat(parentDir); parentErr != nil {
+			logger.WithError(parentErr).Error("parent directory also does not exist after sync")
+		} else {
+			// List what's in parent directory
+			if entries, listErr := os.ReadDir(parentDir); listErr == nil {
+				entryNames := make([]string, len(entries))
+				for i, e := range entries {
+					entryNames[i] = e.Name()
+				}
+				logger.WithField("parentContents", entryNames).Error("parent directory contents at time of disappearance")
+			}
+		}
 		return nil, fmt.Errorf("file disappeared after write at %s: %w", ingestPath, statErr)
+	} else {
+		logger.WithField("sizeAfterSync", statInfo.Size()).Debug("file exists after sync, proceeding to verification")
 	}
 
 	// start async verification of the blob digest
