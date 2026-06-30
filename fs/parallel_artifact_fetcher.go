@@ -200,11 +200,19 @@ func (f *parallelArtifactFetcher) fetchFromRemoteAndWriteToTempDir(ctx context.C
 		}
 	}()
 
-	err = file.Truncate(desc.Size)
+	// Use fallocate to pre-allocate blocks instead of Truncate (which creates sparse files).
+	// Sparse files cause block allocation on each WriteAt, which can be slow on some filesystems.
+	// fallocate pre-allocates all blocks upfront, making subsequent WriteAt calls faster.
+	err = preallocateFile(file, desc.Size)
 	if err != nil {
-		return nil, fmt.Errorf("error truncating temp ingest file at %s: %w", ingestPath, err)
+		// Fall back to Truncate if fallocate is not supported (e.g., on some filesystems)
+		logger.WithError(err).Warn("fallocate failed, falling back to Truncate")
+		err = file.Truncate(desc.Size)
+		if err != nil {
+			return nil, fmt.Errorf("error truncating temp ingest file at %s: %w", ingestPath, err)
+		}
 	}
-	logger.WithField("targetSize", desc.Size).Debug("file truncated")
+	logger.WithField("targetSize", desc.Size).Debug("file space pre-allocated")
 
 	doMultipleFetches := false
 	numLoops := f.calcNumLoops(desc.Size)
