@@ -355,8 +355,6 @@ func (f *parallelArtifactFetcher) multiRequestFetchWrite(ctx context.Context, de
 		semWaitMs := time.Since(semAcquireStart).Milliseconds()
 
 		eg.Go(func() error {
-			defer f.layerUnpackJob.ReleaseDownload(1)
-
 			lower, upper := f.getRange(i, desc.Size)
 			chunkSize := upper - lower + 1
 
@@ -364,11 +362,16 @@ func (f *parallelArtifactFetcher) multiRequestFetchWrite(ctx context.Context, de
 			fetchStart := time.Now()
 			rc, err := blobStore.FetchRange(egCtx, reference, lower, upper)
 			fetchMs := time.Since(fetchStart).Milliseconds()
+
+			// Release semaphore immediately after HTTP fetch completes.
+			// This allows other downloads to start while we write to disk.
+			f.layerUnpackJob.ReleaseDownload(1)
+
 			if err != nil {
 				return err
 			}
 
-			// Time the disk write
+			// Time the disk write (no longer holding download semaphore)
 			writeStart := time.Now()
 			errCh := make(chan error, 1)
 			defer close(errCh)
