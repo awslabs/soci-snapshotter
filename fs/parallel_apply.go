@@ -206,6 +206,13 @@ func ParallelApply(ctx context.Context, root string, r io.Reader, cfg ParallelAp
 
 // writeFile writes a single file with optimized I/O
 func writeFile(work *fileWork, bufSize int) error {
+	// Ensure parent directory exists right before writing
+	// This must happen in the worker, not the producer, to avoid race conditions
+	// with symlinks that may be processed between dispatch and write
+	if err := os.MkdirAll(filepath.Dir(work.path), 0755); err != nil {
+		return fmt.Errorf("mkdir failed for %s: %w", work.path, err)
+	}
+
 	// Use O_WRONLY|O_CREATE|O_TRUNC - standard flags
 	// Note: NOT using O_DIRECT because it requires aligned buffers
 	// The kernel's page cache will batch our writes
