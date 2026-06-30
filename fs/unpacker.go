@@ -28,6 +28,7 @@ import (
 	"github.com/containerd/containerd/v2/core/mount"
 	"github.com/containerd/containerd/v2/pkg/archive"
 	"github.com/containerd/containerd/v2/pkg/archive/compression"
+	"github.com/containerd/log"
 	"github.com/opencontainers/go-digest"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 )
@@ -68,6 +69,19 @@ func newAsyncVerifier(v digest.Verifier) *asyncVerifier {
 	}
 }
 
+// SkipVerification marks this verifier as not needing verification.
+// This is used when the content was fetched from local store (already verified by containerd).
+func (av *asyncVerifier) SkipVerification() {
+	if av == nil || av.v == nil {
+		return
+	}
+	if av.started {
+		return // Already started, don't interfere
+	}
+	av.started = true
+	close(av.waitCh)
+}
+
 func (av *asyncVerifier) AsyncVerify(reader io.ReadCloser) {
 	if av == nil || av.v == nil {
 		reader.Close()
@@ -86,13 +100,19 @@ func (av *asyncVerifier) Verified(ctx context.Context) bool {
 		return true
 	}
 	if !av.started {
+		log.G(ctx).Warn("asyncVerifier.Verified called but verification was never started")
 		return false
 	}
 	select {
 	case <-ctx.Done():
+		log.G(ctx).WithError(ctx.Err()).Warn("asyncVerifier.Verified: context cancelled while waiting")
 		return false
 	case <-av.waitCh:
-		return av.v.Verified()
+		verified := av.v.Verified()
+		if !verified {
+			log.G(ctx).Warn("asyncVerifier.Verified: digest verification FAILED")
+		}
+		return verified
 	}
 }
 

@@ -70,6 +70,10 @@ func (f *parallelArtifactFetcher) Fetch(ctx context.Context, desc ocispec.Descri
 	// Check local store first
 	rc, err := f.localStore.Fetch(ctx, desc)
 	if err == nil {
+		// Content from local store is already verified by containerd.
+		// Mark the verifier as not needing verification to avoid false "digest mismatch" errors.
+		f.verifier.SkipVerification()
+		log.G(ctx).WithField("digest", desc.Digest.String()).Debug("fetched artifact from local store, skipping compressed verification")
 		return rc, true, nil
 	}
 
