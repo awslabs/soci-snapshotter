@@ -219,18 +219,18 @@ func (r *orasBlobStore) doInitialFetch(ctx context.Context, reference string) (b
 	// A 206 Partial Content response also indicates range support (GetHeaderWithGet sends Range: bytes=0-1)
 	acceptRanges := resp.Header.Get("Accept-Ranges")
 	if resp.StatusCode == http.StatusPartialContent {
-		log.G(ctx).WithField("reference", reference).Debug("range requests supported (206 Partial Content)")
+		log.G(ctx).WithField("reference", reference).Info("range requests supported (206 Partial Content)")
 		return true, nil
 	}
 	if acceptRanges == "bytes" {
-		log.G(ctx).WithField("reference", reference).Debug("range requests supported (Accept-Ranges: bytes)")
+		log.G(ctx).WithField("reference", reference).Info("range requests supported (Accept-Ranges: bytes)")
 		return true, nil
 	}
 	log.G(ctx).WithFields(log.Fields{
 		"reference":    reference,
 		"statusCode":   resp.StatusCode,
 		"acceptRanges": acceptRanges,
-	}).Debug("range requests NOT supported, falling back to single request")
+	}).Info("range requests NOT supported, falling back to single request")
 	return false, nil
 }
 

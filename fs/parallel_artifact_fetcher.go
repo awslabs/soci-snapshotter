@@ -227,7 +227,7 @@ func (f *parallelArtifactFetcher) fetchFromRemoteAndWriteToTempDir(ctx context.C
 	} else {
 		logger.Info("numLoops <= 1, using single request (set concurrent_download_chunk_size in config to enable chunking)")
 	}
-	logger.WithField("doMultipleFetches", doMultipleFetches).Debug("starting fetch write")
+	logger.WithField("doMultipleFetches", doMultipleFetches).Info("starting fetch write")
 	if doMultipleFetches {
 		err = f.multiRequestFetchWrite(ctx, desc, file, numLoops)
 	} else {
