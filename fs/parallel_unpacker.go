@@ -47,11 +47,20 @@ func NewParallelLayerUnpacker(fetcher Fetcher, archive Archive, controller Layer
 }
 
 func (lu *parallelLayerUnpacker) Unpack(ctx context.Context, desc ocispec.Descriptor, mountpoint string, mounts []mount.Mount) error {
+	fetchStartTime := time.Now()
 	rc, local, err := lu.fetcher.Fetch(ctx, desc)
 	if err != nil {
 		return fmt.Errorf("cannot fetch layer: %w", err)
 	}
 	defer rc.Close()
+	fetchDuration := time.Since(fetchStartTime)
+	log.G(ctx).WithFields(log.Fields{
+		"digest":      desc.Digest.String(),
+		"size":        desc.Size,
+		"local":       local,
+		"fetch_ms":    fetchDuration.Milliseconds(),
+		"mountpoint":  mountpoint,
+	}).Info("Layer fetch completed")
 
 	release, err := lu.controller.AcquireUnpackLease(ctx)
 	if err != nil {
@@ -100,7 +109,11 @@ func (lu *parallelLayerUnpacker) Unpack(ctx context.Context, desc ocispec.Descri
 		return fmt.Errorf("cannot apply layer: %w", err)
 	}
 
-	log.G(ctx).WithFields(log.Fields{"digest": desc.Digest.String(), "size": desc.Size,
-		"mountpoint": mountpoint, "latency_ms": time.Since(startTime).Milliseconds()}).Debug("Layer successfully unpacked")
+	log.G(ctx).WithFields(log.Fields{
+		"digest":     desc.Digest.String(),
+		"size":       desc.Size,
+		"mountpoint": mountpoint,
+		"unpack_ms":  time.Since(startTime).Milliseconds(),
+	}).Info("Layer successfully unpacked")
 	return errGroup.Wait()
 }
