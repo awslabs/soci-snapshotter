@@ -23,6 +23,7 @@ import (
 	"io"
 	"io/fs"
 	"os"
+	"path/filepath"
 	"time"
 
 	"github.com/awslabs/soci-snapshotter/soci/store"
@@ -184,12 +185,23 @@ func (f *parallelArtifactFetcher) fetchFromRemoteAndWriteToTempDir(ctx context.C
 		return nil, fmt.Errorf("error writing to temp ingest file at %s: %w", ingestPath, err)
 	}
 
+	// Sync file to disk before verification
+	if err = file.Sync(); err != nil {
+		return nil, fmt.Errorf("error syncing file at %s: %w", ingestPath, err)
+	}
+
 	n, err := file.Seek(0, io.SeekStart)
 	if n != 0 {
 		err = errors.Join(err, errors.New("seek position != zero"))
 	}
 	if err != nil {
 		return nil, fmt.Errorf("error reopening file at %s after writing: %w", ingestPath, err)
+	}
+
+	// Verify the file exists before async verification
+	if _, statErr := os.Stat(ingestPath); statErr != nil {
+		log.G(ctx).WithError(statErr).WithField("path", ingestPath).Error("file does not exist after write - possible race condition")
+		return nil, fmt.Errorf("file disappeared after write at %s: %w", ingestPath, statErr)
 	}
 
 	// start async verification of the blob digest
@@ -276,9 +288,18 @@ func (f *parallelArtifactFetcher) multiRequestFetchWrite(ctx context.Context, de
 }
 
 func (f *parallelArtifactFetcher) asyncVerifyBlobDigest(ctx context.Context, path string) error {
+	// Debug: check if directory exists
+	dir := filepath.Dir(path)
+	if _, dirErr := os.Stat(dir); dirErr != nil {
+		log.G(ctx).WithError(dirErr).WithField("dir", dir).Error("parent directory does not exist for digest verification")
+	}
+
 	file, err := os.Open(path)
 	if err != nil {
-		log.G(ctx).WithError(err).Errorf("failed to open file %s for digest verification", path)
+		log.G(ctx).WithError(err).WithFields(log.Fields{
+			"path": path,
+			"dir":  dir,
+		}).Error("failed to open file for digest verification")
 		return err
 	}
 	f.verifier.AsyncVerify(file)
