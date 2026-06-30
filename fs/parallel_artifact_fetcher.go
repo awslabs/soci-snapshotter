@@ -24,6 +24,7 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"sync"
 	"time"
 
 	"github.com/awslabs/soci-snapshotter/soci/store"
@@ -451,13 +452,27 @@ func writeToEntireFile(file *os.File, rc io.ReadCloser) error {
 	return nil
 }
 
+// copyBuffer is a large buffer for efficient copying.
+// 1MB buffer reduces syscalls from ~2000 per 64MB chunk to ~64.
+var copyBufferPool = sync.Pool{
+	New: func() any {
+		buf := make([]byte, 1<<20) // 1MB buffer
+		return &buf
+	},
+}
+
 func writeToFileRange(file *os.File, rsc io.ReadCloser, lower, upper int64) error {
 	w := io.NewOffsetWriter(file, lower)
 
 	readSize := upper - lower + 1
-	// Reading any more or less will result in an incorrect file being created,
-	// so use io.CopyN to guarantee we read exactly lower - upper + 1 bytes.
-	_, err := io.CopyN(w, rsc, readSize)
+	// Use a large buffer to reduce syscalls.
+	// Default io.CopyN uses 32KB, we use 1MB.
+	bufPtr := copyBufferPool.Get().(*[]byte)
+	defer copyBufferPool.Put(bufPtr)
+
+	// LimitReader ensures we read exactly readSize bytes
+	limitedReader := io.LimitReader(rsc, readSize)
+	_, err := io.CopyBuffer(w, limitedReader, *bufPtr)
 	io.Copy(io.Discard, rsc) // Drain remaining data
 	if err != nil {
 		return fmt.Errorf("failed to write to temp file %s at offset %d: %w", file.Name(), lower, err)
