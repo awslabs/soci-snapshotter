@@ -455,17 +455,20 @@ func (jobs *unpackJobs) RemoveImageWithError(imageDigest string, cause error) er
 	imageJob.Cancel(cause)
 	jobs.mu.Unlock()
 
-	// Wait for all layer goroutines to complete before removing from memory.
-	// This prevents the garbage collector from cleaning up disk resources
-	// while layer operations are still in progress.
-	imageJob.WaitForGoroutines()
+	// Spawn a background goroutine to wait for all layer goroutines to complete
+	// before removing from memory. This prevents deadlock (if called from a
+	// tracked goroutine) while still ensuring the garbage collector doesn't
+	// clean up disk resources while layer operations are still in progress.
+	go func() {
+		imageJob.WaitForGoroutines()
+		jobs.mu.Lock()
+		defer jobs.mu.Unlock()
+		// Check again in case another goroutine already removed it
+		if _, ok := jobs.images[imageDigest]; ok {
+			delete(jobs.images, imageDigest)
+		}
+	}()
 
-	jobs.mu.Lock()
-	defer jobs.mu.Unlock()
-	// Check again in case another goroutine already removed it
-	if _, ok := jobs.images[imageDigest]; ok {
-		delete(jobs.images, imageDigest)
-	}
 	return nil
 }
 
