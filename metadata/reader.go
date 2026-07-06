@@ -96,12 +96,11 @@ func NewReader(db *bolt.DB, sr *io.SectionReader, toc ztoc.TOC, opts ...Option) 
 
 	r := &reader{sr: sr, db: db, initG: new(errgroup.Group)}
 	start := time.Now()
-	if rOpts.Telemetry != nil && rOpts.Telemetry.InitMetadataStoreLatency != nil {
-		rOpts.Telemetry.InitMetadataStoreLatency(start)
-	}
-
 	if err := r.init(toc, rOpts); err != nil {
 		return nil, fmt.Errorf("failed to initialize metadata: %w", err)
+	}
+	if rOpts.Telemetry != nil && rOpts.Telemetry.InitMetadataStoreLatency != nil {
+		rOpts.Telemetry.InitMetadataStoreLatency(start)
 	}
 	return r, nil
 }
