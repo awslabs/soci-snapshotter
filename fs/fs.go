@@ -154,6 +154,13 @@ func (pr *preresolver) Enqueue(imgNameAndDigest string, fn func(context.Context)
 		case pr.queue <- fn:
 			pr.cache.Store(imgNameAndDigest, struct{}{})
 		default:
+			// The work queue is full: drop this pre-resolve. The layer will
+			// still be resolved on its own Mount, just serially rather than
+			// ahead of time. Count drops so this bound is observable (e.g.
+			// when many images are mounted at once and the shared queue
+			// saturates). Keyed with an empty layer digest since this is a
+			// daemon-wide queue.
+			commonmetrics.IncOperationCount(commonmetrics.PreresolveQueueDrop, digest.Digest(""))
 			return
 		}
 	}

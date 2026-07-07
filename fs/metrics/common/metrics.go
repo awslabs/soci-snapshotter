@@ -137,6 +137,20 @@ const (
 
 	// Number of items in the work queue of background fetcher
 	BackgroundFetchWorkQueueSize = "background_fetch_work_queue_size"
+
+	// ResolveCacheHit counts layer resolves served from the resolver LRU cache
+	// (e.g. a layer that was pre-resolved and is still cached when containerd
+	// mounts it). A high hit ratio means pre-resolution is landing.
+	ResolveCacheHit = "resolve_cache_hit"
+	// ResolveCacheMiss counts layer resolves that were not in the resolver LRU
+	// cache and had to be resolved on the critical path. A high miss ratio
+	// during a burst usually means resolve_result_entry is too small to hold
+	// the pre-resolved layers before they are used (they get evicted first).
+	ResolveCacheMiss = "resolve_cache_miss"
+	// PreresolveQueueDrop counts pre-resolve requests dropped because the
+	// preresolver work queue was full. Dropped layers are not pre-resolved and
+	// pay their full resolve cost serially on their own Mount.
+	PreresolveQueueDrop = "preresolve_queue_drop"
 )
 
 var (
