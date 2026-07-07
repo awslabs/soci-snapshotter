@@ -14,7 +14,13 @@
    limitations under the License.
 */
 
-package fs
+// Package referrers implements a small OCI referrers-API client, used to
+// look up a SOCI index for an image via the registry's Referrers API. It's
+// deliberately kept free of any dependency on the fs/snapshot packages
+// (which are Linux-only, FUSE/overlayfs-specific) so that cmd/soci - which
+// only needs this referrers-lookup logic, not live mount/snapshot
+// functionality - can build on any platform.
+package referrers
 
 import (
 	"context"

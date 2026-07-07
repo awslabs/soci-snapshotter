@@ -64,6 +64,7 @@ import (
 	"github.com/awslabs/soci-snapshotter/fs/layer"
 	commonmetrics "github.com/awslabs/soci-snapshotter/fs/metrics/common"
 	layermetrics "github.com/awslabs/soci-snapshotter/fs/metrics/layer"
+	"github.com/awslabs/soci-snapshotter/fs/referrers"
 	"github.com/awslabs/soci-snapshotter/fs/remote"
 	"github.com/awslabs/soci-snapshotter/fs/source"
 	"github.com/awslabs/soci-snapshotter/idtools"
@@ -94,7 +95,7 @@ import (
 )
 
 var (
-	defaultIndexSelectionPolicy = SelectFirstPolicy
+	defaultIndexSelectionPolicy = referrers.SelectFirstPolicy
 	fusermountBin               = "fusermount"
 	preresolverQueueBufferSize  = 1024 // arbitrarily chosen buffer size
 
@@ -892,7 +893,7 @@ func (fs *filesystem) findSociIndexDesc(ctx context.Context, imageManifestDigest
 			log.G(ctx).Debug("using soci v1 index via referrers API")
 			return desc, nil
 		}
-		if !errors.Is(err, ErrNoReferrers) {
+		if !errors.Is(err, referrers.ErrNoReferrers) {
 			return ocispec.Descriptor{}, err
 		}
 		log.G(ctx).Debug("soci v1 referrers not found")
@@ -937,7 +938,7 @@ func findSociIndexDescAnnotation(ctx context.Context, imgDigest digest.Digest, r
 }
 
 func findSociIndexDescReferrer(ctx context.Context, imgDigest digest.Digest, remoteStore *orasremote.Repository) (ocispec.Descriptor, error) {
-	artifactClient := NewOCIArtifactClient(remoteStore)
+	artifactClient := referrers.NewOCIArtifactClient(remoteStore)
 
 	desc, err := artifactClient.SelectReferrer(ctx, ocispec.Descriptor{Digest: imgDigest}, defaultIndexSelectionPolicy)
 	if err != nil {
