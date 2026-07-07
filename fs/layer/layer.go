@@ -276,17 +276,6 @@ func (r *Resolver) Resolve(ctx context.Context, hosts []docker.RegistryHost, ref
 
 	log.G(ctx).Debugf("resolving")
 
-	// Resolve the blob.
-	blobR, err := r.resolveBlob(ctx, hosts, refspec, desc)
-	if err != nil {
-		return nil, fmt.Errorf("failed to resolve the blob: %w", err)
-	}
-	defer func() {
-		if retErr != nil {
-			blobR.done()
-		}
-	}()
-
 	spanCache, err := newCache(filepath.Join(r.rootDir, "spancache"), r.config.FSCacheType, r.config)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create span manager cache: %w", err)
@@ -297,6 +286,11 @@ func (r *Resolver) Resolve(ctx context.Context, hosts []docker.RegistryHost, ref
 		}
 	}()
 
+	// Fetch and unmarshal the zTOC before resolving the blob. The zTOC carries
+	// the compressed layer size (CompressedArchiveSize), which we use to
+	// populate desc.Size below. This lets the blob resolver skip the extra
+	// synchronous registry round-trip it would otherwise make to discover the
+	// layer size (getLayerSize) when the size is absent from the descriptor.
 	ztocReader, err := r.artifactStore.Fetch(ctx, sociDesc)
 	if err != nil {
 		return nil, err
@@ -325,6 +319,25 @@ func (r *Resolver) Resolve(ctx context.Context, hosts []docker.RegistryHost, ref
 		"layer_sha":      desc.Digest,
 		"files_in_layer": len(ztoc.FileMetadata),
 	}).Debugf("[Resolver.Resolve] downloaded layer ZTOC")
+
+	// If the descriptor is missing its size (e.g. the soci.size label was not
+	// propagated by the pull client), fall back to the compressed layer size
+	// recorded in the zTOC instead of forcing the blob resolver to fetch it
+	// from the registry.
+	if desc.Size == 0 && ztoc.CompressedArchiveSize > 0 {
+		desc.Size = int64(ztoc.CompressedArchiveSize)
+	}
+
+	// Resolve the blob.
+	blobR, err := r.resolveBlob(ctx, hosts, refspec, desc)
+	if err != nil {
+		return nil, fmt.Errorf("failed to resolve the blob: %w", err)
+	}
+	defer func() {
+		if retErr != nil {
+			blobR.done()
+		}
+	}()
 	// continue with resolving the layer presuming we handle ZTOC
 	// ztoc will belong to a layer
 
