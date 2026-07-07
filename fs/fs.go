@@ -1160,6 +1160,7 @@ func (fs *filesystem) setupFuseServer(ctx context.Context, mountpoint string, no
 		log.G(ctx).WithField("binary", fusermountBin).WithError(err).Info("fusermount binary not installed; trying direct mount")
 		mountOpts.DirectMountStrict = true
 	}
+	fuseMountStart := time.Now()
 	server, err := fuse.NewServer(rawFS, mountpoint, mountOpts)
 	if err != nil {
 		log.G(ctx).WithError(err).Error("failed to make filesystem server")
@@ -1178,7 +1179,9 @@ func (fs *filesystem) setupFuseServer(ctx context.Context, mountpoint string, no
 		})
 	}
 
-	return server.WaitMount()
+	err = server.WaitMount()
+	commonmetrics.MeasureLatencyInMilliseconds(commonmetrics.FuseMount, l.Info().Digest, fuseMountStart)
+	return err
 }
 
 func (fs *filesystem) Check(ctx context.Context, mountpoint string, labels map[string]string) error {
