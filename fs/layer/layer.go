@@ -300,7 +300,9 @@ func (r *Resolver) Resolve(ctx context.Context, hosts []docker.RegistryHost, ref
 	// If it exists, we decide if we want to lazily load layer, or
 	// download/decompress the entire layer
 	// If we decide to download/decompress the entire layer, getZtoc will not return the ztoc
+	ztocUnmarshalStart := time.Now()
 	ztoc, err := ztoc.Unmarshal(ztocReader)
+	commonmetrics.MeasureLatencyInMilliseconds(commonmetrics.ZtocUnmarshal, desc.Digest, ztocUnmarshalStart)
 
 	if err != nil {
 		// for now error out and let container runtime handle the layer download

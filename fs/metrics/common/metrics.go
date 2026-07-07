@@ -85,6 +85,12 @@ const (
 	InitMetadataStore = "init_metadata_store"
 	SynchronousRead   = "synchronous_read"
 	BackgroundFetch   = "background_fetch"
+	// ZtocUnmarshal measures time to read and deserialize a layer's zTOC
+	// flatbuffer (io.ReadAll + flatbufToZtoc) during layer resolve.
+	ZtocUnmarshal = "ztoc_unmarshal"
+	// FuseMount measures time to create and mount the go-fuse server for a
+	// layer (fuse.NewServer + server.WaitMount) during layer resolve.
+	FuseMount = "fuse_mount"
 
 	SynchronousReadCount              = "synchronous_read_count"
 	SynchronousReadRegistryFetchCount = "synchronous_read_remote_registry_fetch_count"
