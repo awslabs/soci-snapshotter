@@ -1062,18 +1062,36 @@ func (fs *filesystem) Mount(ctx context.Context, mountpoint string, labels map[s
 	if !ok {
 		return errors.New("could not find namespace attached to context")
 	}
-	// Also resolve and cache other layers in parallel
+	// Also resolve and cache other layers in parallel.
+	//
+	// The set of layers to pre-resolve is taken from the SOCI index
+	// (imageLayerToSociDesc) rather than the cri.image-layers snapshot label.
+	// The label is populated by containerd's CRI handler and is subject to a
+	// 4KB size cap: for images with many layers the deepest layers are
+	// silently dropped from the list, and the list content also depends on
+	// which layer containerd happens to mount first. The SOCI index instead
+	// enumerates every zTOC-indexed layer of the image, so every lazily
+	// loadable layer gets pre-resolved regardless of layer count or mount
+	// order.
 	preResolve := src[0] // TODO: should we pre-resolve blobs in other sources as well?
-	for _, desc := range neighboringLayers(preResolve.Manifest, preResolve.Target) {
+	targetDigest := preResolve.Target.Digest.String()
+	for layerDigest, sociDesc := range c.imageLayerToSociDesc {
+		// The target layer is resolved on the critical path above; skip it.
+		if layerDigest == targetDigest {
+			continue
+		}
+		layerDgst, err := digest.Parse(layerDigest)
+		if err != nil {
+			log.G(ctx).WithError(err).WithField("layerDigest", layerDigest).Debug("skipping layer pre-resolve: invalid digest")
+			continue
+		}
+		// Size is intentionally left unset: the resolver falls back to the
+		// compressed size recorded in the zTOC when the descriptor lacks one.
+		desc := ocispec.Descriptor{Digest: layerDgst}
 		imgNameAndDigest := preResolve.Name.String() + "/" + desc.Digest.String()
 		fs.pr.Enqueue(imgNameAndDigest, func(ctx context.Context) string {
 			// Use context from the preresolver, but append namespace from current ctx
 			ctx = namespaces.WithNamespace(ctx, ns)
-			sociDesc, ok := c.imageLayerToSociDesc[desc.Digest.String()]
-			if !ok {
-				log.G(ctx).WithError(snapshot.ErrNoZtoc).WithField("layerDigest", desc.Digest.String()).Debug("skipping layer pre-resolve")
-				return imgNameAndDigest
-			}
 
 			prefetchDesc := c.findPrefetchArtifact(desc.Digest.String())
 
@@ -1271,14 +1289,4 @@ func (fs *filesystem) Unmount(ctx context.Context, mountpoint string) error {
 	// goroutine using channel, etc.
 	// See also: https://www.kernel.org/doc/html/latest/filesystems/fuse.html#aborting-a-filesystem-connection
 	return syscall.Unmount(mountpoint, syscall.MNT_FORCE)
-}
-
-// neighboringLayers returns layer descriptors except the `target` layer in the specified manifest.
-func neighboringLayers(manifest ocispec.Manifest, target ocispec.Descriptor) (descs []ocispec.Descriptor) {
-	for _, desc := range manifest.Layers {
-		if desc.Digest.String() != target.Digest.String() {
-			descs = append(descs, desc)
-		}
-	}
-	return
 }
