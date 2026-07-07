@@ -91,6 +91,14 @@ const (
 	// FuseMount measures time to create and mount the go-fuse server for a
 	// layer (fuse.NewServer + server.WaitMount) during layer resolve.
 	FuseMount = "fuse_mount"
+	// BlobRedirect measures time for the synchronous registry round-trip that
+	// resolves a layer's blob URL (registry -> storage redirect) when creating
+	// the HTTP fetcher during layer resolve.
+	BlobRedirect = "blob_redirect"
+	// GetLayerSize measures time for the synchronous registry round-trip that
+	// fetches a layer's blob size when it is not present in the descriptor,
+	// during layer resolve.
+	GetLayerSize = "get_layer_size"
 
 	SynchronousReadCount              = "synchronous_read_count"
 	SynchronousReadRegistryFetchCount = "synchronous_read_remote_registry_fetch_count"
