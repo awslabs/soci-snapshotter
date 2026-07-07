@@ -265,6 +265,12 @@ func (r *Resolver) Resolve(ctx context.Context, hosts []docker.RegistryHost, ref
 	if ok {
 		if l := c.(*layer); l.Check() == nil {
 			log.G(ctx).Debugf("hit layer cache %q", name)
+			// A cache hit means this layer was resolved earlier (typically by
+			// pre-resolution) and is still cached. Tracking the hit/miss ratio
+			// shows whether pre-resolution is landing or whether resolved
+			// layers are being evicted before use (resolve_result_entry too
+			// small for the concurrent working set).
+			commonmetrics.IncOperationCount(commonmetrics.ResolveCacheHit, desc.Digest)
 			return &layerRef{l, done}, nil
 		}
 		// Cached layer is invalid
@@ -274,6 +280,7 @@ func (r *Resolver) Resolve(ctx context.Context, hosts []docker.RegistryHost, ref
 		r.layerCacheMu.Unlock()
 	}
 
+	commonmetrics.IncOperationCount(commonmetrics.ResolveCacheMiss, desc.Digest)
 	log.G(ctx).Debugf("resolving")
 
 	spanCache, err := newCache(filepath.Join(r.rootDir, "spancache"), r.config.FSCacheType, r.config)
