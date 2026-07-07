@@ -40,6 +40,7 @@ Flags:
  - ```--optimizations``` : Enable experimental features by name. Usage is `--optimizations opt_name`.
    - `xattr` :  When true, adds DisableXAttrs annotation to SOCI index. This annotation often helps performance at pull time.
      - There is currently a bug using this on an image with volume-mounts in a layer without whiteout directories or xattrs. If in doubt, do not use this on images with volume mounts.
+ - ```--source``` : Where to read the source image from: ```containerd``` (default, requires the image already pulled into a running containerd) or ```registry``` (pull directly from the registry, no containerd required). See [Registry source mode](#registry-source-mode) below.
 
 **Example:**
 ```
@@ -120,10 +121,36 @@ Flags:
 
 - ```--max-concurrent-uploads```: Max concurrent uploads. Default is 3.
 - ```--quiet```, ```-q```: Enable quiet mode
+- ```--source``` : Where to read the source image from: ```containerd``` (default, requires the image already pulled into a running containerd) or ```registry``` (resolve directly against the registry, no containerd required). See [Registry source mode](#registry-source-mode) below.
 
 **Example:** 
 ```
 soci push public.ecr.aws/soci-workshop-examples/ffmpeg:latest
+```
+
+#### Registry source mode
+
+`--source=registry` (available on both `soci create` and `soci push`) reads
+the source image straight from its registry instead of requiring it to
+already be pulled into a running containerd. This is useful in the same
+kind of environment `soci convert --standalone` targets - CI/CD pipelines,
+or developer machines (including macOS/Windows) where a Linux containerd
+isn't available - but for the SOCI Index Manifest v1 workflow (`create`
+followed by `push`) rather than `convert`.
+
+Unlike standalone `convert`, `--source=registry` still takes an image
+reference (not a file path), and still needs somewhere to persist the
+generated SOCI index/ztocs between the `create` and `push` steps - pass
+```--root``` pointing at a writable directory (`create`'s output must
+still be found later by `push`; both must be pointed at the same
+```--root```/```--content-store``` for this to work). It cannot be
+combined with ```--content-store containerd```, since there's no
+containerd content store to read from or write to.
+
+**Example:**
+```
+soci create --source=registry --content-store=soci --root=./soci-root public.ecr.aws/soci-workshop-examples/ffmpeg:latest
+soci push --source=registry --content-store=soci --root=./soci-root public.ecr.aws/soci-workshop-examples/ffmpeg:latest
 ```
 
 ### soci rebuild_db
