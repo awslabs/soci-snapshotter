@@ -156,7 +156,9 @@ func (r *Resolver) resolveFetcher(ctx context.Context, fc *fetcherConfig) (f fet
 		logger.WithField("ref", fc.refspec.String()).WithField("digest", fc.desc.Digest).
 			Debugf("layer size not found in labels; making a request to remote to get size")
 
+		getLayerSizeStart := time.Now()
 		fc.desc.Size, err = getLayerSize(ctx, hf)
+		commonmetrics.MeasureLatencyInMilliseconds(commonmetrics.GetLayerSize, fc.desc.Digest, getLayerSizeStart)
 		if err != nil {
 			return nil, 0, fmt.Errorf("%w from %s: %w", ErrFailedToRetrieveLayerSize, socihttp.RedactHTTPQueryValuesFromString(hf.realURL), err)
 		}
@@ -246,7 +248,9 @@ func newHTTPFetcher(ctx context.Context, fc *fetcherConfig) (*httpFetcher, error
 
 		// Get the real blob URL
 		ctx = docker.WithScope(ctx, pullScope)
+		redirectStart := time.Now()
 		realURL, err := redirect(ctx, registryURL, tr)
+		commonmetrics.MeasureLatencyInMilliseconds(commonmetrics.BlobRedirect, digest, redirectStart)
 		if err != nil {
 			createFetcherErr = errors.Join(
 				fmt.Errorf("%w: %w (host %q, ref:%q, digest:%q)",
