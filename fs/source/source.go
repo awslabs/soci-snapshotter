@@ -130,27 +130,42 @@ func FromDefaultLabels(hosts RegistryHosts) GetSources {
 		var neighboringLayers []ocispec.Descriptor
 		if l, ok := labels[ctdsnapshotters.TargetImageLayersLabel]; ok {
 			layerDigestsStr := strings.Split(l, ",")
+
+			// Layer sizes are optional for pre-resolution. When the
+			// image.layers.size label is present (set by SOCI's label handler
+			// wrapper) we use it, but the digest list alone (a containerd CRI
+			// built-in label) is enough to pre-resolve neighboring layers: the
+			// resolver falls back to the compressed size recorded in the zTOC
+			// when a descriptor lacks its size. Requiring both labels here
+			// meant pre-resolution silently did nothing on pull paths that do
+			// not install SOCI's wrapper (e.g. CRI), so every layer resolved
+			// serially on its own Mount.
+			var layerSizes []string
 			if s, ok := labels[targetImageLayersSizeLabel]; ok {
-				layerSizes := strings.Split(s, ",")
+				layerSizes = strings.Split(s, ",")
 				if len(layerDigestsStr) != len(layerSizes) {
 					return nil, fmt.Errorf("the lengths of layer digests and layer sizes don't match")
 				}
+			}
 
-				for i := 0; i < len(layerDigestsStr); i++ {
-					l := layerDigestsStr[i]
-					d, err := digest.Parse(l)
+			for i := 0; i < len(layerDigestsStr); i++ {
+				l := layerDigestsStr[i]
+				d, err := digest.Parse(l)
+				if err != nil {
+					return nil, err
+				}
+				if d.String() == target.String() {
+					continue
+				}
+				desc := ocispec.Descriptor{Digest: d}
+				if layerSizes != nil {
+					size, err := strconv.ParseInt(layerSizes[i], 10, 64)
 					if err != nil {
 						return nil, err
 					}
-					if d.String() != target.String() {
-						size, err := strconv.ParseInt(layerSizes[i], 10, 64)
-						if err != nil {
-							return nil, err
-						}
-						desc := ocispec.Descriptor{Digest: d, Size: size}
-						neighboringLayers = append(neighboringLayers, desc)
-					}
+					desc.Size = size
 				}
+				neighboringLayers = append(neighboringLayers, desc)
 			}
 		}
 		targetDesc := ocispec.Descriptor{
