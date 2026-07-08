@@ -26,7 +26,9 @@ import (
 	"net/http"
 	"net/url"
 	"strconv"
+	"time"
 
+	commonmetrics "github.com/awslabs/soci-snapshotter/fs/metrics/common"
 	sociremote "github.com/awslabs/soci-snapshotter/fs/remote"
 	socihttp "github.com/awslabs/soci-snapshotter/internal/http"
 	"github.com/awslabs/soci-snapshotter/soci"
@@ -35,6 +37,7 @@ import (
 	"github.com/containerd/containerd/v2/core/remotes/docker"
 	"github.com/containerd/containerd/v2/pkg/reference"
 	"github.com/containerd/log"
+	"github.com/opencontainers/go-digest"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"golang.org/x/sync/errgroup"
 	"oras.land/oras-go/v2/content"
@@ -317,6 +320,11 @@ func (f *artifactFetcher) Store(ctx context.Context, desc ocispec.Descriptor, re
 }
 
 func FetchSociArtifacts(ctx context.Context, refspec reference.Spec, indexDesc ocispec.Descriptor, localStore store.Store, remoteStore resolverStorage) (*soci.Index, error) {
+	// Measure the total index+zTOC fetch. This blocks the first Mount for the
+	// image, so it is on the pull critical path.
+	indexFetchStart := time.Now()
+	defer commonmetrics.MeasureLatencyInMilliseconds(commonmetrics.SociIndexFetch, indexDesc.Digest, indexFetchStart)
+
 	fetcher, err := newArtifactFetcher(refspec, localStore, remoteStore)
 	if err != nil {
 		return nil, fmt.Errorf("could not create an artifact fetcher: %w", err)
@@ -370,6 +378,14 @@ func FetchSociArtifacts(ctx context.Context, refspec reference.Spec, indexDesc o
 	eg, ctx := errgroup.WithContext(ctx)
 	for i, blob := range index.Blobs {
 		eg.Go(func() error {
+			// Key the metric by the image layer digest the zTOC belongs to so
+			// it aligns with the other per-layer metrics; fall back to the zTOC
+			// blob digest if the annotation is absent.
+			layerDigest := digest.Digest(blob.Annotations[soci.IndexAnnotationImageLayerDigest])
+			if layerDigest == "" {
+				layerDigest = blob.Digest
+			}
+			ztocFetchStart := time.Now()
 			rc, local, err := fetcher.Fetch(ctx, blob)
 			if err != nil {
 				return fmt.Errorf("cannot fetch artifact: %w", err)
@@ -381,6 +397,7 @@ func FetchSociArtifacts(ctx context.Context, refspec reference.Spec, indexDesc o
 			if err := fetcher.Store(ctx, blob, rc); err != nil && !store.IsErrAlreadyExists(err) {
 				return fmt.Errorf("unable to store ztoc in local store: %w", err)
 			}
+			commonmetrics.MeasureLatencyInMilliseconds(commonmetrics.ZtocFetch, layerDigest, ztocFetchStart)
 			return store.LabelGCRefContent(ctx, localStore, desc, "ztoc."+strconv.Itoa(i), blob.Digest.String())
 		})
 	}
