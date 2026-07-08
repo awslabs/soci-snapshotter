@@ -151,6 +151,18 @@ const (
 	// preresolver work queue was full. Dropped layers are not pre-resolved and
 	// pay their full resolve cost serially on their own Mount.
 	PreresolveQueueDrop = "preresolve_queue_drop"
+	// SociIndexFetch measures the total time to fetch and store a SOCI index
+	// and all of its zTOC blobs (FetchSociArtifacts). This runs once per image
+	// (guarded by fetchOnce) and blocks the first Mount for that image, so it
+	// contributes directly to pull latency, especially when many images are
+	// pulled at once and their zTOC fetches contend on the registry.
+	SociIndexFetch = "soci_index_fetch"
+	// ZtocFetch measures the time to fetch and store a single zTOC blob from
+	// the registry into the local content store, keyed by the image layer
+	// digest the zTOC belongs to. These fetches are issued concurrently (one
+	// per zTOC-indexed layer) with no cross-image bound, so a high value here
+	// under parallel pulls indicates registry/connection contention.
+	ZtocFetch = "ztoc_fetch"
 )
 
 var (
