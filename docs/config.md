@@ -33,7 +33,9 @@ This set of variables must be at the top of your TOML file due to not belonging 
 - `metrics_network` (string) — Chooses protocol to send metrics over (e.g. tcp, unix, etc). Default: "tcp".
 - `no_prometheus` — Defined [above](#configfsgofsconfig), cannot be redeclared.
 - `debug_address` (string) — Address where [go pprof](https://pkg.go.dev/net/http/pprof) server will listen. If empty, no logs will be emitted. Default: "".
-- `metadata_store` (string) — Metadata storage type. Only "db" is valid. Default: "db".
+- `metadata_store` (string) — Metadata storage type. One of "db" or "db-multi". Default: "db".
+  - `"db"` — Persists layer metadata to a single on-disk [bbolt](https://github.com/etcd-io/bbolt) database (`metadata.db`) shared by all layers, under the snapshotter root. All layers share one bbolt writer lock, so concurrent layer initializations serialize on it.
+  - `"db-multi"` — Same on-disk bbolt format and code path as "db", but each layer gets its own database file (under the `metadata/` subdirectory), so concurrent layer initializations do not contend on a single writer lock. Each database is removed when its layer's reader is closed. Trades more open file descriptors for reduced write-lock contention when many layers initialize at once.
 - `skip_check_snapshotter_supported` (bool) - skip check for snapshotter is supported which can give performance benefits for SOCI daemon startup time. This config should only be done if you are sure overlayfs is supported. Default: false
 
 #
