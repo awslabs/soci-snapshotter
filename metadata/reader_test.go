@@ -79,6 +79,29 @@ func (r *testableReadCloser) Close() error {
 	return r.testableReader.Close()
 }
 
+func TestMultiMetadataReader(t *testing.T) {
+	testReader(t, newTestableMultiReader)
+}
+
+func newTestableMultiReader(sr *io.SectionReader, toc ztoc.TOC, opts ...Option) (testableReader, error) {
+	dir, err := os.MkdirTemp("", "readertestdbmulti")
+	if err != nil {
+		return nil, err
+	}
+	r, err := NewMultiReader(dir, DBMultiOptions{})(sr, toc, opts...)
+	if err != nil {
+		os.RemoveAll(dir)
+		return nil, err
+	}
+	return &testableReadCloser{
+		testableReader: r.(*multiReader),
+		closeFn: func() error {
+			// multiReader.Close removes the per-layer db file; also drop the dir.
+			return os.RemoveAll(dir)
+		},
+	}, nil
+}
+
 func TestPartition(t *testing.T) {
 	testCases := []struct {
 		name      string
