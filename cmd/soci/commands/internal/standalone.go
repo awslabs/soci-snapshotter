@@ -61,7 +61,10 @@ func LoadImage(ctx context.Context, inputPath string, tmpDir string) (*Standalon
 			return nil, fmt.Errorf("failed to open tar %s: %w", inputPath, err)
 		}
 		defer tarFile.Close()
-		if _, err := ctdarchive.Apply(ctx, tmpDir, tarFile); err != nil {
+		// Extract as the current user instead of reproducing the tar's UID/GID.
+		// OCI layout tars record root ownership (0/0), which is irrelevant for a
+		// content-addressed layout and makes Lchown fail for non-root users.
+		if _, err := ctdarchive.Apply(ctx, tmpDir, tarFile, ctdarchive.WithNoSameOwner()); err != nil {
 			return nil, fmt.Errorf("failed to extract OCI tar %s: %w", inputPath, err)
 		}
 	}
