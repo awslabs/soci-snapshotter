@@ -169,6 +169,7 @@ type options struct {
 	overlayOpaqueType layer.OverlayOpaqueType
 	maxConcurrency    int64
 	pullModes         config.PullModes
+	resolverConfig    config.ResolverConfig
 }
 
 func WithGetSources(s source.GetSources) Option {
@@ -207,6 +208,15 @@ func WithMaxConcurrency(maxConcurrency int64) Option {
 func WithPullModes(pullModes config.PullModes) Option {
 	return func(opts *options) {
 		opts.pullModes = pullModes
+	}
+}
+
+// WithResolverConfig passes the registry resolver config to the filesystem so
+// the SOCI index/zTOC fetch path can honor per-host settings (e.g. insecure
+// mirrors for plain HTTP registries).
+func WithResolverConfig(resolverConfig config.ResolverConfig) Option {
+	return func(opts *options) {
+		opts.resolverConfig = resolverConfig
 	}
 }
 
@@ -338,6 +348,7 @@ func NewFilesystem(ctx context.Context, root string, cfg config.FSConfig, opts .
 		fuseMetricsEmitWaitDuration: fuseMetricsEmitWaitDuration,
 		pr:                          pr,
 		pullModes:                   pullModes,
+		resolverConfig:              fsOpts.resolverConfig,
 		containerd:                  client,
 		inProgressImageUnpacks:      unpackJobs,
 	}, nil
@@ -430,8 +441,24 @@ type filesystem struct {
 	fuseMetricsEmitWaitDuration time.Duration
 	pr                          *preresolver
 	pullModes                   config.PullModes
+	resolverConfig              config.ResolverConfig
 	containerd                  *store.ContainerdClient
 	inProgressImageUnpacks      *unpackJobs
+}
+
+// isInsecureHost reports whether the given registry host is configured as an
+// insecure (plain HTTP) mirror in the resolver config.
+func (fs *filesystem) isInsecureHost(host string) bool {
+	hostConfig, ok := fs.resolverConfig.Host[host]
+	if !ok {
+		return false
+	}
+	for _, mirror := range hostConfig.Mirrors {
+		if mirror.Insecure {
+			return true
+		}
+	}
+	return false
 }
 
 func (fs *filesystem) MountParallel(ctx context.Context, mountpoint string, labels map[string]string, mounts []mount.Mount) error {
@@ -508,7 +535,7 @@ func (fs *filesystem) preloadAllLayers(ctx context.Context, desc ocispec.Descrip
 			Transport: newAuthClient,
 		}
 	}
-	remoteStore, err := newRemoteBlobStore(refspec, client)
+	remoteStore, err := newRemoteBlobStore(refspec, client, fs.isInsecureHost(refspec.Hostname()))
 	if err != nil {
 		return fmt.Errorf("cannot create remote store: %w", err)
 	}
@@ -762,7 +789,7 @@ func (fs *filesystem) MountLocal(ctx context.Context, mountpoint string, labels 
 	if err != nil {
 		return fmt.Errorf("cannot parse image ref (%s): %w", imageRef, err)
 	}
-	remoteStore, err := newRemoteBlobStore(refspec, client)
+	remoteStore, err := newRemoteBlobStore(refspec, client, fs.isInsecureHost(refspec.Hostname()))
 	if err != nil {
 		return fmt.Errorf("cannot create remote store: %w", err)
 	}
@@ -832,7 +859,7 @@ func (fs *filesystem) fetchSociIndex(ctx context.Context, imageRef, indexDigest,
 		return nil, err
 	}
 
-	remoteStore, err := newRemoteStore(refspec, client)
+	remoteStore, err := newRemoteStore(refspec, client, fs.isInsecureHost(refspec.Hostname()))
 	if err != nil {
 		return nil, err
 	}

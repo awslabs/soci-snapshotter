@@ -458,8 +458,14 @@ func redirect(ctx context.Context, blobURL string, tr http.RoundTripper) (string
 	return "", fmt.Errorf("%w on redirect %v", ErrUnexpectedStatusCode, res.StatusCode)
 }
 
-func CraftBlobURL(reference string, ref registry.Reference) string {
-	return fmt.Sprintf("%s://%s/v2/%s/blobs/%s", resolver.DefaultScheme(reference), ref.Host(), ref.Repository, ref.Reference)
+func CraftBlobURL(reference string, ref registry.Reference, plainHTTP bool) string {
+	scheme := resolver.DefaultScheme(reference)
+	// plainHTTP forces HTTP for hosts explicitly configured as insecure, which
+	// DefaultScheme (localhost-only) would otherwise not cover.
+	if plainHTTP {
+		scheme = "http"
+	}
+	return fmt.Sprintf("%s://%s/v2/%s/blobs/%s", scheme, ref.Host(), ref.Repository, ref.Reference)
 }
 
 func GetHeader(ctx context.Context, realURL string, rt http.RoundTripper) (*http.Response, error) {
