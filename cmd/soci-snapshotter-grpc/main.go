@@ -339,12 +339,16 @@ func getMetadataStore(ctx context.Context, rootDir string, config config.Config)
 			NoFreelistSync:  true,
 			InitialMmapSize: 64 * 1024 * 1024,
 			FreelistType:    bolt.FreelistMapType,
+			NoSync:          config.MetadataDBNoSync,
 		}
 		db, err := bolt.Open(filepath.Join(rootDir, "metadata.db"), 0600, &bOpts)
 		if err != nil {
 			return nil, err
 		}
 		return func(sr *io.SectionReader, toc ztoc.TOC, opts ...metadata.Option) (metadata.Reader, error) {
+			if config.MetadataInsertionChunkSize > 0 {
+				opts = append(opts, metadata.WithInsertionChunkSize(config.MetadataInsertionChunkSize))
+			}
 			return metadata.NewReader(db, sr, toc, opts...)
 		}, nil
 	default:
