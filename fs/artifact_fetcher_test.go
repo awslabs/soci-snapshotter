@@ -291,7 +291,7 @@ func TestNewRemoteStore(t *testing.T) {
 			if err != nil {
 				t.Fatalf("unexpected failure parsing reference: %v", err)
 			}
-			r, err := newRemoteStore(refspec, &client)
+			r, err := newRemoteStore(refspec, &client, false)
 			if err != nil {
 				t.Fatalf("unexpected error, got %v", err)
 			}

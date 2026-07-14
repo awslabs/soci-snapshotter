@@ -78,8 +78,8 @@ type orasBlobStore struct {
 	*remote.Repository
 }
 
-func newRemoteBlobStore(refspec reference.Spec, client *http.Client) (*orasBlobStore, error) {
-	repo, err := newRemoteStore(refspec, client)
+func newRemoteBlobStore(refspec reference.Spec, client *http.Client, plainHTTP bool) (*orasBlobStore, error) {
+	repo, err := newRemoteStore(refspec, client, plainHTTP)
 	if err != nil {
 		return nil, fmt.Errorf("cannot create remote store: %w", err)
 	}
@@ -99,7 +99,7 @@ func (r *orasBlobStore) Resolve(ctx context.Context, reference string) (ocispec.
 	}
 
 	tr := &clientWrapper{r.Client}
-	url := sociremote.CraftBlobURL(reference, ref)
+	url := sociremote.CraftBlobURL(reference, ref, r.PlainHTTP)
 	resp, err := sociremote.GetHeader(ctx, url, tr)
 	if err != nil {
 		return ocispec.Descriptor{}, err
@@ -167,7 +167,7 @@ func (r *orasBlobStore) FetchRange(ctx context.Context, reference string, lower,
 	}
 
 	tr := &clientWrapper{r.Client}
-	realURL := sociremote.CraftBlobURL(reference, ref)
+	realURL := sociremote.CraftBlobURL(reference, ref, r.PlainHTTP)
 	resp, err := GetContentWithRange(ctx, realURL, tr, lower, upper)
 	if err != nil {
 		return nil, cleanFetchErrors(err)
@@ -210,7 +210,7 @@ func (r *orasBlobStore) doInitialFetch(ctx context.Context, reference string) (b
 	}
 
 	tr := &clientWrapper{r.Client}
-	url := sociremote.CraftBlobURL(reference, ref)
+	url := sociremote.CraftBlobURL(reference, ref, r.PlainHTTP)
 	resp, err := sociremote.GetHeaderWithGet(ctx, url, tr)
 	if err != nil {
 		return false, fmt.Errorf("error getting header info: %w", err)
@@ -235,15 +235,19 @@ func (c *clientWrapper) RoundTrip(req *http.Request) (*http.Response, error) {
 	return c.Client.Do(req)
 }
 
-func newRemoteStore(refspec reference.Spec, client *http.Client) (*remote.Repository, error) {
+func newRemoteStore(refspec reference.Spec, client *http.Client, plainHTTP bool) (*remote.Repository, error) {
 	repo, err := remote.NewRepository(refspec.Locator)
 	if err != nil {
 		return nil, fmt.Errorf("cannot create repository %s: %w", refspec.Locator, err)
 	}
 	repo.Client = client
-	repo.PlainHTTP, err = docker.MatchLocalhost(refspec.Hostname())
-	if err != nil {
-		return nil, fmt.Errorf("cannot create repository %s: %w", refspec.Locator, err)
+	if plainHTTP {
+		repo.PlainHTTP = true
+	} else {
+		repo.PlainHTTP, err = docker.MatchLocalhost(refspec.Hostname())
+		if err != nil {
+			return nil, fmt.Errorf("cannot create repository %s: %w", refspec.Locator, err)
+		}
 	}
 
 	return repo, nil
