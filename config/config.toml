@@ -11,6 +11,8 @@ metrics_network = 'tcp'
 no_prometheus = false
 debug_address = ''
 metadata_store = 'db'
+metadata_db_no_sync = false
+metadata_insertion_chunk_size = 0
 skip_check_snapshotter_supported = false
 
 [http]
