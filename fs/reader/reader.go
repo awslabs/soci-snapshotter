@@ -220,6 +220,7 @@ func (sf *file) Verify() (retErr error) {
 	if err != nil {
 		return err
 	}
+	defer tarHeaderReader.Close()
 	counterReader := ioutils.NewPositionTrackerReader(tarHeaderReader)
 	tarReader := tar.NewReader(counterReader)
 	tarHeader, err := tarReader.Next()
