@@ -28,6 +28,7 @@ import (
 	"net"
 	"net/http"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/awslabs/soci-snapshotter/config"
@@ -175,6 +176,15 @@ const (
 
 type dockerAuthHandler struct {
 	authorizer docker.Authorizer
+
+	// challengeMu + inflight deduplicate concurrent 401 challenges. When
+	// many goroutines hit a 401 at the same time (e.g. concurrent
+	// pre-resolution redirects before the first token lands), only one
+	// actually fetches the token; the rest wait and reuse the result.
+	challengeMu sync.Mutex
+	inflight    bool
+	inflightErr error
+	inflightCh  chan struct{} // closed when the in-flight challenge completes
 }
 
 // newDockerAuthHandler implements the AuthHandler interface, using
@@ -186,12 +196,41 @@ func newDockerAuthHandler(authorizer docker.Authorizer) socihttp.AuthHandler {
 }
 
 // HandleChallenge calls the underlying docker.Authorizer's AddResponses method.
+// This is where the actual token exchange round-trip happens. Concurrent
+// challenges are deduplicated: only the first goroutine fetches the token;
+// others wait for it. This prevents the thundering-herd of N concurrent 401s
+// each independently fetching the same token when many layers resolve at once.
 func (d *dockerAuthHandler) HandleChallenge(ctx context.Context, resp *http.Response) error {
+	d.challengeMu.Lock()
+	if d.inflight {
+		// Another goroutine is already fetching a token. Wait for it.
+		ch := d.inflightCh
+		d.challengeMu.Unlock()
+		select {
+		case <-ch:
+			return d.inflightErr
+		case <-ctx.Done():
+			return ctx.Err()
+		}
+	}
+	// We are the first — mark in-flight and proceed.
+	d.inflight = true
+	d.inflightCh = make(chan struct{})
+	d.challengeMu.Unlock()
+
 	log.G(ctx).Infof("Received status code: %v. Authorizing...", resp.Status)
 	// Prepare authorization for the target host using docker.Authorizer.
 	// The authorizer should auto-refresh any expired tokens.
-	return d.authorizer.AddResponses(ctx, []*http.Response{resp})
+	err := d.authorizer.AddResponses(ctx, []*http.Response{resp})
 
+	// Signal waiters and reset for future challenges (token refresh).
+	d.challengeMu.Lock()
+	d.inflightErr = err
+	d.inflight = false
+	close(d.inflightCh)
+	d.challengeMu.Unlock()
+
+	return err
 }
 
 // AuthorizeRequest calls the underlying docker.Authorizer's Authorize method.

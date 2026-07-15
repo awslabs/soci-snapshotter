@@ -33,6 +33,7 @@
 package resolver
 
 import (
+	"crypto/sha256"
 	"fmt"
 	"net/http"
 	"net/url"
@@ -40,6 +41,7 @@ import (
 	"time"
 
 	"github.com/awslabs/soci-snapshotter/config"
+	socihttp "github.com/awslabs/soci-snapshotter/internal/http"
 	rhttp "github.com/hashicorp/go-retryablehttp"
 
 	"github.com/containerd/containerd/v2/core/remotes/docker"
@@ -66,16 +68,147 @@ type RegistryManager struct {
 	creds []Credential
 	// registryHostMap is a map of image reference to registry configurations
 	registryHostMap *sync.Map
+	// authClientMap caches AuthClients keyed by (host, credential
+	// fingerprint), so images from the same registry with identical
+	// credentials share one client — and therefore one auth token exchange —
+	// instead of paying a 401+token round-trip per image. Images with
+	// different credentials get distinct clients (see AsRegistryHosts).
+	authClientMap *sync.Map
+	// authClientTTL bounds how long entries in registryHostMap and
+	// authClientMap are reused. Expired entries are lazily evicted on access
+	// and periodically swept, so cached clients (and the image references
+	// they accumulate) do not pile up indefinitely on a long-lived daemon.
+	// <= 0 means entries never expire.
+	authClientTTL time.Duration
+}
+
+// expiringEntry wraps a cached value with its creation time.
+type expiringEntry struct {
+	value     any
+	createdAt time.Time
+}
+
+func (rm *RegistryManager) expired(e *expiringEntry) bool {
+	return rm.authClientTTL > 0 && time.Since(e.createdAt) > rm.authClientTTL
+}
+
+// loadUnexpired returns the value for key if present and not expired.
+// Expired entries are deleted on access.
+func (rm *RegistryManager) loadUnexpired(m *sync.Map, key string) (any, bool) {
+	v, ok := m.Load(key)
+	if !ok {
+		return nil, false
+	}
+	e := v.(*expiringEntry)
+	if rm.expired(e) {
+		m.Delete(key)
+		return nil, false
+	}
+	return e.value, true
+}
+
+// sweep removes all expired entries from the caches. Called periodically so
+// entries for hosts/credentials that are never accessed again still get
+// reclaimed.
+func (rm *RegistryManager) sweep() {
+	for _, m := range []*sync.Map{rm.registryHostMap, rm.authClientMap} {
+		m.Range(func(k, v any) bool {
+			if rm.expired(v.(*expiringEntry)) {
+				m.Delete(k)
+			}
+			return true
+		})
+	}
 }
 
 // NewRegistryManager returns a new RegistryManager
 func NewRegistryManager(httpConfig config.RetryableHTTPClientConfig, registryConfig config.ResolverConfig, credsFuncs []Credential) *RegistryManager {
-	return &RegistryManager{
+	rm := &RegistryManager{
 		retryClient:     newRetryableClientFromConfig(httpConfig),
 		header:          globalHeaders(),
 		registryConfig:  registryConfig,
 		creds:           credsFuncs,
 		registryHostMap: &sync.Map{},
+		authClientMap:   &sync.Map{},
+		authClientTTL:   time.Duration(registryConfig.AuthClientTTLSec) * time.Second,
+	}
+	if rm.authClientTTL > 0 {
+		// Periodic sweep so never-again-accessed entries are also reclaimed.
+		go func() {
+			ticker := time.NewTicker(rm.authClientTTL)
+			defer ticker.Stop()
+			for range ticker.C {
+				rm.sweep()
+			}
+		}()
+	}
+	return rm
+}
+
+// authClientKey returns a cache key for sharing AuthClients between images.
+// Two images share an AuthClient (and therefore an auth token exchange) only
+// when they target the same registry host AND resolve to identical
+// credentials. Credentials are resolved once, up front, via the same
+// credential providers the AuthClient would use at request time; the secret
+// is hashed so it is not retained in the key.
+func (rm *RegistryManager) authClientKey(imgRefSpec reference.Spec) string {
+	host := imgRefSpec.Hostname()
+	username, secret, err := multiCredsFuncs(imgRefSpec, rm.creds...)(host)
+	if err != nil {
+		// Credential resolution failed; fall back to a per-image key so we
+		// never share a client across an unknown credential boundary.
+		return "ref\x00" + imgRefSpec.String()
+	}
+	credHash := sha256.Sum256([]byte(username + "\x00" + secret))
+	return fmt.Sprintf("host\x00%s\x00%x", host, credHash)
+}
+
+// sharedAuthClient is an AuthClient shared by multiple image references that
+// resolved to the same (host, credential) identity. The credential providers
+// can be scoped per image reference (e.g. the CRI keychain stores credentials
+// keyed by image ref and removes them once a pull completes), so the shared
+// client's credential function must not be bound to a single image ref.
+// Instead it tries every image ref that joined this client, newest first
+// (newer refs are the most likely to still have live credentials in
+// ref-scoped keychains).
+type sharedAuthClient struct {
+	client *socihttp.AuthClient
+
+	mu   sync.Mutex
+	refs []reference.Spec
+}
+
+// addRef registers an image reference with this shared client, so request-time
+// credential resolution can use its (identical) credentials.
+func (s *sharedAuthClient) addRef(ref reference.Spec) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	for _, r := range s.refs {
+		if r.String() == ref.String() {
+			return
+		}
+	}
+	s.refs = append(s.refs, ref)
+}
+
+// credsFunc returns a credential function that tries all registered image
+// references, newest first, returning the first non-empty credentials.
+func (s *sharedAuthClient) credsFunc(creds []Credential) func(string) (string, string, error) {
+	return func(host string) (string, string, error) {
+		s.mu.Lock()
+		refs := make([]reference.Spec, len(s.refs))
+		copy(refs, s.refs)
+		s.mu.Unlock()
+		for i := len(refs) - 1; i >= 0; i-- {
+			username, secret, err := multiCredsFuncs(refs[i], creds...)(host)
+			if err != nil {
+				return "", "", err
+			}
+			if username != "" || secret != "" {
+				return username, secret, nil
+			}
+		}
+		return "", "", nil
 	}
 }
 
@@ -84,27 +217,55 @@ func NewRegistryManager(httpConfig config.RetryableHTTPClientConfig, registryCon
 // to the configurations present in RegistryManager.
 func (rm *RegistryManager) AsRegistryHosts() RegistryHosts {
 	/*
-		We create new AuthClient's for every unique image reference because credentials can be
-		scoped to specific images/repositories (eg: OAuth2). Although, our underlying auth handler
-		(docker.Authorizer) fetches tokens at request time, this can potentially become an issue in
-		the future if the authorizer re-uses the scoped credentials it gets through one of our credential
-		providers (eg: K8s through our CRI implementation). For this reason, our credential providers
-		should try to store+index credentials at a more granular level than just the host name
-		(ideally by the full image reference).
+		By default we create new AuthClient's for every unique image reference
+		because credentials can be scoped to specific images/repositories
+		(eg: OAuth2, K8s pull secrets through our CRI implementation).
+
+		When EnableAuthClientSharing is set, AuthClients are shared between
+		image references that target the same registry host with identical
+		credentials (see authClientKey), so same-registry images pay a single
+		auth token exchange instead of one per image. Images whose credential
+		providers return different credentials get distinct AuthClients and
+		never share tokens.
 	*/
 	return func(imgRefSpec reference.Spec) ([]docker.RegistryHost, error) {
 		// Check whether registry host configurations exist for this image ref
 		// in the cache.
-		if hostConfigurations, ok := rm.registryHostMap.Load(imgRefSpec.String()); ok {
+		if hostConfigurations, ok := rm.loadUnexpired(rm.registryHostMap, imgRefSpec.String()); ok {
 			return hostConfigurations.([]docker.RegistryHost), nil
 		}
 
 		var registryHosts []docker.RegistryHost
 
-		// Create an AuthClient for this image reference.
-		authClient, err := newAuthClient(rm.retryClient, rm.header, multiCredsFuncs(imgRefSpec, rm.creds...))
-		if err != nil {
-			return nil, err
+		var authClient *socihttp.AuthClient
+		if rm.registryConfig.EnableAuthClientSharing {
+			// Reuse an AuthClient if one already exists for this host+credential
+			// identity; otherwise create one and cache it.
+			acKey := rm.authClientKey(imgRefSpec)
+			var shared *sharedAuthClient
+			if cached, ok := rm.loadUnexpired(rm.authClientMap, acKey); ok {
+				shared = cached.(*sharedAuthClient)
+			} else {
+				newShared := &sharedAuthClient{}
+				newClient, err := newAuthClient(rm.retryClient, rm.header, newShared.credsFunc(rm.creds))
+				if err != nil {
+					return nil, err
+				}
+				newShared.client = newClient
+				// LoadOrStore: if another goroutine raced us, share its client so
+				// both images use the same token cache.
+				cached, _ := rm.authClientMap.LoadOrStore(acKey, &expiringEntry{value: newShared, createdAt: time.Now()})
+				shared = cached.(*expiringEntry).value.(*sharedAuthClient)
+			}
+			shared.addRef(imgRefSpec)
+			authClient = shared.client
+		} else {
+			// Per-image auth client (the default behavior, no sharing).
+			var err error
+			authClient, err = newAuthClient(rm.retryClient, rm.header, multiCredsFuncs(imgRefSpec, rm.creds...))
+			if err != nil {
+				return nil, err
+			}
 		}
 
 		host := imgRefSpec.Hostname()
@@ -158,7 +319,7 @@ func (rm *RegistryManager) AsRegistryHosts() RegistryHosts {
 		}
 
 		// Create a `RegistryHost` configuration for this host.
-		host, err = docker.DefaultHost(host)
+		host, err := docker.DefaultHost(host)
 		if err != nil {
 			return nil, err
 		}
@@ -172,7 +333,7 @@ func (rm *RegistryManager) AsRegistryHosts() RegistryHosts {
 		})
 
 		// Cache `RegistryHost` configurations for all hosts that provide this image.
-		rm.registryHostMap.Store(imgRefSpec.String(), registryHosts)
+		rm.registryHostMap.Store(imgRefSpec.String(), &expiringEntry{value: registryHosts, createdAt: time.Now()})
 
 		return registryHosts, nil
 	}

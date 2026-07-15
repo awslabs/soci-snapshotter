@@ -84,6 +84,9 @@ skip_check_snapshotter_supported = false
   image_service_path = '/run/containerd/containerd.sock'
 
 [resolver]
+  auth_client_ttl_sec = 3600
+  enable_auth_client_sharing = false
+
 [snapshotter]
   min_layer_size = 0
   allow_invalid_mounts_on_restart = false
