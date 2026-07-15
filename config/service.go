@@ -87,5 +87,8 @@ func parseServiceConfig(cfg *Config) error {
 	if cfg.CRIKeychainConfig.ImageServicePath == "" {
 		cfg.CRIKeychainConfig.ImageServicePath = DefaultImageServiceAddress
 	}
+	if cfg.ResolverConfig.AuthClientTTLSec == 0 {
+		cfg.ResolverConfig.AuthClientTTLSec = defaultAuthClientTTLSec
+	}
 	return nil
 }

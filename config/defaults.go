@@ -47,6 +47,10 @@ const (
 // ServiceConfig defaults
 const (
 	DefaultImageServiceAddress = "/run/containerd/containerd.sock"
+
+	// defaultAuthClientTTLSec is how long cached registry auth clients are
+	// reused before being discarded and rebuilt. See `ResolverConfig.AuthClientTTLSec`.
+	defaultAuthClientTTLSec = 3600
 )
 
 // ParallelPullUnpack defaults
