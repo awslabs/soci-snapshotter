@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1784228341221,
+  "lastUpdate": 1784228380680,
   "repoUrl": "https://github.com/awslabs/soci-snapshotter",
   "entries": {
     "Soci Benchmark": [
@@ -18807,6 +18807,48 @@ window.BENCHMARK_DATA = {
           {
             "name": "SociFullECR-public-rabbitmq-pullTaskDuration",
             "value": 1.3166,
+            "unit": "Seconds",
+            "extra": "P90"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "erezz@amazon.com",
+            "name": "Erez Zarum",
+            "username": "erezzarum"
+          },
+          "committer": {
+            "email": "55555210+sondavidb@users.noreply.github.com",
+            "name": "David Son",
+            "username": "sondavidb"
+          },
+          "distinct": true,
+          "id": "bdc9945889e9b14bc76512a3a1bdd556bf4a391b",
+          "message": "feat(metrics): Instrument SOCI index and zTOC blob fetch latency\n\nThe SOCI index + zTOC fetch (FetchSociArtifacts) runs once per image in\ngetSociContext and blocks the first Mount, but it was uninstrumented, so\nits contribution to pull latency was invisible. Under parallel pulls of\nmany images this path fans out one concurrent zTOC fetch per indexed\nlayer with no cross-image concurrency bound, making it a prime suspect\nfor the parallel-launch slowdown (serial pulls sub-second, 10-way\nparallel ~4x slower) that the resolve-time metrics (blob_redirect etc.)\ndid not explain.\n\nAdd two operation types:\n  - soci_index_fetch: total time of FetchSociArtifacts, keyed by index\n    digest (once per image, on the pull critical path).\n  - ztoc_fetch: time to fetch+store a single zTOC blob, keyed by the\n    image layer digest it belongs to, so it aligns with the other\n    per-layer metrics.\n\nThis makes the fetch phase measurable so we can confirm whether the\nparallel slowdown lives in zTOC fetch (vs resolve, which we already\nmeasure) before adding a concurrency limiter. No behavior change.\n\nSigned-off-by: Erez Zarum <erezz@amazon.com>",
+          "timestamp": "2026-07-16T11:46:51-07:00",
+          "tree_id": "3d549d40a805c542c70b8320997058ef7334af79",
+          "url": "https://github.com/awslabs/soci-snapshotter/commit/bdc9945889e9b14bc76512a3a1bdd556bf4a391b"
+        },
+        "date": 1784228377582,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "SociFullECR-public-rabbitmq-lazyTaskDuration",
+            "value": 12.3932,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-rabbitmq-localTaskDuration",
+            "value": 9.738199999999999,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-rabbitmq-pullTaskDuration",
+            "value": 1.7772000000000001,
             "unit": "Seconds",
             "extra": "P90"
           }
