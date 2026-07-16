@@ -59,6 +59,7 @@ CMD_BINARIES=$(addprefix $(OUTDIR)/,$(CMD))
 PACKAGE_LIST_CMD=go list -f '{{.ImportPath}}' ./... | grep -v "benchmark" | paste -sd ","
 
 SOCI_LIBRARY_PACKAGE_LIST=$(shell $(PACKAGE_LIST_CMD))
+SOCI_LIBRARY_PACKAGE_LIST_ROOT=github.com/awslabs/soci-snapshotter/snapshot
 SOCI_CLI_PACKAGE_LIST=$(shell echo $(SOCI_LIBRARY_PACKAGE_LIST),$(shell cd $(SOCI_SNAPSHOTTER_PROJECT_ROOT)/cmd/soci && $(PACKAGE_LIST_CMD)))
 SOCI_GRPC_PACKAGE_LIST=$(shell echo $(SOCI_LIBRARY_PACKAGE_LIST),$(shell cd $(SOCI_SNAPSHOTTER_PROJECT_ROOT)/cmd/soci-snapshotter-grpc && $(PACKAGE_LIST_CMD)))
 
@@ -142,6 +143,14 @@ vendor:
 gen-config: build
 	@$(OUTDIR)/soci-snapshotter-grpc config default > $(SOCI_SNAPSHOTTER_PROJECT_ROOT)/config/config.toml
 
+test-root:
+	@if ! [ "$(shell id -u)" = 0 ]; then\
+		echo "You must run this command as root";\
+		exit 1;\
+	fi
+	@echo "$@"
+	GO111MODULE=$(GO111MODULE_VALUE) go test $(GO_TEST_FLAGS) $(GO_LD_FLAGS) -race $(SOCI_LIBRARY_PACKAGE_LIST_ROOT) -test.root -args $(GO_TEST_ARGS)
+
 test: test-lib test-cmd
 
 test-lib:
@@ -165,6 +174,13 @@ test-with-coverage: $(COVDIR)/unit
 	GO_TEST_ARGS="-test.gocoverdir=$(COVDIR)/unit" \
 	GO_BUILD_FLAGS="$(GO_BUILD_FLAGS) -coverpkg=$(SOCI_LIBRARY_PACKAGE_LIST)"\
 		$(MAKE) test
+
+test-root-with-coverage: $(COVDIR)/unit
+	@echo "$@"
+	GO_TEST_FLAGS="$(GO_TEST_FLAGS) -cover" \
+	GO_TEST_ARGS="-test.gocoverdir=$(COVDIR)/unit" \
+	GO_BUILD_FLAGS="$(GO_BUILD_FLAGS) -coverpkg=$(SOCI_LIBRARY_PACKAGE_LIST_ROOT)"\
+		$(MAKE) test-root
 
 $(COVDIR):
 	@mkdir -p $@
