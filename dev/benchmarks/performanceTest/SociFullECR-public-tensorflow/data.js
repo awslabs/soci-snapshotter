@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1784228378473,
+  "lastUpdate": 1784229549271,
   "repoUrl": "https://github.com/awslabs/soci-snapshotter",
   "entries": {
     "Soci Benchmark": [
@@ -19054,6 +19054,48 @@ window.BENCHMARK_DATA = {
           {
             "name": "SociFullECR-public-tensorflow-pullTaskDuration",
             "value": 2.8932,
+            "unit": "Seconds",
+            "extra": "P90"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "davbson@amazon.com",
+            "name": "David Son",
+            "username": "sondavidb"
+          },
+          "committer": {
+            "email": "55555210+sondavidb@users.noreply.github.com",
+            "name": "David Son",
+            "username": "sondavidb"
+          },
+          "distinct": true,
+          "id": "2fa9a0389a583d23c54363a39365e660211413c9",
+          "message": "Update CODEOWNERS file\n\nSigned-off-by: David Son <davbson@amazon.com>",
+          "timestamp": "2026-07-16T12:05:44-07:00",
+          "tree_id": "357b4d81b7c0b304a3cefa25c0809954101f0479",
+          "url": "https://github.com/awslabs/soci-snapshotter/commit/2fa9a0389a583d23c54363a39365e660211413c9"
+        },
+        "date": 1784229541928,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "SociFullECR-public-tensorflow-lazyTaskDuration",
+            "value": 36.7074,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-tensorflow-localTaskDuration",
+            "value": 2.845,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-tensorflow-pullTaskDuration",
+            "value": 2.3872,
             "unit": "Seconds",
             "extra": "P90"
           }
