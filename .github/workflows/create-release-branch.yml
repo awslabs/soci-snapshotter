@@ -43,7 +43,7 @@ jobs:
       - name: Test create release branch
         run: bash scripts/create-release-branch.sh --assert --base ${{ github.sha }} --dry-run ${{ env.VERSION }}
 
-      - uses: actions/setup-go@v6
+      - uses: actions/setup-go@v7
         with:
           go-version: ${{ env.GO_VERSION }}
 
