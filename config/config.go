@@ -84,7 +84,7 @@ func NewConfig() *Config {
 	cfg := &Config{}
 
 	// Set any defaults which do not align with Go zero values.
-	var initParsers = []configParser{defaultPullModes, defaultDirectoryCacheConfig}
+	var initParsers = []configParser{defaultPullModes, defaultDirectoryCacheConfig, defaultBackgroundFetchConfig}
 	if err := parseConfig(cfg, append(initParsers, parsers...)); err != nil {
 		return nil
 	}

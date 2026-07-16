@@ -233,6 +233,7 @@ func NewFilesystem(ctx context.Context, root string, cfg config.FSConfig, opts .
 		bgSilencePeriod             = time.Duration(cfg.BackgroundFetchConfig.SilencePeriodMsec) * time.Millisecond
 		bgEmitMetricPeriod          = time.Duration(cfg.BackgroundFetchConfig.EmitMetricPeriodSec) * time.Second
 		bgMaxQueueSize              = cfg.BackgroundFetchConfig.MaxQueueSize
+		bgDropPolicy                = cfg.BackgroundFetchConfig.DropPolicy
 	)
 
 	metadataStore := fsOpts.metadataStore
@@ -275,12 +276,14 @@ func NewFilesystem(ctx context.Context, root string, cfg config.FSConfig, opts .
 			"fetchPeriod":      bgFetchPeriod,
 			"silencePeriod":    bgSilencePeriod,
 			"maxQueueSize":     bgMaxQueueSize,
+			"dropPolicy":       bgDropPolicy,
 			"emitMetricPeriod": bgEmitMetricPeriod,
 		}).Info("constructing background fetcher")
 
 		bgFetcher, err = bf.NewBackgroundFetcher(bf.WithFetchPeriod(bgFetchPeriod),
 			bf.WithSilencePeriod(bgSilencePeriod),
 			bf.WithMaxQueueSize(bgMaxQueueSize),
+			bf.WithDropPolicy(bgDropPolicy),
 			bf.WithEmitMetricPeriod(bgEmitMetricPeriod))
 
 		if err != nil {

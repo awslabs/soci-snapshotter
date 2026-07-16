@@ -74,7 +74,8 @@ This set of variables must be at the top of your TOML file due to not belonging 
 - `disable` (bool) — Disables the background fetcher. Default: false.
 - `silence_period_msec` (int) — Time that the background fetcher will be paused when a new image is mounted. Default: 30000.
 - `fetch_period_msec` (int) — How often spans will be fetched. Default: 500.
-- `max_queue_size` (int) — Max span managers that can be queued. Default: 100.
+- `max_queue_size` (int) — Max entries in the background fetch work queue. When full, the entry chosen by `drop_policy` is evicted and that layer stays lazy-loaded on demand; adding never blocks layer mounts. -1 for unlimited. Default: 300.
+- `drop_policy` (string) — Which entry to evict when `max_queue_size` is reached. "oldest" drops the head of the queue (longest-queued layer); "newest" drops the entry being added (the layer that just mounted). Default: "newest".
 - `emit_metric_period_sec` (int) — Interval of background fetcher metric emission. Default: 10.
 
 ### [content_store]
