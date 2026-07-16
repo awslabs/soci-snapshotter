@@ -138,6 +138,9 @@ const (
 	// Number of items in the work queue of background fetcher
 	BackgroundFetchWorkQueueSize = "background_fetch_work_queue_size"
 
+	// Number of entries evicted from the background fetcher work queue because it was full
+	BackgroundFetchWorkQueueEvicted = "background_fetch_work_queue_evicted"
+
 	// ResolveCacheHit counts layer resolves served from the resolver LRU cache
 	// (e.g. a layer that was pre-resolved and is still cached when containerd
 	// mounts it). A high hit ratio means pre-resolution is landing.
@@ -277,6 +280,14 @@ func MeasureLatencyInMicroseconds(operation string, layer digest.Digest, start t
 // IncOperationCount wraps the labels attachment as well as calling Inc into a single method.
 func IncOperationCount(operation string, layer digest.Digest) {
 	operationCount.WithLabelValues(operation, layer.String()).Inc()
+}
+
+// InitOperationCount pre-creates the labeled series for an operation count
+// metric at 0 so it is exposed by the metrics endpoint before the first
+// increment (queries against a never-incremented counter otherwise return
+// no data).
+func InitOperationCount(operation string, layer digest.Digest) {
+	operationCount.WithLabelValues(operation, layer.String()).Add(0)
 }
 
 // GetOperationCount returns the current value of an operation count metric for a given layer.

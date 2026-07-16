@@ -128,6 +128,11 @@ func TestConfigDefaults(t *testing.T) {
 			actual:   cfg.BackgroundFetchConfig.MaxQueueSize,
 		},
 		{
+			name:     "bg drop policy",
+			expected: defaultBgDropPolicy,
+			actual:   cfg.BackgroundFetchConfig.DropPolicy,
+		},
+		{
 			name:     "bg emit metrics period",
 			expected: int64(defaultBgMetricEmitPeriodSec),
 			actual:   cfg.BackgroundFetchConfig.EmitMetricPeriodSec,
@@ -289,6 +294,78 @@ concurrent_download_chunk_size = "badchunksize"
 			assert: func(t *testing.T, actual *Config, err error) {
 				if err == nil {
 					t.Error("Expected error, got none")
+				}
+			},
+		},
+		{
+			name: "BackgroundFetchMaxQueueSizeUnlimited",
+			config: []byte(`
+[background_fetch]
+max_queue_size = -1
+`),
+			assert: func(t *testing.T, actual *Config, err error) {
+				if err != nil {
+					t.Errorf("Expected no error, got %v", err)
+				}
+				if actual.BackgroundFetchConfig.MaxQueueSize != -1 {
+					t.Errorf("Expected max_queue_size -1, got %d", actual.BackgroundFetchConfig.MaxQueueSize)
+				}
+			},
+		},
+		{
+			name: "BackgroundFetchMaxQueueSizeZeroDefaultsTo300",
+			config: []byte(`
+[background_fetch]
+max_queue_size = 0
+`),
+			assert: func(t *testing.T, actual *Config, err error) {
+				if err != nil {
+					t.Errorf("Expected no error, got %v", err)
+				}
+				if actual.BackgroundFetchConfig.MaxQueueSize != 300 {
+					t.Errorf("Expected max_queue_size to default to 300, got %d", actual.BackgroundFetchConfig.MaxQueueSize)
+				}
+			},
+		},
+		{
+			name: "BackgroundFetchMaxQueueSizeExplicit",
+			config: []byte(`
+[background_fetch]
+max_queue_size = 50
+`),
+			assert: func(t *testing.T, actual *Config, err error) {
+				if err != nil {
+					t.Errorf("Expected no error, got %v", err)
+				}
+				if actual.BackgroundFetchConfig.MaxQueueSize != 50 {
+					t.Errorf("Expected max_queue_size 50, got %d", actual.BackgroundFetchConfig.MaxQueueSize)
+				}
+			},
+		},
+		{
+			name: "BackgroundFetchDropPolicyNewest",
+			config: []byte(`
+[background_fetch]
+drop_policy = "newest"
+`),
+			assert: func(t *testing.T, actual *Config, err error) {
+				if err != nil {
+					t.Errorf("Expected no error, got %v", err)
+				}
+				if actual.BackgroundFetchConfig.DropPolicy != "newest" {
+					t.Errorf("Expected drop_policy newest, got %q", actual.BackgroundFetchConfig.DropPolicy)
+				}
+			},
+		},
+		{
+			name: "BackgroundFetchDropPolicyInvalid",
+			config: []byte(`
+[background_fetch]
+drop_policy = "random"
+`),
+			assert: func(t *testing.T, actual *Config, err error) {
+				if err == nil {
+					t.Error("Expected error for invalid drop_policy, got none")
 				}
 			},
 		},

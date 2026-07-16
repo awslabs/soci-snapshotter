@@ -24,6 +24,7 @@ import (
 
 	commonmetrics "github.com/awslabs/soci-snapshotter/fs/metrics/common"
 	"github.com/containerd/log"
+	digest "github.com/opencontainers/go-digest"
 	"golang.org/x/time/rate"
 )
 
@@ -50,6 +51,18 @@ func WithMaxQueueSize(size int) Option {
 	}
 }
 
+func WithDropPolicy(policy string) Option {
+	return func(bf *BackgroundFetcher) error {
+		bf.dropPolicy = policy
+		return nil
+	}
+}
+
+const (
+	DropPolicyOldest = "oldest"
+	DropPolicyNewest = "newest"
+)
+
 func WithEmitMetricPeriod(period time.Duration) Option {
 	return func(bf *BackgroundFetcher) error {
 		bf.emitMetricPeriod = period
@@ -75,6 +88,7 @@ type BackgroundFetcher struct {
 	silencePeriod    time.Duration
 	fetchPeriod      time.Duration
 	maxQueueSize     int
+	dropPolicy       string
 	emitMetricPeriod time.Duration
 
 	rateLimiter *rate.Limiter
@@ -84,13 +98,11 @@ type BackgroundFetcher struct {
 	// All span managers are appended to the work queue and picked up in Run().
 	// If a span manager is still able to fetch, it is re-appended.
 	//
-	// The queue is an unbounded, mutex-guarded slice rather than a fixed-size
-	// channel: Add is called on the layer resolve (Mount critical) path, so it
-	// must never block; and dropping entries would permanently skip background
-	// fetching for those layers. Queued entries are small (a Resolver pointer
-	// per layer), so unbounded growth is bounded in practice by the number of
-	// concurrently-mounted layers. maxQueueSize is kept as an observability
-	// threshold: exceeding it logs a warning but does not block or drop.
+	// The queue is a mutex-guarded slice. Add is called on the layer resolve
+	// (Mount critical) path and never blocks. When maxQueueSize > 0 and the
+	// queue is full, the entry selected by dropPolicy is evicted (that layer
+	// loses background fetching but continues to serve lazily on demand).
+	// When maxQueueSize < 0 (unlimited), no eviction occurs.
 	workQueueMu sync.Mutex
 	workQueue   []Resolver
 
@@ -116,25 +128,37 @@ func NewBackgroundFetcher(opts ...Option) (*BackgroundFetcher, error) {
 		bf.bfPauser = defaultPauser{}
 	}
 
+	// Pre-create the eviction counter at 0 so it is always exposed by the
+	// metrics endpoint, even before the first eviction.
+	commonmetrics.InitOperationCount(commonmetrics.BackgroundFetchWorkQueueEvicted, digest.Digest(""))
+
 	return bf, nil
 }
 
 // Add a new Resolver to be background fetched from.
 // Appends the resolver to the work queue, which is drained by Run().
 //
-// Add never blocks and never drops: it is called on the layer resolve
-// (Mount critical) path, where blocking on a full queue would stall layer
-// mounts (previously observed as pulls stalling for a full silence period),
-// and dropping would permanently skip background fetching for the layer.
+// Add never blocks: it is called on the layer resolve (Mount critical) path,
+// where blocking would stall layer mounts. When the queue is bounded
+// (maxQueueSize > 0) and full, the entry selected by dropPolicy is evicted.
 func (bf *BackgroundFetcher) Add(resolver Resolver) {
 	bf.workQueueMu.Lock()
-	bf.workQueue = append(bf.workQueue, resolver)
-	n := len(bf.workQueue)
-	bf.workQueueMu.Unlock()
-	if bf.maxQueueSize > 0 && n > bf.maxQueueSize {
-		log.L.WithField("queueSize", n).WithField("maxQueueSize", bf.maxQueueSize).
-			Debug("background fetch work queue exceeded max_queue_size (non-fatal; queue is unbounded)")
+	if bf.maxQueueSize > 0 && len(bf.workQueue) >= bf.maxQueueSize {
+		if bf.dropPolicy == DropPolicyOldest {
+			bf.workQueue = bf.workQueue[1:]
+			commonmetrics.IncOperationCount(commonmetrics.BackgroundFetchWorkQueueEvicted, digest.Digest(""))
+			log.L.WithField("maxQueueSize", bf.maxQueueSize).
+				Debug("background fetch work queue full; evicting oldest entry")
+		} else {
+			bf.workQueueMu.Unlock()
+			commonmetrics.IncOperationCount(commonmetrics.BackgroundFetchWorkQueueEvicted, digest.Digest(""))
+			log.L.WithField("maxQueueSize", bf.maxQueueSize).
+				Debug("background fetch work queue full; dropping newly added entry")
+			return
+		}
 	}
+	bf.workQueue = append(bf.workQueue, resolver)
+	bf.workQueueMu.Unlock()
 }
 
 // pop removes and returns the next Resolver from the work queue, or nil if
