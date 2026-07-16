@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1784151944741,
+  "lastUpdate": 1784228335868,
   "repoUrl": "https://github.com/awslabs/soci-snapshotter",
   "entries": {
     "Soci Benchmark": [
@@ -18888,6 +18888,48 @@ window.BENCHMARK_DATA = {
           {
             "name": "SociFullECR-public-mongo-pullTaskDuration",
             "value": 1.5458,
+            "unit": "Seconds",
+            "extra": "P90"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "erezz@amazon.com",
+            "name": "Erez Zarum",
+            "username": "erezzarum"
+          },
+          "committer": {
+            "email": "55555210+sondavidb@users.noreply.github.com",
+            "name": "David Son",
+            "username": "sondavidb"
+          },
+          "distinct": true,
+          "id": "14d73431216990a18ef967e3ce4839249eb94fde",
+          "message": "perf(fs): Drive neighbor pre-resolution from the SOCI index\n\nPre-resolution enqueued neighboring layers from the cri.image-layers\nsnapshot label. That label is populated by containerd's CRI handler and\nis capped at 4KB: for images with many layers (~26+ digests) the deepest\nlayers are silently truncated from the list, and the list content varies\nwith which layer containerd mounts first. Truncated layers were never\npre-resolved, so they still paid their full blob-URL redirect round-trip\nserially on their own Mount.\n\nEnqueue pre-resolves from the SOCI index (imageLayerToSociDesc) instead.\nThe index enumerates every zTOC-indexed layer of the image with no size\ncap, so all lazily loadable layers are pre-resolved concurrently\nregardless of layer count or mount order. Layer descriptors carry only\nthe digest; the resolver falls back to the compressed size in the zTOC.\n\nThe target layer (resolved on the critical path) is skipped. Removes the\nnow-unused neighboringLayers helper.\n\nSigned-off-by: Erez Zarum <erezz@amazon.com>",
+          "timestamp": "2026-07-16T11:46:36-07:00",
+          "tree_id": "6e295fbde81e736214d35e35ae857ebc9a6c0cb1",
+          "url": "https://github.com/awslabs/soci-snapshotter/commit/14d73431216990a18ef967e3ce4839249eb94fde"
+        },
+        "date": 1784228326030,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "SociFullECR-public-mongo-lazyTaskDuration",
+            "value": 2.1402,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-mongo-localTaskDuration",
+            "value": 0.3262,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-mongo-pullTaskDuration",
+            "value": 1.0504,
             "unit": "Seconds",
             "extra": "P90"
           }
