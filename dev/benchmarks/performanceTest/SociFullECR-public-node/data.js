@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1784229551511,
+  "lastUpdate": 1784331953060,
   "repoUrl": "https://github.com/awslabs/soci-snapshotter",
   "entries": {
     "Soci Benchmark": [
@@ -18890,6 +18890,48 @@ window.BENCHMARK_DATA = {
           {
             "name": "SociFullECR-public-node-pullTaskDuration",
             "value": 2.1462,
+            "unit": "Seconds",
+            "extra": "P90"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "erezz@amazon.com",
+            "name": "Erez Zarum",
+            "username": "erezzarum"
+          },
+          "committer": {
+            "email": "55555210+sondavidb@users.noreply.github.com",
+            "name": "David Son",
+            "username": "sondavidb"
+          },
+          "distinct": true,
+          "id": "e6e108150a5ad306c68e99ef1267d0d4d7c94fbf",
+          "message": "fix(metrics): Record InitMetadataStoreLatency after initialization completes\n\nThe InitMetadataStoreLatency telemetry hook was invoked before r.init(),\nso the observed latency was always ~0 instead of the actual time spent\ninitializing the metadata store. Move the hook after init() so the\nmetric reports the real initialization duration.\n\nSigned-off-by: Erez Zarum <erezz@amazon.com>",
+          "timestamp": "2026-07-17T16:36:32-07:00",
+          "tree_id": "02560ff4ebe62e9a5cc7434515b376a08d226f8a",
+          "url": "https://github.com/awslabs/soci-snapshotter/commit/e6e108150a5ad306c68e99ef1267d0d4d7c94fbf"
+        },
+        "date": 1784331948933,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "SociFullECR-public-node-lazyTaskDuration",
+            "value": 2.0382000000000002,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-node-localTaskDuration",
+            "value": 0.48160000000000003,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-node-pullTaskDuration",
+            "value": 3.9152,
             "unit": "Seconds",
             "extra": "P90"
           }
