@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1784229554032,
+  "lastUpdate": 1784331954478,
   "repoUrl": "https://github.com/awslabs/soci-snapshotter",
   "entries": {
     "Soci Benchmark": [
@@ -18971,6 +18971,48 @@ window.BENCHMARK_DATA = {
           {
             "name": "SociFullECR-public-busybox-pullTaskDuration",
             "value": 1.3314,
+            "unit": "Seconds",
+            "extra": "P90"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "erezz@amazon.com",
+            "name": "Erez Zarum",
+            "username": "erezzarum"
+          },
+          "committer": {
+            "email": "55555210+sondavidb@users.noreply.github.com",
+            "name": "David Son",
+            "username": "sondavidb"
+          },
+          "distinct": true,
+          "id": "e6e108150a5ad306c68e99ef1267d0d4d7c94fbf",
+          "message": "fix(metrics): Record InitMetadataStoreLatency after initialization completes\n\nThe InitMetadataStoreLatency telemetry hook was invoked before r.init(),\nso the observed latency was always ~0 instead of the actual time spent\ninitializing the metadata store. Move the hook after init() so the\nmetric reports the real initialization duration.\n\nSigned-off-by: Erez Zarum <erezz@amazon.com>",
+          "timestamp": "2026-07-17T16:36:32-07:00",
+          "tree_id": "02560ff4ebe62e9a5cc7434515b376a08d226f8a",
+          "url": "https://github.com/awslabs/soci-snapshotter/commit/e6e108150a5ad306c68e99ef1267d0d4d7c94fbf"
+        },
+        "date": 1784331951355,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "SociFullECR-public-busybox-lazyTaskDuration",
+            "value": 0.011,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-busybox-localTaskDuration",
+            "value": 0.005,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-busybox-pullTaskDuration",
+            "value": 2.8369999999999997,
             "unit": "Seconds",
             "extra": "P90"
           }
