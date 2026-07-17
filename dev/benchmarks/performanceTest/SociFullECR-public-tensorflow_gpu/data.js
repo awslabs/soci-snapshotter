@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1784331951571,
+  "lastUpdate": 1784332287007,
   "repoUrl": "https://github.com/awslabs/soci-snapshotter",
   "entries": {
     "Soci Benchmark": [
@@ -18974,6 +18974,48 @@ window.BENCHMARK_DATA = {
           {
             "name": "SociFullECR-public-tensorflow_gpu-pullTaskDuration",
             "value": 2.9924,
+            "unit": "Seconds",
+            "extra": "P90"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49699333+dependabot[bot]@users.noreply.github.com",
+            "name": "dependabot[bot]",
+            "username": "dependabot[bot]"
+          },
+          "committer": {
+            "email": "55555210+sondavidb@users.noreply.github.com",
+            "name": "David Son",
+            "username": "sondavidb"
+          },
+          "distinct": true,
+          "id": "d3ea98cf361f8ab5ea65c715e47b2f9e62b95c26",
+          "message": "Bump actions/setup-go from 6 to 7\n\nBumps [actions/setup-go](https://github.com/actions/setup-go) from 6 to 7.\n- [Release notes](https://github.com/actions/setup-go/releases)\n- [Commits](https://github.com/actions/setup-go/compare/v6...v7)\n\n---\nupdated-dependencies:\n- dependency-name: actions/setup-go\n  dependency-version: '7'\n  dependency-type: direct:production\n  update-type: version-update:semver-major\n...\n\nSigned-off-by: dependabot[bot] <support@github.com>",
+          "timestamp": "2026-07-17T16:36:18-07:00",
+          "tree_id": "983c6a2ee2daaf2244dd027613c8dd9d32407e6c",
+          "url": "https://github.com/awslabs/soci-snapshotter/commit/d3ea98cf361f8ab5ea65c715e47b2f9e62b95c26"
+        },
+        "date": 1784332278089,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "SociFullECR-public-tensorflow_gpu-lazyTaskDuration",
+            "value": 85.5416,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-tensorflow_gpu-localTaskDuration",
+            "value": 2.1808,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-tensorflow_gpu-pullTaskDuration",
+            "value": 4.1576,
             "unit": "Seconds",
             "extra": "P90"
           }
