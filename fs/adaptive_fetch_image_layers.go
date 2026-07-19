@@ -51,7 +51,8 @@ const (
 var (
 	// TODO: pipe through garbage collection frequency to configuration.
 	// The default frequency for garbage collection. This value was arbitrarily chosen.
-	garbageCollectionInterval = 10 * time.Second
+	// TEMP: increased from 10s to 10m for debugging file disappearance issue
+	garbageCollectionInterval = 10 * time.Minute
 
 	// TODO: pipe through garbage collection job expiration.
 	// The default expiration time for in progress jobs to be garbage collected.
@@ -389,7 +390,12 @@ func (disk LayerUnpackDiskStorage) Delete(id string) error {
 	if id == "" {
 		return errEmptyJobID
 	}
-	return os.RemoveAll(disk.getJobPath(id))
+	path := disk.getJobPath(id)
+	log.L.WithFields(log.Fields{
+		"id":   id,
+		"path": path,
+	}).Warn("LayerUnpackDiskStorage.Delete called - removing directory from disk")
+	return os.RemoveAll(path)
 }
 
 type unpackJobsSnapshot struct {
@@ -445,16 +451,50 @@ func (jobs *unpackJobs) Remove(job *layerUnpackJob, cause error) error {
 
 func (jobs *unpackJobs) RemoveImageWithError(imageDigest string, cause error) error {
 	jobs.mu.Lock()
-	defer jobs.mu.Unlock()
-
 	imageJob, ok := jobs.images[imageDigest]
 	if !ok {
+		jobs.mu.Unlock()
 		return fmt.Errorf("%w: %s", ErrImageUnpackJobNotFound, imageDigest)
 	}
 
+	// Count layer jobs for logging
+	layerCount := 0
+	layerJobIDs := make([]string, 0)
+	for _, layerJobs := range imageJob.layers {
+		for _, lj := range layerJobs {
+			layerCount++
+			layerJobIDs = append(layerJobIDs, lj.layerUnpackID)
+		}
+	}
+
+	log.L.WithFields(log.Fields{
+		"imageDigest":  imageDigest,
+		"cause":        cause,
+		"layerCount":   layerCount,
+		"layerJobIDs":  layerJobIDs,
+	}).Warn("RemoveImageWithError called - cancelling all layer jobs")
+
 	// Cancelling an image will cancel all layer unpack jobs.
 	imageJob.Cancel(cause)
-	delete(jobs.images, imageDigest)
+	jobs.mu.Unlock()
+
+	// Spawn a background goroutine to wait for all layer goroutines to complete
+	// before removing from memory. This prevents deadlock (if called from a
+	// tracked goroutine) while still ensuring the garbage collector doesn't
+	// clean up disk resources while layer operations are still in progress.
+	go func() {
+		log.L.WithField("imageDigest", imageDigest).Debug("waiting for goroutines to complete before removing image from memory")
+		imageJob.WaitForGoroutines()
+		log.L.WithField("imageDigest", imageDigest).Debug("all goroutines completed, removing image from memory")
+		jobs.mu.Lock()
+		defer jobs.mu.Unlock()
+		// Check again in case another goroutine already removed it
+		if _, ok := jobs.images[imageDigest]; ok {
+			delete(jobs.images, imageDigest)
+			log.L.WithField("imageDigest", imageDigest).Info("image removed from memory")
+		}
+	}()
+
 	return nil
 }
 
@@ -507,6 +547,11 @@ type imageUnpackJob struct {
 
 	layers     map[string][]*layerUnpackJob
 	bufferPool *bufferPool
+
+	// activeGoroutines tracks the number of layer goroutines currently running.
+	// This is used to ensure disk resources are not garbage collected while
+	// layer operations are still in progress.
+	activeGoroutines sync.WaitGroup
 }
 
 type imageUnpackOption func(*imageUnpackJob)
@@ -576,6 +621,23 @@ func newImageUnpackJob(imageDigest string, opts ...imageUnpackOption) *imageUnpa
 
 func (job *imageUnpackJob) Cancel(cause error) {
 	job.cancel(cause)
+}
+
+// TrackGoroutine increments the active goroutine count. Call this before launching
+// a layer goroutine, and call GoroutineDone when the goroutine completes.
+func (job *imageUnpackJob) TrackGoroutine() {
+	job.activeGoroutines.Add(1)
+}
+
+// GoroutineDone decrements the active goroutine count. Call this when a layer
+// goroutine completes (typically in a defer).
+func (job *imageUnpackJob) GoroutineDone() {
+	job.activeGoroutines.Done()
+}
+
+// WaitForGoroutines blocks until all tracked goroutines have completed.
+func (job *imageUnpackJob) WaitForGoroutines() {
+	job.activeGoroutines.Wait()
 }
 
 type layerUnpackJobStatus int
@@ -648,11 +710,37 @@ func newLayerUnpackJob(layerDigest string, storage LayerUnpackJobStorage, opts .
 		return nil, fmt.Errorf("failed to fetch unpack root for layer %s: %w", layerDigest, err)
 	}
 
+	ingestPath := filepath.Join(path, layerDigest)
+	upperPath := filepath.Join(path, layerUnpackDir)
+
+	// Debug: verify the directories were created correctly
+	log.L.WithFields(log.Fields{
+		"layerUnpackID": id,
+		"layerDigest":   layerDigest,
+		"jobPath":       path,
+		"ingestPath":    ingestPath,
+		"upperPath":     upperPath,
+	}).Debug("creating new layer unpack job")
+
+	// Verify the job path exists
+	if pathInfo, pathErr := os.Stat(path); pathErr != nil {
+		log.L.WithError(pathErr).WithField("path", path).Error("job path does not exist after storage.Create")
+	} else if !pathInfo.IsDir() {
+		log.L.WithField("path", path).Error("job path is not a directory")
+	}
+
+	// Verify the upper path (fs dir) exists
+	if upperInfo, upperErr := os.Stat(upperPath); upperErr != nil {
+		log.L.WithError(upperErr).WithField("upperPath", upperPath).Error("upper path does not exist after storage.Create")
+	} else if !upperInfo.IsDir() {
+		log.L.WithField("upperPath", upperPath).Error("upper path is not a directory")
+	}
+
 	luj := &layerUnpackJob{
 		layerUnpackID: id,
 		layerDigest:   layerDigest,
-		ingestPath:    filepath.Join(path, layerDigest),
-		upperPath:     filepath.Join(path, layerUnpackDir),
+		ingestPath:    ingestPath,
+		upperPath:     upperPath,
 		status:        atomic.Value{},
 		errCh:         make(chan error, 1),
 	}
@@ -662,6 +750,12 @@ func newLayerUnpackJob(layerDigest string, storage LayerUnpackJobStorage, opts .
 	}
 
 	luj.status.Store(LayerUnpackJobInProgress)
+
+	log.L.WithFields(log.Fields{
+		"layerUnpackID": id,
+		"layerDigest":   layerDigest,
+		"imageDigest":   luj.imageDigest,
+	}).Debug("layer unpack job created successfully")
 
 	return luj, nil
 }
@@ -768,6 +862,12 @@ type garbageCollectIfNotFoundInMemory struct {
 func (gcp garbageCollectIfNotFoundInMemory) MarkAndSweep(ctx context.Context, jobs *unpackJobsSnapshot) {
 	logger := log.G(ctx).WithField("policy", "NotFoundInMemory")
 
+	// Debug: log the state before deletion
+	logger.WithFields(log.Fields{
+		"inMemoryCount":  len(jobs.inMemory),
+		"inStorageCount": len(jobs.inStorage),
+	}).Debug("GC starting MarkAndSweep")
+
 	jobs.inStorage = slices.DeleteFunc(jobs.inStorage, func(id string) bool {
 		if _, ok := jobs.inMemory[id]; ok {
 			// Job is tracked in-memory, skip.
@@ -775,7 +875,7 @@ func (gcp garbageCollectIfNotFoundInMemory) MarkAndSweep(ctx context.Context, jo
 		}
 
 		jobCtxLogger := logger.WithField("id", id)
-		jobCtxLogger.Trace("Marked for cleanup")
+		jobCtxLogger.Warn("GC deleting directory not found in memory")
 
 		if err := gcp.storage.Delete(id); err != nil {
 			jobCtxLogger.WithError(err).Error("Failed to free resources for untracked image unpack")

@@ -548,7 +548,13 @@ func (fs *filesystem) preloadAllLayers(ctx context.Context, desc ocispec.Descrip
 					if err != nil {
 						return fmt.Errorf("error adding layer job: %w", err)
 					}
-					go fs.premount(premountCtx, l, refspec, remoteStore, diffIDMap, layerJob)
+					// Track the goroutine so RemoveImageWithError waits for it to complete
+					// before allowing garbage collection of disk resources
+					imageJob.TrackGoroutine()
+					go func(desc ocispec.Descriptor) {
+						defer imageJob.GoroutineDone()
+						fs.premount(premountCtx, desc, refspec, remoteStore, diffIDMap, layerJob)
+					}(l)
 				}
 			}
 		}
@@ -562,16 +568,29 @@ func (fs *filesystem) preloadAllLayers(ctx context.Context, desc ocispec.Descrip
 }
 
 func (fs *filesystem) premount(ctx context.Context, desc ocispec.Descriptor, refspec reference.Spec, remoteStore resolverStorage, diffIDMap map[string]digest.Digest, layerJob *layerUnpackJob) error {
+	logger := log.G(ctx).WithFields(log.Fields{
+		"layerDigest":   desc.Digest.String(),
+		"layerUnpackID": layerJob.layerUnpackID,
+		"imageDigest":   layerJob.imageDigest,
+		"ingestPath":    layerJob.GetIngestLocation(),
+		"upperPath":     layerJob.GetUnpackUpperPath(),
+	})
+	logger.Info("premount starting for layer")
+
 	var err error
 	defer func() {
 		// If there is a context error (usually context cancelled),
 		// rebase will not get called for this layer,
 		// so we need to make sure to remove this job.
 		if cErr := ctx.Err(); cErr != nil {
+			logger.WithError(cErr).Warn("context error detected in premount defer")
 			err = cErr
 		}
 		if err != nil {
+			logger.WithError(err).Error("premount failed, calling RemoveImageWithError")
 			fs.inProgressImageUnpacks.RemoveImageWithError(layerJob.imageDigest, err)
+		} else {
+			logger.Info("premount completed successfully")
 		}
 		layerJob.errCh <- err
 		close(layerJob.errCh)
@@ -593,7 +612,21 @@ func (fs *filesystem) premount(ctx context.Context, desc ocispec.Descriptor, ref
 		compressedVerifier = newAsyncVerifier(desc.Digest.Verifier())
 	}
 
-	archive := NewLayerArchive(compressedVerifier, newAsyncVerifier(uncompressedDigest.Verifier()), decompressStream, layerJob.bufferPool)
+	// Create parallel apply config if enabled
+	// NOTE: ParallelApply is currently disabled because it doesn't handle all metadata
+	// operations (timestamps, ownership, whiteouts) that containerd's archive.Apply does.
+	// TODO: Fix ParallelApply to handle these cases, then re-enable.
+	var parallelApplyCfg *ParallelApplyConfig
+	_ = fs.pullModes.Parallel.ParallelFileWrites // Silence unused warning
+	// if fs.pullModes.Parallel.ParallelFileWrites {
+	// 	parallelApplyCfg = &ParallelApplyConfig{
+	// 		NumWorkers: fs.pullModes.Parallel.ParallelFileWriteWorkers,
+	// 		BufferSize: fs.pullModes.Parallel.ParallelFileWriteBufferSize,
+	// 		QueueSize:  64,
+	// 	}
+	// }
+
+	archive := NewLayerArchiveWithParallelConfig(compressedVerifier, newAsyncVerifier(uncompressedDigest.Verifier()), decompressStream, layerJob.bufferPool, parallelApplyCfg)
 	chunkSize := fs.pullModes.Parallel.ConcurrentDownloadChunkSize
 	fetcher, err := newParallelArtifactFetcher(refspec, fs.contentStore, remoteStore, layerJob, chunkSize, compressedVerifier)
 	if err != nil {
