@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1784332285485,
+  "lastUpdate": 1784581655014,
   "repoUrl": "https://github.com/awslabs/soci-snapshotter",
   "entries": {
     "Soci Benchmark": [
@@ -18974,6 +18974,48 @@ window.BENCHMARK_DATA = {
           {
             "name": "SociFullECR-public-node-pullTaskDuration",
             "value": 3.5458,
+            "unit": "Seconds",
+            "extra": "P90"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "nahuml@wix.com",
+            "name": "Nahum Litvin",
+            "username": "NahumLitvin"
+          },
+          "committer": {
+            "email": "55555210+sondavidb@users.noreply.github.com",
+            "name": "David Son",
+            "username": "sondavidb"
+          },
+          "distinct": true,
+          "id": "a9eadaa585904c929942624556f174597eaed851",
+          "message": "fs/reader: close span manager reader in file Verify\n\nVerify never closes the reader returned by spanManager.GetContents,\nleaking one spancache file descriptor per verified file (the sibling\ncall site in ReadAt closes its reader via defer). Verify runs on first\naccess of every file in a lazily mounted layer, so pod-startup waves\nthat touch many files leak file descriptors in bursts.\n\nObserved in production: concurrent pod starts across several lazily\nmounted images drove the snapshotter past its 65535 LimitNOFILE\n(\"too many open files\" on spancache blob opens), after which the\nstuck state escalated into the containers-stuck-in-creating symptom\nclass (#1826, #2037). Steady-state fd counts recover afterwards only\nbecause Go's os.File finalizers eventually reclaim the leaked\ndescriptors.\n\nClose the reader when Verify returns.\n\nSigned-off-by: Nahum Litvin <nahuml@wix.com>",
+          "timestamp": "2026-07-20T13:58:19-07:00",
+          "tree_id": "6385a6e0de7ad932ba26090e494031f1934d028c",
+          "url": "https://github.com/awslabs/soci-snapshotter/commit/a9eadaa585904c929942624556f174597eaed851"
+        },
+        "date": 1784581649380,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "SociFullECR-public-node-lazyTaskDuration",
+            "value": 1.9978,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-node-localTaskDuration",
+            "value": 0.3968,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-node-pullTaskDuration",
+            "value": 3.2172,
             "unit": "Seconds",
             "extra": "P90"
           }
