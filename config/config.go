@@ -72,6 +72,18 @@ type Config struct {
 	// MetadataStore is the type of the metadata store to use.
 	MetadataStore string `toml:"metadata_store"`
 
+	// MetadataDBNoSync disables bbolt's per-transaction fsync for the metadata
+	// store. The metadata DB is derived data rebuilt from zTOCs on every daemon
+	// restart, so fsync durability is unnecessary. Skipping it removes
+	// synchronous disk flushes from layer metadata initialization.
+	MetadataDBNoSync bool `toml:"metadata_db_no_sync"`
+
+	// MetadataInsertionChunkSize is the maximum number of node insertions per
+	// bbolt transaction during metadata store initialization. Larger chunks
+	// amortize per-commit overhead over more insertions. 0 means use the
+	// default (5000).
+	MetadataInsertionChunkSize int `toml:"metadata_insertion_chunk_size"`
+
 	// SkipCheckSnapshotterSupported is a flag to skip check for overlayfs support needed to confirm if SOCI can work
 	SkipCheckSnapshotterSupported bool `toml:"skip_check_snapshotter_supported"`
 }

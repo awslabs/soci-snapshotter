@@ -55,11 +55,9 @@ import (
 )
 
 const (
-	// bboltInsertionChunkSize roughly determines the maximum number of insertions to
-	// bbolt per transaction. We chose 5K to be the chunk size as it yielded the best
-	// balance between performance and memory usage compared to other chunk sizes (1k and 10k)
-	// that were benchmarked.
-	bboltInsertionChunkSize = 5000
+	// defaultInsertionChunkSize roughly determines the maximum number of
+	// insertions to bbolt per transaction. Override with WithInsertionChunkSize.
+	defaultInsertionChunkSize = 5000
 )
 
 // reader stores filesystem metadata parsed from a TOC to metadata DB
@@ -123,7 +121,11 @@ func (r *reader) init(toc ztoc.TOC, rOpts Options) (retErr error) {
 		return fmt.Errorf("failed to get a unique id for metadata reader")
 	}
 
-	return r.initNodes(toc)
+	chunkSize := rOpts.InsertionChunkSize
+	if chunkSize <= 0 {
+		chunkSize = defaultInsertionChunkSize
+	}
+	return r.initNodes(toc, chunkSize)
 }
 
 func (r *reader) initRootNode(fsID string) error {
@@ -163,8 +165,8 @@ func (r *reader) initRootNode(fsID string) error {
 	})
 }
 
-func (r *reader) initNodes(toc ztoc.TOC) error {
-	fileMetadataChunks := partition(toc.FileMetadata, bboltInsertionChunkSize)
+func (r *reader) initNodes(toc ztoc.TOC, insertionChunkSize int) error {
+	fileMetadataChunks := partition(toc.FileMetadata, insertionChunkSize)
 
 	md := make(map[uint32]*metadataEntry)
 	for _, fileMetadataChunk := range fileMetadataChunks {
@@ -277,7 +279,7 @@ func (r *reader) initNodes(toc ztoc.TOC) error {
 		return bytes.Compare(addendum[i].id, addendum[j].id) < 0
 	})
 
-	metadataChunks := partition(addendum, bboltInsertionChunkSize)
+	metadataChunks := partition(addendum, insertionChunkSize)
 	for _, metadataChunk := range metadataChunks {
 		if err := r.db.Batch(func(tx *bolt.Tx) (err error) {
 			meta, err := getMetadataBucket(tx, r.fsID)
