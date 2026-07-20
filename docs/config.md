@@ -88,6 +88,8 @@ This set of variables must be at the top of your TOML file due to not belonging 
 ## config/resolver.go
 
 ### [resolver]
+- `auth_client_ttl_sec` (int) — How long (seconds) cached registry auth clients and resolved registry-host configurations are reused before being discarded and rebuilt (re-resolving credentials and re-authenticating). Bounds memory growth of the caches on long-lived daemons. Negative means never expire. Default: 3600.
+- `enable_auth_client_sharing` (bool) — Shares auth clients between image references that target the same registry host with identical credentials, so same-registry images pay a single auth token exchange instead of one per image. When false, every image gets its own auth client and token exchange. Default: false.
 #### [resolver.host]
 #### [resolver.host.examplehost]
 #### [[resolver.host.examplehost.mirrors]]
