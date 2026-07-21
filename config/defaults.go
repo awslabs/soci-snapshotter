@@ -66,10 +66,14 @@ const (
 	// The background fetcher will fetch a single span every `defaultFetchPeriod`.
 	defaultBgFetchPeriodMsec = 500
 
-	// defaultBgMaxQueueSize specifies the maximum size of the bg-fetcher work queue i.e., the maximum number
-	// of span managers that can be queued. In case of overflow, the `Add` call
-	// will block until a span manager is removed from the workqueue.
-	defaultBgMaxQueueSize = 100
+	// defaultBgMaxQueueSize specifies the maximum size of the bg-fetcher work queue,
+	// i.e., the maximum number of span managers that can be queued. When full,
+	// the entry selected by drop_policy is evicted; Add never blocks.
+	defaultBgMaxQueueSize = 300
+
+	// defaultBgDropPolicy specifies which work-queue entry is evicted when
+	// max_queue_size is reached. Valid values: "oldest", "newest".
+	defaultBgDropPolicy = "newest"
 
 	// defaultBgMetricEmitPeriodSec is the default amount of interval at which the background fetcher emits metrics
 	defaultBgMetricEmitPeriodSec = 10

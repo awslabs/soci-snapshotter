@@ -47,7 +47,8 @@ skip_check_snapshotter_supported = false
   disable = false
   silence_period_msec = 30000
   fetch_period_msec = 500
-  max_queue_size = 100
+  max_queue_size = 300
+  drop_policy = 'newest'
   emit_metric_period_sec = 10
 
 [content_store]

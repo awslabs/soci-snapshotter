@@ -19,10 +19,12 @@ package backgroundfetcher
 import (
 	"context"
 	"fmt"
+	"sync"
 	"time"
 
 	commonmetrics "github.com/awslabs/soci-snapshotter/fs/metrics/common"
 	"github.com/containerd/log"
+	digest "github.com/opencontainers/go-digest"
 	"golang.org/x/time/rate"
 )
 
@@ -49,6 +51,18 @@ func WithMaxQueueSize(size int) Option {
 	}
 }
 
+func WithDropPolicy(policy string) Option {
+	return func(bf *BackgroundFetcher) error {
+		bf.dropPolicy = policy
+		return nil
+	}
+}
+
+const (
+	DropPolicyOldest = "oldest"
+	DropPolicyNewest = "newest"
+)
+
 func WithEmitMetricPeriod(period time.Duration) Option {
 	return func(bf *BackgroundFetcher) error {
 		bf.emitMetricPeriod = period
@@ -74,15 +88,24 @@ type BackgroundFetcher struct {
 	silencePeriod    time.Duration
 	fetchPeriod      time.Duration
 	maxQueueSize     int
+	dropPolicy       string
 	emitMetricPeriod time.Duration
 
 	rateLimiter *rate.Limiter
 
 	bfPauser pauser
 
-	// All span managers are added to the channel and picked up in Run().
-	// If a span manager is still able to fetch, it is reinserted into the chanel.
-	workQueue chan Resolver
+	// All span managers are appended to the work queue and picked up in Run().
+	// If a span manager is still able to fetch, it is re-appended.
+	//
+	// The queue is a mutex-guarded slice. Add is called on the layer resolve
+	// (Mount critical) path and never blocks. When maxQueueSize > 0 and the
+	// queue is full, the entry selected by dropPolicy is evicted (that layer
+	// loses background fetching but continues to serve lazily on demand).
+	// When maxQueueSize < 0 (unlimited), no eviction occurs.
+	workQueueMu sync.Mutex
+	workQueue   []Resolver
+
 	closeChan chan struct{}
 	pauseChan chan struct{}
 }
@@ -98,21 +121,63 @@ func NewBackgroundFetcher(opts ...Option) (*BackgroundFetcher, error) {
 	// with a burst capacity of 1 (i.e., it will never invoke more than 1 bg-fetch
 	// within bf.fetchPeriod)
 	bf.rateLimiter = rate.NewLimiter(rate.Every(bf.fetchPeriod), 1)
-	bf.workQueue = make(chan Resolver, bf.maxQueueSize)
 	bf.closeChan = make(chan struct{})
-	bf.pauseChan = make(chan struct{}, bf.maxQueueSize)
+	bf.pauseChan = make(chan struct{}, 1)
 
 	if bf.bfPauser == nil {
 		bf.bfPauser = defaultPauser{}
 	}
 
+	// Pre-create the eviction counter at 0 so it is always exposed by the
+	// metrics endpoint, even before the first eviction.
+	commonmetrics.InitOperationCount(commonmetrics.BackgroundFetchWorkQueueEvicted, digest.Digest(""))
+
 	return bf, nil
 }
 
 // Add a new Resolver to be background fetched from.
-// Sends the resolver through the channel, which will be received in the Run() method.
+// Appends the resolver to the work queue, which is drained by Run().
+//
+// Add never blocks: it is called on the layer resolve (Mount critical) path,
+// where blocking would stall layer mounts. When the queue is bounded
+// (maxQueueSize > 0) and full, the entry selected by dropPolicy is evicted.
 func (bf *BackgroundFetcher) Add(resolver Resolver) {
-	bf.workQueue <- resolver
+	bf.workQueueMu.Lock()
+	if bf.maxQueueSize > 0 && len(bf.workQueue) >= bf.maxQueueSize {
+		if bf.dropPolicy == DropPolicyOldest {
+			bf.workQueue = bf.workQueue[1:]
+			commonmetrics.IncOperationCount(commonmetrics.BackgroundFetchWorkQueueEvicted, digest.Digest(""))
+			log.L.WithField("maxQueueSize", bf.maxQueueSize).
+				Debug("background fetch work queue full; evicting oldest entry")
+		} else {
+			bf.workQueueMu.Unlock()
+			commonmetrics.IncOperationCount(commonmetrics.BackgroundFetchWorkQueueEvicted, digest.Digest(""))
+			log.L.WithField("maxQueueSize", bf.maxQueueSize).
+				Debug("background fetch work queue full; dropping newly added entry")
+			return
+		}
+	}
+	bf.workQueue = append(bf.workQueue, resolver)
+	bf.workQueueMu.Unlock()
+}
+
+// pop removes and returns the next Resolver from the work queue, or nil if
+// the queue is empty.
+func (bf *BackgroundFetcher) pop() Resolver {
+	bf.workQueueMu.Lock()
+	defer bf.workQueueMu.Unlock()
+	if len(bf.workQueue) == 0 {
+		return nil
+	}
+	lr := bf.workQueue[0]
+	bf.workQueue = bf.workQueue[1:]
+	return lr
+}
+
+func (bf *BackgroundFetcher) queueSize() int {
+	bf.workQueueMu.Lock()
+	defer bf.workQueueMu.Unlock()
+	return len(bf.workQueue)
 }
 
 func (bf *BackgroundFetcher) Close() error {
@@ -121,8 +186,14 @@ func (bf *BackgroundFetcher) Close() error {
 }
 
 // Pause sends a signal to pause the background fetcher for silencePeriod on the next iteration.
+// The signal is idempotent (pending signals are coalesced into a single pause),
+// so this never blocks even if a signal is already pending.
 func (bf *BackgroundFetcher) Pause() {
-	bf.pauseChan <- struct{}{}
+	select {
+	case bf.pauseChan <- struct{}{}:
+	default:
+		// A pause signal is already pending; coalesce.
+	}
 }
 
 func (bf *BackgroundFetcher) pause(ctx context.Context) {
@@ -161,20 +232,18 @@ func (bf *BackgroundFetcher) Run(ctx context.Context) error {
 		default:
 		}
 
-		select {
-		case lr := <-bf.workQueue:
+		if lr := bf.pop(); lr != nil {
 			if lr.Closed() {
 				continue
 			}
 			go func() {
 				more, err := lr.Resolve(ctx)
 				if more {
-					bf.workQueue <- lr
+					bf.Add(lr)
 				} else if err != nil {
 					log.G(ctx).WithError(err).Warn("error trying to resolve layer, removing it from the queue")
 				}
 			}()
-		default:
 		}
 
 		if err := bf.rateLimiter.Wait(ctx); err != nil {
@@ -192,7 +261,7 @@ func (bf *BackgroundFetcher) emitWorkQueueMetric(ctx context.Context, ticker *ti
 			return
 		case <-ticker.C:
 			// background fetcher is at the snapshotter's fs level, so no image digest as key
-			commonmetrics.AddImageOperationCount(commonmetrics.BackgroundFetchWorkQueueSize, "", int32(len(bf.workQueue)))
+			commonmetrics.AddImageOperationCount(commonmetrics.BackgroundFetchWorkQueueSize, "", int32(bf.queueSize()))
 		}
 	}
 }

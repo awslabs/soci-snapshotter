@@ -19,6 +19,7 @@ package backgroundfetcher
 import (
 	"compress/gzip"
 	"context"
+	"fmt"
 	"sync"
 	"testing"
 	"time"
@@ -152,6 +153,137 @@ func TestBackgroundFetcherRun(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+// mockResolver is a simple resolver for testing Add eviction behavior.
+type mockResolver struct {
+	id     string
+	closed bool
+}
+
+func (m *mockResolver) Resolve(ctx context.Context) (bool, error) { return false, nil }
+func (m *mockResolver) Close() error                              { return nil }
+func (m *mockResolver) Closed() bool                              { return m.closed }
+
+func TestAddEvictsOldestWhenFull(t *testing.T) {
+	bf, err := NewBackgroundFetcher(
+		WithFetchPeriod(time.Second),
+		WithMaxQueueSize(3),
+		WithDropPolicy(DropPolicyOldest),
+		WithEmitMetricPeriod(time.Second),
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	r1 := &mockResolver{id: "r1"}
+	r2 := &mockResolver{id: "r2"}
+	r3 := &mockResolver{id: "r3"}
+	r4 := &mockResolver{id: "r4"}
+
+	bf.Add(r1)
+	bf.Add(r2)
+	bf.Add(r3)
+	if bf.queueSize() != 3 {
+		t.Fatalf("expected queue size 3, got %d", bf.queueSize())
+	}
+
+	bf.Add(r4)
+	if bf.queueSize() != 3 {
+		t.Fatalf("expected queue size 3 after eviction, got %d", bf.queueSize())
+	}
+
+	// oldest (r1) should have been evicted; head should be r2
+	head := bf.pop()
+	if head.(*mockResolver).id != "r2" {
+		t.Fatalf("expected head to be r2, got %s", head.(*mockResolver).id)
+	}
+}
+
+func TestAddDropsNewestWhenFull(t *testing.T) {
+	bf, err := NewBackgroundFetcher(
+		WithFetchPeriod(time.Second),
+		WithMaxQueueSize(3),
+		WithDropPolicy(DropPolicyNewest),
+		WithEmitMetricPeriod(time.Second),
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	r1 := &mockResolver{id: "r1"}
+	r2 := &mockResolver{id: "r2"}
+	r3 := &mockResolver{id: "r3"}
+	r4 := &mockResolver{id: "r4"}
+
+	bf.Add(r1)
+	bf.Add(r2)
+	bf.Add(r3)
+	bf.Add(r4) // should be dropped
+
+	if bf.queueSize() != 3 {
+		t.Fatalf("expected queue size 3, got %d", bf.queueSize())
+	}
+
+	// queue should be [r1, r2, r3] — r4 was dropped
+	head := bf.pop()
+	if head.(*mockResolver).id != "r1" {
+		t.Fatalf("expected head to be r1, got %s", head.(*mockResolver).id)
+	}
+	second := bf.pop()
+	if second.(*mockResolver).id != "r2" {
+		t.Fatalf("expected second to be r2, got %s", second.(*mockResolver).id)
+	}
+	third := bf.pop()
+	if third.(*mockResolver).id != "r3" {
+		t.Fatalf("expected third to be r3, got %s", third.(*mockResolver).id)
+	}
+}
+
+func TestAddUnlimitedQueueNeverEvicts(t *testing.T) {
+	bf, err := NewBackgroundFetcher(
+		WithFetchPeriod(time.Second),
+		WithMaxQueueSize(-1),
+		WithDropPolicy(DropPolicyOldest),
+		WithEmitMetricPeriod(time.Second),
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	for i := 0; i < 200; i++ {
+		bf.Add(&mockResolver{id: fmt.Sprintf("r%d", i)})
+	}
+	if bf.queueSize() != 200 {
+		t.Fatalf("expected queue size 200 for unlimited, got %d", bf.queueSize())
+	}
+}
+
+func TestAddDefaultDropPolicyIsNewest(t *testing.T) {
+	bf, err := NewBackgroundFetcher(
+		WithFetchPeriod(time.Second),
+		WithMaxQueueSize(2),
+		WithEmitMetricPeriod(time.Second),
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	r1 := &mockResolver{id: "r1"}
+	r2 := &mockResolver{id: "r2"}
+	r3 := &mockResolver{id: "r3"}
+
+	bf.Add(r1)
+	bf.Add(r2)
+	bf.Add(r3) // should be dropped (newest)
+
+	if bf.queueSize() != 2 {
+		t.Fatalf("expected queue size 2, got %d", bf.queueSize())
+	}
+	head := bf.pop()
+	if head.(*mockResolver).id != "r1" {
+		t.Fatalf("expected head to be r1 (newest dropped, queue unchanged), got %s", head.(*mockResolver).id)
 	}
 }
 

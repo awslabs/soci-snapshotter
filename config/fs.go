@@ -39,6 +39,7 @@
 package config
 
 import (
+	"fmt"
 	"strings"
 
 	"github.com/containerd/containerd/v2/defaults"
@@ -109,6 +110,12 @@ func defaultDirectoryCacheConfig(cfg *Config) error {
 	return nil
 }
 
+func defaultBackgroundFetchConfig(cfg *Config) error {
+	cfg.FSConfig.BackgroundFetchConfig.MaxQueueSize = defaultBgMaxQueueSize
+	cfg.FSConfig.BackgroundFetchConfig.DropPolicy = defaultBgDropPolicy
+	return nil
+}
+
 type FuseConfig struct {
 	// AttrTimeout defines overall timeout attribute for a file system in seconds.
 	AttrTimeout int64 `toml:"attr_timeout"`
@@ -136,10 +143,18 @@ type BackgroundFetchConfig struct {
 	// The background fetcher will fetch one span every FetchPeriodMsec.
 	FetchPeriodMsec int64 `toml:"fetch_period_msec"`
 
-	// MaxQueueSize specifies the maximum size of the work queue
-	// i.e., the maximum number of span managers that can be queued
-	// in the background fetcher.
+	// MaxQueueSize specifies the maximum size of the work queue, i.e., the
+	// maximum number of span managers that can be queued in the background
+	// fetcher. When the queue is full, the entry selected by DropPolicy is
+	// dropped and the layer stays lazy-loaded on demand. Adding never blocks.
+	// -1 means unlimited (never drop). 0 is invalid. Default: 100.
 	MaxQueueSize int `toml:"max_queue_size"`
+
+	// DropPolicy controls which entry is removed when MaxQueueSize is
+	// reached. "oldest" drops the head of the queue (longest-queued layer);
+	// "newest" drops the entry being added (the layer that just mounted).
+	// Default: "oldest".
+	DropPolicy string `toml:"drop_policy"`
 
 	// EmitMetricPeriodSec is the amount of interval (in second) at which the background
 	// fetcher emits metrics
@@ -250,11 +265,17 @@ func parseBackgroundFetchConfig(cfg *Config) error {
 	if cfg.BackgroundFetchConfig.SilencePeriodMsec == 0 {
 		cfg.BackgroundFetchConfig.SilencePeriodMsec = defaultBgSilencePeriodMsec
 	}
-
 	if cfg.BackgroundFetchConfig.MaxQueueSize == 0 {
 		cfg.BackgroundFetchConfig.MaxQueueSize = defaultBgMaxQueueSize
 	}
-
+	if cfg.BackgroundFetchConfig.DropPolicy == "" {
+		cfg.BackgroundFetchConfig.DropPolicy = defaultBgDropPolicy
+	}
+	switch cfg.BackgroundFetchConfig.DropPolicy {
+	case "oldest", "newest":
+	default:
+		return fmt.Errorf("background_fetch.drop_policy must be \"oldest\" or \"newest\", got %q", cfg.BackgroundFetchConfig.DropPolicy)
+	}
 	if cfg.BackgroundFetchConfig.EmitMetricPeriodSec == 0 {
 		cfg.BackgroundFetchConfig.EmitMetricPeriodSec = defaultBgMetricEmitPeriodSec
 	}
