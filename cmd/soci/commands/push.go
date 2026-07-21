@@ -22,15 +22,19 @@ import (
 	"fmt"
 	"math"
 	"net/http"
+	"os"
 	"slices"
 	"sort"
 
 	"github.com/awslabs/soci-snapshotter/cmd/soci/commands/global"
 	"github.com/awslabs/soci-snapshotter/cmd/soci/commands/internal"
-	"github.com/awslabs/soci-snapshotter/fs"
+	referrersclient "github.com/awslabs/soci-snapshotter/fs/referrers"
 	"github.com/awslabs/soci-snapshotter/soci"
 	"github.com/awslabs/soci-snapshotter/soci/store"
+	"github.com/containerd/containerd/v2/core/content"
+	"github.com/containerd/containerd/v2/core/images"
 	"github.com/containerd/containerd/v2/pkg/reference"
+	local "github.com/containerd/containerd/v2/plugins/content/local"
 	"github.com/containerd/platforms"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/urfave/cli/v3"
@@ -69,6 +73,7 @@ if they are available in the snapshotter's local content store.
 		internal.RegistryFlags,
 		internal.SnapshotterFlags,
 		internal.PlatformFlags,
+		internal.SourceFlags,
 		internal.ExistingIndexFlags,
 		[]cli.Flag{
 			&cli.Uint64Flag{
@@ -90,17 +95,58 @@ if they are available in the snapshotter's local content store.
 		}
 
 		quiet := cmd.Bool(quietFlag)
-		client, ctx, cancel, err := internal.NewClient(ctx, cmd)
-		if err != nil {
-			return err
-		}
-		defer cancel()
 
-		cs := client.ContentStore()
-		is := client.ImageService()
-		img, err := is.Get(ctx, ref)
-		if err != nil {
-			return err
+		source := cmd.String(internal.SourceFlag)
+		if !internal.SupportedArg(source, internal.SupportedSourceOptions) {
+			return fmt.Errorf("unexpected value for flag %s: %s, expected types %v",
+				internal.SourceFlag, source, internal.SupportedSourceOptions)
+		}
+		if source == internal.SourceRegistry && store.ContentStoreType(cmd.String(global.ContentStoreFlag)) == store.ContainerdContentStoreType {
+			return fmt.Errorf("--%s=%s cannot be combined with --%s=%s: there is no containerd content store to read from",
+				internal.SourceFlag, internal.SourceRegistry, global.ContentStoreFlag, store.ContainerdContentStoreType)
+		}
+
+		var (
+			cs     content.Store
+			img    images.Image
+			cancel context.CancelFunc = func() {}
+		)
+		defer func() { cancel() }()
+
+		if source == internal.SourceRegistry {
+			// Only needed transiently, to resolve the manifest/platforms
+			// below - nothing needs it kept around, so a temp dir avoids
+			// requiring --root to point somewhere writable for this part.
+			contentDir, err := os.MkdirTemp("", "soci-push-registry-content-*")
+			if err != nil {
+				return fmt.Errorf("could not create temp content directory: %w", err)
+			}
+			defer os.RemoveAll(contentDir)
+
+			localStore, err := local.NewStore(contentDir)
+			if err != nil {
+				return fmt.Errorf("could not create local content store at %s: %w", contentDir, err)
+			}
+			cs = localStore
+
+			img, err = internal.PopulateFromRegistry(ctx, cmd, ref, cs)
+			if err != nil {
+				return err
+			}
+		} else {
+			client, actxCtx, actxCancel, err := internal.NewClient(ctx, cmd)
+			if err != nil {
+				return err
+			}
+			ctx = actxCtx
+			cancel = actxCancel
+
+			cs = client.ContentStore()
+			is := client.ImageService()
+			img, err = is.Get(ctx, ref)
+			if err != nil {
+				return err
+			}
 		}
 
 		ps, err := internal.GetPlatforms(ctx, cmd, img, cs)
@@ -225,9 +271,9 @@ if they are available in the snapshotter's local content store.
 				if !quiet {
 					fmt.Println("checking if a soci index already exists in remote repository...")
 				}
-				client := fs.NewOCIArtifactClient(dst)
+				client := referrersclient.NewOCIArtifactClient(dst)
 				referrers, err := client.AllReferrers(ctx, ocispec.Descriptor{Digest: imgManifestDesc.Digest})
-				if err != nil && !errors.Is(err, fs.ErrNoReferrers) {
+				if err != nil && !errors.Is(err, referrersclient.ErrNoReferrers) {
 					return fmt.Errorf("failed to fetch list of referrers: %w", err)
 				}
 				if len(referrers) > 0 {
