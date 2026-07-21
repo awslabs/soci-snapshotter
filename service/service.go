@@ -103,6 +103,7 @@ func NewSociSnapshotterService(ctx context.Context, root string, serviceCfg *con
 	fsOpts := append(sOpts.fsOpts, socifs.WithGetSources(getSources),
 		socifs.WithOverlayOpaqueType(opq),
 		socifs.WithPullModes(serviceCfg.PullModes),
+		socifs.WithResolverConfig(registryConfig),
 	)
 	if serviceCfg.FSConfig.MaxConcurrency != 0 {
 		fsOpts = append(fsOpts, socifs.WithMaxConcurrency(serviceCfg.FSConfig.MaxConcurrency))
