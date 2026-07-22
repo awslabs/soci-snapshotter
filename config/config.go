@@ -69,7 +69,10 @@ type Config struct {
 	// DebugAddress is a Unix domain socket address where the snapshotter exposes /debug/ endpoints.
 	DebugAddress string `toml:"debug_address"`
 
-	// MetadataStore is the type of the metadata store to use.
+	// MetadataStore is the type of the metadata store to use. Valid values are
+	// "db" (a single shared on-disk bbolt database, the default) and
+	// "db-multi" (one bbolt database per layer, to avoid the shared writer
+	// lock).
 	MetadataStore string `toml:"metadata_store"`
 
 	// SkipCheckSnapshotterSupported is a flag to skip check for overlayfs support needed to confirm if SOCI can work

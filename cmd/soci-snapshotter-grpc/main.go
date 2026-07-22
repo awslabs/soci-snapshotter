@@ -324,7 +324,8 @@ func serve(ctx context.Context, rpc *grpc.Server, addr string, rs snapshots.Snap
 }
 
 const (
-	dbMetadataType = "db"
+	dbMetadataType      = "db"
+	dbMultiMetadataType = "db-multi"
 )
 
 func getMetadataStore(ctx context.Context, rootDir string, config config.Config) (metadata.Store, error) {
@@ -347,9 +348,26 @@ func getMetadataStore(ctx context.Context, rootDir string, config config.Config)
 		return func(sr *io.SectionReader, toc ztoc.TOC, opts ...metadata.Option) (metadata.Reader, error) {
 			return metadata.NewReader(db, sr, toc, opts...)
 		}, nil
+	case dbMultiMetadataType:
+		log.G(ctx).WithFields(logrus.Fields{
+			"root":       rootDir,
+			"store_type": config.MetadataStore,
+		}).Debug("initializing per-layer (db-multi) metadata store")
+
+		// Same bbolt tuning as the shared "db" store, but each layer gets its
+		// own database file, so concurrent layer initializations don't contend
+		// on a single bbolt writer lock. Databases are removed when their
+		// reader is closed.
+		bOpts := bolt.Options{
+			NoFreelistSync:  true,
+			InitialMmapSize: 64 * 1024 * 1024,
+			FreelistType:    bolt.FreelistMapType,
+		}
+		dbDir := filepath.Join(rootDir, "metadata")
+		return metadata.NewMultiReader(dbDir, metadata.DBMultiOptions{BoltOptions: &bOpts}), nil
 	default:
-		return nil, fmt.Errorf("unknown metadata store type: %v; must be %v",
-			config.MetadataStore, dbMetadataType)
+		return nil, fmt.Errorf("unknown metadata store type: %v; must be %v or %v",
+			config.MetadataStore, dbMetadataType, dbMultiMetadataType)
 	}
 }
 
