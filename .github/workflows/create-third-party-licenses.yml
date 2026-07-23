@@ -59,13 +59,14 @@ jobs:
     steps:
       - name: Set vars for workflow dispatch/call
         if: github.event_name == 'workflow_dispatch' || github.event_name == 'workflow_call'
+        env:
+          tag_name: ${{ inputs.tag_name }}
         run: |
           # This will fail if tag is not in semver starting with v
-          echo "${{ inputs.tag_name }}" | grep -qP '^v[0-9]+\.[0-9]+\.[0-9]+$'
-          echo "Got tag ${{ inputs.tag_name }} from input"
+          printf "%s" "${tag_name}" | grep -qP '^v[0-9]+\.[0-9]+\.[0-9]+$'
 
-          echo "TAG_NAME=${{ inputs.tag_name }}" >> $GITHUB_ENV
-          echo "TARGET_BRANCH=release/$(echo ${{ inputs.tag_name }} | grep -Eo '[0-9]+\.[0-9]+')" >> $GITHUB_ENV
+          echo "TAG_NAME=${tag_name}" >> $GITHUB_ENV
+          echo "TARGET_BRANCH=release/$(echo ${tag_name} | grep -Eo '[0-9]+\.[0-9]+')" >> $GITHUB_ENV
 
       - name: Set vars for push
         if: github.event_name == 'push'
