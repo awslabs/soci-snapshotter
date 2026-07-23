@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       major_minor_version:
-        description: 'Major.Minor release version'
+        description: 'Major.Minor release version (e.g. for release v1.2.3, input "1.2")'
         required: true
       base_commit:
         description: 'Base commit SHA. Empty will just use HEAD from main.'
@@ -77,19 +77,21 @@ jobs:
             scripts/create-release-branch.sh
 
       - name: Set environment variable version to output to dependent jobs
+        env:
+          major_minor: ${{ github.event.inputs.major_minor_version }}
         run: |
           # This will fail if doesn't follow major.minor format
-          echo "${{ github.event.inputs.major_minor_version }}" | grep -qP '^v[0-9]+\.[0-9]'
-          echo "Got version ${{ github.event.inputs.major_minor_version }}"
+          printf "%s" "${major_minor}" | grep -qP '^[0-9]+\.[0-9]+$'
 
-          echo "VERSION=v${{ github.event.inputs.major_minor_version }}.0" >> $GITHUB_ENV
+          printf "v%s.0" "${major_minor}" >> $GITHUB_ENV
       - name: Create release branch
+        env:
+          commit: ${{ github.event.inputs.base_commit }}
+          major_minor: ${{ github.event.inputs.major_minor_version }}
         run: |
-          commit=${{ github.event.inputs.base_commit }}
-          commit_sha=${commit}
-          if [[ -z "$commit_sha" ]]; then commit_sha="HEAD"; fi
-          bash scripts/create-release-branch.sh --base "${commit}" ${{ github.event.inputs.major_minor_version }}
-          echo "Created release branch release/${{ github.event.inputs.major_minor_version }} from ${commit_sha}"
+          if [[ -z "${commit}" ]]; then commit_sha="HEAD"; fi
+          bash scripts/create-release-branch.sh --base "${commit}" "${major_minor}"
+          echo "Created release branch release/${major_minor} from ${commit_sha}"
 
     outputs:
       version: ${{ env.VERSION }}
