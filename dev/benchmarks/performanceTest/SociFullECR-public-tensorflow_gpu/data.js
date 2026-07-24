@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1784581650693,
+  "lastUpdate": 1784912440447,
   "repoUrl": "https://github.com/awslabs/soci-snapshotter",
   "entries": {
     "Soci Benchmark": [
@@ -19058,6 +19058,48 @@ window.BENCHMARK_DATA = {
           {
             "name": "SociFullECR-public-tensorflow_gpu-pullTaskDuration",
             "value": 3.5320000000000005,
+            "unit": "Seconds",
+            "extra": "P90"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "davbson@amazon.com",
+            "name": "David Son",
+            "username": "sondavidb"
+          },
+          "committer": {
+            "email": "ayushkp@amazon.com",
+            "name": "ayush-panta",
+            "username": "ayush-panta"
+          },
+          "distinct": true,
+          "id": "adf5ba912dc66b35dba71acb40facb72576040c9",
+          "message": "Fix up workflow scripts\n\nAlso fixes an incorrect regex for create-release-branch.yml\n\nSigned-off-by: David Son <davbson@amazon.com>",
+          "timestamp": "2026-07-24T09:52:13-07:00",
+          "tree_id": "d259d79ab55fa4085f87694ae8c48f0cf7daa93d",
+          "url": "https://github.com/awslabs/soci-snapshotter/commit/adf5ba912dc66b35dba71acb40facb72576040c9"
+        },
+        "date": 1784912435061,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "SociFullECR-public-tensorflow_gpu-lazyTaskDuration",
+            "value": 13.243599999999999,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-tensorflow_gpu-localTaskDuration",
+            "value": 2.8562,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-tensorflow_gpu-pullTaskDuration",
+            "value": 1.7724,
             "unit": "Seconds",
             "extra": "P90"
           }
