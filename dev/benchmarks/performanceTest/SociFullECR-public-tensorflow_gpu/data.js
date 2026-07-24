@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1784929200368,
+  "lastUpdate": 1784930897790,
   "repoUrl": "https://github.com/awslabs/soci-snapshotter",
   "entries": {
     "Soci Benchmark": [
@@ -19184,6 +19184,48 @@ window.BENCHMARK_DATA = {
           {
             "name": "SociFullECR-public-tensorflow_gpu-pullTaskDuration",
             "value": 3.3064,
+            "unit": "Seconds",
+            "extra": "P90"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "erezz@amazon.com",
+            "name": "Erez Zarum",
+            "username": "erezzarum"
+          },
+          "committer": {
+            "email": "ayushkp@amazon.com",
+            "name": "ayush-panta",
+            "username": "ayush-panta"
+          },
+          "distinct": true,
+          "id": "c8a453056a27acca515d8fab75aeb24fde49928d",
+          "message": "fix: Honor [resolver] insecure flag for SOCI index and blob fetch paths\n\nThe existing [resolver.host.<host>.mirrors] insecure = true config only\naffected the layer-blob resolver (service/resolver). The SOCI index\nfetch (FetchSociArtifacts), the zTOC blob fetches, and the parallel-pull\nblob operations all derived their scheme independently via\ndocker.MatchLocalhost (which only treats literal localhost as HTTP) or\nCraftBlobURL (same). Registries configured as insecure mirrors (e.g. an\ninternal zot over plain HTTP on a non-localhost IP) got HTTPS requests\nthat failed with \"http: server gave HTTP response to HTTPS client.\"\n\nThread the resolver config into the filesystem via a new\nWithResolverConfig option, and add an isInsecureHost helper that checks\nwhether any mirror for the image's host is marked insecure. Pass the\nresult as a plainHTTP flag into newRemoteStore, newRemoteBlobStore, and\nCraftBlobURL so all fetch paths use HTTP when the host is configured\ninsecure.\n\nSigned-off-by: Erez Zarum <erezz@amazon.com>",
+          "timestamp": "2026-07-24T14:59:17-07:00",
+          "tree_id": "3b6a48b77efe0531149cfd913fd91854196d8c0d",
+          "url": "https://github.com/awslabs/soci-snapshotter/commit/c8a453056a27acca515d8fab75aeb24fde49928d"
+        },
+        "date": 1784930895001,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "SociFullECR-public-tensorflow_gpu-lazyTaskDuration",
+            "value": 13.9386,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-tensorflow_gpu-localTaskDuration",
+            "value": 2.862,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-tensorflow_gpu-pullTaskDuration",
+            "value": 1.8452,
             "unit": "Seconds",
             "extra": "P90"
           }
