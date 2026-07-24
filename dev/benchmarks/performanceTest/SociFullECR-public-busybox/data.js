@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1784912442312,
+  "lastUpdate": 1784917906892,
   "repoUrl": "https://github.com/awslabs/soci-snapshotter",
   "entries": {
     "Soci Benchmark": [
@@ -19139,6 +19139,48 @@ window.BENCHMARK_DATA = {
           {
             "name": "SociFullECR-public-busybox-pullTaskDuration",
             "value": 0.6779999999999999,
+            "unit": "Seconds",
+            "extra": "P90"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "erezz@amazon.com",
+            "name": "Erez Zarum",
+            "username": "erezzarum"
+          },
+          "committer": {
+            "email": "ayushkp@amazon.com",
+            "name": "ayush-panta",
+            "username": "ayush-panta"
+          },
+          "distinct": true,
+          "id": "b57d1fefbca319ec4293e1b8b3306545ebe12954",
+          "message": "feat(metadata): Add metadata_db_no_sync and metadata_insertion_chunk_size config\n\nAdd two configuration options for tuning the bbolt metadata store:\n\n- metadata_db_no_sync (bool, default false): skips bbolt's per-transaction\n  fsync. The metadata DB is derived data rebuilt from zTOCs on every daemon\n  restart, so fsync durability is unnecessary. Removes synchronous disk\n  flushes from layer metadata initialization.\n\n- metadata_insertion_chunk_size (int, default 5000): controls the maximum\n  number of node insertions per bbolt transaction during metadata init.\n  Larger chunks amortize per-commit overhead over more insertions.\n\nSigned-off-by: Erez Zarum <erezz@amazon.com>",
+          "timestamp": "2026-07-24T11:18:19-07:00",
+          "tree_id": "024c4900fe5f0344a1727eecfe9d198c0c69d780",
+          "url": "https://github.com/awslabs/soci-snapshotter/commit/b57d1fefbca319ec4293e1b8b3306545ebe12954"
+        },
+        "date": 1784917903916,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "SociFullECR-public-busybox-lazyTaskDuration",
+            "value": 0.0126,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-busybox-localTaskDuration",
+            "value": 0.006,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-busybox-pullTaskDuration",
+            "value": 1.9946,
             "unit": "Seconds",
             "extra": "P90"
           }
