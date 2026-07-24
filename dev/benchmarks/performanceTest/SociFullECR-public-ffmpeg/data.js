@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1784917903035,
+  "lastUpdate": 1784929196776,
   "repoUrl": "https://github.com/awslabs/soci-snapshotter",
   "entries": {
     "Soci Benchmark": [
@@ -19265,6 +19265,48 @@ window.BENCHMARK_DATA = {
           {
             "name": "SociFullECR-public-ffmpeg-pullTaskDuration",
             "value": 2.8234,
+            "unit": "Seconds",
+            "extra": "P90"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "erezz@amazon.com",
+            "name": "Erez Zarum",
+            "username": "erezzarum"
+          },
+          "committer": {
+            "email": "ayushkp@amazon.com",
+            "name": "ayush-panta",
+            "username": "ayush-panta"
+          },
+          "distinct": true,
+          "id": "4d9045ac59328f4916e392fd7e537acecda67979",
+          "message": "feat(backgroundfetcher): Add configurable bounded queue with drop policy\n\nMake the background fetcher work queue bounded by eviction instead of\nunbounded. When max_queue_size is reached, the entry selected by\ndrop_policy (\"oldest\" or \"newest\") is evicted and that layer continues\nto serve lazily on demand. Add never blocks layer mounts.\n\n- max_queue_size: positive = hard cap, -1 = unlimited, 0 = invalid\n- drop_policy: \"oldest\" (default) evicts head, \"newest\" drops the add\n- Pre-populate defaults before TOML decode so explicit 0 is detectable\n- Add background_fetch_work_queue_evicted counter (initialized at 0)\n- Debug-level logging on eviction to avoid log spam under load\n\nSigned-off-by: Erez Zarum <erezz@amazon.com>",
+          "timestamp": "2026-07-24T14:27:52-07:00",
+          "tree_id": "f3342162ad53eb7951193dc865457deaa8b83343",
+          "url": "https://github.com/awslabs/soci-snapshotter/commit/4d9045ac59328f4916e392fd7e537acecda67979"
+        },
+        "date": 1784929189974,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "SociFullECR-public-ffmpeg-lazyTaskDuration",
+            "value": 0.6696,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-ffmpeg-localTaskDuration",
+            "value": 0.01,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-ffmpeg-pullTaskDuration",
+            "value": 2.0866,
             "unit": "Seconds",
             "extra": "P90"
           }
