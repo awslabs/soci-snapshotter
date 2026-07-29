@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1784930900728,
+  "lastUpdate": 1785362325454,
   "repoUrl": "https://github.com/awslabs/soci-snapshotter",
   "entries": {
     "Soci Benchmark": [
@@ -19390,6 +19390,48 @@ window.BENCHMARK_DATA = {
           {
             "name": "SociFullECR-public-tensorflow-pullTaskDuration",
             "value": 1.5596,
+            "unit": "Seconds",
+            "extra": "P90"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "davbson@amazon.com",
+            "name": "David Son",
+            "username": "sondavidb"
+          },
+          "committer": {
+            "email": "ayushkp@amazon.com",
+            "name": "ayush-panta",
+            "username": "ayush-panta"
+          },
+          "distinct": true,
+          "id": "cdee6469bb7fcb310124084cfff9d1e157a92890",
+          "message": "Dockerfile: skip unnecessary builds\n\nSigned-off-by: David Son <davbson@amazon.com>",
+          "timestamp": "2026-07-29T14:47:44-07:00",
+          "tree_id": "6fe5e4804a6eb4077f46a96b0d29e698b186109e",
+          "url": "https://github.com/awslabs/soci-snapshotter/commit/cdee6469bb7fcb310124084cfff9d1e157a92890"
+        },
+        "date": 1785362322512,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "SociFullECR-public-tensorflow-lazyTaskDuration",
+            "value": 29.2998,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-tensorflow-localTaskDuration",
+            "value": 2.9057999999999997,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-tensorflow-pullTaskDuration",
+            "value": 2.2122,
             "unit": "Seconds",
             "extra": "P90"
           }
