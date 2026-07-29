@@ -75,6 +75,7 @@ RUN mkdir -p /opt/rapidgzip/usr/local/bin
 RUN git clone https://github.com/mxmlnkn/rapidgzip.git && \
     cd rapidgzip && \
     git checkout "rapidgzip-v${RAPIDGZIP_VERSION}" && \
+    git -c submodule."external/bzip2-tests".update=none submodule update --init --recursive && \
     if [ "$TARGETARCH" = "arm64" ] || [ "$(uname -m)" = "aarch64" ]; then \
         # Disable ISA-L on ARM due to linking errors.
         export ISAL_FLAGS="-DWITH_ISAL=OFF"; \
@@ -91,7 +92,7 @@ RUN git clone https://github.com/mxmlnkn/rapidgzip.git && \
           -DCMAKE_C_FLAGS="-O2 -fPIC" \
           ${ISAL_FLAGS} \
           -DCMAKE_BUILD_TYPE=Release .. && \
-    make -j$(nproc) && \
+    cmake --build . --target rapidgzip --parallel "$(nproc)" && \
     cp src/tools/rapidgzip /opt/rapidgzip/usr/local/bin/ && \
     chmod +x /opt/rapidgzip/usr/local/bin/rapidgzip && \
     cd ../.. && \
