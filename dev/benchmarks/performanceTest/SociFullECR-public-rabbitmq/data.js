@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1784930909144,
+  "lastUpdate": 1785362333549,
   "repoUrl": "https://github.com/awslabs/soci-snapshotter",
   "entries": {
     "Soci Benchmark": [
@@ -19185,6 +19185,48 @@ window.BENCHMARK_DATA = {
           {
             "name": "SociFullECR-public-rabbitmq-pullTaskDuration",
             "value": 1.163,
+            "unit": "Seconds",
+            "extra": "P90"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "davbson@amazon.com",
+            "name": "David Son",
+            "username": "sondavidb"
+          },
+          "committer": {
+            "email": "ayushkp@amazon.com",
+            "name": "ayush-panta",
+            "username": "ayush-panta"
+          },
+          "distinct": true,
+          "id": "cdee6469bb7fcb310124084cfff9d1e157a92890",
+          "message": "Dockerfile: skip unnecessary builds\n\nSigned-off-by: David Son <davbson@amazon.com>",
+          "timestamp": "2026-07-29T14:47:44-07:00",
+          "tree_id": "6fe5e4804a6eb4077f46a96b0d29e698b186109e",
+          "url": "https://github.com/awslabs/soci-snapshotter/commit/cdee6469bb7fcb310124084cfff9d1e157a92890"
+        },
+        "date": 1785362324849,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "SociFullECR-public-rabbitmq-lazyTaskDuration",
+            "value": 16.0282,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-rabbitmq-localTaskDuration",
+            "value": 11.2482,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-rabbitmq-pullTaskDuration",
+            "value": 1.3754,
             "unit": "Seconds",
             "extra": "P90"
           }
