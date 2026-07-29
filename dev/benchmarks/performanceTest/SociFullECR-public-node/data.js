@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1785365283735,
+  "lastUpdate": 1785365861722,
   "repoUrl": "https://github.com/awslabs/soci-snapshotter",
   "entries": {
     "Soci Benchmark": [
@@ -19268,6 +19268,48 @@ window.BENCHMARK_DATA = {
           {
             "name": "SociFullECR-public-node-pullTaskDuration",
             "value": 1.5624,
+            "unit": "Seconds",
+            "extra": "P90"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "erezz@amazon.com",
+            "name": "Erez Zarum",
+            "username": "erezzarum"
+          },
+          "committer": {
+            "email": "55555210+sondavidb@users.noreply.github.com",
+            "name": "David Son",
+            "username": "sondavidb"
+          },
+          "distinct": true,
+          "id": "e8e603f92da6e4954f496f30435cacb8fc14ae0d",
+          "message": "feat(metadata): Add \"db-multi\" per-layer bbolt metadata store\n\nThe default \"db\" store persists all layers' metadata to a single shared\nbbolt database. bbolt allows only one writer at a time, so concurrent\nlayer initializations serialize on that single writer lock during pull.\n\nAdd \"db-multi\", selectable via metadata_store = \"db-multi\". It reuses\nthe exact on-disk format and code path as \"db\" (metadata.NewReader), but\nopens a separate, uniquely-named database file per layer under the\nmetadata/ subdirectory, so concurrent layer inits write to independent\ndatabases and never contend on a shared writer lock.\n\nImplemented as a thin multiReader wrapper (metadata/dbmulti.go) that\nowns its per-layer bolt.DB: it delegates all reads to the standard bbolt\nreader and, on Close, closes the handle and removes the database file.\nClones share the underlying database but do not own it, so closing a\nclone does not remove the shared file (matching the existing reader's\nClone semantics).\n\nWire the \"db-multi\" case into getMetadataStore with the same bbolt\ntuning as \"db\", register it in the shared reader correctness suite\n(TestMultiMetadataReader), and document the store and its trade-off.\n\nSigned-off-by: Erez Zarum <erezz@amazon.com>",
+          "timestamp": "2026-07-29T15:47:59-07:00",
+          "tree_id": "c6b998c73b870cc9a0dddf738e44239dca2a76d4",
+          "url": "https://github.com/awslabs/soci-snapshotter/commit/e8e603f92da6e4954f496f30435cacb8fc14ae0d"
+        },
+        "date": 1785365856218,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "SociFullECR-public-node-lazyTaskDuration",
+            "value": 3.1912000000000003,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-node-localTaskDuration",
+            "value": 0.5134,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-node-pullTaskDuration",
+            "value": 1.4886,
             "unit": "Seconds",
             "extra": "P90"
           }
