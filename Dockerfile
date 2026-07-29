@@ -18,7 +18,7 @@ ARG RUNC_VERSION=1.3.3
 ARG NERDCTL_VERSION=2.1.6
 ARG CRICTL_VERSION=1.36.0
 ARG IGZIP_VERSION=2.31.1
-ARG RAPIDGZIP_VERSION=0.14.3
+ARG RAPIDGZIP_VERSION=0.16.0
 
 FROM public.ecr.aws/docker/library/registry:3.1.1 AS registry
 
@@ -75,13 +75,12 @@ RUN mkdir -p /opt/rapidgzip/usr/local/bin
 RUN git clone https://github.com/mxmlnkn/rapidgzip.git && \
     cd rapidgzip && \
     git checkout "rapidgzip-v${RAPIDGZIP_VERSION}" && \
-    git -c submodule."external/bzip2-tests".update=none submodule update --init --recursive && \
+    git submodule update --init --recursive && \
     if [ "$TARGETARCH" = "arm64" ] || [ "$(uname -m)" = "aarch64" ]; then \
         # Disable ISA-L on ARM due to linking errors.
         export ISAL_FLAGS="-DWITH_ISAL=OFF"; \
-
         # Disable fcf-protection which is not supported on ARM.
-        sed -i 's/-fcf-protection=full/-fcf-protection=none/g' CMakeLists.txt; \
+        sed -i 's/-fcf-protection=full/-fcf-protection=none/g' librapidarchive/CMakeLists.txt; \
     else \
         export ISAL_FLAGS=""; \
     fi && \
@@ -91,7 +90,7 @@ RUN git clone https://github.com/mxmlnkn/rapidgzip.git && \
           -DCMAKE_CXX_FLAGS="-O2 -fPIC" \
           -DCMAKE_C_FLAGS="-O2 -fPIC" \
           ${ISAL_FLAGS} \
-          -DCMAKE_BUILD_TYPE=Release .. && \
+          -DCMAKE_BUILD_TYPE=Release ../librapidarchive && \
     cmake --build . --target rapidgzip --parallel "$(nproc)" && \
     cp src/tools/rapidgzip /opt/rapidgzip/usr/local/bin/ && \
     chmod +x /opt/rapidgzip/usr/local/bin/rapidgzip && \
