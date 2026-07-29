@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1785366210920,
+  "lastUpdate": 1785366473647,
   "repoUrl": "https://github.com/awslabs/soci-snapshotter",
   "entries": {
     "Soci Benchmark": [
@@ -19476,6 +19476,48 @@ window.BENCHMARK_DATA = {
           {
             "name": "SociFullECR-public-mongo-pullTaskDuration",
             "value": 1.4908000000000001,
+            "unit": "Seconds",
+            "extra": "P90"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "davbson@amazon.com",
+            "name": "David Son",
+            "username": "sondavidb"
+          },
+          "committer": {
+            "email": "ayushkp@amazon.com",
+            "name": "ayush-panta",
+            "username": "ayush-panta"
+          },
+          "distinct": true,
+          "id": "6049a428a59a14c74aa6ed0fcf2ba8525eaa1d42",
+          "message": "Propagate Docker Compose errors\n\nThe existing workflow already only outputs errors if we get any, so it's\nfine to just use progress=plain instead of -q as our happy path workflow\nremains unchanged. However this will now make it much easier to debug\nany errors when building the Dockerfile.\n\nSigned-off-by: David Son <davbson@amazon.com>",
+          "timestamp": "2026-07-29T15:54:20-07:00",
+          "tree_id": "652eb8cd5cefcd60e8fd0760b435068d418627fc",
+          "url": "https://github.com/awslabs/soci-snapshotter/commit/6049a428a59a14c74aa6ed0fcf2ba8525eaa1d42"
+        },
+        "date": 1785366467983,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "SociFullECR-public-mongo-lazyTaskDuration",
+            "value": 12.7392,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-mongo-localTaskDuration",
+            "value": 0.7728,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-mongo-pullTaskDuration",
+            "value": 2.6866,
             "unit": "Seconds",
             "extra": "P90"
           }
