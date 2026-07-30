@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1785366469627,
+  "lastUpdate": 1785370426583,
   "repoUrl": "https://github.com/awslabs/soci-snapshotter",
   "entries": {
     "Soci Benchmark": [
@@ -19436,6 +19436,47 @@ window.BENCHMARK_DATA = {
           {
             "name": "SociFullECR-public-tensorflow_gpu-pullTaskDuration",
             "value": 3.298,
+            "unit": "Seconds",
+            "extra": "P90"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "hoshmali@amazon.com",
+            "name": "Hoshank Mali"
+          },
+          "committer": {
+            "email": "ayushkp@amazon.com",
+            "name": "ayush-panta",
+            "username": "ayush-panta"
+          },
+          "distinct": true,
+          "id": "8b42dee2951a462050bb58066af13b4c9f97c026",
+          "message": "Bump otel to v1.44.0 to fix CVEs\n\nBump go.opentelemetry.io/otel (and metric/trace) from v1.43.0 to v1.44.0\nto remediate GO-2026-5158 (CVE-2026-41178): baggage parsing no longer\ncaps raw header length.\n\nBump applied to the root module and the cmd submodule. Verified\nwith 'make tidy', a clean 'go build' of soci-snapshotter-grpc, and\ngovulncheck (source and binary mode) reporting both CVEs resolved.\n\nSigned-off-by: Hoshank Mali <hoshmali@amazon.com>",
+          "timestamp": "2026-07-29T17:02:40-07:00",
+          "tree_id": "d8f5f77e9d5dab9b2ae147f4beff67dd940b7510",
+          "url": "https://github.com/awslabs/soci-snapshotter/commit/8b42dee2951a462050bb58066af13b4c9f97c026"
+        },
+        "date": 1785370423651,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "SociFullECR-public-tensorflow_gpu-lazyTaskDuration",
+            "value": 42.1954,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-tensorflow_gpu-localTaskDuration",
+            "value": 3.0906000000000002,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-tensorflow_gpu-pullTaskDuration",
+            "value": 3.1226,
             "unit": "Seconds",
             "extra": "P90"
           }
