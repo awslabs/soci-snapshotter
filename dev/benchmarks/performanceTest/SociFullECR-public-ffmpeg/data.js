@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1785370428149,
+  "lastUpdate": 1785432876666,
   "repoUrl": "https://github.com/awslabs/soci-snapshotter",
   "entries": {
     "Soci Benchmark": [
@@ -19600,6 +19600,48 @@ window.BENCHMARK_DATA = {
           {
             "name": "SociFullECR-public-ffmpeg-pullTaskDuration",
             "value": 2.7282,
+            "unit": "Seconds",
+            "extra": "P90"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "erezz@amazon.com",
+            "name": "Erez Zarum",
+            "username": "erezzarum"
+          },
+          "committer": {
+            "email": "ayushkp@amazon.com",
+            "name": "ayush-panta",
+            "username": "ayush-panta"
+          },
+          "distinct": true,
+          "id": "fb3216de9060ea814aedbb4045be67c522f3db91",
+          "message": "fix(resolver): Tie auth client cache sweeper to service context\n\nThe periodic sweeper goroutine started by NewRegistryManager looped\nforever, so it outlived the snapshotter service instead of shutting\ndown with it.\n\nTake a context in NewRegistryManager and select on ctx.Done() alongside\nthe ticker, so the sweeper exits when the service context is cancelled.\nPass the existing service context from NewSociSnapshotterService.\n\nSigned-off-by: Erez Zarum <erezz@amazon.com>",
+          "timestamp": "2026-07-30T10:24:30-07:00",
+          "tree_id": "cb014bbe18d53594d031480583c5e57bcd83336a",
+          "url": "https://github.com/awslabs/soci-snapshotter/commit/fb3216de9060ea814aedbb4045be67c522f3db91"
+        },
+        "date": 1785432873738,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "SociFullECR-public-ffmpeg-lazyTaskDuration",
+            "value": 0.1434,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-ffmpeg-localTaskDuration",
+            "value": 0.006,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-ffmpeg-pullTaskDuration",
+            "value": 2.6752000000000002,
             "unit": "Seconds",
             "extra": "P90"
           }
