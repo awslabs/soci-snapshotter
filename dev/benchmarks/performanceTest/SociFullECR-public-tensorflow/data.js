@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1785370432603,
+  "lastUpdate": 1785432926908,
   "repoUrl": "https://github.com/awslabs/soci-snapshotter",
   "entries": {
     "Soci Benchmark": [
@@ -19641,6 +19641,48 @@ window.BENCHMARK_DATA = {
           {
             "name": "SociFullECR-public-tensorflow-pullTaskDuration",
             "value": 2.2376,
+            "unit": "Seconds",
+            "extra": "P90"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "erezz@amazon.com",
+            "name": "Erez Zarum",
+            "username": "erezzarum"
+          },
+          "committer": {
+            "email": "ayushkp@amazon.com",
+            "name": "ayush-panta",
+            "username": "ayush-panta"
+          },
+          "distinct": true,
+          "id": "fb3216de9060ea814aedbb4045be67c522f3db91",
+          "message": "fix(resolver): Tie auth client cache sweeper to service context\n\nThe periodic sweeper goroutine started by NewRegistryManager looped\nforever, so it outlived the snapshotter service instead of shutting\ndown with it.\n\nTake a context in NewRegistryManager and select on ctx.Done() alongside\nthe ticker, so the sweeper exits when the service context is cancelled.\nPass the existing service context from NewSociSnapshotterService.\n\nSigned-off-by: Erez Zarum <erezz@amazon.com>",
+          "timestamp": "2026-07-30T10:24:30-07:00",
+          "tree_id": "cb014bbe18d53594d031480583c5e57bcd83336a",
+          "url": "https://github.com/awslabs/soci-snapshotter/commit/fb3216de9060ea814aedbb4045be67c522f3db91"
+        },
+        "date": 1785432923810,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "SociFullECR-public-tensorflow-lazyTaskDuration",
+            "value": 10.414800000000001,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-tensorflow-localTaskDuration",
+            "value": 1.8618000000000001,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-tensorflow-pullTaskDuration",
+            "value": 3.665,
             "unit": "Seconds",
             "extra": "P90"
           }
