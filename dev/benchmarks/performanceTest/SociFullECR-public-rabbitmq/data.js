@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1785366479705,
+  "lastUpdate": 1785370440753,
   "repoUrl": "https://github.com/awslabs/soci-snapshotter",
   "entries": {
     "Soci Benchmark": [
@@ -19395,6 +19395,47 @@ window.BENCHMARK_DATA = {
           {
             "name": "SociFullECR-public-rabbitmq-pullTaskDuration",
             "value": 2.4804,
+            "unit": "Seconds",
+            "extra": "P90"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "hoshmali@amazon.com",
+            "name": "Hoshank Mali"
+          },
+          "committer": {
+            "email": "ayushkp@amazon.com",
+            "name": "ayush-panta",
+            "username": "ayush-panta"
+          },
+          "distinct": true,
+          "id": "8b42dee2951a462050bb58066af13b4c9f97c026",
+          "message": "Bump otel to v1.44.0 to fix CVEs\n\nBump go.opentelemetry.io/otel (and metric/trace) from v1.43.0 to v1.44.0\nto remediate GO-2026-5158 (CVE-2026-41178): baggage parsing no longer\ncaps raw header length.\n\nBump applied to the root module and the cmd submodule. Verified\nwith 'make tidy', a clean 'go build' of soci-snapshotter-grpc, and\ngovulncheck (source and binary mode) reporting both CVEs resolved.\n\nSigned-off-by: Hoshank Mali <hoshmali@amazon.com>",
+          "timestamp": "2026-07-29T17:02:40-07:00",
+          "tree_id": "d8f5f77e9d5dab9b2ae147f4beff67dd940b7510",
+          "url": "https://github.com/awslabs/soci-snapshotter/commit/8b42dee2951a462050bb58066af13b4c9f97c026"
+        },
+        "date": 1785370433996,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "SociFullECR-public-rabbitmq-lazyTaskDuration",
+            "value": 17.4652,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-rabbitmq-localTaskDuration",
+            "value": 11.301400000000001,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-rabbitmq-pullTaskDuration",
+            "value": 1.4902,
             "unit": "Seconds",
             "extra": "P90"
           }
