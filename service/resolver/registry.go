@@ -33,6 +33,7 @@
 package resolver
 
 import (
+	"context"
 	"crypto/sha256"
 	"fmt"
 	"net/http"
@@ -121,8 +122,10 @@ func (rm *RegistryManager) sweep() {
 	}
 }
 
-// NewRegistryManager returns a new RegistryManager
-func NewRegistryManager(httpConfig config.RetryableHTTPClientConfig, registryConfig config.ResolverConfig, credsFuncs []Credential) *RegistryManager {
+// NewRegistryManager returns a new RegistryManager. The provided context ties
+// the lifetime of the periodic cache sweeper to the snapshotter service: when
+// ctx is cancelled (e.g. the service shuts down), the sweeper goroutine stops.
+func NewRegistryManager(ctx context.Context, httpConfig config.RetryableHTTPClientConfig, registryConfig config.ResolverConfig, credsFuncs []Credential) *RegistryManager {
 	rm := &RegistryManager{
 		retryClient:     newRetryableClientFromConfig(httpConfig),
 		header:          globalHeaders(),
@@ -134,11 +137,17 @@ func NewRegistryManager(httpConfig config.RetryableHTTPClientConfig, registryCon
 	}
 	if rm.authClientTTL > 0 {
 		// Periodic sweep so never-again-accessed entries are also reclaimed.
+		// Tied to ctx so it stops when the snapshotter service is torn down.
 		go func() {
 			ticker := time.NewTicker(rm.authClientTTL)
 			defer ticker.Stop()
-			for range ticker.C {
-				rm.sweep()
+			for {
+				select {
+				case <-ctx.Done():
+					return
+				case <-ticker.C:
+					rm.sweep()
+				}
 			}
 		}()
 	}

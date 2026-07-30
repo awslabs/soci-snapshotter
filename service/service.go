@@ -88,7 +88,7 @@ func NewSociSnapshotterService(ctx context.Context, root string, serviceCfg *con
 
 	hosts := sOpts.registryHosts
 	if hosts == nil {
-		hosts = resolver.NewRegistryManager(httpConfig, registryConfig, sOpts.credsFuncs).AsRegistryHosts()
+		hosts = resolver.NewRegistryManager(ctx, httpConfig, registryConfig, sOpts.credsFuncs).AsRegistryHosts()
 	}
 	userxattr, err := overlayutils.NeedsUserXAttr(snapshotterRoot(root))
 	if err != nil {
