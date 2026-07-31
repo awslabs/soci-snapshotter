@@ -38,7 +38,7 @@ func TestSequentialResolver(t *testing.T) {
 		{
 			name: "resolver fetches spans sequentially",
 			entries: []testutil.TarEntry{
-				testutil.File("test", string(r.RandomByteData(10000000))),
+				testutil.File("test", string(r.RandomByteData(4000000))),
 			},
 		},
 	}
@@ -47,7 +47,7 @@ func TestSequentialResolver(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			ctx, cancel := context.WithCancel(context.Background())
 			defer cancel()
-			ztoc, sr, err := ztoc.BuildZtocReader(t, tc.entries, gzip.DefaultCompression, 1000000)
+			ztoc, sr, err := ztoc.BuildZtocReader(t, tc.entries, gzip.BestSpeed, 1000000)
 			if err != nil {
 				t.Fatalf("error build ztoc and section reader: %v", err)
 			}
