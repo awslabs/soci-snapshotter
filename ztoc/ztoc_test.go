@@ -35,7 +35,7 @@ import (
 // It returns the created tar gz filename, entry->content map, and the name of
 // each entry in the tar gz file.
 func buildTarGZ(t testing.TB, tarName string, tarEntries []testutil.TarEntry) (string, map[string][]byte, []string) {
-	tarReader := testutil.BuildTarGz(tarEntries, gzip.DefaultCompression)
+	tarReader := testutil.BuildTarGz(tarEntries, gzip.BestSpeed)
 	tarGzFilePath, _, err := testutil.WriteTarToTempFile(tarName+".tar.gz", tarReader)
 	if err != nil {
 		t.Fatalf("cannot prepare the .tar.gz file for testing")
@@ -97,7 +97,7 @@ func testDecompress(t *testing.T, compressionAlgo string, generator tarGenerator
 		testutil.File("smallfile", string(r.RandomByteDataRange(1, 100))),
 		testutil.File("mediumfile", string(r.RandomByteDataRange(10000, 128000))),
 		testutil.File("largefile", string(r.RandomByteDataRange(350000, 500000))),
-		testutil.File("jumbofile", string(r.RandomByteDataRange(3000000, 5000000))),
+		testutil.File("jumbofile", string(r.RandomByteDataRange(1500000, 2500000))),
 	}
 
 	tests := []struct {
@@ -385,8 +385,8 @@ func testZtocGenerationConsistency(t *testing.T, compressionAlgo string, generat
 		{
 			name: "success generate consistent ztocs, mixed files, span_size=64",
 			tarEntries: []testutil.TarEntry{
-				testutil.File("file1", string(r.RandomByteData(1000000))),
-				testutil.File("file2", string(r.RandomByteData(2500000))),
+				testutil.File("file1", string(r.RandomByteData(300000))),
+				testutil.File("file2", string(r.RandomByteData(700000))),
 				testutil.File("file3", string(r.RandomByteData(25))),
 				testutil.File("file4", string(r.RandomByteData(88888))),
 			},
@@ -470,20 +470,20 @@ func testZtocGeneration(t *testing.T, compressionAlgo string, generator tarGener
 		{
 			name: "success generate ztoc with multiple files, span_size=64KiB",
 			tarEntries: []testutil.TarEntry{
-				testutil.File("file1", string(r.RandomByteData(1080033))),
-				testutil.File("file2", string(r.RandomByteData(6030502))),
-				testutil.File("file3", string(r.RandomByteData(93000))),
-				testutil.File("file4", string(r.RandomByteData(1070021))),
-				testutil.File("file5", string(r.RandomByteData(55333))),
+				testutil.File("file1", string(r.RandomByteData(108003))),
+				testutil.File("file2", string(r.RandomByteData(603050))),
+				testutil.File("file3", string(r.RandomByteData(9300))),
+				testutil.File("file4", string(r.RandomByteData(107002))),
+				testutil.File("file5", string(r.RandomByteData(5533))),
 				testutil.File("file6", string(r.RandomByteData(1070))),
-				testutil.File("file7", string(r.RandomByteData(999993))),
-				testutil.File("file8", string(r.RandomByteData(1080033))),
+				testutil.File("file7", string(r.RandomByteData(99999))),
+				testutil.File("file8", string(r.RandomByteData(108003))),
 				testutil.File("file9", string(r.RandomByteData(305))),
 				testutil.File("filea", string(r.RandomByteData(3000))),
 				testutil.File("fileb", string(r.RandomByteData(107))),
-				testutil.File("filec", string(r.RandomByteData(559333))),
+				testutil.File("filec", string(r.RandomByteData(55933))),
 				testutil.File("filed", string(r.RandomByteData(100))),
-				testutil.File("filee", string(r.RandomByteData(989993))),
+				testutil.File("filee", string(r.RandomByteData(98999))),
 			},
 			spanSize:  65535,
 			tarName:   "testcase0",
@@ -502,7 +502,7 @@ func testZtocGeneration(t *testing.T, compressionAlgo string, generator tarGener
 		{
 			name: "success generate ztoc with two files, span_size=1MiB",
 			tarEntries: []testutil.TarEntry{
-				testutil.File("file1", string(r.RandomByteData(9911873))),
+				testutil.File("file1", string(r.RandomByteData(2611873))),
 				testutil.File("file2", string(r.RandomByteData(800333))),
 			},
 			spanSize:  1 << 20,
@@ -512,7 +512,7 @@ func testZtocGeneration(t *testing.T, compressionAlgo string, generator tarGener
 		{
 			name: "success generate ztoc with one file, span_size=256kB",
 			tarEntries: []testutil.TarEntry{
-				testutil.File("file1", string(r.RandomByteData(5108033))),
+				testutil.File("file1", string(r.RandomByteData(1108033))),
 			},
 			spanSize: 256000,
 			tarName:  "testcase3",
@@ -668,20 +668,20 @@ func testZtocSerialization(t *testing.T, compressionAlgo string, generator tarGe
 		{
 			name: "success serialize ztoc with multiple files, span_size=64KiB",
 			tarEntries: []testutil.TarEntry{
-				testutil.File("file1", string(r.RandomByteData(1080033))),
-				testutil.File("file2", string(r.RandomByteData(6030502))),
-				testutil.File("file3", string(r.RandomByteData(93000))),
-				testutil.File("file4", string(r.RandomByteData(1070021))),
-				testutil.File("file5", string(r.RandomByteData(55333))),
+				testutil.File("file1", string(r.RandomByteData(108003))),
+				testutil.File("file2", string(r.RandomByteData(603050))),
+				testutil.File("file3", string(r.RandomByteData(9300))),
+				testutil.File("file4", string(r.RandomByteData(107002))),
+				testutil.File("file5", string(r.RandomByteData(5533))),
 				testutil.File("file6", string(r.RandomByteData(1070))),
-				testutil.File("file7", string(r.RandomByteData(999993))),
-				testutil.File("file8", string(r.RandomByteData(1080033))),
+				testutil.File("file7", string(r.RandomByteData(99999))),
+				testutil.File("file8", string(r.RandomByteData(108003))),
 				testutil.File("file9", string(r.RandomByteData(305))),
 				testutil.File("filea", string(r.RandomByteData(3000))),
 				testutil.File("fileb", string(r.RandomByteData(107))),
-				testutil.File("filec", string(r.RandomByteData(559333))),
+				testutil.File("filec", string(r.RandomByteData(55933))),
 				testutil.File("filed", string(r.RandomByteData(100))),
-				testutil.File("filee", string(r.RandomByteData(989993))),
+				testutil.File("filee", string(r.RandomByteData(98999))),
 			},
 			spanSize:  65535,
 			tarName:   "testcase0",

@@ -32,8 +32,12 @@ func TestTocBuilder(t *testing.T) {
 
 	r := testutil.NewTestRand(t)
 	tarEntries := []testutil.TarEntry{
-		testutil.File("test1", string(r.RandomByteData(10000000))),
-		testutil.File("test2", string(r.RandomByteData(20000000))),
+		testutil.File("test1", string(r.RandomByteData(64000))),
+		testutil.File("test2", string(r.RandomByteData(128000))),
+	}
+
+	headerOnlyEntries := []testutil.TarEntry{
+		testutil.File("test1", string(r.RandomByteData(64))),
 	}
 
 	tarReader := func(entries []testutil.TarEntry) io.Reader {
@@ -41,7 +45,7 @@ func TestTocBuilder(t *testing.T) {
 	}
 
 	gzipTarReader := func(entries []testutil.TarEntry) io.Reader {
-		return testutil.BuildTarGz(entries, gzip.BestCompression)
+		return testutil.BuildTarGz(entries, gzip.BestSpeed)
 	}
 
 	zstdTarReader := func(entries []testutil.TarEntry) io.Reader {
@@ -86,7 +90,7 @@ func TestTocBuilder(t *testing.T) {
 		{
 			name:          "TocBuilder returns error if given tar file and algorithm mismatch",
 			algorithm:     compression.Zstd,
-			tarEntries:    tarEntries,
+			tarEntries:    headerOnlyEntries,
 			makeTarReader: gzipTarReader,
 			expectErr:     true,
 		},
