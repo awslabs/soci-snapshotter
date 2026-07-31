@@ -74,28 +74,25 @@ func TestBackgroundFetcherPause(t *testing.T) {
 func TestBackgroundFetcherRun(t *testing.T) {
 	r := testutil.NewTestRand(t)
 	testCases := []struct {
-		name     string
-		waitTime time.Duration
-		entries  [][]testutil.TarEntry
+		name    string
+		entries [][]testutil.TarEntry
 	}{
 		{
-			name:     "background fetcher fetches all data for single span manager",
-			waitTime: 1 * time.Second,
+			name: "background fetcher fetches all data for single span manager",
 			entries: [][]testutil.TarEntry{
 				{
-					testutil.File("test", string(r.RandomByteData(10000000))),
+					testutil.File("test", string(r.RandomByteData(4000000))),
 				},
 			},
 		},
 		{
-			name:     "background fetcher fetches all data for multiple span managers",
-			waitTime: 3 * time.Second,
+			name: "background fetcher fetches all data for multiple span managers",
 			entries: [][]testutil.TarEntry{
 				{
-					testutil.File("test1", string(r.RandomByteData(10000000))),
+					testutil.File("test1", string(r.RandomByteData(4000000))),
 				},
 				{
-					testutil.File("test2", string(r.RandomByteData(20000000))),
+					testutil.File("test2", string(r.RandomByteData(6000000))),
 				},
 			},
 		},
@@ -114,7 +111,7 @@ func TestBackgroundFetcherRun(t *testing.T) {
 
 			var infos []testInfo
 			for _, entries := range tc.entries {
-				ztoc, sr, err := ztoc.BuildZtocReader(t, entries, gzip.DefaultCompression, 1000000)
+				ztoc, sr, err := ztoc.BuildZtocReader(t, entries, gzip.BestSpeed, 1000000)
 				if err != nil {
 					t.Fatalf("error building span manager and section reader: %v", err)
 				}
@@ -136,20 +133,24 @@ func TestBackgroundFetcherRun(t *testing.T) {
 				bf.Add(NewSequentialResolver(digest.FromString("test"), info.sm))
 			}
 
-			time.Sleep(tc.waitTime)
-
 			for _, info := range infos {
+				expectedAdds := int(info.ztoc.MaxSpanID) + 1
+				assert.Eventuallyf(t, func() bool {
+					info.cache.mu.Lock()
+					defer info.cache.mu.Unlock()
+					return info.cache.addCount == expectedAdds
+				}, 30*time.Second, time.Millisecond,
+					"unexpected number of adds to cache; expected %d", expectedAdds)
+
 				info.cache.mu.Lock()
-				defer info.cache.mu.Unlock()
-				if info.cache.addCount != int(info.ztoc.MaxSpanID)+1 {
-					t.Fatalf("unexpected number of adds to cache; expected %d, got %d", info.ztoc.MaxSpanID+1, info.cache.addCount)
-				}
+				addBytes := info.cache.addBytes
+				info.cache.mu.Unlock()
 
 				// The first 10 bytes of a compressed gzip archive is the gzip header.
 				// We don't fetch it when lazy-loading; therefore, subtracting 10 from the total compressed archive size.
 				compressedSize := info.ztoc.CompressedArchiveSize - 10
-				if info.cache.addBytes != int64(compressedSize) {
-					t.Fatalf("unexpected number of bytes added to cache; expected %d, got %d", compressedSize, info.cache.addBytes)
+				if addBytes != int64(compressedSize) {
+					t.Fatalf("unexpected number of bytes added to cache; expected %d, got %d", compressedSize, addBytes)
 				}
 			}
 		})
