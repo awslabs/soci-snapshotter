@@ -123,6 +123,7 @@ var CreateCommand = &cli.Command{
 		if err != nil {
 			return err
 		}
+		defer artifactsDb.Close()
 
 		builderOpts := []soci.BuilderOption{
 			soci.WithMinLayerSize(minLayerSize),
@@ -145,6 +146,7 @@ var CreateCommand = &cli.Command{
 		if err != nil {
 			return err
 		}
+		defer builder.Close()
 
 		for _, plat := range ps {
 			batchCtx, done, err := blobStore.BatchOpen(ctx)

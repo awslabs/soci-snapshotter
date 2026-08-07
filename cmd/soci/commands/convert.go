@@ -139,6 +139,7 @@ var ConvertCommand = &cli.Command{
 		if err != nil {
 			return err
 		}
+		defer artifactsDb.Close()
 
 		builderOpts, err := parseBuilderOptions(cmd)
 		if err != nil {
@@ -150,6 +151,7 @@ var ConvertCommand = &cli.Command{
 		if err != nil {
 			return err
 		}
+		defer builder.Close()
 
 		batchCtx, done, err := blobStore.BatchOpen(ctx)
 		if err != nil {
@@ -226,6 +228,7 @@ func runStandaloneConvert(ctx context.Context, cmd *cli.Command, inputPath strin
 	if err != nil {
 		return fmt.Errorf("failed to create artifacts database: %w", err)
 	}
+	defer artifactsDb.Close()
 
 	builderOpts, err := parseBuilderOptions(cmd)
 	if err != nil {
@@ -238,6 +241,7 @@ func runStandaloneConvert(ctx context.Context, cmd *cli.Command, inputPath strin
 	if err != nil {
 		return err
 	}
+	defer builder.Close()
 
 	requestedPlatforms, err := internal.GetPlatforms(ctx, cmd, imageInfo.Image, imageInfo.ContentStore)
 	if err != nil {

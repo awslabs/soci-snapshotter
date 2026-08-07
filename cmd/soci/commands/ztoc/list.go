@@ -64,6 +64,7 @@ var listCommand = &cli.Command{
 		if err != nil {
 			return err
 		}
+		defer db.Close()
 
 		ztocDgst := cmd.String(ztocDigestFlag)
 		imgRef := cmd.String(imageRefFlag)
