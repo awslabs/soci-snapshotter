@@ -60,6 +60,20 @@ type ParallelConfig struct {
 	DecompressStreams map[string]DecompressStream `toml:"decompress_streams"`
 
 	DiscardUnpackedLayers bool `toml:"discard_unpacked_layers"`
+
+	// ParallelFileWrites enables parallel file writing during tar extraction.
+	// This improves performance on NVMe storage by increasing I/O queue depth.
+	// Set to true to enable parallel writes (default: false for backward compatibility)
+	ParallelFileWrites bool `toml:"parallel_file_writes"`
+
+	// ParallelFileWriteWorkers is the number of parallel file writer goroutines.
+	// Only used when ParallelFileWrites is true. (default: 16)
+	ParallelFileWriteWorkers int `toml:"parallel_file_write_workers"`
+
+	// ParallelFileWriteBufferSizeStr is the buffer size for file writes (e.g., "1mb", "512kb").
+	// Larger buffers improve throughput on NVMe. (default: 1mb)
+	ParallelFileWriteBufferSizeStr string `toml:"parallel_file_write_buffer_size"`
+	ParallelFileWriteBufferSize    int    `toml:"-"`
 }
 
 func defaultParallelConfig() ParallelConfig {
@@ -78,6 +92,23 @@ func parseParallelConfig(cfg *Config) error {
 		return err
 	}
 	cfg.PullModes.Parallel.ConcurrentDownloadChunkSize = size
+
+	// Parse parallel file write buffer size
+	if cfg.PullModes.Parallel.ParallelFileWriteBufferSizeStr != "" {
+		bufSize, err := parseSize(cfg.PullModes.Parallel.ParallelFileWriteBufferSizeStr)
+		if err != nil {
+			return fmt.Errorf("invalid parallel_file_write_buffer_size: %w", err)
+		}
+		cfg.PullModes.Parallel.ParallelFileWriteBufferSize = int(bufSize)
+	} else {
+		cfg.PullModes.Parallel.ParallelFileWriteBufferSize = 1 << 20 // 1MB default
+	}
+
+	// Set default workers if not specified
+	if cfg.PullModes.Parallel.ParallelFileWrites && cfg.PullModes.Parallel.ParallelFileWriteWorkers <= 0 {
+		cfg.PullModes.Parallel.ParallelFileWriteWorkers = 16
+	}
+
 	return nil
 }
 

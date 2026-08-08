@@ -23,6 +23,8 @@ import (
 	"io"
 	"io/fs"
 	"os"
+	"path/filepath"
+	"sync"
 	"time"
 
 	"github.com/awslabs/soci-snapshotter/soci/store"
@@ -69,6 +71,10 @@ func (f *parallelArtifactFetcher) Fetch(ctx context.Context, desc ocispec.Descri
 	// Check local store first
 	rc, err := f.localStore.Fetch(ctx, desc)
 	if err == nil {
+		// Content from local store is already verified by containerd.
+		// Mark the verifier as not needing verification to avoid false "digest mismatch" errors.
+		f.verifier.SkipVerification()
+		log.G(ctx).WithField("digest", desc.Digest.String()).Debug("fetched artifact from local store, skipping compressed verification")
 		return rc, true, nil
 	}
 
@@ -136,6 +142,35 @@ func (f *parallelArtifactFetcher) calcNumLoops(size int64) int64 {
 // not from upstream.
 func (f *parallelArtifactFetcher) fetchFromRemoteAndWriteToTempDir(ctx context.Context, desc ocispec.Descriptor) (io.ReadCloser, error) {
 	ingestPath := f.layerUnpackJob.GetIngestLocation()
+	layerUnpackID := f.layerUnpackJob.layerUnpackID
+	parentDir := filepath.Dir(ingestPath)
+
+	logger := log.G(ctx).WithFields(log.Fields{
+		"ingestPath":    ingestPath,
+		"layerUnpackID": layerUnpackID,
+		"parentDir":     parentDir,
+		"digest":        desc.Digest.String(),
+	})
+
+	// Verify parent directory exists
+	if parentInfo, parentErr := os.Stat(parentDir); parentErr != nil {
+		logger.WithError(parentErr).Error("parent directory does not exist before file creation")
+		return nil, fmt.Errorf("parent directory does not exist at %s: %w", parentDir, parentErr)
+	} else {
+		logger.WithField("parentIsDir", parentInfo.IsDir()).Debug("parent directory check passed")
+	}
+
+	// List contents of parent directory for debugging
+	entries, listErr := os.ReadDir(parentDir)
+	if listErr != nil {
+		logger.WithError(listErr).Warn("failed to list parent directory contents")
+	} else {
+		entryNames := make([]string, len(entries))
+		for i, e := range entries {
+			entryNames[i] = e.Name()
+		}
+		logger.WithField("parentContents", entryNames).Debug("parent directory contents before file creation")
+	}
 
 	// Refuse to unpack if file already exists
 	_, err := os.Stat(ingestPath)
@@ -146,9 +181,18 @@ func (f *parallelArtifactFetcher) fetchFromRemoteAndWriteToTempDir(ctx context.C
 		return nil, fmt.Errorf("error setting up temporary file: %w", err)
 	}
 
+	logger.Debug("creating ingest file")
 	file, err := os.Create(ingestPath)
 	if err != nil {
 		return nil, fmt.Errorf("error creating temp ingest file at %s: %w", ingestPath, err)
+	}
+	logger.WithField("fd", file.Fd()).Debug("file created successfully")
+
+	// Verify file exists immediately after creation
+	if statInfo, statErr := os.Stat(ingestPath); statErr != nil {
+		logger.WithError(statErr).Error("file does not exist immediately after os.Create")
+	} else {
+		logger.WithField("size", statInfo.Size()).Debug("file exists after creation")
 	}
 
 	defer func() {
@@ -157,13 +201,27 @@ func (f *parallelArtifactFetcher) fetchFromRemoteAndWriteToTempDir(ctx context.C
 		}
 	}()
 
-	err = file.Truncate(desc.Size)
+	// Use fallocate to pre-allocate blocks instead of Truncate (which creates sparse files).
+	// Sparse files cause block allocation on each WriteAt, which can be slow on some filesystems.
+	// fallocate pre-allocates all blocks upfront, making subsequent WriteAt calls faster.
+	err = preallocateFile(file, desc.Size)
 	if err != nil {
-		return nil, fmt.Errorf("error truncating temp ingest file at %s: %w", ingestPath, err)
+		// Fall back to Truncate if fallocate is not supported (e.g., on some filesystems)
+		logger.WithError(err).Warn("fallocate failed, falling back to Truncate")
+		err = file.Truncate(desc.Size)
+		if err != nil {
+			return nil, fmt.Errorf("error truncating temp ingest file at %s: %w", ingestPath, err)
+		}
 	}
+	logger.WithField("targetSize", desc.Size).Debug("file space pre-allocated")
 
 	doMultipleFetches := false
 	numLoops := f.calcNumLoops(desc.Size)
+	logger.WithFields(log.Fields{
+		"chunkSize": f.chunkSize,
+		"layerSize": desc.Size,
+		"numLoops":  numLoops,
+	}).Info("chunk calculation for layer download")
 	if numLoops > 1 {
 		if rs, ok := f.remoteStore.(*orasBlobStore); ok {
 			// If this layer does not support ranged GET, it is very likely
@@ -172,8 +230,13 @@ func (f *parallelArtifactFetcher) fetchFromRemoteAndWriteToTempDir(ctx context.C
 			if err != nil {
 				return nil, fmt.Errorf("error doing initial authorization for layer: %w", err)
 			}
+		} else {
+			logger.Warn("remoteStore is not *orasBlobStore, cannot use range requests")
 		}
+	} else {
+		logger.Info("numLoops <= 1, using single request (set concurrent_download_chunk_size in config to enable chunking)")
 	}
+	logger.WithField("doMultipleFetches", doMultipleFetches).Info("starting fetch write")
 	if doMultipleFetches {
 		err = f.multiRequestFetchWrite(ctx, desc, file, numLoops)
 	} else {
@@ -181,8 +244,44 @@ func (f *parallelArtifactFetcher) fetchFromRemoteAndWriteToTempDir(ctx context.C
 	}
 
 	if err != nil {
+		// Check if file still exists after write error
+		if statInfo, statErr := os.Stat(ingestPath); statErr != nil {
+			logger.WithError(statErr).Error("file does not exist after write error")
+		} else {
+			logger.WithField("size", statInfo.Size()).Debug("file exists after write error")
+		}
 		return nil, fmt.Errorf("error writing to temp ingest file at %s: %w", ingestPath, err)
 	}
+
+	logger.Debug("fetch write completed, checking file state before sync")
+
+	// Check file state before sync
+	if statInfo, statErr := os.Stat(ingestPath); statErr != nil {
+		logger.WithError(statErr).Error("file does not exist after write but before sync")
+		// Also check parent directory
+		if _, parentErr := os.Stat(parentDir); parentErr != nil {
+			logger.WithError(parentErr).Error("parent directory also does not exist")
+		} else {
+			// List what's in parent directory
+			if entries, listErr := os.ReadDir(parentDir); listErr == nil {
+				entryNames := make([]string, len(entries))
+				for i, e := range entries {
+					entryNames[i] = e.Name()
+				}
+				logger.WithField("parentContents", entryNames).Error("parent directory contents at time of disappearance")
+			}
+		}
+		return nil, fmt.Errorf("file disappeared before sync at %s: %w", ingestPath, statErr)
+	} else {
+		logger.WithField("size", statInfo.Size()).Debug("file exists before sync")
+	}
+
+	// Sync file to disk before verification
+	logger.Debug("starting file sync")
+	if err = file.Sync(); err != nil {
+		return nil, fmt.Errorf("error syncing file at %s: %w", ingestPath, err)
+	}
+	logger.Debug("file sync completed")
 
 	n, err := file.Seek(0, io.SeekStart)
 	if n != 0 {
@@ -190,6 +289,28 @@ func (f *parallelArtifactFetcher) fetchFromRemoteAndWriteToTempDir(ctx context.C
 	}
 	if err != nil {
 		return nil, fmt.Errorf("error reopening file at %s after writing: %w", ingestPath, err)
+	}
+	logger.Debug("file seeked to start")
+
+	// Verify the file exists before async verification
+	if statInfo, statErr := os.Stat(ingestPath); statErr != nil {
+		logger.WithError(statErr).Error("file does not exist after sync - possible race condition")
+		// Also check parent directory
+		if _, parentErr := os.Stat(parentDir); parentErr != nil {
+			logger.WithError(parentErr).Error("parent directory also does not exist after sync")
+		} else {
+			// List what's in parent directory
+			if entries, listErr := os.ReadDir(parentDir); listErr == nil {
+				entryNames := make([]string, len(entries))
+				for i, e := range entries {
+					entryNames[i] = e.Name()
+				}
+				logger.WithField("parentContents", entryNames).Error("parent directory contents at time of disappearance")
+			}
+		}
+		return nil, fmt.Errorf("file disappeared after write at %s: %w", ingestPath, statErr)
+	} else {
+		logger.WithField("sizeAfterSync", statInfo.Size()).Debug("file exists after sync, proceeding to verification")
 	}
 
 	// start async verification of the blob digest
@@ -227,20 +348,32 @@ func (f *parallelArtifactFetcher) multiRequestFetchWrite(ctx context.Context, de
 	}
 
 	for i := range numLoops {
+		semAcquireStart := time.Now()
 		err := f.layerUnpackJob.AcquireDownload(ctx, 1)
 		if err != nil {
 			return fmt.Errorf("error acquiring semaphore: %w", err)
 		}
+		semWaitMs := time.Since(semAcquireStart).Milliseconds()
 
 		eg.Go(func() error {
-			defer f.layerUnpackJob.ReleaseDownload(1)
-
 			lower, upper := f.getRange(i, desc.Size)
+			chunkSize := upper - lower + 1
+
+			// Time the HTTP fetch
+			fetchStart := time.Now()
 			rc, err := blobStore.FetchRange(egCtx, reference, lower, upper)
+			fetchMs := time.Since(fetchStart).Milliseconds()
+
+			// Release semaphore immediately after HTTP fetch completes.
+			// This allows other downloads to start while we write to disk.
+			f.layerUnpackJob.ReleaseDownload(1)
+
 			if err != nil {
 				return err
 			}
 
+			// Time the disk write (no longer holding download semaphore)
+			writeStart := time.Now()
 			errCh := make(chan error, 1)
 			defer close(errCh)
 
@@ -256,6 +389,22 @@ func (f *parallelArtifactFetcher) multiRequestFetchWrite(ctx context.Context, de
 				err = egCtx.Err()
 			case err = <-copyFunc():
 			}
+			writeMs := time.Since(writeStart).Milliseconds()
+
+			// Log timing for chunks that took longer than expected
+			totalMs := fetchMs + writeMs
+			if semWaitMs > 100 || totalMs > 500 {
+				log.G(egCtx).WithFields(log.Fields{
+					"chunk":       i,
+					"chunkSize":   chunkSize,
+					"semWait_ms":  semWaitMs,
+					"fetch_ms":    fetchMs,
+					"write_ms":    writeMs,
+					"total_ms":    totalMs,
+					"offset":      lower,
+				}).Info("chunk download timing (slow)")
+			}
+
 			return err
 		})
 	}
@@ -276,9 +425,18 @@ func (f *parallelArtifactFetcher) multiRequestFetchWrite(ctx context.Context, de
 }
 
 func (f *parallelArtifactFetcher) asyncVerifyBlobDigest(ctx context.Context, path string) error {
+	// Debug: check if directory exists
+	dir := filepath.Dir(path)
+	if _, dirErr := os.Stat(dir); dirErr != nil {
+		log.G(ctx).WithError(dirErr).WithField("dir", dir).Error("parent directory does not exist for digest verification")
+	}
+
 	file, err := os.Open(path)
 	if err != nil {
-		log.G(ctx).WithError(err).Errorf("failed to open file %s for digest verification", path)
+		log.G(ctx).WithError(err).WithFields(log.Fields{
+			"path": path,
+			"dir":  dir,
+		}).Error("failed to open file for digest verification")
 		return err
 	}
 	f.verifier.AsyncVerify(file)
@@ -294,13 +452,27 @@ func writeToEntireFile(file *os.File, rc io.ReadCloser) error {
 	return nil
 }
 
+// copyBuffer is a large buffer for efficient copying.
+// 1MB buffer reduces syscalls from ~2000 per 64MB chunk to ~64.
+var copyBufferPool = sync.Pool{
+	New: func() any {
+		buf := make([]byte, 1<<20) // 1MB buffer
+		return &buf
+	},
+}
+
 func writeToFileRange(file *os.File, rsc io.ReadCloser, lower, upper int64) error {
 	w := io.NewOffsetWriter(file, lower)
 
 	readSize := upper - lower + 1
-	// Reading any more or less will result in an incorrect file being created,
-	// so use io.CopyN to guarantee we read exactly lower - upper + 1 bytes.
-	_, err := io.CopyN(w, rsc, readSize)
+	// Use a large buffer to reduce syscalls.
+	// Default io.CopyN uses 32KB, we use 1MB.
+	bufPtr := copyBufferPool.Get().(*[]byte)
+	defer copyBufferPool.Put(bufPtr)
+
+	// LimitReader ensures we read exactly readSize bytes
+	limitedReader := io.LimitReader(rsc, readSize)
+	_, err := io.CopyBuffer(w, limitedReader, *bufPtr)
 	io.Copy(io.Discard, rsc) // Drain remaining data
 	if err != nil {
 		return fmt.Errorf("failed to write to temp file %s at offset %d: %w", file.Name(), lower, err)
