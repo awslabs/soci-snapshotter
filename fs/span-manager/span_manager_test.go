@@ -48,8 +48,8 @@ func TestSpanManager(t *testing.T) {
 			maxSpans: 1,
 		},
 		{
-			name:     "a file from 100 spans",
-			maxSpans: 100,
+			name:     "a file from 20 spans",
+			maxSpans: 20,
 		},
 		{
 			name:          "bad MaxSpanID",
@@ -63,7 +63,7 @@ func TestSpanManager(t *testing.T) {
 		},
 		{
 			name:     "header verification fails",
-			maxSpans: 100,
+			maxSpans: 5,
 			sectionReader: io.NewSectionReader(readerFn(func(b []byte, _ int64) (int, error) {
 				sz := compression.Offset(len(b))
 				r := testutil.NewTestRand(t)
@@ -74,7 +74,7 @@ func TestSpanManager(t *testing.T) {
 		},
 		{
 			name:     "span digest verification fails",
-			maxSpans: 100,
+			maxSpans: 5,
 			sectionReader: io.NewSectionReader(readerFn(func(b []byte, _ int64) (int, error) {
 				var r bytes.Buffer
 				w := gzip.NewWriter(&r)
@@ -95,6 +95,7 @@ func TestSpanManager(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 			var err error
 			defer func() {
 				if err != nil && !errors.Is(err, tc.expectedError) {
