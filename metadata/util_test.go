@@ -177,6 +177,7 @@ func testReader(t *testing.T, factory readerFactory) {
 		for _, prefix := range allowedPrefix {
 			for srcCompresionName, srcCompression := range srcCompressions {
 				t.Run(tt.name+"-"+srcCompresionName, func(t *testing.T) {
+					t.Parallel()
 					opts := []testutil.BuildTarOption{
 						testutil.WithPrefix(prefix),
 					}

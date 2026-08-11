@@ -105,6 +105,7 @@ func testNodeRead(t *testing.T, factory metadata.Store) {
 			for bo, baseo := range baseOffsetCond {
 				for fn, filesize := range fileSizeCond {
 					t.Run(fmt.Sprintf("reading_%s_%s_%s_%s", sn, in, bo, fn), func(t *testing.T) {
+						t.Parallel()
 						ctx, cancel := context.WithCancel(context.Background())
 						defer cancel()
 						if filesize > int64(len(sampleData1)) {
@@ -325,6 +326,7 @@ func testExistenceWithOpaque(t *testing.T, factory metadata.Store, opaque Overla
 	for _, tt := range tests {
 		for _, spanSize := range spanSizeCond {
 			t.Run(fmt.Sprintf("testExistence_%s_spansize_%d", tt.name, spanSize), func(t *testing.T) {
+				t.Parallel()
 				ztoc, sr, err := ztoc.BuildZtocReader(t, tt.in, gzip.DefaultCompression, spanSize)
 				if err != nil {
 					t.Fatalf("failed to build sample ztoc: %v", err)

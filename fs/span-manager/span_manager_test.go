@@ -392,17 +392,18 @@ func TestSpanManagerRetries(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			r := testutil.NewTestRand(t)
-			randStr := string(r.RandomByteData(10000000))
+			randStr := string(r.RandomByteData(2000000))
 
 			entries := []testutil.TarEntry{
 				testutil.File("test", randStr),
 			}
-			ztoc, sr, err := ztoc.BuildZtocReader(t, entries, gzip.DefaultCompression, 100000)
+			ztoc, sr, err := ztoc.BuildZtocReader(t, entries, gzip.BestSpeed, 100000)
 			if err != nil {
 				t.Fatal(err)
 			}
+			size := sr.Size()
 			rdr := newRetryableReaderAt(sr, tc.readerErrors)
-			sr = io.NewSectionReader(rdr, 0, 10000000)
+			sr = io.NewSectionReader(rdr, 0, size)
 			sm, err := New(ztoc, sr, cache.NewMemoryCache(), tc.spanManagerRetries, digest.FromString(""))
 			assert.Nil(t, err)
 
