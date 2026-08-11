@@ -86,8 +86,12 @@ var testZtocs = []struct {
 }
 
 func TestDecompress(t *testing.T) {
+	t.Parallel()
 	for _, tc := range testZtocs {
-		testDecompress(t, tc.compressionAlgo, tc.tarGenerator)
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			testDecompress(t, tc.compressionAlgo, tc.tarGenerator)
+		})
 	}
 }
 
@@ -230,6 +234,7 @@ func TestDecompressWithGzipHeaders(t *testing.T) {
 }
 
 func TestDecompressWithPigz(t *testing.T) {
+	t.Parallel()
 	pigzPath, err := exec.LookPath("pigz")
 	if err != nil {
 		t.Skip("pigz not installed, skipping test")
@@ -263,6 +268,7 @@ func TestDecompressWithPigz(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 			// Build an uncompressed tar
 			tarReader := testutil.BuildTar(tarEntries)
 			tarFilePath, _, err := testutil.WriteTarToTempFile("pigz-test-*.tar", tarReader)
@@ -360,6 +366,7 @@ func TestDecompressWithPigz(t *testing.T) {
 }
 
 func TestZtocGenerationConsistency(t *testing.T) {
+	t.Parallel()
 	for _, tc := range testZtocs {
 		testZtocGenerationConsistency(t, tc.compressionAlgo, tc.tarGenerator)
 	}
@@ -453,6 +460,7 @@ func testZtocGenerationConsistency(t *testing.T, compressionAlgo string, generat
 }
 
 func TestZtocGeneration(t *testing.T) {
+	t.Parallel()
 	for _, tc := range testZtocs {
 		testZtocGeneration(t, tc.compressionAlgo, tc.tarGenerator)
 	}
@@ -649,6 +657,7 @@ func benchmarkZtocGeneration(b *testing.B, algo string, generator tarGenerator) 
 }
 
 func TestZtocSerialization(t *testing.T) {
+	t.Parallel()
 	for _, tc := range testZtocs {
 		testZtocSerialization(t, tc.compressionAlgo, tc.tarGenerator)
 	}
