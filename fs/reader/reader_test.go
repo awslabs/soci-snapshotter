@@ -99,6 +99,7 @@ func testFileReadAt(t *testing.T, factory metadata.Store) {
 					for _, spanSize := range spanSizeCond {
 						for _, prefix := range filePrefixes {
 							t.Run(fmt.Sprintf("reading_%s_%s_%s_%s_spansize_%d", sn, in, bo, fn, spanSize), func(t *testing.T) {
+								t.Parallel()
 								if filesize > int64(len(sampleData1)) {
 									t.Fatal("sample file size is larger than sample data")
 								}
@@ -195,6 +196,7 @@ func testFailReader(t *testing.T, factory metadata.Store) {
 	}
 	for _, spanSize := range spanSizeCond {
 		t.Run(fmt.Sprintf("reading_spansize_%d", spanSize), func(t *testing.T) {
+			t.Parallel()
 			ztoc, sr, err := ztoc.BuildZtocReader(t, tarEntry, gzip.DefaultCompression, spanSize)
 			if err != nil {
 				t.Fatalf("failed to build sample ztoc: %v", err)

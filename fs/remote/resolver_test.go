@@ -49,6 +49,7 @@ import (
 	"regexp"
 	"strings"
 	"testing"
+	"time"
 
 	socihttp "github.com/awslabs/soci-snapshotter/internal/http"
 	"github.com/awslabs/soci-snapshotter/version"
@@ -291,6 +292,8 @@ func TestRetry(t *testing.T) {
 	rclient := rhttp.NewClient()
 	rclient.HTTPClient.Transport = tr
 	rclient.Backoff = rhttp.DefaultBackoff
+	rclient.RetryWaitMin = time.Millisecond
+	rclient.RetryWaitMax = 10 * time.Millisecond
 	f := &httpFetcher{
 		realURL:      "test",
 		roundTripper: &rhttp.RoundTripper{Client: rclient},
