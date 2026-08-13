@@ -35,6 +35,10 @@ type GzipZinfo struct {
 	cZinfo *C.struct_gzip_zinfo
 }
 
+func NewGzipZinfo(zinfoBytes []byte) (*GzipZinfo, error) {
+	return newGzipZinfo(zinfoBytes)
+}
+
 // newGzipZinfo creates a new instance of `GzipZinfo` from cZinfo byte blob on zTOC.
 func newGzipZinfo(zinfoBytes []byte) (*GzipZinfo, error) {
 	if len(zinfoBytes) == 0 {
