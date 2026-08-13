@@ -53,6 +53,7 @@ var listCommand = &cli.Command{
 		if err != nil {
 			return err
 		}
+		defer db.Close()
 
 		contentStore, err := store.NewContentStore(internal.ContentStoreOptions(ctx, cmd)...)
 		if err != nil {
