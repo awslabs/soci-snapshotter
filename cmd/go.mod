@@ -5,7 +5,7 @@ go 1.25.0
 require (
 	github.com/awslabs/soci-snapshotter v0.0.0-local
 	github.com/containerd/containerd/api v1.11.1
-	github.com/containerd/containerd/v2 v2.2.6
+	github.com/containerd/containerd/v2 v2.2.7
 	github.com/containerd/errdefs v1.0.0
 	github.com/containerd/log v0.1.0
 	github.com/containerd/platforms v1.0.0-rc.4
@@ -101,9 +101,9 @@ require (
 	gopkg.in/evanphx/json-patch.v4 v4.13.0 // indirect
 	gopkg.in/inf.v0 v0.9.1 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
-	k8s.io/api v0.34.1 // indirect
-	k8s.io/apimachinery v0.34.1 // indirect
-	k8s.io/client-go v0.34.1 // indirect
+	k8s.io/api v0.34.10 // indirect
+	k8s.io/apimachinery v0.34.10 // indirect
+	k8s.io/client-go v0.34.10 // indirect
 	k8s.io/klog/v2 v2.140.0 // indirect
 	k8s.io/kube-openapi v0.0.0-20260319004828-5883c5ee87b9 // indirect
 	k8s.io/utils v0.0.0-20260319190234-28399d86e0b5 // indirect
