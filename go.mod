@@ -3,7 +3,7 @@ module github.com/awslabs/soci-snapshotter
 go 1.25.0
 
 require (
-	github.com/containerd/containerd/v2 v2.2.6
+	github.com/containerd/containerd/v2 v2.2.7
 	github.com/containerd/continuity v0.5.0
 	github.com/containerd/errdefs v1.0.0
 	github.com/containerd/log v0.1.0
@@ -20,7 +20,7 @@ require (
 	github.com/hashicorp/go-retryablehttp v0.7.8
 	github.com/klauspost/compress v1.19.2
 	github.com/moby/sys/mountinfo v0.7.2
-	github.com/montanaflynn/stats v0.12.3
+	github.com/montanaflynn/stats v0.12.4
 	github.com/opencontainers/go-digest v1.0.0
 	github.com/opencontainers/image-spec v1.1.1
 	github.com/opencontainers/runtime-spec v1.3.0
@@ -28,19 +28,19 @@ require (
 	github.com/prometheus/client_golang v1.24.1
 	github.com/prometheus/client_model v0.6.2
 	github.com/rs/xid v1.6.0
-	github.com/sirupsen/logrus v1.9.4
-	github.com/stretchr/testify v1.11.1
+	github.com/sirupsen/logrus v1.10.0
+	github.com/stretchr/testify v1.12.0
 	go.etcd.io/bbolt v1.5.0
 	go.uber.org/goleak v1.3.0
-	golang.org/x/crypto v0.54.0
+	golang.org/x/crypto v0.55.0
 	golang.org/x/sync v0.22.0
 	golang.org/x/sys v0.47.0
 	golang.org/x/time v0.15.0
 	google.golang.org/grpc v1.83.0
-	k8s.io/api v0.34.1
-	k8s.io/apimachinery v0.34.1
-	k8s.io/client-go v0.34.1
-	k8s.io/cri-api v0.34.1
+	k8s.io/api v0.34.10
+	k8s.io/apimachinery v0.34.10
+	k8s.io/client-go v0.34.10
+	k8s.io/cri-api v0.34.10
 	oras.land/oras-go/v2 v2.6.2
 )
 
@@ -100,7 +100,7 @@ require (
 	golang.org/x/net v0.57.0 // indirect
 	golang.org/x/oauth2 v0.36.0 // indirect
 	golang.org/x/term v0.45.0 // indirect
-	golang.org/x/text v0.40.0 // indirect
+	golang.org/x/text v0.41.0 // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20260526163538-3dc84a4a5aaa // indirect
 	google.golang.org/protobuf v1.36.12-0.20260120151049-f2248ac996af // indirect
 	gopkg.in/evanphx/json-patch.v4 v4.13.0 // indirect

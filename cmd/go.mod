@@ -5,7 +5,7 @@ go 1.25.0
 require (
 	github.com/awslabs/soci-snapshotter v0.0.0-local
 	github.com/containerd/containerd/api v1.11.1
-	github.com/containerd/containerd/v2 v2.2.6
+	github.com/containerd/containerd/v2 v2.2.7
 	github.com/containerd/errdefs v1.0.0
 	github.com/containerd/log v0.1.0
 	github.com/containerd/platforms v1.0.0-rc.4
@@ -15,8 +15,8 @@ require (
 	github.com/opencontainers/go-digest v1.0.0
 	github.com/opencontainers/image-spec v1.1.1
 	github.com/pelletier/go-toml/v2 v2.4.3
-	github.com/sirupsen/logrus v1.9.4
-	github.com/urfave/cli/v3 v3.10.1
+	github.com/sirupsen/logrus v1.10.0
+	github.com/urfave/cli/v3 v3.11.0
 	go.etcd.io/bbolt v1.5.0
 	golang.org/x/sys v0.47.0
 	google.golang.org/grpc v1.83.0
@@ -94,16 +94,16 @@ require (
 	golang.org/x/oauth2 v0.36.0 // indirect
 	golang.org/x/sync v0.22.0 // indirect
 	golang.org/x/term v0.45.0 // indirect
-	golang.org/x/text v0.40.0 // indirect
+	golang.org/x/text v0.41.0 // indirect
 	golang.org/x/time v0.15.0 // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20260526163538-3dc84a4a5aaa // indirect
 	google.golang.org/protobuf v1.36.12-0.20260120151049-f2248ac996af // indirect
 	gopkg.in/evanphx/json-patch.v4 v4.13.0 // indirect
 	gopkg.in/inf.v0 v0.9.1 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
-	k8s.io/api v0.34.1 // indirect
-	k8s.io/apimachinery v0.34.1 // indirect
-	k8s.io/client-go v0.34.1 // indirect
+	k8s.io/api v0.34.10 // indirect
+	k8s.io/apimachinery v0.34.10 // indirect
+	k8s.io/client-go v0.34.10 // indirect
 	k8s.io/klog/v2 v2.140.0 // indirect
 	k8s.io/kube-openapi v0.0.0-20260319004828-5883c5ee87b9 // indirect
 	k8s.io/utils v0.0.0-20260319190234-28399d86e0b5 // indirect
