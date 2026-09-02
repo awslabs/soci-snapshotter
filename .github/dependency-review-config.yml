@@ -19,9 +19,18 @@ allow-licenses:
   - 'X11'
   - 'Zlib'
 
-# Exception the following usages of MPL-2.0 dependencies
 allow_dependencies_licenses:
+  # Exception the following usages of MPL-2.0 dependencies
   - pkg:golang/github.com/hashicorp/go-retryablehttp
   - pkg:golang/github.com/hashicorp/errwrap
   - pkg:golang/github.com/hashicorp/go-cleanhttp
   - pkg:golang/github.com/hashicorp/go-multierror
+
+  # TODO: Remove this once this issue is resolved (NOT closed as not planned):
+  # https://github.com/actions/dependency-review-action/issues/1145
+  # We have to ignore this since dependency-review-action reports
+  # both Apache-2.0 AND Apache-2.0 AND CC-BY-SA-4.0,
+  # which is correct, however the code is entirely Apache-2.0
+  # and only the documentation is CC-BY-SA-4.0. Since we don't
+  # consume the documentation at all, we should ignore this for now.
+  - pkg:golang/github.com/docker/go-metrics
