@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1786493533069,
+  "lastUpdate": 1788383358550,
   "repoUrl": "https://github.com/awslabs/soci-snapshotter",
   "entries": {
     "Soci Benchmark": [
@@ -19852,6 +19852,48 @@ window.BENCHMARK_DATA = {
           {
             "name": "SociFullECR-public-ffmpeg-pullTaskDuration",
             "value": 2.6294,
+            "unit": "Seconds",
+            "extra": "P90"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "davbson@amazon.com",
+            "name": "David Son",
+            "username": "sondavidb"
+          },
+          "committer": {
+            "email": "55555210+sondavidb@users.noreply.github.com",
+            "name": "David Son",
+            "username": "sondavidb"
+          },
+          "distinct": true,
+          "id": "cfae695e36c19fbee8034f2ff008cad7f8d059f9",
+          "message": "Ignore license check for go-metrics\n\nSigned-off-by: David Son <davbson@amazon.com>",
+          "timestamp": "2026-09-02T13:59:07-07:00",
+          "tree_id": "58f3667ca98baaf9f88b082d1f382959f09ac89b",
+          "url": "https://github.com/awslabs/soci-snapshotter/commit/cfae695e36c19fbee8034f2ff008cad7f8d059f9"
+        },
+        "date": 1788383347877,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "SociFullECR-public-ffmpeg-lazyTaskDuration",
+            "value": 0.8494,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-ffmpeg-localTaskDuration",
+            "value": 0.009,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-ffmpeg-pullTaskDuration",
+            "value": 3.0052,
             "unit": "Seconds",
             "extra": "P90"
           }
