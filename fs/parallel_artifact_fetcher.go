@@ -69,6 +69,10 @@ func (f *parallelArtifactFetcher) Fetch(ctx context.Context, desc ocispec.Descri
 	// Check local store first
 	rc, err := f.localStore.Fetch(ctx, desc)
 	if err == nil {
+		// The content store verified this blob's digest when it was ingested, and
+		// the bytes never pass through f.verifier on this path. Recording that
+		// avoids reporting a digest mismatch for content that is already known good.
+		f.verifier.MarkExternallyVerified()
 		return rc, true, nil
 	}
 
