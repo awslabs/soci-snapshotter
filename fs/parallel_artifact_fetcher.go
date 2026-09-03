@@ -69,6 +69,9 @@ func (f *parallelArtifactFetcher) Fetch(ctx context.Context, desc ocispec.Descri
 	// Check local store first
 	rc, err := f.localStore.Fetch(ctx, desc)
 	if err == nil {
+		// These bytes never reach the verifier, but the content store already
+		// checked their digest on ingest.
+		f.verifier.MarkLocallyVerified()
 		return rc, true, nil
 	}
 
