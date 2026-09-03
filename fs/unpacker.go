@@ -57,6 +57,9 @@ type asyncVerifier struct {
 	v       digest.Verifier
 	waitCh  chan struct{}
 	started bool
+	// externallyVerified records that the content was already validated by
+	// another component, so this verifier has nothing left to check.
+	externallyVerified bool
 }
 
 func newAsyncVerifier(v digest.Verifier) *asyncVerifier {
@@ -80,8 +83,23 @@ func (av *asyncVerifier) AsyncVerify(reader io.ReadCloser) {
 	av.started = true
 }
 
+// MarkExternallyVerified records that the content this verifier guards was
+// validated elsewhere, for example by the content store when the blob was
+// ingested. Without this, a layer served from the local content store is never
+// passed through the verifier, and Verified reports false for content that is
+// provably correct.
+func (av *asyncVerifier) MarkExternallyVerified() {
+	if av == nil || av.v == nil {
+		return
+	}
+	av.externallyVerified = true
+}
+
 func (av *asyncVerifier) Verified(ctx context.Context) bool {
 	if av == nil || av.v == nil {
+		return true
+	}
+	if av.externallyVerified {
 		return true
 	}
 	if !av.started {
