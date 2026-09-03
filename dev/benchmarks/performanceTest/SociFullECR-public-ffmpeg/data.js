@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1788386399109,
+  "lastUpdate": 1788472948374,
   "repoUrl": "https://github.com/awslabs/soci-snapshotter",
   "entries": {
     "Soci Benchmark": [
@@ -19936,6 +19936,48 @@ window.BENCHMARK_DATA = {
           {
             "name": "SociFullECR-public-ffmpeg-pullTaskDuration",
             "value": 2.4154,
+            "unit": "Seconds",
+            "extra": "P90"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "davbson@amazon.com",
+            "name": "David Son",
+            "username": "sondavidb"
+          },
+          "committer": {
+            "email": "55555210+sondavidb@users.noreply.github.com",
+            "name": "David Son",
+            "username": "sondavidb"
+          },
+          "distinct": true,
+          "id": "238af848f32fcb887072c144b09ee65a3a895f9c",
+          "message": "Remove Go 1.25, add Go 1.27 in CI\n\nSigned-off-by: David Son <davbson@amazon.com>",
+          "timestamp": "2026-09-03T14:44:05-07:00",
+          "tree_id": "d6500a983234e65ec33cbf4f1ba0149b21974c7b",
+          "url": "https://github.com/awslabs/soci-snapshotter/commit/238af848f32fcb887072c144b09ee65a3a895f9c"
+        },
+        "date": 1788472937375,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "SociFullECR-public-ffmpeg-lazyTaskDuration",
+            "value": 0.40180000000000005,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-ffmpeg-localTaskDuration",
+            "value": 0.0106,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-ffmpeg-pullTaskDuration",
+            "value": 1.8436,
             "unit": "Seconds",
             "extra": "P90"
           }
