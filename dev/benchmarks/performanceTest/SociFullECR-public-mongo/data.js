@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1788386404126,
+  "lastUpdate": 1788472953785,
   "repoUrl": "https://github.com/awslabs/soci-snapshotter",
   "entries": {
     "Soci Benchmark": [
@@ -19979,6 +19979,48 @@ window.BENCHMARK_DATA = {
           {
             "name": "SociFullECR-public-mongo-pullTaskDuration",
             "value": 2.2614,
+            "unit": "Seconds",
+            "extra": "P90"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "davbson@amazon.com",
+            "name": "David Son",
+            "username": "sondavidb"
+          },
+          "committer": {
+            "email": "55555210+sondavidb@users.noreply.github.com",
+            "name": "David Son",
+            "username": "sondavidb"
+          },
+          "distinct": true,
+          "id": "238af848f32fcb887072c144b09ee65a3a895f9c",
+          "message": "Remove Go 1.25, add Go 1.27 in CI\n\nSigned-off-by: David Son <davbson@amazon.com>",
+          "timestamp": "2026-09-03T14:44:05-07:00",
+          "tree_id": "d6500a983234e65ec33cbf4f1ba0149b21974c7b",
+          "url": "https://github.com/awslabs/soci-snapshotter/commit/238af848f32fcb887072c144b09ee65a3a895f9c"
+        },
+        "date": 1788472937177,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "SociFullECR-public-mongo-lazyTaskDuration",
+            "value": 3.5736000000000008,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-mongo-localTaskDuration",
+            "value": 0.3312,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-mongo-pullTaskDuration",
+            "value": 1.423,
             "unit": "Seconds",
             "extra": "P90"
           }
