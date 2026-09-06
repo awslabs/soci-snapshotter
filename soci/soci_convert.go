@@ -38,8 +38,9 @@ import (
 type ConvertOption func(*convertConfig) error
 
 type convertConfig struct {
-	platforms []ocispec.Platform
-	gcRoot    bool
+	platforms      []ocispec.Platform
+	gcRoot         bool
+	tocAnnotations bool
 }
 
 // ConvertWithPlatforms sets the platforms that will be indexed during conversion
@@ -58,6 +59,18 @@ func ConvertWithPlatforms(platforms ...ocispec.Platform) ConvertOption {
 func ConvertWithNoGarbageCollectionLabels() ConvertOption {
 	return func(cc *convertConfig) error {
 		cc.gcRoot = false
+		return nil
+	}
+}
+
+// ConvertWithLayerTOCAnnotations annotates each indexed layer descriptor in the
+// converted image with TOCDigestAnnotation (containerd.io/snapshot/stargz/toc.digest)
+// set to the layer's ztoc digest. This makes the image discoverable by
+// containers/storage (CRI-O and Podman), which only consults an additional layer
+// store (e.g. soci-store) for layers carrying a recognized TOC-digest annotation.
+func ConvertWithLayerTOCAnnotations() ConvertOption {
+	return func(cc *convertConfig) error {
+		cc.tocAnnotations = true
 		return nil
 	}
 }
@@ -127,7 +140,7 @@ func (b *IndexBuilder) Convert(ctx context.Context, img images.Image, opts ...Co
 	}
 
 	// Add Annotations to the image manifests
-	err = b.annotateImages(ctx, &ociIndex, indexes)
+	err = b.annotateImages(ctx, &ociIndex, indexes, convertCfg.tocAnnotations)
 	if err != nil {
 		return nil, err
 	}
@@ -240,7 +253,7 @@ func (b *IndexBuilder) newOciIndex(ctx context.Context, img images.Image) (ocisp
 // annotateImages adds the SOCI index digest to the corresponding image manifest descriptor, modifying `ociIndex` in the process.
 // Adding annotations modifies the image manifest, so annotateImages also pushes the modified image manifests to the blobStore,
 // computes the new image digests, and modified the image descriptors in `ociIndex`
-func (b *IndexBuilder) annotateImages(ctx context.Context, ociIndex *ocispec.Index, sociIndexes []*IndexWithMetadata) error {
+func (b *IndexBuilder) annotateImages(ctx context.Context, ociIndex *ocispec.Index, sociIndexes []*IndexWithMetadata, tocAnnotations bool) error {
 	for i := 0; i < len(ociIndex.Manifests); i++ {
 		manifestDesc := &ociIndex.Manifests[i]
 
@@ -287,6 +300,10 @@ func (b *IndexBuilder) annotateImages(ctx context.Context, ociIndex *ocispec.Ind
 				manifest.Annotations = make(map[string]string)
 			}
 			manifest.Annotations[ImageAnnotationSociIndexDigest] = indexWithMetadata.Desc.Digest.String()
+
+			if tocAnnotations {
+				addLayerTOCDigestAnnotations(manifest.Layers, indexWithMetadata.Index)
+			}
 		}
 
 		newManifestDesc, err := b.pushOCIObject(ctx, manifest)
@@ -321,6 +338,37 @@ func (b *IndexBuilder) annotateImages(ctx context.Context, ociIndex *ocispec.Ind
 		}
 	}
 	return nil
+}
+
+// addLayerTOCDigestAnnotations sets TOCDigestAnnotation on each image layer that
+// has a ztoc in the SOCI index, mapping the layer to its ztoc digest. This lets
+// containers/storage (CRI-O and Podman) lazily load those layers via an additional
+// layer store (soci-store). Layers without a ztoc (e.g. below the min layer size)
+// are left unannotated and fall back to a normal pull.
+func addLayerTOCDigestAnnotations(layers []ocispec.Descriptor, index *Index) {
+	if index == nil {
+		return
+	}
+	tocByLayer := make(map[string]digest.Digest, len(index.Blobs))
+	for _, blob := range index.Blobs {
+		// Only ztoc blobs map to a layer; skip prefetch and other artifacts.
+		if blob.MediaType != SociLayerMediaType {
+			continue
+		}
+		if layerDigest := blob.Annotations[IndexAnnotationImageLayerDigest]; layerDigest != "" {
+			tocByLayer[layerDigest] = blob.Digest
+		}
+	}
+	for i := range layers {
+		toc, ok := tocByLayer[layers[i].Digest.String()]
+		if !ok {
+			continue
+		}
+		if layers[i].Annotations == nil {
+			layers[i].Annotations = make(map[string]string)
+		}
+		layers[i].Annotations[TOCDigestAnnotation] = toc.String()
+	}
 }
 
 // addSociIndexes modifies the list of manifests in the OCI index to include the SOCI indexes.
