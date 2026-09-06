@@ -210,8 +210,11 @@ func (m *SpanManager) resolveSpan(spanID compression.SpanID) error {
 		return ErrExceedMaxSpan
 	}
 
-	// this func itself doesn't use the returned span data
-	_, err := m.getSpanContent(spanID, 0, m.spans[spanID].endUncompOffset)
+	// this func itself doesn't use the returned span data.
+	// `getSpanContent` takes offsets relative to the start of the span, so the
+	// whole span is [0, uncompressed span size).
+	s := m.spans[spanID]
+	_, err := m.getSpanContent(spanID, 0, s.endUncompOffset-s.startUncompOffset)
 	return err
 }
 
