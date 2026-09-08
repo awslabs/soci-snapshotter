@@ -213,14 +213,14 @@ func testReader(t *testing.T, factory readerFactory) {
 func newCalledTelemetry() (telemetry *Telemetry, check func() error) {
 	var initMetadataStoreLatencyCalled bool
 	return &Telemetry{
-			func(time.Time) { initMetadataStoreLatencyCalled = true },
-		}, func() error {
-			var allErr error
-			if !initMetadataStoreLatencyCalled {
-				allErr = errors.Join(allErr, fmt.Errorf("metrics initMetadataStoreLatency isn't called"))
-			}
-			return allErr
+		func(time.Time) { initMetadataStoreLatencyCalled = true },
+	}, func() error {
+		var allErr error
+		if !initMetadataStoreLatencyCalled {
+			allErr = errors.Join(allErr, fmt.Errorf("metrics initMetadataStoreLatency isn't called"))
 		}
+		return allErr
+	}
 }
 
 func dumpNodes(t *testing.T, r testableReader, id uint32, level int) {
