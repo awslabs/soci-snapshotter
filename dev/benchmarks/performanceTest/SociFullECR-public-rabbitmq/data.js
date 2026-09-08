@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1788899591357,
+  "lastUpdate": 1788910502017,
   "repoUrl": "https://github.com/awslabs/soci-snapshotter",
   "entries": {
     "Soci Benchmark": [
@@ -19898,6 +19898,48 @@ window.BENCHMARK_DATA = {
           {
             "name": "SociFullECR-public-rabbitmq-pullTaskDuration",
             "value": 1.3998,
+            "unit": "Seconds",
+            "extra": "P90"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "davbson@amazon.com",
+            "name": "David Son",
+            "username": "sondavidb"
+          },
+          "committer": {
+            "email": "55555210+sondavidb@users.noreply.github.com",
+            "name": "David Son",
+            "username": "sondavidb"
+          },
+          "distinct": true,
+          "id": "27a4f87e50c3ee6040d798f86b5bce5924f58de4",
+          "message": "Use WatchFuncWithContext\n\nThis technically uses a different context from before, but this is\nprobably more correct behavior.\n\nSigned-off-by: David Son <davbson@amazon.com>",
+          "timestamp": "2026-09-08T16:24:41-07:00",
+          "tree_id": "4e0ff5c31e950db6c50e725f06eb50cb3369d776",
+          "url": "https://github.com/awslabs/soci-snapshotter/commit/27a4f87e50c3ee6040d798f86b5bce5924f58de4"
+        },
+        "date": 1788910494739,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "SociFullECR-public-rabbitmq-lazyTaskDuration",
+            "value": 15.7292,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-rabbitmq-localTaskDuration",
+            "value": 10.005600000000001,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-rabbitmq-pullTaskDuration",
+            "value": 1.5046,
             "unit": "Seconds",
             "extra": "P90"
           }
