@@ -308,8 +308,8 @@ func (f *httpFetcher) fetch(ctx context.Context, rs []region, retry bool) (multi
 	for _, reg := range requests {
 		ranges += fmt.Sprintf("%d-%d,", reg.b, reg.e)
 	}
-	req.Header.Add("Range", fmt.Sprintf("bytes=%s", ranges[:len(ranges)-1]))
-	req.Header.Add("Accept-Encoding", "identity")
+	req.Header.Add(socihttp.HeaderRange, fmt.Sprintf("bytes=%s", ranges[:len(ranges)-1]))
+	req.Header.Add(socihttp.HeaderAcceptEncoding, "identity")
 
 	// Recording the roundtrip latency for remote registry GET operation.
 	start := time.Now()
@@ -380,7 +380,7 @@ func (f *httpFetcher) check() error {
 	if err != nil {
 		return fmt.Errorf("check failed: %w", err)
 	}
-	req.Header.Set("Range", "bytes=0-1")
+	req.Header.Set(socihttp.HeaderRange, "bytes=0-1")
 	res, err := f.roundTripper.RoundTrip(req)
 	if err != nil {
 		return fmt.Errorf("check failed: %w: %w", ErrRequestFailed, err)
@@ -441,7 +441,7 @@ func redirect(ctx context.Context, blobURL string, tr http.RoundTripper) (string
 	if err != nil {
 		return "", err
 	}
-	req.Header.Set("Range", "bytes=0-1")
+	req.Header.Set(socihttp.HeaderRange, "bytes=0-1")
 
 	// The underlying http.Client will follow up to 10 redirects.
 	// See: https://pkg.go.dev/net/http#Get
@@ -496,7 +496,7 @@ func GetHeader(ctx context.Context, realURL string, rt http.RoundTripper) (*http
 			return nil, err
 		}
 		if i == 1 {
-			req.Header.Set("Range", "bytes=0-1")
+			req.Header.Set(socihttp.HeaderRange, "bytes=0-1")
 		}
 
 		resp, err := rt.RoundTrip(req)
@@ -526,7 +526,7 @@ func GetHeaderWithGet(ctx context.Context, realURL string, rt http.RoundTripper)
 			return nil, err
 		}
 		if i == 0 {
-			req.Header.Set("Range", "bytes=0-1")
+			req.Header.Set(socihttp.HeaderRange, "bytes=0-1")
 		}
 
 		resp, err := rt.RoundTrip(req)
