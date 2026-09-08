@@ -145,6 +145,16 @@ func (ac *AuthClient) Do(req *http.Request) (*http.Response, error) {
 		for k := range ac.header {
 			req.Header.Set(k, ac.header.Get(k))
 		}
+		// Add the custom headers from the context. Read from the captured ctx so they
+		// survive the request clone on a 401 retry. Skip a reserved name so a caller
+		// can never override a header the snapshotter or a shared library manages.
+		for k, vals := range CustomHeaders(ctx) {
+			name := http.CanonicalHeaderKey(k)
+			if _, reserved := ReservedHeaders[name]; reserved {
+				continue
+			}
+			req.Header[name] = append([]string(nil), vals...)
+		}
 		authReq, err := ac.handler.AuthorizeRequest(ctx, req)
 		if err != nil {
 			return nil, fmt.Errorf("%w: %w", ErrFailedToAuthorizeRequest, err)

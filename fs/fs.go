@@ -476,6 +476,8 @@ func (fs *filesystem) MountParallel(ctx context.Context, mountpoint string, labe
 		return ErrParallelPullIsDisabled
 	}
 
+	ctx = socihttp.WithCustomHeaders(ctx, source.HeadersFromLabels(ctx, labels))
+
 	imageRef, ok := labels[ctdsnapshotters.TargetRefLabel]
 	if !ok {
 		return fmt.Errorf("unable to get image ref from labels")
@@ -552,6 +554,7 @@ func (fs *filesystem) preloadAllLayers(ctx context.Context, desc ocispec.Descrip
 
 	premountCtx, cancel := context.WithCancelCause(context.Background())
 	premountCtx = namespaces.WithNamespace(premountCtx, ns)
+	premountCtx = socihttp.WithCustomHeaders(premountCtx, socihttp.CustomHeaders(ctx))
 	imageJob := fs.inProgressImageUnpacks.GetOrAddImageJob(imageDigest, cancel)
 
 	// If we fail anywhere after making the image job, we must remove the associated image job
@@ -781,6 +784,8 @@ func (fs *filesystem) CleanImage(ctx context.Context, imgDigest string) error {
 }
 
 func (fs *filesystem) MountLocal(ctx context.Context, mountpoint string, labels map[string]string, mounts []mount.Mount) error {
+	ctx = socihttp.WithCustomHeaders(ctx, source.HeadersFromLabels(ctx, labels))
+
 	imageRef, ok := labels[ctdsnapshotters.TargetRefLabel]
 	if !ok {
 		return fmt.Errorf("unable to get image ref from labels")
@@ -1039,6 +1044,7 @@ func (fs *filesystem) Mount(ctx context.Context, mountpoint string, labels map[s
 	// Setting the start time to measure the Mount operation duration.
 	start := time.Now()
 	ctx = log.WithLogger(ctx, log.G(ctx).WithField("mountpoint", mountpoint))
+	ctx = socihttp.WithCustomHeaders(ctx, source.HeadersFromLabels(ctx, labels))
 
 	// If this is empty or the label doesn't exist, then we will use the referrers API later
 	// to get find an index digest.
@@ -1129,6 +1135,7 @@ func (fs *filesystem) Mount(ctx context.Context, mountpoint string, labels map[s
 		fs.pr.Enqueue(imgNameAndDigest, func(ctx context.Context) string {
 			// Use context from the preresolver, but append namespace from current ctx
 			ctx = namespaces.WithNamespace(ctx, ns)
+			ctx = socihttp.WithCustomHeaders(ctx, source.HeadersFromLabels(ctx, labels))
 
 			prefetchDesc := c.findPrefetchArtifact(desc.Digest.String())
 
