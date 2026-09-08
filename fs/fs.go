@@ -601,7 +601,14 @@ func (fs *filesystem) premount(ctx context.Context, desc ocispec.Descriptor, ref
 			err = cErr
 		}
 		if err != nil {
-			fs.inProgressImageUnpacks.RemoveImageWithError(layerJob.imageDigest, err)
+			// Remove ONLY this layer's job, marking it cancelled WITHOUT invoking
+			// the shared image cancel; otherwise a single layer/pull failure tears
+			// down the shared premount context and every concurrent duplicate pull
+			// of the same image with it (the #2036 SIGSEGV and the field
+			// ImagePullBackOff hang). The image job is evicted once its last layer
+			// job is removed.
+			layerJob.markCancelled()
+			fs.inProgressImageUnpacks.Remove(layerJob, err)
 		}
 		layerJob.errCh <- err
 		close(layerJob.errCh)
@@ -648,8 +655,13 @@ func (fs *filesystem) rebase(ctx context.Context, dgst digest.Digest, imageDiges
 	}
 	defer func() {
 		if err != nil {
-			layerJob.Cancel(err)
-			fs.inProgressImageUnpacks.RemoveImageWithError(layerJob.imageDigest, err)
+			// Remove ONLY this layer's job on failure and mark it cancelled without
+			// invoking the shared image cancel, so a cancelled/failed pull cannot
+			// tear down the shared image job (and its premount context) that a
+			// concurrent duplicate pull of the same image still needs (see
+			// awslabs/soci-snapshotter#2036 and the field ImagePullBackOff hang).
+			layerJob.markCancelled()
+			fs.inProgressImageUnpacks.Remove(layerJob, err)
 		} else {
 			fs.inProgressImageUnpacks.Remove(layerJob, err)
 		}

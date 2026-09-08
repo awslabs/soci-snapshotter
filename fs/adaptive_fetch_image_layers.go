@@ -179,7 +179,7 @@ func checkParallelPullUnpack(cfg *config.Parallel) error {
 }
 
 // GetOrAddImageJob adds the requisite image job to unpackJobs.
-// If the job already exists, return nil.
+// If the job already exists, return it.
 // Else, return the newly created imageUnpackJob.
 func (jobs *unpackJobs) GetOrAddImageJob(imageDigest string, cancel context.CancelCauseFunc) *imageUnpackJob {
 	jobs.mu.Lock()
@@ -205,13 +205,21 @@ func (jobs *unpackJobs) AddLayerJob(imageJob *imageUnpackJob, layerDigest string
 	jobs.mu.Lock()
 	defer jobs.mu.Unlock()
 
+	// The image job may have been removed by a concurrent cancelled/failed pull
+	// of the same image between GetOrAddImageJob and here. Look it up under the
+	// lock and fail gracefully instead of dereferencing a nil map entry, which
+	// previously crashed the daemon with a SIGSEGV (see awslabs/soci-snapshotter#2036).
+	image, ok := jobs.images[imageJob.imageDigest]
+	if !ok {
+		return nil, fmt.Errorf("%w: %s", ErrImageUnpackJobNotFound, imageJob.imageDigest)
+	}
+
 	layerJob, err := newLayerUnpackJob(layerDigest, jobs.storage, withImageUnpackJob(imageJob))
 	if err != nil {
 		return nil, err
 	}
 
-	jobs.images[imageJob.imageDigest].layers[layerDigest] =
-		append(jobs.images[imageJob.imageDigest].layers[layerDigest], layerJob)
+	image.layers[layerDigest] = append(image.layers[layerDigest], layerJob)
 
 	return layerJob, nil
 }
@@ -453,6 +461,10 @@ func (jobs *unpackJobs) RemoveImageWithError(imageDigest string, cause error) er
 	}
 
 	// Cancelling an image will cancel all layer unpack jobs.
+	// The job is then fully evicted from the map so a subsequent pull of the same
+	// image rebuilds a fresh job rather than joining this cancelled one (whose
+	// premount context is dead) and failing forever with "context canceled" —
+	// the permanent (node, image) poisoning reported in this defect.
 	imageJob.Cancel(cause)
 	delete(jobs.images, imageDigest)
 	return nil
@@ -700,6 +712,17 @@ func (job *layerUnpackJob) AcquireUnpackLease(ctx context.Context) (func(), erro
 
 func (job *layerUnpackJob) Cancel(cause error) {
 	job.cancel(cause)
+	job.status.Store(LayerUnpackJobCancelled)
+}
+
+// markCancelled marks this layer job cancelled WITHOUT invoking the shared image
+// cancel function. In the current design every layer job's cancel is the image
+// job's cancel (see withImageUnpackJob), so calling Cancel() on one layer tears
+// down the shared premount context and every sibling layer with it. When a single
+// layer/pull fails but a concurrent duplicate pull of the same image is still in
+// flight, we mark just this job cancelled (so Remove can reclaim it) and leave the
+// shared context intact for the siblings.
+func (job *layerUnpackJob) markCancelled() {
 	job.status.Store(LayerUnpackJobCancelled)
 }
 
