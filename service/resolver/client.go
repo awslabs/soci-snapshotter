@@ -46,7 +46,7 @@ var userAgent = fmt.Sprintf("soci-snapshotter/%s", version.Version)
 // to all requests.
 func globalHeaders() http.Header {
 	header := http.Header{}
-	header.Set("User-Agent", userAgent)
+	header.Set(socihttp.HeaderUserAgent, userAgent)
 	return header
 }
 
