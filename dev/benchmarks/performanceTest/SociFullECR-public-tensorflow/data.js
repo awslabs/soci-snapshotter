@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1788472943560,
+  "lastUpdate": 1788899598260,
   "repoUrl": "https://github.com/awslabs/soci-snapshotter",
   "entries": {
     "Soci Benchmark": [
@@ -20061,6 +20061,48 @@ window.BENCHMARK_DATA = {
           {
             "name": "SociFullECR-public-tensorflow-pullTaskDuration",
             "value": 1.8936,
+            "unit": "Seconds",
+            "extra": "P90"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "davbson@amazon.com",
+            "name": "David Son",
+            "username": "sondavidb"
+          },
+          "committer": {
+            "email": "55555210+sondavidb@users.noreply.github.com",
+            "name": "David Son",
+            "username": "sondavidb"
+          },
+          "distinct": true,
+          "id": "31bfe86b42c96b6d829ad079567666e1a818cb1f",
+          "message": "Upgrade golangci-lint to 2.12.2\n\nThe last version of golangci-lint didn't support Go 1.26, so upgrading\nit.\n\nSigned-off-by: David Son <davbson@amazon.com>",
+          "timestamp": "2026-09-08T13:22:43-07:00",
+          "tree_id": "632b63c9cc866db1e86d37929e105e9fdc78c1d7",
+          "url": "https://github.com/awslabs/soci-snapshotter/commit/31bfe86b42c96b6d829ad079567666e1a818cb1f"
+        },
+        "date": 1788899587848,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "SociFullECR-public-tensorflow-lazyTaskDuration",
+            "value": 25.241600000000002,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-tensorflow-localTaskDuration",
+            "value": 2.733,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-tensorflow-pullTaskDuration",
+            "value": 2.6878,
             "unit": "Seconds",
             "extra": "P90"
           }
