@@ -34,6 +34,13 @@ linters:
         # it can make it hard to understand what the unused parameter
         # was supposed to be used for.
         text: 'unused-parameter:'
+
+        # TODO: Migrate our testing suite to use PAXRecords
+      - text: "SA1019: .*\\.Xattrs has been deprecated since Go 1.10: Use PAXRecords instead"
+        path: "util/testutil/tar.go"
+        linters:
+          - staticcheck
+
     paths:
       - docs
       - images
