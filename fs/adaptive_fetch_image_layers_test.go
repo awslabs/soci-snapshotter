@@ -18,6 +18,7 @@ package fs
 
 import (
 	"context"
+	"errors"
 	"os"
 	"path/filepath"
 	"slices"
@@ -216,6 +217,92 @@ type LayerUnpackVirtualStorage struct {
 
 func newVirtualDisk() *LayerUnpackVirtualStorage {
 	return &LayerUnpackVirtualStorage{}
+}
+
+// TestRemovingOneLayerJobKeepsSharedImageJob verifies that removing a single
+// cancelled/failed layer job does NOT tear down the shared image job while other
+// layer jobs of the same image are still in flight. This is what lets a cancelled
+// sibling pull avoid poisoning a concurrent duplicate pull of the same image
+// (the field ImagePullBackOff hang). The image job is evicted only when its last
+// layer job is removed.
+func TestRemovingOneLayerJobKeepsSharedImageJob(t *testing.T) {
+	defer goleak.VerifyNone(t)
+
+	testCtx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	inProgressJobs, err := newUnpackJobs(testCtx, newEnableParallelPullConfig(), newVirtualDisk())
+	if err != nil {
+		t.Fatalf("failed to create unpack jobs: %v", err)
+	}
+
+	cancelled := false
+	imageJob := inProgressJobs.GetOrAddImageJob(helloWorldImageDigest, func(error) { cancelled = true })
+	layerA, err := inProgressJobs.AddLayerJob(imageJob, helloWorldLayerDigest)
+	if err != nil {
+		t.Fatalf("AddLayerJob A: %v", err)
+	}
+	otherLayerDigest := "sha256:1111111111111111111111111111111111111111111111111111111111111111"
+	layerB, err := inProgressJobs.AddLayerJob(imageJob, otherLayerDigest)
+	if err != nil {
+		t.Fatalf("AddLayerJob B: %v", err)
+	}
+
+	layerA.markCancelled()
+	if err := inProgressJobs.Remove(layerA, context.Canceled); err != nil {
+		t.Fatalf("Remove(layerA): %v", err)
+	}
+	if !inProgressJobs.ImageExists(helloWorldImageDigest) {
+		t.Fatal("shared image job was evicted while another layer job was still in flight")
+	}
+	if cancelled {
+		t.Fatal("shared image job context was cancelled while another layer job was still in flight")
+	}
+
+	layerB.markCancelled()
+	if err := inProgressJobs.Remove(layerB, context.Canceled); err != nil {
+		t.Fatalf("Remove(layerB): %v", err)
+	}
+	if inProgressJobs.ImageExists(helloWorldImageDigest) {
+		t.Fatal("image job was not evicted after its last layer job was removed")
+	}
+}
+
+// TestAddLayerJobAfterImageRemovedDoesNotPanic is a regression test for
+// awslabs/soci-snapshotter#2036. A concurrent cancelled/failed pull of the same
+// image can remove the shared image job between GetOrAddImageJob and AddLayerJob.
+// AddLayerJob must fail gracefully with ErrImageUnpackJobNotFound instead of
+// dereferencing the now-nil image entry and crashing the daemon with a SIGSEGV.
+func TestAddLayerJobAfterImageRemovedDoesNotPanic(t *testing.T) {
+	defer goleak.VerifyNone(t)
+
+	testCtx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	disk := newVirtualDisk()
+	inProgressJobs, err := newUnpackJobs(testCtx, newEnableParallelPullConfig(), disk)
+	if err != nil {
+		t.Fatalf("failed to create unpack jobs: %v", err)
+	}
+
+	// Obtain a handle to an image job, then simulate a concurrent pull removing
+	// it out from under us (exactly what RemoveImageWithError does on cancel).
+	imageJob := inProgressJobs.GetOrAddImageJob(helloWorldImageDigest, func(error) {})
+	if err := inProgressJobs.RemoveImageWithError(helloWorldImageDigest, context.Canceled); err != nil {
+		t.Fatalf("failed to remove image job: %v", err)
+	}
+
+	// This previously panicked (nil map dereference). It must now return an error.
+	layerJob, err := inProgressJobs.AddLayerJob(imageJob, helloWorldLayerDigest)
+	if err == nil {
+		t.Fatalf("expected error adding layer job to a removed image, got nil")
+	}
+	if !errors.Is(err, ErrImageUnpackJobNotFound) {
+		t.Fatalf("expected ErrImageUnpackJobNotFound, got: %v", err)
+	}
+	if layerJob != nil {
+		t.Fatalf("expected nil layer job on failure, got: %v", layerJob)
+	}
 }
 
 func (virtual *LayerUnpackVirtualStorage) Create() (string, error) {
