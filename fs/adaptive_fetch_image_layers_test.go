@@ -27,6 +27,7 @@ import (
 
 	"github.com/awslabs/soci-snapshotter/config"
 	"github.com/google/go-cmp/cmp"
+	"github.com/stretchr/testify/assert"
 	"go.uber.org/goleak"
 )
 
@@ -136,14 +137,14 @@ func TestSystemResourcesAreGarbageCollectedForCompletedJobs(t *testing.T) {
 func TestInProgressJobsAreNotGarbageCollected(t *testing.T) {
 	defer goleak.VerifyNone(t)
 
-	testCtx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	testCtx, cancel := context.WithCancelCause(context.Background())
+	defer cancel(context.Canceled)
 
 	disk := newVirtualDisk()
 	disk.CreateCompletedImageUnpackJobs(3 * jobs)
 
 	inProgressJobs, _ := newUnpackJobs(testCtx, newEnableParallelPullConfig(), disk)
-	createEphemeralInProgressImageUnpackJob(t, inProgressJobs)
+	createEphemeralInProgressImageUnpackJob(t, inProgressJobs, cancel)
 	await(3 * ticks)
 
 	disk.AssertAllUsedResourcesHaveNotBeenGarbageCollected(t, inProgressJobs)
@@ -155,16 +156,78 @@ func TestInProgressJobsAreNotGarbageCollected(t *testing.T) {
 func TestExpiredJobsAreGarbageCollected(t *testing.T) {
 	defer goleak.VerifyNone(t)
 
-	testCtx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	testCtx, cancel := context.WithCancelCause(context.Background())
+	defer cancel(context.Canceled)
 
 	disk := newVirtualDisk()
 	inProgressJobs, _ := newUnpackJobs(testCtx, newEnableParallelPullConfig(), disk)
-	createExpiredInProgressImageUnpackJob(t, inProgressJobs)
+	createExpiredInProgressImageUnpackJob(t, inProgressJobs, cancel)
 
 	await(3 * ticks)
 
 	disk.AssertAllUnusedResourcesHaveBeenGarbageCollected(t, inProgressJobs)
+}
+
+// TestConcurrentRequestsAreIndependent covers an edge case
+// where an imageUnpackJob has two layers from separate requests,
+// and we want to ensure they do not conflict with each other
+func TestConcurrentRequestsAreIndependent(t *testing.T) {
+	defer goleak.VerifyNone(t)
+
+	dummyDigest := "sha256:dummydigest"
+	dummyLayer := "sha256:dummylayer"
+
+	testCtx, cancel := context.WithCancelCause(context.Background())
+	defer cancel(context.Canceled)
+
+	disk := newVirtualDisk()
+	inProgressJobs, _ := newUnpackJobs(testCtx, newEnableParallelPullConfig(), disk)
+
+	progressCtx, progressCancelFunc := context.WithCancelCause(context.Background())
+	defer progressCancelFunc(context.Canceled)
+	_, stopCancelFunc := context.WithCancelCause(context.Background())
+	defer stopCancelFunc(context.Canceled)
+	disk.CreateCompletedImageUnpackJobs(3 * jobs)
+
+	_, err := inProgressJobs.AddLayerJob(dummyDigest, dummyLayer, progressCancelFunc)
+	assert.Nil(t, err)
+	_, err = inProgressJobs.AddLayerJob(dummyDigest, dummyLayer, stopCancelFunc)
+	assert.Nil(t, err)
+	stopCancelFunc(context.Canceled)
+	await(3 * ticks)
+
+	assert.Nil(t, progressCtx.Err())
+	disk.AssertAllUsedResourcesHaveNotBeenGarbageCollected(t, inProgressJobs)
+}
+
+// TestCleanImage checks behavior of CleanImage and related functions
+func TestCleanImage(t *testing.T) {
+	defer goleak.VerifyNone(t)
+
+	ctx, cancel := context.WithCancelCause(context.Background())
+	defer cancel(context.Canceled)
+
+	disk := newVirtualDisk()
+	inProgressJobs, _ := newUnpackJobs(ctx, newEnableParallelPullConfig(), disk)
+
+	_, err := inProgressJobs.AddLayerJob(helloWorldImageDigest, helloWorldLayerDigest, cancel)
+	assert.Nil(t, err)
+
+	err = inProgressJobs.CleanCancelledLayerJobs(helloWorldImageDigest)
+	assert.Nil(t, err)
+	assert.NotZero(t, len(inProgressJobs.images))
+
+	cancel(context.Canceled)
+	err = inProgressJobs.CleanImage(helloWorldImageDigest)
+	assert.Nil(t, err)
+
+	job, err := inProgressJobs.AddLayerJob(helloWorldImageDigest, helloWorldLayerDigest, cancel)
+	assert.Nil(t, err)
+	err = inProgressJobs.ForceRemoveWithID(job.layerUnpackID)
+	assert.Nil(t, err)
+	assert.Zero(t, len(inProgressJobs.images))
+
+	disk.AssertAllUsedResourcesHaveNotBeenGarbageCollected(t, inProgressJobs)
 }
 
 const (
@@ -184,15 +247,14 @@ func await(numberOfTicks int) {
 	}
 }
 
-func createEphemeralInProgressImageUnpackJob(t testing.TB, inProgressJobs *unpackJobs) {
-	imageJob := inProgressJobs.GetOrAddImageJob(helloWorldImageDigest, func(cause error) {})
-	_, err := inProgressJobs.AddLayerJob(imageJob, helloWorldLayerDigest)
+func createEphemeralInProgressImageUnpackJob(t testing.TB, inProgressJobs *unpackJobs, cancel context.CancelCauseFunc) {
+	_, err := inProgressJobs.AddLayerJob(helloWorldImageDigest, helloWorldLayerDigest, cancel)
 	if err != nil {
 		t.Fatalf("Failed to create ephemeral in-progress image unpack job: %v", err)
 	}
 }
 
-func createExpiredInProgressImageUnpackJob(t testing.TB, inProgressJobs *unpackJobs) {
+func createExpiredInProgressImageUnpackJob(t testing.TB, inProgressJobs *unpackJobs, cancel context.CancelCauseFunc) {
 	originalNow := now
 	defer func() {
 		now = originalNow
@@ -203,8 +265,7 @@ func createExpiredInProgressImageUnpackJob(t testing.TB, inProgressJobs *unpackJ
 		return time.Now().Add(-1 * garbageCollectionJobExpiration)
 	}
 
-	imageJob := inProgressJobs.GetOrAddImageJob(helloWorldImageDigest, func(cause error) {})
-	_, err := inProgressJobs.AddLayerJob(imageJob, helloWorldLayerDigest)
+	_, err := inProgressJobs.AddLayerJob(helloWorldImageDigest, helloWorldLayerDigest, cancel)
 	if err != nil {
 		t.Fatalf("Failed to create ephemeral in-progress image unpack job: %v", err)
 	}
@@ -479,15 +540,15 @@ func TestLayerUnpackDiskStorage(t *testing.T) {
 func TestLayerUnpackJob(t *testing.T) {
 	defer goleak.VerifyNone(t)
 
-	testCtx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	testCtx, cancel := context.WithCancelCause(context.Background())
+	defer cancel(context.Canceled)
 
 	disk := newVirtualDisk()
 	inProgressJobs, err := newUnpackJobs(testCtx, newEnableParallelPullConfig(), disk)
 	if err != nil {
 		t.Fatalf("Expected no setup error, got %v", err)
 	}
-	createEphemeralInProgressImageUnpackJob(t, inProgressJobs)
+	createEphemeralInProgressImageUnpackJob(t, inProgressJobs, cancel)
 
 	ephemeralJob, err := inProgressJobs.Claim(helloWorldImageDigest, helloWorldLayerDigest)
 	if err != nil {
@@ -556,5 +617,4 @@ func TestParallelStructCreation(t *testing.T) {
 			}
 		})
 	}
-
 }
