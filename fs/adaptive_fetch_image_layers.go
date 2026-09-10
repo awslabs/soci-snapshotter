@@ -178,13 +178,10 @@ func checkParallelPullUnpack(cfg *config.Parallel) error {
 	return err
 }
 
-// GetOrAddImageJob adds the requisite image job to unpackJobs.
-// If the job already exists, return nil.
+// getOrAddImageJob adds the requisite image job to unpackJobs.
+// If the job already exists, return it.
 // Else, return the newly created imageUnpackJob.
-func (jobs *unpackJobs) GetOrAddImageJob(imageDigest string, cancel context.CancelCauseFunc) *imageUnpackJob {
-	jobs.mu.Lock()
-	defer jobs.mu.Unlock()
-
+func (jobs *unpackJobs) getOrAddImageJob(imageDigest string) *imageUnpackJob {
 	if jobs.imageExists(imageDigest) {
 		return jobs.images[imageDigest]
 	}
@@ -194,18 +191,18 @@ func (jobs *unpackJobs) GetOrAddImageJob(imageDigest string, cancel context.Canc
 		withImageUnpacksLimit(jobs.imagePullCfg.MaxConcurrentUnpacksPerImage),
 		withGlobalConcurrentDownloadsLimiter(jobs.globalConcurrentDownloadsLimiter),
 		withGlobalConcurrentUnpacksLimiter(jobs.globalConcurrentUnpacksLimiter),
-		withCancelFunc(cancel),
 	)
 
 	return jobs.images[imageDigest]
 }
 
 // AddLayerJob both adds the job to the in-memory store and creates the requisite folder on disk
-func (jobs *unpackJobs) AddLayerJob(imageJob *imageUnpackJob, layerDigest string) (*layerUnpackJob, error) {
+func (jobs *unpackJobs) AddLayerJob(imageDigest, layerDigest string, cancel context.CancelCauseFunc) (*layerUnpackJob, error) {
 	jobs.mu.Lock()
 	defer jobs.mu.Unlock()
 
-	layerJob, err := newLayerUnpackJob(layerDigest, jobs.storage, withImageUnpackJob(imageJob))
+	imageJob := jobs.getOrAddImageJob(imageDigest)
+	layerJob, err := newLayerUnpackJob(layerDigest, jobs.storage, withImageUnpackJob(imageJob), withCancelCauseFunc(cancel))
 	if err != nil {
 		return nil, err
 	}
@@ -398,7 +395,6 @@ type unpackJobsSnapshot struct {
 }
 
 type layerUnpackJobSnapshot struct {
-	imageID           string
 	creationTimestamp int64
 }
 
@@ -415,7 +411,6 @@ func (jobs *unpackJobs) Snapshot(ctx context.Context) (*unpackJobsSnapshot, erro
 		for _, layerJobs := range image.layers {
 			for _, v := range layerJobs {
 				snapshot.inMemory[v.layerUnpackID] = &layerUnpackJobSnapshot{
-					imageID:           v.imageDigest,
 					creationTimestamp: v.creationTimestamp,
 				}
 			}
@@ -436,29 +431,76 @@ func (jobs *unpackJobs) Snapshot(ctx context.Context) (*unpackJobsSnapshot, erro
 // successful or otherwise.
 // This will only remove cancelled or claimed jobs.
 // If no available jobs meet this criteria, it will return an error.
-func (jobs *unpackJobs) Remove(job *layerUnpackJob, cause error) error {
+func (jobs *unpackJobs) Remove(job *layerUnpackJob) error {
 	jobs.mu.Lock()
 	defer jobs.mu.Unlock()
 
-	return jobs.remove(job, cause)
+	return jobs.remove(job)
 }
 
-func (jobs *unpackJobs) RemoveImageWithError(imageDigest string, cause error) error {
+// ForceRemoveWithID cancels the context associated with the layerJob
+// before removing it. This is really only meant to be used with the
+// garbage collector.
+func (jobs *unpackJobs) ForceRemoveWithID(layerUnpackID string) error {
 	jobs.mu.Lock()
 	defer jobs.mu.Unlock()
 
+	for _, img := range jobs.images {
+		for _, layer := range img.layers {
+			for _, job := range layer {
+				if job.layerUnpackID == layerUnpackID {
+					job.Cancel(ErrImageUnpackJobExpired)
+					return jobs.remove(job)
+				}
+			}
+		}
+	}
+
+	return ErrLayerJobNotFound
+}
+
+// CleanCancelledLayerJobs will only remove image jobs that have a cancelled context
+func (jobs *unpackJobs) CleanCancelledLayerJobs(imageDigest string) error {
+	jobs.mu.Lock()
+	defer jobs.mu.Unlock()
+
+	return jobs.cleanLayerJobs(imageDigest, false)
+}
+
+// CleanImage will remove all layer jobs associated with an image,
+// regardless of if they are in flight or not
+func (jobs *unpackJobs) CleanImage(imageDigest string) error {
+	jobs.mu.Lock()
+	defer jobs.mu.Unlock()
+
+	return jobs.cleanLayerJobs(imageDigest, true)
+}
+
+// cleanImageJobs removes all layer jobs with cancelled contexts with given image digest
+// If force is true, remove regardless of their status
+func (jobs *unpackJobs) cleanLayerJobs(imageDigest string, force bool) error {
 	imageJob, ok := jobs.images[imageDigest]
 	if !ok {
 		return fmt.Errorf("%w: %s", ErrImageUnpackJobNotFound, imageDigest)
 	}
 
-	// Cancelling an image will cancel all layer unpack jobs.
-	imageJob.Cancel(cause)
-	delete(jobs.images, imageDigest)
+	for _, layers := range imageJob.layers {
+		for i := len(layers) - 1; i >= 0; i-- {
+			layerJob := layers[i]
+			if force {
+				layerJob.Cancel(context.Canceled)
+			}
+			err := jobs.removeWithLayerUnpackID(imageJob.imageDigest, layerJob.layerDigest, layerJob.layerUnpackID, i)
+			if err != nil && !errors.Is(err, ErrLayerJobCannotBeCleaned) {
+				return fmt.Errorf("error removing layer jobs: %w", err)
+			}
+		}
+	}
+
 	return nil
 }
 
-func (jobs *unpackJobs) remove(job *layerUnpackJob, cause error) error {
+func (jobs *unpackJobs) remove(job *layerUnpackJob) error {
 	imageDigest := job.imageDigest
 	layerDigest := job.layerDigest
 	layerUnpackID := job.layerUnpackID
@@ -469,36 +511,34 @@ func (jobs *unpackJobs) remove(job *layerUnpackJob, cause error) error {
 
 	for i, status := range jobs.images[imageDigest].layers[layerDigest] {
 		if status.layerUnpackID == layerUnpackID {
-			// Proceed only if status is claimed or cancelled
-			switch status.status.Load() {
-			case LayerUnpackJobClaimed:
-			case LayerUnpackJobCancelled:
-			default:
-				return fmt.Errorf("%w: %s", ErrLayerJobCannotBeCleaned, layerUnpackID)
-			}
-
-			jobs.images[imageDigest].layers[layerDigest] = slices.Delete(jobs.images[imageDigest].layers[layerDigest], i, i+1)
-			if len(jobs.images[imageDigest].layers[layerDigest]) == 0 {
-				delete(jobs.images[imageDigest].layers, layerDigest)
-			}
-			if len(jobs.images[imageDigest].layers) == 0 {
-				// Call cancel to avoid context leak
-				jobs.images[imageDigest].cancel(cause)
-				delete(jobs.images, imageDigest)
-			}
-			return nil
+			return jobs.removeWithLayerUnpackID(imageDigest, layerDigest, layerUnpackID, i)
 		}
 	}
 
 	return ErrLayerJobNotFound
 }
 
-type imageUnpackJob struct {
-	ctx    context.Context
-	cancel context.CancelCauseFunc
+func (jobs *unpackJobs) removeWithLayerUnpackID(imageDigest, layerDigest, layerUnpackID string, pos int) error {
+	// Proceed only if status is claimed or cancelled
+	switch jobs.images[imageDigest].layers[layerDigest][pos].status.Load() {
+	case LayerUnpackJobClaimed:
+	case LayerUnpackJobCancelled:
+	default:
+		return fmt.Errorf("%w: %s", ErrLayerJobCannotBeCleaned, layerUnpackID)
+	}
 
-	imageDigest       string
-	creationTimestamp int64
+	jobs.images[imageDigest].layers[layerDigest] = slices.Delete(jobs.images[imageDigest].layers[layerDigest], pos, pos+1)
+	if len(jobs.images[imageDigest].layers[layerDigest]) == 0 {
+		delete(jobs.images[imageDigest].layers, layerDigest)
+	}
+	if len(jobs.images[imageDigest].layers) == 0 {
+		delete(jobs.images, imageDigest)
+	}
+	return nil
+}
+
+type imageUnpackJob struct {
+	imageDigest string
 
 	globalConcurrentDownloadsLimiter *SemaphoreWithNil
 	globalConcurrentUnpacksLimiter   *SemaphoreWithNil
@@ -542,23 +582,13 @@ func withGlobalConcurrentUnpacksLimiter(smp *SemaphoreWithNil) imageUnpackOption
 	}
 }
 
-func withCancelFunc(cancel context.CancelCauseFunc) imageUnpackOption {
-	return func(job *imageUnpackJob) {
-		job.cancel = cancel
-	}
-}
-
 var now = func() time.Time {
 	return time.Now()
 }
 
 func newImageUnpackJob(imageDigest string, opts ...imageUnpackOption) *imageUnpackJob {
-	ctx, cancel := context.WithCancelCause(context.Background())
 	job := &imageUnpackJob{
-		ctx:                              ctx,
-		cancel:                           cancel,
 		imageDigest:                      imageDigest,
-		creationTimestamp:                now().UnixNano(),
 		globalConcurrentDownloadsLimiter: NewSemaphoreWithNil(unlimited),
 		globalConcurrentUnpacksLimiter:   NewSemaphoreWithNil(unlimited),
 		concurrentDownloadsLimiter:       NewSemaphoreWithNil(unlimited),
@@ -572,10 +602,6 @@ func newImageUnpackJob(imageDigest string, opts ...imageUnpackOption) *imageUnpa
 	}
 
 	return job
-}
-
-func (job *imageUnpackJob) Cancel(cause error) {
-	job.cancel(cause)
 }
 
 type layerUnpackJobStatus int
@@ -605,33 +631,37 @@ type layerUnpackJobOption func(*layerUnpackJob)
 type layerUnpackJob struct {
 	// Inherit fields from parent via withImageUnpackJob
 	imageDigest                      string
-	cancel                           context.CancelCauseFunc
 	globalConcurrentDownloadsLimiter *SemaphoreWithNil
 	globalConcurrentUnpacksLimiter   *SemaphoreWithNil
 	concurrentDownloadsLimiter       *SemaphoreWithNil
 	concurrentUnpacksLimiter         *SemaphoreWithNil
-	creationTimestamp                int64
 	bufferPool                       *bufferPool
 
 	// Unique to layerUnpackJob struct
-	layerUnpackID string
-	layerDigest   string
-	ingestPath    string
-	upperPath     string
-	errCh         chan error
-	status        atomic.Value
+	creationTimestamp int64
+	layerUnpackID     string
+	layerDigest       string
+	ingestPath        string
+	upperPath         string
+	errCh             chan error
+	status            atomic.Value
+	cancel            context.CancelCauseFunc
 }
 
 func withImageUnpackJob(image *imageUnpackJob) layerUnpackJobOption {
 	return func(luj *layerUnpackJob) {
 		luj.imageDigest = image.imageDigest
-		luj.cancel = image.cancel
 		luj.globalConcurrentDownloadsLimiter = image.globalConcurrentDownloadsLimiter
 		luj.globalConcurrentUnpacksLimiter = image.globalConcurrentUnpacksLimiter
 		luj.concurrentDownloadsLimiter = image.concurrentDownloadsLimiter
 		luj.concurrentUnpacksLimiter = image.concurrentUnpacksLimiter
-		luj.creationTimestamp = image.creationTimestamp
 		luj.bufferPool = image.bufferPool
+	}
+}
+
+func withCancelCauseFunc(cancel context.CancelCauseFunc) layerUnpackJobOption {
+	return func(job *layerUnpackJob) {
+		job.cancel = cancel
 	}
 }
 
@@ -649,12 +679,13 @@ func newLayerUnpackJob(layerDigest string, storage LayerUnpackJobStorage, opts .
 	}
 
 	luj := &layerUnpackJob{
-		layerUnpackID: id,
-		layerDigest:   layerDigest,
-		ingestPath:    filepath.Join(path, layerDigest),
-		upperPath:     filepath.Join(path, layerUnpackDir),
-		status:        atomic.Value{},
-		errCh:         make(chan error, 1),
+		creationTimestamp: now().UnixNano(),
+		layerUnpackID:     id,
+		layerDigest:       layerDigest,
+		ingestPath:        filepath.Join(path, layerDigest),
+		upperPath:         filepath.Join(path, layerUnpackDir),
+		status:            atomic.Value{},
+		errCh:             make(chan error, 1),
 	}
 
 	for _, opt := range opts {
@@ -793,19 +824,17 @@ type memoryGarbageCollectionPolicy interface {
 type garbageCollectIfExpired struct {
 	expiryTime time.Duration
 
-	// cancelImageUnpack still cancel all layer unpack jobs associated with an image unpack.
-	cancelImageUnpack func(string) error
+	// cancelLayerUnpack will cancel that layer unpack job.
+	cancelLayerUnpack func(string) error
 }
 
 // MarkAndSweep marks all in-progress jobs which that were created before the expiry time for garbage collection.
 func (p garbageCollectIfExpired) MarkAndSweep(ctx context.Context, jobs *unpackJobsSnapshot) {
 	logger := log.G(ctx).WithField("policy", "Expired")
-	cancelledImages := map[string]struct{}{}
+	cancelledLayers := map[string]struct{}{}
 
 	maps.DeleteFunc(jobs.inMemory, func(id string, layer *layerUnpackJobSnapshot) bool {
-		// All layers from the same image share the creation timestamp. Cancelling one layer will cancel all of them.
-		// So just remove the layer from the snapshot if it has already been cancelled.
-		if _, ok := cancelledImages[layer.imageID]; ok {
+		if _, ok := cancelledLayers[id]; ok {
 			return true
 		}
 
@@ -813,11 +842,11 @@ func (p garbageCollectIfExpired) MarkAndSweep(ctx context.Context, jobs *unpackJ
 			jobCtxLogger := logger.WithField("id", id)
 			jobCtxLogger.Trace("Marked for cleanup")
 
-			if err := p.cancelImageUnpack(layer.imageID); err != nil {
+			if err := p.cancelLayerUnpack(id); err != nil {
 				jobCtxLogger.WithError(err).Error("Failed to cancel job")
 				return false
 			}
-			cancelledImages[layer.imageID] = struct{}{}
+			cancelledLayers[id] = struct{}{}
 
 			jobCtxLogger.Trace("Reclaimed memory")
 			return true
@@ -843,8 +872,8 @@ func newGarbageCollector(interval time.Duration, jobs *unpackJobs, storage Layer
 		unusedMemory: []memoryGarbageCollectionPolicy{
 			garbageCollectIfExpired{
 				expiryTime: garbageCollectionJobExpiration,
-				cancelImageUnpack: func(id string) error {
-					return jobs.RemoveImageWithError(id, ErrImageUnpackJobExpired)
+				cancelLayerUnpack: func(id string) error {
+					return jobs.ForceRemoveWithID(id)
 				},
 			},
 		},
