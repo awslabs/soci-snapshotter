@@ -181,6 +181,10 @@ type httpFetcher struct {
 	digest        digest.Digest
 	singleRange   bool
 	singleRangeMu sync.Mutex
+	// customHeaders is added to every request this fetcher makes, including
+	// background, liveness, and post-redirect fetches (e.g. to a CDN or object
+	// store). Reserved headers are never forwarded (see socihttp.ReservedHeaders).
+	customHeaders http.Header
 }
 
 func newHTTPFetcher(ctx context.Context, fc *fetcherConfig) (*httpFetcher, error) {
@@ -263,11 +267,12 @@ func newHTTPFetcher(ctx context.Context, fc *fetcherConfig) (*httpFetcher, error
 
 		// Hit one destination
 		return &httpFetcher{
-			roundTripper: tr,
-			scope:        pullScope,
-			registryURL:  registryURL,
-			realURL:      realURL,
-			digest:       digest,
+			roundTripper:  tr,
+			scope:         pullScope,
+			registryURL:   registryURL,
+			realURL:       realURL,
+			digest:        digest,
+			customHeaders: socihttp.CustomHeaders(ctx),
 		}, nil
 	}
 
@@ -276,6 +281,7 @@ func newHTTPFetcher(ctx context.Context, fc *fetcherConfig) (*httpFetcher, error
 
 func (f *httpFetcher) fetch(ctx context.Context, rs []region, retry bool) (multipartReadCloser, error) {
 	ctx = docker.WithScope(ctx, f.scope)
+	ctx = socihttp.WithCustomHeaders(ctx, f.customHeaders)
 	if len(rs) == 0 {
 		return nil, ErrNoRegion
 	}
@@ -373,6 +379,7 @@ func (f *httpFetcher) fetch(ctx context.Context, rs []region, retry bool) (multi
 func (f *httpFetcher) check() error {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
+	ctx = socihttp.WithCustomHeaders(ctx, f.customHeaders)
 	f.urlMu.Lock()
 	url := f.realURL
 	f.urlMu.Unlock()
@@ -403,6 +410,7 @@ func (f *httpFetcher) check() error {
 }
 
 func (f *httpFetcher) refreshURL(ctx context.Context) error {
+	ctx = socihttp.WithCustomHeaders(ctx, f.customHeaders)
 	newRealURL, err := redirect(ctx, f.registryURL, f.roundTripper)
 	if err != nil {
 		return err
