@@ -17,7 +17,11 @@
 package fs
 
 import (
+	"bytes"
+	"compress/gzip"
 	"context"
+	"errors"
+	"io"
 	"os"
 	"path/filepath"
 	"slices"
@@ -26,8 +30,13 @@ import (
 	"time"
 
 	"github.com/awslabs/soci-snapshotter/config"
+	"github.com/awslabs/soci-snapshotter/util/testutil"
+	"github.com/containerd/containerd/v2/pkg/reference"
 	"github.com/google/go-cmp/cmp"
+	"github.com/opencontainers/go-digest"
+	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"go.uber.org/goleak"
+	"oras.land/oras-go/v2/content/memory"
 )
 
 const (
@@ -557,4 +566,148 @@ func TestParallelStructCreation(t *testing.T) {
 		})
 	}
 
+}
+
+// buildTestLayer returns a tarball and a gzip of it, along with a descriptor for
+// the compressed bytes. compressionLevel lets callers produce different compressed
+// bytes for identical contents.
+func buildTestLayer(t *testing.T, contents string, compressionLevel int) (tarball, compressed []byte, desc ocispec.Descriptor) {
+	t.Helper()
+
+	tarball, err := io.ReadAll(testutil.BuildTar([]testutil.TarEntry{
+		testutil.File("hello.txt", contents),
+	}))
+	if err != nil {
+		t.Fatalf("failed to build tarball: %v", err)
+	}
+
+	// Compressed by hand rather than with BuildTarGz, since callers need the
+	// tarball digest for the diffID as well as the compressed digest.
+	var buf bytes.Buffer
+	gzw, err := gzip.NewWriterLevel(&buf, compressionLevel)
+	if err != nil {
+		t.Fatalf("failed to create gzip writer: %v", err)
+	}
+	if _, err := gzw.Write(tarball); err != nil {
+		t.Fatalf("failed to compress tarball: %v", err)
+	}
+	if err := gzw.Close(); err != nil {
+		t.Fatalf("failed to close gzip writer: %v", err)
+	}
+
+	compressed = buf.Bytes()
+	return tarball, compressed, ocispec.Descriptor{
+		MediaType: ocispec.MediaTypeImageLayerGzip,
+		Digest:    digest.FromBytes(compressed),
+		Size:      int64(len(compressed)),
+	}
+}
+
+// newTestLayerJob returns a layer unpack job for desc with parallel pull enabled
+// and unpacked layers discarded, which is the configuration that constructs a
+// compressed verifier.
+func newTestLayerJob(t *testing.T, ctx context.Context, cancel context.CancelCauseFunc, desc ocispec.Descriptor) *layerUnpackJob {
+	t.Helper()
+
+	storage, err := newLayerUnpackDiskStorage(t.TempDir())
+	if err != nil {
+		t.Fatalf("failed to create layer unpack storage: %v", err)
+	}
+	jobs, err := newUnpackJobs(ctx, &config.Parallel{
+		Enable:         true,
+		ParallelConfig: config.ParallelConfig{DiscardUnpackedLayers: true},
+	}, storage)
+	if err != nil {
+		t.Fatalf("failed to create unpack jobs: %v", err)
+	}
+	imageJob := jobs.GetOrAddImageJob(desc.Digest.String(), cancel)
+	layerJob, err := jobs.AddLayerJob(imageJob, desc.Digest.String())
+	if err != nil {
+		t.Fatalf("failed to add layer job: %v", err)
+	}
+	return layerJob
+}
+
+// TestLocalContentStoreHitPassesDigestValidation ensures digest validation passes
+// for content already present in the content store.
+func TestLocalContentStoreHitPassesDigestValidation(t *testing.T) {
+	ctx, cancel := context.WithCancelCause(context.Background())
+	defer cancel(nil)
+
+	rnd := testutil.NewTestRand(t)
+	tarball, compressed, desc := buildTestLayer(t, string(rnd.RandomByteData(4096)), gzip.DefaultCompression)
+
+	localStore := &fakeLocalStore{Store: memory.New()}
+	if err := localStore.Push(ctx, desc, bytes.NewReader(compressed)); err != nil {
+		t.Fatalf("failed to seed the local store: %v", err)
+	}
+
+	// The same compressed verifier is shared between the archive and the fetcher.
+	compressedVerifier := newAsyncVerifier(desc.Digest.Verifier())
+	archive := NewLayerArchive(compressedVerifier, newAsyncVerifier(digest.FromBytes(tarball).Verifier()), nil, nil)
+	fetcher, err := newParallelArtifactFetcher(reference.Spec{Locator: "example.com/repo"},
+		localStore, newFakeRemoteStore(compressed),
+		newTestLayerJob(t, ctx, cancel, desc), 0, compressedVerifier)
+	if err != nil {
+		t.Fatalf("failed to create fetcher: %v", err)
+	}
+
+	rc, local, err := fetcher.Fetch(ctx, desc)
+	if err != nil {
+		t.Fatalf("failed to fetch layer: %v", err)
+	}
+	defer rc.Close()
+	if !local {
+		t.Fatal("expected the layer to be served from the local content store")
+	}
+
+	root := t.TempDir()
+	if _, err := archive.Apply(ctx, root, rc); err != nil {
+		t.Fatalf("failed to apply layer: %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(root, "hello.txt")); err != nil {
+		t.Fatalf("layer was not applied: %v", err)
+	}
+}
+
+// TestRemoteFetchStillVerifiesCompressedDigest ensures layers fetched from the
+// remote are still checked against the descriptor digest. The remote serves the
+// same contents at a different compression level, so the diffID matches but the
+// compressed digest does not.
+func TestRemoteFetchStillVerifiesCompressedDigest(t *testing.T) {
+	ctx, cancel := context.WithCancelCause(context.Background())
+	defer cancel(nil)
+
+	rnd := testutil.NewTestRand(t)
+	contents := string(rnd.RandomByteData(4096))
+	tarball, _, desc := buildTestLayer(t, contents, gzip.DefaultCompression)
+	_, recompressed, _ := buildTestLayer(t, contents, gzip.BestSpeed)
+
+	if bytes.Equal(recompressed, nil) || int64(len(recompressed)) == desc.Size {
+		t.Fatal("expected the two compression levels to produce different bytes")
+	}
+
+	compressedVerifier := newAsyncVerifier(desc.Digest.Verifier())
+	archive := NewLayerArchive(compressedVerifier, newAsyncVerifier(digest.FromBytes(tarball).Verifier()), nil, nil)
+	// The local store is empty, so the layer is fetched from the remote.
+	fetcher, err := newParallelArtifactFetcher(reference.Spec{Locator: "example.com/repo"},
+		&fakeLocalStore{Store: memory.New()}, newFakeRemoteStore(recompressed),
+		newTestLayerJob(t, ctx, cancel, desc), 0, compressedVerifier)
+	if err != nil {
+		t.Fatalf("failed to create fetcher: %v", err)
+	}
+
+	rc, local, err := fetcher.Fetch(ctx, desc)
+	if err != nil {
+		t.Fatalf("failed to fetch layer: %v", err)
+	}
+	defer rc.Close()
+	if local {
+		t.Fatal("expected the layer to be fetched from the remote")
+	}
+
+	_, err = archive.Apply(ctx, t.TempDir(), rc)
+	if !errors.Is(err, ErrCompressedDigestMismatch) {
+		t.Fatalf("expected a compressed digest mismatch, got: %v", err)
+	}
 }
