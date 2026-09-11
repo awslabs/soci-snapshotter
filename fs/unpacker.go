@@ -32,6 +32,15 @@ import (
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 )
 
+var (
+	// ErrUncompressedDigestMismatch is returned when a layer's decompressed bytes
+	// do not match the diffID in the image manifest.
+	ErrUncompressedDigestMismatch = errors.New("uncompressed digests did not match")
+	// ErrCompressedDigestMismatch is returned when a layer's compressed bytes do
+	// not match the digest in its descriptor.
+	ErrCompressedDigestMismatch = errors.New("compressed digests did not match")
+)
+
 type Unpacker interface {
 	// Unpack takes care of getting the layer specified by descriptor `desc`,
 	// decompressing it, putting it in the directory with the path `mountpoint`
@@ -57,9 +66,10 @@ type asyncVerifier struct {
 	v       digest.Verifier
 	waitCh  chan struct{}
 	started bool
-	// externallyVerified records that the content was already validated by
-	// another component, so this verifier has nothing left to check.
-	externallyVerified bool
+	// locallyVerified is set when the content came from the local content
+	// store, which verifies digests on ingest. It is written in Fetch and read
+	// in Apply, which run in that order on the same goroutine in Unpack.
+	locallyVerified bool
 }
 
 func newAsyncVerifier(v digest.Verifier) *asyncVerifier {
@@ -83,23 +93,18 @@ func (av *asyncVerifier) AsyncVerify(reader io.ReadCloser) {
 	av.started = true
 }
 
-// MarkExternallyVerified records that the content this verifier guards was
-// validated elsewhere, for example by the content store when the blob was
-// ingested. Without this, a layer served from the local content store is never
-// passed through the verifier, and Verified reports false for content that is
-// provably correct.
-func (av *asyncVerifier) MarkExternallyVerified() {
-	if av == nil || av.v == nil {
+func (av *asyncVerifier) MarkLocallyVerified() {
+	if av == nil {
 		return
 	}
-	av.externallyVerified = true
+	av.locallyVerified = true
 }
 
 func (av *asyncVerifier) Verified(ctx context.Context) bool {
 	if av == nil || av.v == nil {
 		return true
 	}
-	if av.externallyVerified {
+	if av.locallyVerified {
 		return true
 	}
 	if !av.started {
@@ -233,10 +238,10 @@ func (la *layerArchive) Apply(ctx context.Context, root string, r io.Reader, opt
 	}
 
 	if !la.uncompressed.Verified(ctx) {
-		return 0, errors.New("uncompressed digests did not match")
+		return 0, ErrUncompressedDigestMismatch
 	}
 	if !la.compressed.Verified(ctx) {
-		return 0, errors.New("compressed digests did not match")
+		return 0, ErrCompressedDigestMismatch
 	}
 
 	return n, nil
