@@ -145,6 +145,13 @@ func (ac *AuthClient) Do(req *http.Request) (*http.Response, error) {
 		for k := range ac.header {
 			req.Header.Set(k, ac.header.Get(k))
 		}
+		for k, vals := range CustomHeaders(ctx) {
+			name := http.CanonicalHeaderKey(k)
+			if _, ok := ReservedHeaders[name]; ok {
+				continue
+			}
+			req.Header[name] = append([]string(nil), vals...)
+		}
 		authReq, err := ac.handler.AuthorizeRequest(ctx, req)
 		if err != nil {
 			return nil, fmt.Errorf("%w: %w", ErrFailedToAuthorizeRequest, err)

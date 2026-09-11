@@ -46,6 +46,7 @@ import (
 	commonmetrics "github.com/awslabs/soci-snapshotter/fs/metrics/common"
 	"github.com/awslabs/soci-snapshotter/fs/source"
 	"github.com/awslabs/soci-snapshotter/idtools"
+	socihttp "github.com/awslabs/soci-snapshotter/internal/http"
 	"github.com/containerd/containerd/v2/core/mount"
 	"github.com/containerd/containerd/v2/core/snapshots"
 	"github.com/containerd/containerd/v2/core/snapshots/storage"
@@ -401,6 +402,8 @@ func (o *snapshotter) Prepare(ctx context.Context, key, parent string, opts ...s
 	//       or not, using the key `remoteSnapshotLogKey` defined in the above. This
 	//       log is used by tests in this project.
 	lCtx := log.WithLogger(ctx, log.G(ctx).WithField("key", key).WithField("parent", parent))
+	// Add the custom request headers, set via snapshot labels, to the HTTP requests.
+	lCtx = socihttp.WithCustomHeaders(lCtx, source.HeadersFromLabels(lCtx, base.Labels))
 	log.G(lCtx).Debug("preparing snapshot")
 
 	var deferToContainerRuntime bool
@@ -1169,6 +1172,9 @@ func (o *snapshotter) restoreRemoteSnapshot(ctx context.Context) error {
 			return ErrNoNamespace
 		}
 		ctx = namespaces.WithNamespace(ctx, ns)
+		// Seed the custom headers here too: Prepare seeds them on the pull path, but
+		// restart-restore reaches prepareRemoteSnapshot through this path instead.
+		ctx = socihttp.WithCustomHeaders(ctx, source.HeadersFromLabels(ctx, info.Labels))
 		if err := o.prepareRemoteSnapshot(ctx, info.Name, info.Labels); err != nil {
 			if o.allowInvalidMountsOnRestart {
 				logrus.WithError(err).Warnf("failed to restore remote snapshot %s; remove this snapshot manually", info.Name)

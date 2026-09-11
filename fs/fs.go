@@ -552,6 +552,7 @@ func (fs *filesystem) preloadAllLayers(ctx context.Context, desc ocispec.Descrip
 
 	premountCtx, cancel := context.WithCancelCause(context.Background())
 	premountCtx = namespaces.WithNamespace(premountCtx, ns)
+	premountCtx = socihttp.WithCustomHeaders(premountCtx, socihttp.CustomHeaders(ctx))
 
 	premountAll := func() error {
 		// We only want to premount all layers that don't exist yet.
@@ -1126,6 +1127,7 @@ func (fs *filesystem) Mount(ctx context.Context, mountpoint string, labels map[s
 		fs.pr.Enqueue(imgNameAndDigest, func(ctx context.Context) string {
 			// Use context from the preresolver, but append namespace from current ctx
 			ctx = namespaces.WithNamespace(ctx, ns)
+			ctx = socihttp.WithCustomHeaders(ctx, source.HeadersFromLabels(ctx, labels))
 
 			prefetchDesc := c.findPrefetchArtifact(desc.Digest.String())
 
@@ -1239,6 +1241,8 @@ func (fs *filesystem) setupFuseServer(ctx context.Context, mountpoint string, no
 func (fs *filesystem) Check(ctx context.Context, mountpoint string, labels map[string]string) error {
 
 	ctx = log.WithLogger(ctx, log.G(ctx).WithField("mountpoint", mountpoint))
+	// Seed custom headers: a refresh rebuilds the fetcher, which reads them from ctx.
+	ctx = socihttp.WithCustomHeaders(ctx, source.HeadersFromLabels(ctx, labels))
 
 	fs.layerMu.Lock()
 	l := fs.layer[mountpoint]
