@@ -35,16 +35,20 @@ package source
 import (
 	"context"
 	"fmt"
+	"net/http"
 	"strconv"
 	"strings"
 
+	socihttp "github.com/awslabs/soci-snapshotter/internal/http"
 	"github.com/containerd/containerd/v2/core/images"
 	"github.com/containerd/containerd/v2/core/remotes/docker"
 	"github.com/containerd/containerd/v2/pkg/labels"
 	"github.com/containerd/containerd/v2/pkg/reference"
 	ctdsnapshotters "github.com/containerd/containerd/v2/pkg/snapshotters"
+	"github.com/containerd/log"
 	digest "github.com/opencontainers/go-digest"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
+	"golang.org/x/net/http/httpguts"
 )
 
 // GetSources is a function for converting snapshot labels into typed blob sources
@@ -90,7 +94,54 @@ const (
 
 	// HasSociIndexDigest is a label that tells if the layer was pulled with a SOCI index.
 	HasSociIndexDigest = "containerd.io/snapshot/remote/has.soci.index.digest"
+
+	// CustomHeaderLabelPrefix marks a snapshot label that carries a custom HTTP
+	// header for the snapshotter's registry requests. The header name is the label
+	// key after the prefix. The header value is the label value. For example:
+	//	containerd.io/snapshot/remote/soci.header.x-request-id = "<value>"
+	CustomHeaderLabelPrefix = "containerd.io/snapshot/remote/soci.header."
 )
+
+// HeadersFromLabels returns the custom headers from the CustomHeaderLabelPrefix
+// labels. It uses each label's suffix as the header name.
+//
+// HeadersFromLabels skips a label and logs a warning when:
+//   - the header name is empty (the label is exactly the prefix), or
+//   - the header value is empty, or
+//   - the header name is reserved (see [socihttp.ReservedHeaders]), or
+//   - the name or value is not a valid HTTP header field.
+func HeadersFromLabels(ctx context.Context, labels map[string]string) http.Header {
+	h := http.Header{}
+	for k, v := range labels {
+		name := strings.TrimPrefix(k, CustomHeaderLabelPrefix)
+		if name == k {
+			// The label does not carry a custom header. Skip it silently.
+			continue
+		}
+		if name == "" {
+			log.G(ctx).Warn("ignoring custom header from snapshot label with an empty name")
+			continue
+		}
+		if v == "" {
+			log.G(ctx).WithField("header", name).Warn("ignoring custom header from snapshot label with an empty value")
+			continue
+		}
+		if _, ok := socihttp.ReservedHeaders[http.CanonicalHeaderKey(name)]; ok {
+			log.G(ctx).WithField("header", name).Warn("ignoring reserved custom header from snapshot label")
+			continue
+		}
+		if !httpguts.ValidHeaderFieldName(name) {
+			log.G(ctx).WithField("header", name).Warn("ignoring custom header with an invalid name from snapshot label")
+			continue
+		}
+		if !httpguts.ValidHeaderFieldValue(v) {
+			log.G(ctx).WithField("header", name).Warn("ignoring custom header with an invalid value from snapshot label")
+			continue
+		}
+		h.Set(name, v)
+	}
+	return h
+}
 
 // RegistryHosts is copied from [github.com/awslabs/soci-snapshotter/service/resolver.RegistryHosts]
 // to reduce package dependency
