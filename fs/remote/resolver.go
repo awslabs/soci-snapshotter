@@ -181,6 +181,10 @@ type httpFetcher struct {
 	digest        digest.Digest
 	singleRange   bool
 	singleRangeMu sync.Mutex
+	// customHeaders is added to every request this fetcher makes, including
+	// background, liveness, and post-redirect fetches (e.g. to a CDN or object
+	// store). Reserved headers are never forwarded (see socihttp.ReservedHeaders).
+	customHeaders http.Header
 }
 
 func newHTTPFetcher(ctx context.Context, fc *fetcherConfig) (*httpFetcher, error) {
@@ -263,11 +267,12 @@ func newHTTPFetcher(ctx context.Context, fc *fetcherConfig) (*httpFetcher, error
 
 		// Hit one destination
 		return &httpFetcher{
-			roundTripper: tr,
-			scope:        pullScope,
-			registryURL:  registryURL,
-			realURL:      realURL,
-			digest:       digest,
+			roundTripper:  tr,
+			scope:         pullScope,
+			registryURL:   registryURL,
+			realURL:       realURL,
+			digest:        digest,
+			customHeaders: socihttp.CustomHeaders(ctx),
 		}, nil
 	}
 
@@ -276,6 +281,7 @@ func newHTTPFetcher(ctx context.Context, fc *fetcherConfig) (*httpFetcher, error
 
 func (f *httpFetcher) fetch(ctx context.Context, rs []region, retry bool) (multipartReadCloser, error) {
 	ctx = docker.WithScope(ctx, f.scope)
+	ctx = socihttp.WithCustomHeaders(ctx, f.customHeaders)
 	if len(rs) == 0 {
 		return nil, ErrNoRegion
 	}
@@ -308,8 +314,8 @@ func (f *httpFetcher) fetch(ctx context.Context, rs []region, retry bool) (multi
 	for _, reg := range requests {
 		ranges += fmt.Sprintf("%d-%d,", reg.b, reg.e)
 	}
-	req.Header.Add("Range", fmt.Sprintf("bytes=%s", ranges[:len(ranges)-1]))
-	req.Header.Add("Accept-Encoding", "identity")
+	req.Header.Add(socihttp.HeaderRange, fmt.Sprintf("bytes=%s", ranges[:len(ranges)-1]))
+	req.Header.Add(socihttp.HeaderAcceptEncoding, "identity")
 
 	// Recording the roundtrip latency for remote registry GET operation.
 	start := time.Now()
@@ -373,6 +379,7 @@ func (f *httpFetcher) fetch(ctx context.Context, rs []region, retry bool) (multi
 func (f *httpFetcher) check() error {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
+	ctx = socihttp.WithCustomHeaders(ctx, f.customHeaders)
 	f.urlMu.Lock()
 	url := f.realURL
 	f.urlMu.Unlock()
@@ -380,7 +387,7 @@ func (f *httpFetcher) check() error {
 	if err != nil {
 		return fmt.Errorf("check failed: %w", err)
 	}
-	req.Header.Set("Range", "bytes=0-1")
+	req.Header.Set(socihttp.HeaderRange, "bytes=0-1")
 	res, err := f.roundTripper.RoundTrip(req)
 	if err != nil {
 		return fmt.Errorf("check failed: %w: %w", ErrRequestFailed, err)
@@ -403,6 +410,7 @@ func (f *httpFetcher) check() error {
 }
 
 func (f *httpFetcher) refreshURL(ctx context.Context) error {
+	ctx = socihttp.WithCustomHeaders(ctx, f.customHeaders)
 	newRealURL, err := redirect(ctx, f.registryURL, f.roundTripper)
 	if err != nil {
 		return err
@@ -441,7 +449,7 @@ func redirect(ctx context.Context, blobURL string, tr http.RoundTripper) (string
 	if err != nil {
 		return "", err
 	}
-	req.Header.Set("Range", "bytes=0-1")
+	req.Header.Set(socihttp.HeaderRange, "bytes=0-1")
 
 	// The underlying http.Client will follow up to 10 redirects.
 	// See: https://pkg.go.dev/net/http#Get
@@ -496,7 +504,7 @@ func GetHeader(ctx context.Context, realURL string, rt http.RoundTripper) (*http
 			return nil, err
 		}
 		if i == 1 {
-			req.Header.Set("Range", "bytes=0-1")
+			req.Header.Set(socihttp.HeaderRange, "bytes=0-1")
 		}
 
 		resp, err := rt.RoundTrip(req)
@@ -526,7 +534,7 @@ func GetHeaderWithGet(ctx context.Context, realURL string, rt http.RoundTripper)
 			return nil, err
 		}
 		if i == 0 {
-			req.Header.Set("Range", "bytes=0-1")
+			req.Header.Set(socihttp.HeaderRange, "bytes=0-1")
 		}
 
 		resp, err := rt.RoundTrip(req)

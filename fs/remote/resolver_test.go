@@ -402,6 +402,64 @@ func (u *userAgentRoundTripper) RoundTrip(req *http.Request) (*http.Response, er
 	}, nil
 }
 
+// headerCaptureRoundTripper records the headers of the request it sees.
+type headerCaptureRoundTripper struct{ got http.Header }
+
+func (h *headerCaptureRoundTripper) RoundTrip(req *http.Request) (*http.Response, error) {
+	h.got = req.Header.Clone()
+	header := make(http.Header)
+	header.Add("Content-Length", "4")
+	return &http.Response{
+		StatusCode: http.StatusOK,
+		Request:    req,
+		Header:     header,
+		Body:       io.NopCloser(bytes.NewReader([]byte("test"))),
+	}, nil
+}
+
+// newTestAuthClient wraps rt in an AuthClient
+func newTestAuthClient(rt http.RoundTripper) *socihttp.AuthClient {
+	retryClient := rhttp.NewClient()
+	retryClient.HTTPClient.Transport = rt
+	ac, _ := socihttp.NewAuthClient(&emptyAuthHandler{}, socihttp.WithRetryableClient(retryClient), socihttp.WithHeader(http.Header{}))
+	return ac
+}
+
+func TestCustomHeadersReachResolverRequest(t *testing.T) {
+	refspec, err := reference.Parse("dummyexample.com/library/test")
+	if err != nil {
+		t.Fatalf("failed to parse reference: %v", err)
+	}
+
+	custom := http.Header{"X-Request-Id": {"caller-123"}}
+	ctx := socihttp.WithCustomHeaders(context.Background(), custom)
+	rt := &headerCaptureRoundTripper{}
+	hosts := []docker.RegistryHost{{
+		Client:       &http.Client{Transport: newTestAuthClient(rt)},
+		Host:         refspec.Hostname(),
+		Scheme:       "https",
+		Path:         "/v2",
+		Capabilities: docker.HostCapabilityPull,
+	}}
+	fetcher, err := newHTTPFetcher(ctx, &fetcherConfig{
+		hosts:   hosts,
+		refspec: refspec,
+		desc:    ocispec.Descriptor{Digest: digest.FromString("dummy"), Size: 1},
+	})
+	if err != nil {
+		t.Fatalf("newHTTPFetcher: %v", err)
+	}
+	reader, err := fetcher.fetch(context.Background(), []region{{b: 0, e: 1}}, true)
+	if err != nil {
+		t.Fatalf("fetch: %v", err)
+	}
+	defer reader.Close()
+
+	if got := rt.got.Get("X-Request-Id"); got != "caller-123" {
+		t.Fatalf("X-Request-Id = %q, want %q", got, "caller-123")
+	}
+}
+
 func TestParseSize(t *testing.T) {
 	tc := []struct {
 		name         string

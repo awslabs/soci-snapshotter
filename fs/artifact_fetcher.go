@@ -143,7 +143,7 @@ func GetContentWithRange(ctx context.Context, realURL string, rt http.RoundTripp
 		return nil, err
 	}
 	r := fmt.Sprintf("bytes=%d-%d", lower, upper)
-	req.Header.Set("Range", r)
+	req.Header.Set(socihttp.HeaderRange, r)
 
 	resp, err := rt.RoundTrip(req)
 	if err != nil {
