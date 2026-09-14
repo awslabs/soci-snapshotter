@@ -489,7 +489,6 @@ func (fs *filesystem) MountParallel(ctx context.Context, mountpoint string, labe
 	}
 	// download the target layer
 	s := src[0]
-	client := s.Hosts[0].Client
 	refspec, err := reference.Parse(imageRef)
 	if err != nil {
 		return fmt.Errorf("cannot parse image ref (%s): %w", imageRef, err)
@@ -501,7 +500,7 @@ func (fs *filesystem) MountParallel(ctx context.Context, mountpoint string, labe
 	}
 	// If lazy-loading is disabled and the image has no jobs associated with it, start premounting all jobs
 	if !fs.inProgressImageUnpacks.ImageExists(imageDigest) {
-		err := fs.preloadAllLayers(ctx, desc, imageDigest, refspec, client)
+		err := fs.preloadAllLayers(ctx, desc, imageDigest, refspec, s.Hosts)
 		if err != nil {
 			return fmt.Errorf("failed to preload layers for image manifest digest %s: %w", imageDigest, err)
 		}
@@ -514,7 +513,7 @@ func (fs *filesystem) MountParallel(ctx context.Context, mountpoint string, labe
 	return nil
 }
 
-func (fs *filesystem) preloadAllLayers(ctx context.Context, desc ocispec.Descriptor, imageDigest string, refspec reference.Spec, cachedClient *http.Client) error {
+func (fs *filesystem) preloadAllLayers(ctx context.Context, desc ocispec.Descriptor, imageDigest string, refspec reference.Spec, hosts []docker.RegistryHost) error {
 	manifest, err := fs.getImageManifest(ctx, imageDigest)
 	if err != nil {
 		return fmt.Errorf("cannot get image manifest: %w", err)
@@ -528,24 +527,14 @@ func (fs *filesystem) preloadAllLayers(ctx context.Context, desc ocispec.Descrip
 	if !ok {
 		return errors.New("namespace not attached to context")
 	}
-	// Clone client if it's our internal [socihttp.AuthClient]
-	// so that this image pull request has an isolated client reference.
-	client := cachedClient
-	if authClient, ok := cachedClient.Transport.(*socihttp.AuthClient); ok {
-		retryClient := resolver.CloneRetryableClient(authClient.Client())
-		// The clone will have a cleaned cache
-		newAuthClient := authClient.CloneWithNewClient(retryClient)
-		// It's worth noting we don't ever directly clear the cache after this.
-		// This client is used to create the remoteStore, which falls
-		// out of scope after all layers are finished premounting,
-		// which should trigger Go's garbage collector, so it should
-		// be safe to never clear the cache and let Go handle it.
-		newAuthClient.CacheRedirects(true)
-		client = &http.Client{
-			Transport: newAuthClient,
-		}
+	// Fetch from each configured host in order (mirrors first, then the image's registry),
+	// each with its own scheme, so an insecure mirror does not make the registry plain HTTP.
+	pullHosts := make([]docker.RegistryHost, len(hosts))
+	for i, h := range hosts {
+		h.Client = clonePullClient(h.Client)
+		pullHosts[i] = h
 	}
-	remoteStore, err := newRemoteBlobStore(refspec, client, fs.isInsecureHost(refspec.Hostname()))
+	remoteStore, err := newRemoteBlobStoreFromHosts(refspec, pullHosts)
 	if err != nil {
 		return fmt.Errorf("cannot create remote store: %w", err)
 	}
@@ -589,6 +578,30 @@ func (fs *filesystem) preloadAllLayers(ctx context.Context, desc ocispec.Descrip
 		fs.inProgressImageUnpacks.RemoveImageWithError(imageDigest, err)
 	}
 	return err
+}
+
+// clonePullClient clones client if it's our internal [socihttp.AuthClient]
+// so that an image pull request has an isolated client reference.
+func clonePullClient(client *http.Client) *http.Client {
+	if client == nil {
+		return client
+	}
+	authClient, ok := client.Transport.(*socihttp.AuthClient)
+	if !ok {
+		return client
+	}
+	retryClient := resolver.CloneRetryableClient(authClient.Client())
+	// The clone will have a cleaned cache
+	newAuthClient := authClient.CloneWithNewClient(retryClient)
+	// It's worth noting we don't ever directly clear the cache after this.
+	// This client is used to create the remoteStore, which falls
+	// out of scope after all layers are finished premounting,
+	// which should trigger Go's garbage collector, so it should
+	// be safe to never clear the cache and let Go handle it.
+	newAuthClient.CacheRedirects(true)
+	return &http.Client{
+		Transport: newAuthClient,
+	}
 }
 
 func (fs *filesystem) premount(ctx context.Context, desc ocispec.Descriptor, refspec reference.Spec, remoteStore resolverStorage, diffIDMap map[string]digest.Digest, layerJob *layerUnpackJob) error {

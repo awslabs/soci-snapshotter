@@ -25,12 +25,15 @@ import (
 	"mime"
 	"net/http"
 	"net/url"
+	"path"
 	"strconv"
+	"sync"
 	"time"
 
 	commonmetrics "github.com/awslabs/soci-snapshotter/fs/metrics/common"
 	sociremote "github.com/awslabs/soci-snapshotter/fs/remote"
 	socihttp "github.com/awslabs/soci-snapshotter/internal/http"
+	"github.com/awslabs/soci-snapshotter/service/resolver"
 	"github.com/awslabs/soci-snapshotter/soci"
 	"github.com/awslabs/soci-snapshotter/soci/store"
 	"github.com/awslabs/soci-snapshotter/util/ioutils"
@@ -76,6 +79,114 @@ type artifactFetcher struct {
 // get a 401 or 403 error.
 type orasBlobStore struct {
 	*remote.Repository
+
+	// hosts are the endpoints blobs are fetched from, in order: configured
+	// mirrors first and the image's registry last. When empty, blobs are
+	// fetched from the repository's registry only.
+	hosts []blobHost
+	// hostIndex remembers, per blob digest, which host served the initial
+	// fetch so that the ranged fetches for that blob start from the same host.
+	hostIndex sync.Map
+}
+
+// blobHost is a registry endpoint that can serve an image's blobs:
+// a configured mirror or the image's own registry.
+type blobHost struct {
+	client remote.Client
+	scheme string
+	host   string
+	path   string
+	// ns is the image's registry. It is sent to mirrors as the "ns" query
+	// parameter, as containerd does, so a mirror knows the upstream registry.
+	ns string
+}
+
+func (h blobHost) blobURL(repository, dgst string) string {
+	u := url.URL{
+		Scheme: h.scheme,
+		Host:   h.host,
+		Path:   path.Join(h.path, repository, "blobs", dgst),
+	}
+	if h.ns != "" {
+		u.RawQuery = url.Values{"ns": []string{h.ns}}.Encode()
+	}
+	return u.String()
+}
+
+// newBlobHosts converts registry hosts, as returned by the resolver with mirrors
+// first and the image's registry last, into blob endpoints.
+// Hosts without pull capability are skipped.
+func newBlobHosts(refspec reference.Spec, hosts []docker.RegistryHost) ([]blobHost, error) {
+	registryHost, err := docker.DefaultHost(refspec.Hostname())
+	if err != nil {
+		return nil, err
+	}
+	var blobHosts []blobHost
+	for _, h := range hosts {
+		if h.Capabilities&docker.HostCapabilityPull == 0 {
+			continue
+		}
+		bh := blobHost{
+			client: h.Client,
+			scheme: h.Scheme,
+			host:   h.Host,
+			path:   h.Path,
+		}
+		if bh.client == nil {
+			bh.client = http.DefaultClient
+		}
+		if bh.scheme == "" {
+			bh.scheme = resolver.DefaultScheme(h.Host)
+		}
+		if bh.path == "" {
+			bh.path = "/v2"
+		}
+		if h.Host != registryHost {
+			bh.ns = refspec.Hostname()
+		}
+		blobHosts = append(blobHosts, bh)
+	}
+	return blobHosts, nil
+}
+
+// newRemoteBlobStoreFromHosts creates a blob store that fetches blobs from
+// the given registry hosts in order, falling back to the next host when a host
+// cannot serve a blob.
+func newRemoteBlobStoreFromHosts(refspec reference.Spec, hosts []docker.RegistryHost) (*orasBlobStore, error) {
+	blobHosts, err := newBlobHosts(refspec, hosts)
+	if err != nil {
+		return nil, fmt.Errorf("cannot create blob hosts for %s: %w", refspec.Locator, err)
+	}
+	if len(blobHosts) == 0 {
+		return nil, fmt.Errorf("no registry hosts with pull capability for %s", refspec.Locator)
+	}
+	registryHost := blobHosts[len(blobHosts)-1]
+	client, ok := registryHost.client.(*http.Client)
+	if !ok {
+		client = http.DefaultClient
+	}
+	repo, err := newRemoteStore(refspec, client, registryHost.scheme == "http")
+	if err != nil {
+		return nil, fmt.Errorf("cannot create remote store: %w", err)
+	}
+	return &orasBlobStore{Repository: repo, hosts: blobHosts}, nil
+}
+
+// endpoints returns the hosts to try for a blob, in order.
+func (r *orasBlobStore) endpoints(reference string, ref registry.Reference) []blobHost {
+	if len(r.hosts) > 0 {
+		return r.hosts
+	}
+	scheme := resolver.DefaultScheme(reference)
+	if r.PlainHTTP {
+		scheme = "http"
+	}
+	return []blobHost{{
+		client: r.Client,
+		scheme: scheme,
+		host:   ref.Host(),
+		path:   "/v2",
+	}}
 }
 
 func newRemoteBlobStore(refspec reference.Spec, client *http.Client, plainHTTP bool) (*orasBlobStore, error) {
@@ -83,7 +194,7 @@ func newRemoteBlobStore(refspec reference.Spec, client *http.Client, plainHTTP b
 	if err != nil {
 		return nil, fmt.Errorf("cannot create remote store: %w", err)
 	}
-	return &orasBlobStore{repo}, nil
+	return &orasBlobStore{Repository: repo}, nil
 }
 
 // Logic mostly taken from oras-go. Try to resolve with a HEAD, then a GET request.
@@ -125,11 +236,41 @@ func (r *orasBlobStore) Resolve(ctx context.Context, reference string) (ocispec.
 
 // We use our own Fetch function to ensure sensitive information gets redacted from any Fetch calls
 func (r *orasBlobStore) Fetch(ctx context.Context, target ocispec.Descriptor) (io.ReadCloser, error) {
+	// Try mirrors first. The last host is the image's registry, fetched with ORAS below.
+	for i := 0; i+1 < len(r.hosts); i++ {
+		rc, err := r.fetchFromHost(ctx, r.hosts[i], target)
+		if err == nil {
+			return rc, nil
+		}
+		log.G(ctx).WithField("host", r.hosts[i].host).WithField("digest", target.Digest).WithError(err).
+			Debug("cannot fetch blob from mirror, trying next host")
+	}
 	rc, err := r.Repository.Fetch(ctx, target)
 	if err != nil {
 		return nil, cleanFetchErrors(err)
 	}
 	return rc, nil
+}
+
+// fetchFromHost fetches a whole blob from a single host.
+func (r *orasBlobStore) fetchFromHost(ctx context.Context, h blobHost, target ocispec.Descriptor) (io.ReadCloser, error) {
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, h.blobURL(r.Reference.Repository, target.Digest.String()), nil)
+	if err != nil {
+		return nil, err
+	}
+	resp, err := h.client.Do(req)
+	if err != nil {
+		return nil, cleanFetchErrors(err)
+	}
+	if resp.StatusCode != http.StatusOK {
+		socihttp.Drain(resp.Body)
+		return nil, fmt.Errorf("unexpected status code %d", resp.StatusCode)
+	}
+	if resp.ContentLength != -1 && resp.ContentLength != target.Size {
+		socihttp.Drain(resp.Body)
+		return nil, fmt.Errorf("unexpected content length %d, expected %d", resp.ContentLength, target.Size)
+	}
+	return resp.Body, nil
 }
 
 // GetContentWithRange gets the requested content in the byte range [lower, upper]
@@ -153,7 +294,8 @@ func GetContentWithRange(ctx context.Context, realURL string, rt http.RoundTripp
 	if resp.StatusCode == http.StatusOK || resp.StatusCode == http.StatusPartialContent {
 		return resp, nil
 	}
-	return nil, fmt.Errorf("error getting range: %w", err)
+	socihttp.Drain(resp.Body)
+	return nil, fmt.Errorf("error getting range: unexpected status code %d", resp.StatusCode)
 }
 
 // FetchRange returns the response body of the range requested.
@@ -166,19 +308,28 @@ func (r *orasBlobStore) FetchRange(ctx context.Context, reference string, lower,
 		return nil, err
 	}
 
-	tr := &clientWrapper{r.Client}
-	realURL := sociremote.CraftBlobURL(reference, ref, r.PlainHTTP)
-	resp, err := GetContentWithRange(ctx, realURL, tr, lower, upper)
-	if err != nil {
-		return nil, cleanFetchErrors(err)
+	hosts := r.endpoints(reference, ref)
+	start := 0
+	if i, ok := r.hostIndex.Load(ref.Reference); ok {
+		start = i.(int)
 	}
-
-	// Check if upstream allows for ranged GET requests
-	if rangeUnit := resp.Header.Get("Accept-Ranges"); rangeUnit != "bytes" {
-		resp.Body.Close()
-		return nil, fmt.Errorf("upstream repo does not support ranged GET requests")
+	var errs error
+	for i := start; i < len(hosts); i++ {
+		h := hosts[i]
+		resp, err := GetContentWithRange(ctx, h.blobURL(ref.Repository, ref.Reference), &clientWrapper{h.client}, lower, upper)
+		if err != nil {
+			errs = errors.Join(errs, cleanFetchErrors(err))
+			continue
+		}
+		// Check if upstream allows for ranged GET requests
+		if rangeUnit := resp.Header.Get("Accept-Ranges"); rangeUnit != "bytes" {
+			resp.Body.Close()
+			errs = errors.Join(errs, fmt.Errorf("upstream repo does not support ranged GET requests"))
+			continue
+		}
+		return resp.Body, nil
 	}
-	return resp.Body, nil
+	return nil, errs
 }
 
 func cleanFetchErrors(err error) error {
@@ -209,20 +360,22 @@ func (r *orasBlobStore) doInitialFetch(ctx context.Context, reference string) (b
 		return false, err
 	}
 
-	tr := &clientWrapper{r.Client}
-	url := sociremote.CraftBlobURL(reference, ref, r.PlainHTTP)
-	resp, err := sociremote.GetHeaderWithGet(ctx, url, tr)
-	if err != nil {
-		return false, fmt.Errorf("error getting header info: %w", err)
+	var errs error
+	for i, h := range r.endpoints(reference, ref) {
+		resp, err := sociremote.GetHeaderWithGet(ctx, h.blobURL(ref.Repository, ref.Reference), &clientWrapper{h.client})
+		if err != nil {
+			errs = errors.Join(errs, cleanFetchErrors(err))
+			log.G(ctx).WithField("host", h.host).WithField("digest", ref.Reference).WithError(err).
+				Debug("cannot get blob header from host, trying next host")
+			continue
+		}
+		socihttp.Drain(resp.Body)
+		r.hostIndex.Store(ref.Reference, i)
 
+		// Check if upstream allows for ranged GET requests
+		return resp.Header.Get("Accept-Ranges") == "bytes", nil
 	}
-	socihttp.Drain(resp.Body)
-
-	// Check if upstream allows for ranged GET requests
-	if rangeUnit := resp.Header.Get("Accept-Ranges"); rangeUnit == "bytes" {
-		return true, nil
-	}
-	return false, nil
+	return false, fmt.Errorf("error getting header info: %w", errs)
 }
 
 // This wrapper is to allow a [remote.Client] to implement the
