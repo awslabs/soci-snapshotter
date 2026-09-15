@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1788978429977,
+  "lastUpdate": 1789497245531,
   "repoUrl": "https://github.com/awslabs/soci-snapshotter",
   "entries": {
     "Soci Benchmark": [
@@ -20147,6 +20147,48 @@ window.BENCHMARK_DATA = {
           {
             "name": "SociFullECR-public-mongo-pullTaskDuration",
             "value": 2.1074,
+            "unit": "Seconds",
+            "extra": "P90"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "davbson@amazon.com",
+            "name": "David Son",
+            "username": "sondavidb"
+          },
+          "committer": {
+            "email": "55555210+sondavidb@users.noreply.github.com",
+            "name": "David Son",
+            "username": "sondavidb"
+          },
+          "distinct": true,
+          "id": "9569b301884a8057db71de75074096201304eae1",
+          "message": "Fix daemon crash in parallel pull\n\nThis is a slight redesign of the parallel pull workflow, where the crux\nof the issue lies in a nil dereference between when an image is getting\nready for a pull operation, and when it starts to premount. As there's\nno lock that stays in place between premounting and getting an image\nlayer job, there was a race that would cause it to panic.\n\nThis specific fix is solvable enough via better locking mechanisms,\nwhich this does fix, however there's a lot of messy contention here, in\nparticular with pulling the same image. We operate off the assumption\nthat the same diffID will never be in-flight in SOCI (CRI has an option\nfor this), but it doesn't stop separate requests from being\nde-duplicated, which is why we have a layerJob array instead of just a\nsingular one per image pull. Solving this means separating out contexts\nto each request instead of just the one per image job, which required a\nwhole restructuring. This should hopefully allow concurrent operations\nto both attempt an image pull, instead of one failure killing the whole\nimage operation.\n\nSigned-off-by: David Son <davbson@amazon.com>",
+          "timestamp": "2026-09-15T11:17:31-07:00",
+          "tree_id": "7402f9d01582947e5585243031170b79d7a07a4c",
+          "url": "https://github.com/awslabs/soci-snapshotter/commit/9569b301884a8057db71de75074096201304eae1"
+        },
+        "date": 1789497241484,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "SociFullECR-public-mongo-lazyTaskDuration",
+            "value": 5.507400000000001,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-mongo-localTaskDuration",
+            "value": 0.337,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-mongo-pullTaskDuration",
+            "value": 1.1096,
             "unit": "Seconds",
             "extra": "P90"
           }
