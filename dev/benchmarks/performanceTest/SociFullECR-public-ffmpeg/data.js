@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1789496982404,
+  "lastUpdate": 1789513342824,
   "repoUrl": "https://github.com/awslabs/soci-snapshotter",
   "entries": {
     "Soci Benchmark": [
@@ -20146,6 +20146,47 @@ window.BENCHMARK_DATA = {
           {
             "name": "SociFullECR-public-ffmpeg-pullTaskDuration",
             "value": 1.622,
+            "unit": "Seconds",
+            "extra": "P90"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "rdu@amazon.com",
+            "name": "Radu Constantinescu"
+          },
+          "committer": {
+            "email": "55555210+sondavidb@users.noreply.github.com",
+            "name": "David Son",
+            "username": "sondavidb"
+          },
+          "distinct": true,
+          "id": "7a806678f0b733660bbf0e07b61833b08ff9a26f",
+          "message": "feat: Add custom snapshot request headers\n\nAllow snapshot labels to add validated HTTP headers to registry requests. Protect snapshotter-owned headers and propagate caller headers through fetcher creation and request execution.\n\nSigned-off-by: Radu Constantinescu <rdu@amazon.com>",
+          "timestamp": "2026-09-15T15:52:13-07:00",
+          "tree_id": "643955239e339910dde11b074cb64b49b298b421",
+          "url": "https://github.com/awslabs/soci-snapshotter/commit/7a806678f0b733660bbf0e07b61833b08ff9a26f"
+        },
+        "date": 1789513337493,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "SociFullECR-public-ffmpeg-lazyTaskDuration",
+            "value": 0.4026,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-ffmpeg-localTaskDuration",
+            "value": 0.01,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-ffmpeg-pullTaskDuration",
+            "value": 2.0385999999999997,
             "unit": "Seconds",
             "extra": "P90"
           }
