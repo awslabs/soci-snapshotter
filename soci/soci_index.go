@@ -445,6 +445,9 @@ type IndexBuilder struct {
 	blobStore    store.Store
 	config       *builderConfig
 	ztocBuilder  *ztoc.Builder
+	// ownsArtifactsDb is true when the builder opened the artifacts database
+	// itself rather than receiving one via WithArtifactsDb.
+	ownsArtifactsDb bool
 }
 
 // NewIndexBuilder returns an `IndexBuilder` that is used to create soci indices.
@@ -460,20 +463,33 @@ func NewIndexBuilder(contentStore content.Store, blobStore store.Store, opts ...
 			return nil, err
 		}
 	}
+	ownsArtifactsDb := false
 	if cfg.artifactsDb == nil {
 		var err error
 		cfg.artifactsDb, err = NewDB(ArtifactsDbPath(config.DefaultSociSnapshotterRootPath))
 		if err != nil {
 			return nil, err
 		}
+		ownsArtifactsDb = true
 	}
 
 	return &IndexBuilder{
-		contentStore: contentStore,
-		blobStore:    blobStore,
-		config:       cfg,
-		ztocBuilder:  ztoc.NewBuilder(cfg.buildToolIdentifier),
+		contentStore:    contentStore,
+		blobStore:       blobStore,
+		config:          cfg,
+		ztocBuilder:     ztoc.NewBuilder(cfg.buildToolIdentifier),
+		ownsArtifactsDb: ownsArtifactsDb,
 	}, nil
+}
+
+// Close releases resources held by the IndexBuilder. It closes the artifacts
+// database if the builder opened it itself; a database provided via
+// WithArtifactsDb is left open for its owner to close.
+func (b *IndexBuilder) Close() error {
+	if b.ownsArtifactsDb {
+		return b.config.artifactsDb.Close()
+	}
+	return nil
 }
 
 // Build builds a soci index for `img` and pushes it with its corresponding zTOCs to the blob store.
