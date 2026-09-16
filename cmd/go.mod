@@ -16,7 +16,7 @@ require (
 	github.com/opencontainers/image-spec v1.1.1
 	github.com/pelletier/go-toml/v2 v2.4.3
 	github.com/sirupsen/logrus v1.10.2
-	github.com/urfave/cli/v3 v3.11.0
+	github.com/urfave/cli/v3 v3.12.0
 	go.etcd.io/bbolt v1.5.0
 	golang.org/x/sys v0.48.0
 	google.golang.org/grpc v1.83.2

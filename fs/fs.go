@@ -552,9 +552,8 @@ func (fs *filesystem) preloadAllLayers(ctx context.Context, desc ocispec.Descrip
 
 	premountCtx, cancel := context.WithCancelCause(context.Background())
 	premountCtx = namespaces.WithNamespace(premountCtx, ns)
-	imageJob := fs.inProgressImageUnpacks.GetOrAddImageJob(imageDigest, cancel)
+	premountCtx = socihttp.WithCustomHeaders(premountCtx, socihttp.CustomHeaders(ctx))
 
-	// If we fail anywhere after making the image job, we must remove the associated image job
 	premountAll := func() error {
 		// We only want to premount all layers that don't exist yet.
 		// Since layer order is deterministic, we can safely assume that
@@ -574,7 +573,7 @@ func (fs *filesystem) preloadAllLayers(ctx context.Context, desc ocispec.Descrip
 					}
 				}
 				if startPremounting {
-					layerJob, err := fs.inProgressImageUnpacks.AddLayerJob(imageJob, l.Digest.String())
+					layerJob, err := fs.inProgressImageUnpacks.AddLayerJob(imageDigest, l.Digest.String(), cancel)
 					if err != nil {
 						return fmt.Errorf("error adding layer job: %w", err)
 					}
@@ -586,7 +585,7 @@ func (fs *filesystem) preloadAllLayers(ctx context.Context, desc ocispec.Descrip
 	}
 
 	if err := premountAll(); err != nil {
-		fs.inProgressImageUnpacks.RemoveImageWithError(imageDigest, err)
+		cancel(err)
 	}
 	return err
 }
@@ -601,7 +600,8 @@ func (fs *filesystem) premount(ctx context.Context, desc ocispec.Descriptor, ref
 			err = cErr
 		}
 		if err != nil {
-			fs.inProgressImageUnpacks.RemoveImageWithError(layerJob.imageDigest, err)
+			layerJob.Cancel(err)
+			fs.inProgressImageUnpacks.Remove(layerJob)
 		}
 		layerJob.errCh <- err
 		close(layerJob.errCh)
@@ -643,16 +643,14 @@ func (fs *filesystem) premount(ctx context.Context, desc ocispec.Descriptor, ref
 func (fs *filesystem) rebase(ctx context.Context, dgst digest.Digest, imageDigest, mountpoint string) error {
 	layerJob, err := fs.inProgressImageUnpacks.Claim(imageDigest, dgst.String())
 	if err != nil {
-		fs.inProgressImageUnpacks.RemoveImageWithError(imageDigest, err)
 		return fmt.Errorf("error attempting to claim job to rebase: %w", err)
 	}
+
 	defer func() {
 		if err != nil {
 			layerJob.Cancel(err)
-			fs.inProgressImageUnpacks.RemoveImageWithError(layerJob.imageDigest, err)
-		} else {
-			fs.inProgressImageUnpacks.Remove(layerJob, err)
 		}
+		fs.inProgressImageUnpacks.Remove(layerJob)
 	}()
 
 	log.G(ctx).WithField("digest", dgst).Debug("claimed layer")
@@ -773,7 +771,7 @@ func (fs *filesystem) CleanImage(ctx context.Context, imgDigest string) error {
 		return nil
 	}
 
-	err := fs.inProgressImageUnpacks.RemoveImageWithError(imgDigest, context.Canceled)
+	err := fs.inProgressImageUnpacks.CleanImage(imgDigest)
 	if !errors.Is(err, ErrImageUnpackJobNotFound) && err != nil {
 		return fmt.Errorf("error removing image: %w", err)
 	}
@@ -1129,6 +1127,7 @@ func (fs *filesystem) Mount(ctx context.Context, mountpoint string, labels map[s
 		fs.pr.Enqueue(imgNameAndDigest, func(ctx context.Context) string {
 			// Use context from the preresolver, but append namespace from current ctx
 			ctx = namespaces.WithNamespace(ctx, ns)
+			ctx = socihttp.WithCustomHeaders(ctx, source.HeadersFromLabels(ctx, labels))
 
 			prefetchDesc := c.findPrefetchArtifact(desc.Digest.String())
 
@@ -1242,6 +1241,8 @@ func (fs *filesystem) setupFuseServer(ctx context.Context, mountpoint string, no
 func (fs *filesystem) Check(ctx context.Context, mountpoint string, labels map[string]string) error {
 
 	ctx = log.WithLogger(ctx, log.G(ctx).WithField("mountpoint", mountpoint))
+	// Seed custom headers: a refresh rebuilds the fetcher, which reads them from ctx.
+	ctx = socihttp.WithCustomHeaders(ctx, source.HeadersFromLabels(ctx, labels))
 
 	fs.layerMu.Lock()
 	l := fs.layer[mountpoint]

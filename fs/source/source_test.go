@@ -17,8 +17,11 @@
 package source
 
 import (
+	"context"
+	"strings"
 	"testing"
 
+	socihttp "github.com/awslabs/soci-snapshotter/internal/http"
 	"github.com/containerd/containerd/v2/core/remotes/docker"
 	"github.com/containerd/containerd/v2/pkg/reference"
 	ctdsnapshotters "github.com/containerd/containerd/v2/pkg/snapshotters"
@@ -110,5 +113,35 @@ func TestNeighboringLayersSizeLengthMismatch(t *testing.T) {
 
 	if _, err := FromDefaultLabels(noopHosts)(labels); err == nil {
 		t.Fatal("expected error on digest/size length mismatch, got nil")
+	}
+}
+
+func TestHeadersFromLabels(t *testing.T) {
+	reservedNames := []string{
+		socihttp.HeaderRange,
+		socihttp.HeaderAcceptEncoding,
+		socihttp.HeaderAccept,
+		socihttp.HeaderContentType,
+		socihttp.HeaderContentLength,
+		socihttp.HeaderAuthorization,
+		socihttp.HeaderUserAgent,
+		socihttp.HeaderReferer,
+		strings.ToLower(socihttp.HeaderRange),
+	}
+	labels := map[string]string{
+		CustomHeaderLabelPrefix + "x-request-id": "caller-123",
+		CustomHeaderLabelPrefix + "x with space": "v",
+		CustomHeaderLabelPrefix + "x-inject":     "v\r\nX-Evil: 1",
+		CustomHeaderLabelPrefix + "x-empty":      "",
+		CustomHeaderLabelPrefix:                  "no-name",
+		"unrelated":                              "nope",
+	}
+	for _, name := range reservedNames {
+		labels[CustomHeaderLabelPrefix+name] = "should-be-dropped"
+	}
+
+	headers := HeadersFromLabels(context.Background(), labels)
+	if len(headers) != 1 || headers.Get("x-request-id") != "caller-123" {
+		t.Fatalf("HeadersFromLabels() = %v, want only x-request-id", headers)
 	}
 }
