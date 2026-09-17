@@ -77,6 +77,12 @@ type AuthClient struct {
 	redirMap   map[string]string
 	redirMu    sync.Mutex
 	cacheRedir bool
+	// allowedHeaders is the set of canonicalized custom request-header names
+	// the client may attach from CustomHeaders(ctx). Custom headers arrive as
+	// snapshot labels that any image can set, so this is deny-by-default: a
+	// header not in the set (including every header when the set is unset or
+	// empty) is dropped.
+	allowedHeaders map[string]struct{}
 }
 
 type AuthClientOpt func(*AuthClient)
@@ -107,6 +113,20 @@ func WithRetryableClient(client *rhttp.Client) AuthClientOpt {
 func WithAuthRequestCtxFunc(arc AuthReqContextFunc) AuthClientOpt {
 	return func(ac *AuthClient) {
 		ac.getAuthCtx = arc
+	}
+}
+
+// WithAllowedHeaders sets which custom request-header names the AuthClient
+// attaches from CustomHeaders(ctx). Only the listed names pass; without this
+// option (or with an empty list) no custom header is attached. Reserved
+// headers are always dropped, even when listed.
+func WithAllowedHeaders(names []string) AuthClientOpt {
+	return func(ac *AuthClient) {
+		set := make(map[string]struct{}, len(names))
+		for _, n := range names {
+			set[http.CanonicalHeaderKey(n)] = struct{}{}
+		}
+		ac.allowedHeaders = set
 	}
 }
 
@@ -148,6 +168,9 @@ func (ac *AuthClient) Do(req *http.Request) (*http.Response, error) {
 		for k, vals := range CustomHeaders(ctx) {
 			name := http.CanonicalHeaderKey(k)
 			if _, ok := ReservedHeaders[name]; ok {
+				continue
+			}
+			if _, ok := ac.allowedHeaders[name]; !ok {
 				continue
 			}
 			req.Header[name] = append([]string(nil), vals...)
@@ -213,10 +236,11 @@ func (ac *AuthClient) RoundTrip(req *http.Request) (*http.Response, error) {
 // and auth policy.
 func (ac *AuthClient) CloneWithNewClient(client *rhttp.Client) *AuthClient {
 	nc := &AuthClient{
-		client:  client,
-		policy:  ac.policy,
-		handler: ac.handler,
-		header:  ac.header,
+		client:         client,
+		policy:         ac.policy,
+		handler:        ac.handler,
+		header:         ac.header,
+		allowedHeaders: ac.allowedHeaders,
 	}
 	nc.init.Do(nc.initClient)
 	return nc

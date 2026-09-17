@@ -129,12 +129,12 @@ func TestHeadersFromLabels(t *testing.T) {
 		strings.ToLower(socihttp.HeaderRange),
 	}
 	labels := map[string]string{
-		CustomHeaderLabelPrefix + "x-request-id": "caller-123",
-		CustomHeaderLabelPrefix + "x with space": "v",
-		CustomHeaderLabelPrefix + "x-inject":     "v\r\nX-Evil: 1",
-		CustomHeaderLabelPrefix + "x-empty":      "",
-		CustomHeaderLabelPrefix:                  "no-name",
-		"unrelated":                              "nope",
+		"containerd.io/snapshot/remote/soci.header.x-request-id": "caller-123",
+		CustomHeaderLabelPrefix + "x with space":                 "v",
+		CustomHeaderLabelPrefix + "x-inject":                     "v\r\nX-Evil: 1",
+		CustomHeaderLabelPrefix + "x-empty":                      "",
+		CustomHeaderLabelPrefix:                                  "no-name",
+		"unrelated":                                              "nope",
 	}
 	for _, name := range reservedNames {
 		labels[CustomHeaderLabelPrefix+name] = "should-be-dropped"

@@ -418,14 +418,19 @@ func (h *headerCaptureRoundTripper) RoundTrip(req *http.Request) (*http.Response
 }
 
 // newTestAuthClient wraps rt in an AuthClient
-func newTestAuthClient(rt http.RoundTripper) *socihttp.AuthClient {
+func newTestAuthClient(rt http.RoundTripper, opts ...socihttp.AuthClientOpt) *socihttp.AuthClient {
 	retryClient := rhttp.NewClient()
 	retryClient.HTTPClient.Transport = rt
-	ac, _ := socihttp.NewAuthClient(&emptyAuthHandler{}, socihttp.WithRetryableClient(retryClient), socihttp.WithHeader(http.Header{}))
+	opts = append([]socihttp.AuthClientOpt{socihttp.WithRetryableClient(retryClient), socihttp.WithHeader(http.Header{})}, opts...)
+	ac, _ := socihttp.NewAuthClient(&emptyAuthHandler{}, opts...)
 	return ac
 }
 
-func TestCustomHeadersReachResolverRequest(t *testing.T) {
+// fetchWithCustomHeader builds a fetcher whose context carries the custom header
+// X-Request-Id, performs one fetch through an AuthClient built with opts, and
+// returns the headers the transport saw.
+func fetchWithCustomHeader(t *testing.T, opts ...socihttp.AuthClientOpt) http.Header {
+	t.Helper()
 	refspec, err := reference.Parse("dummyexample.com/library/test")
 	if err != nil {
 		t.Fatalf("failed to parse reference: %v", err)
@@ -435,7 +440,7 @@ func TestCustomHeadersReachResolverRequest(t *testing.T) {
 	ctx := socihttp.WithCustomHeaders(context.Background(), custom)
 	rt := &headerCaptureRoundTripper{}
 	hosts := []docker.RegistryHost{{
-		Client:       &http.Client{Transport: newTestAuthClient(rt)},
+		Client:       &http.Client{Transport: newTestAuthClient(rt, opts...)},
 		Host:         refspec.Hostname(),
 		Scheme:       "https",
 		Path:         "/v2",
@@ -454,9 +459,20 @@ func TestCustomHeadersReachResolverRequest(t *testing.T) {
 		t.Fatalf("fetch: %v", err)
 	}
 	defer reader.Close()
+	return rt.got
+}
 
-	if got := rt.got.Get("X-Request-Id"); got != "caller-123" {
-		t.Fatalf("X-Request-Id = %q, want %q", got, "caller-123")
+func TestCustomHeadersReachResolverRequest(t *testing.T) {
+	got := fetchWithCustomHeader(t, socihttp.WithAllowedHeaders([]string{"x-request-id"}))
+	if v := got.Get("X-Request-Id"); v != "caller-123" {
+		t.Fatalf("X-Request-Id = %q, want %q", v, "caller-123")
+	}
+}
+
+func TestCustomHeadersNotForwardedWithoutAllowlist(t *testing.T) {
+	got := fetchWithCustomHeader(t)
+	if v := got.Get("X-Request-Id"); v != "" {
+		t.Fatalf("X-Request-Id = %q, want it dropped when no allowlist is configured", v)
 	}
 }
 

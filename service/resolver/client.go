@@ -51,7 +51,7 @@ func globalHeaders() http.Header {
 }
 
 // newAuthClient returns a new AuthClient.
-func newAuthClient(retryClient *rhttp.Client, header http.Header, creds func(string) (string, string, error)) (*socihttp.AuthClient, error) {
+func newAuthClient(retryClient *rhttp.Client, header http.Header, creds func(string) (string, string, error), allowedHeaders []string) (*socihttp.AuthClient, error) {
 
 	authorizer := docker.NewDockerAuthorizer(
 		docker.WithAuthClient(retryClient.StandardClient()),
@@ -62,6 +62,7 @@ func newAuthClient(retryClient *rhttp.Client, header http.Header, creds func(str
 		socihttp.WithRetryableClient(retryClient),
 		socihttp.WithAuthPolicy(shouldAuthenticate), socihttp.WithHeader(header),
 		socihttp.WithAuthRequestCtxFunc(newContextWithScope),
+		socihttp.WithAllowedHeaders(allowedHeaders),
 	}
 
 	authClient, err := socihttp.NewAuthClient(newDockerAuthHandler(authorizer), authClientOpts...)

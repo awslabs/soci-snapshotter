@@ -256,7 +256,7 @@ func (rm *RegistryManager) AsRegistryHosts() RegistryHosts {
 				shared = cached.(*sharedAuthClient)
 			} else {
 				newShared := &sharedAuthClient{}
-				newClient, err := newAuthClient(rm.retryClient, rm.header, newShared.credsFunc(rm.creds))
+				newClient, err := newAuthClient(rm.retryClient, rm.header, newShared.credsFunc(rm.creds), rm.registryConfig.CustomHeaders)
 				if err != nil {
 					return nil, err
 				}
@@ -271,7 +271,7 @@ func (rm *RegistryManager) AsRegistryHosts() RegistryHosts {
 		} else {
 			// Per-image auth client (the default behavior, no sharing).
 			var err error
-			authClient, err = newAuthClient(rm.retryClient, rm.header, multiCredsFuncs(imgRefSpec, rm.creds...))
+			authClient, err = newAuthClient(rm.retryClient, rm.header, multiCredsFuncs(imgRefSpec, rm.creds...), rm.registryConfig.CustomHeaders)
 			if err != nil {
 				return nil, err
 			}

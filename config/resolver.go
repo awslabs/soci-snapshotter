@@ -38,6 +38,14 @@
 
 package config
 
+import (
+	"fmt"
+	"net/http"
+
+	socihttp "github.com/awslabs/soci-snapshotter/internal/http"
+	"golang.org/x/net/http/httpguts"
+)
+
 // ResolverConfig is config for resolving registries.
 type ResolverConfig struct {
 	Host map[string]HostConfig `toml:"host"`
@@ -56,6 +64,14 @@ type ResolverConfig struct {
 	// instead of one per image. When false (the default), every image gets
 	// its own auth client and token exchange.
 	EnableAuthClientSharing bool `toml:"enable_auth_client_sharing"`
+
+	// CustomHeaders is an allowlist of custom request-header names the
+	// snapshotter may attach to its registry fetches. Custom headers arrive as
+	// snapshot labels which any image can also set (see containerd
+	// FilterInheritedLabels), so this list is the trust boundary. Only these
+	// names pass; when unset or empty, no custom header is attached. Reserved
+	// or invalid names cause configuration loading to fail. Case-insensitive.
+	CustomHeaders []string `toml:"custom_headers"`
 }
 
 type HostConfig struct {
@@ -74,4 +90,16 @@ type MirrorConfig struct {
 	// RequestTimeoutSec == 0 indicates the default timeout (defaultRequestTimeoutSec).
 	// RequestTimeoutSec < 0 indicates no timeout.
 	RequestTimeoutSec int64 `toml:"request_timeout_sec"`
+}
+
+func parseResolverConfig(cfg *Config) error {
+	for _, name := range cfg.ResolverConfig.CustomHeaders {
+		if !httpguts.ValidHeaderFieldName(name) {
+			return fmt.Errorf("resolver.custom_headers: invalid HTTP header name %q", name)
+		}
+		if _, reserved := socihttp.ReservedHeaders[http.CanonicalHeaderKey(name)]; reserved {
+			return fmt.Errorf("resolver.custom_headers: reserved header %q cannot be customized", name)
+		}
+	}
+	return nil
 }
