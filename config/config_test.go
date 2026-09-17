@@ -17,9 +17,11 @@
 package config
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"reflect"
+	"strings"
 	"testing"
 )
 
@@ -450,6 +452,82 @@ func TestSizeParser(t *testing.T) {
 				t.Errorf("Expected error for input %q, but got none", test.input)
 			} else if actual != test.expected {
 				t.Errorf("Expected %d, got %d for input %q", test.expected, actual, test.input)
+			}
+		})
+	}
+}
+
+func TestResolverCustomHeadersFromToml(t *testing.T) {
+	tests := []struct {
+		name     string
+		config   string
+		expected []string
+	}{
+		{
+			name:     "unset means no custom header is forwarded",
+			config:   "[resolver]\nenable_auth_client_sharing = true\n",
+			expected: nil,
+		},
+		{
+			name:     "empty means no custom header is forwarded",
+			config:   "[resolver]\ncustom_headers = []\n",
+			expected: []string{},
+		},
+		{
+			name:     "listed names are kept as written",
+			config:   "[resolver]\ncustom_headers = [\"x-request-id\", \"X-Trace-Id\", \"x-amzn-requestid\"]\n",
+			expected: []string{"x-request-id", "X-Trace-Id", "x-amzn-requestid"},
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			path := filepath.Join(t.TempDir(), "config.toml")
+			if err := os.WriteFile(path, []byte(test.config), 0644); err != nil {
+				t.Fatalf("Failed to write config file: %v", err)
+			}
+			cfg, err := NewConfigFromToml(path)
+			if err != nil {
+				t.Fatalf("NewConfigFromToml: %v", err)
+			}
+			got := cfg.ResolverConfig.CustomHeaders
+			if len(got) != len(test.expected) {
+				t.Fatalf("custom_headers = %v, want %v", got, test.expected)
+			}
+			for i := range got {
+				if got[i] != test.expected[i] {
+					t.Fatalf("custom_headers = %v, want %v", got, test.expected)
+				}
+			}
+		})
+	}
+}
+
+func TestResolverRejectsInvalidCustomHeadersFromToml(t *testing.T) {
+	for _, name := range []string{
+		"",
+		"x with space",
+		"x:request-id",
+		"x-request-id\r\nInjected",
+		"x-réquest-id",
+		"Authorization",
+		"aUtHoRiZaTiOn",
+		"Range",
+		"Accept",
+		"Accept-Encoding",
+		"Content-Type",
+		"Content-Length",
+		"User-Agent",
+		"Referer",
+	} {
+		t.Run(name, func(t *testing.T) {
+			path := filepath.Join(t.TempDir(), "config.toml")
+			content := fmt.Sprintf("[resolver]\ncustom_headers = [%q]\n", name)
+			if err := os.WriteFile(path, []byte(content), 0644); err != nil {
+				t.Fatal(err)
+			}
+			if _, err := NewConfigFromToml(path); err == nil || !strings.Contains(err.Error(), "resolver.custom_headers") {
+				t.Fatalf("NewConfigFromToml: got %v, want an error identifying resolver.custom_headers", err)
 			}
 		})
 	}

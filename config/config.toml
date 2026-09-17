@@ -89,6 +89,7 @@ skip_check_snapshotter_supported = false
 [resolver]
   auth_client_ttl_sec = 3600
   enable_auth_client_sharing = false
+  custom_headers = []
 
 [snapshotter]
   min_layer_size = 0
