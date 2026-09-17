@@ -98,8 +98,16 @@ const (
 	// CustomHeaderLabelPrefix marks a snapshot label that carries a custom HTTP
 	// header for the snapshotter's registry requests. The header name is the label
 	// key after the prefix. The header value is the label value. For example:
-	//	soci.header.x-request-id = "<value>"
-	CustomHeaderLabelPrefix = "soci.header."
+	//	containerd.io/snapshot/remote/soci.header.x-request-id = "<value>"
+	// sends "x-request-id: <value>".
+	//
+	// The prefix lives under containerd.io/snapshot/ because containerd only
+	// forwards labels with that prefix to a proxy snapshotter's Prepare (see
+	// containerd's snapshots.FilterInheritedLabels); any other label is dropped
+	// before the snapshotter sees it. An image can carry such labels too, so the
+	// snapshotter only forwards the header names listed in the resolver's
+	// custom_headers config; see [socihttp.AuthClient].
+	CustomHeaderLabelPrefix = "containerd.io/snapshot/remote/soci.header."
 )
 
 // HeadersFromLabels returns the custom headers from the CustomHeaderLabelPrefix

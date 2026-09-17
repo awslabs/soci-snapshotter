@@ -92,7 +92,7 @@ type Config struct {
 }
 type configParser func(*Config) error
 
-var parsers = []configParser{parseRootConfig, parseServiceConfig, parseFSConfig, parseParallelConfig}
+var parsers = []configParser{parseRootConfig, parseServiceConfig, parseFSConfig, parseParallelConfig, parseResolverConfig}
 
 // NewConfig returns an initialized Config with default values set.
 func NewConfig() *Config {

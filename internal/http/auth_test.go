@@ -276,3 +276,63 @@ func TestRedirectCacheSetsRefererHeader(t *testing.T) {
 		t.Fatalf("expected Referer header %q, got %q", originalURL, referer)
 	}
 }
+
+type allowlistCaptureRoundTripper struct{ got http.Header }
+
+func (c *allowlistCaptureRoundTripper) RoundTrip(req *http.Request) (*http.Response, error) {
+	c.got = req.Header.Clone()
+	return &http.Response{StatusCode: http.StatusOK, Body: http.NoBody, Request: req}, nil
+}
+
+func TestCustomHeadersAllowlistAtSink(t *testing.T) {
+	rc := rhttp.NewClient()
+	rc.RetryMax = 0
+	rt := &allowlistCaptureRoundTripper{}
+	rc.HTTPClient.Transport = rt
+	ac, err := NewAuthClient(&emptyAuthHandler{},
+		WithRetryableClient(rc), WithHeader(http.Header{}),
+		WithAllowedHeaders([]string{"x-request-id"}),
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	// Clones used for blob and mirror requests must retain the allowlist.
+	ac = ac.CloneWithNewClient(rc)
+	custom := http.Header{}
+	custom.Set("x-request-id", "caller-123")
+	custom.Set("x-injected", "evil")
+	ctx := WithCustomHeaders(context.Background(), custom)
+	req, _ := http.NewRequestWithContext(ctx, "GET", "http://example/blob", nil)
+	if _, err := ac.Do(req); err != nil {
+		t.Fatal(err)
+	}
+	if got := rt.got.Get("x-request-id"); got != "caller-123" {
+		t.Fatalf("allowlisted header dropped: got %q", got)
+	}
+	if got := rt.got.Get("x-injected"); got != "" {
+		t.Fatalf("non-allowlisted header must be dropped at the sink: got %q", got)
+	}
+}
+
+func TestCustomHeadersDeniedWithoutAllowlist(t *testing.T) {
+	rc := rhttp.NewClient()
+	rc.RetryMax = 0
+	rt := &allowlistCaptureRoundTripper{}
+	rc.HTTPClient.Transport = rt
+	ac, err := NewAuthClient(&emptyAuthHandler{},
+		WithRetryableClient(rc), WithHeader(http.Header{}),
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	custom := http.Header{}
+	custom.Set("x-request-id", "caller-123")
+	ctx := WithCustomHeaders(context.Background(), custom)
+	req, _ := http.NewRequestWithContext(ctx, "GET", "http://example/blob", nil)
+	if _, err := ac.Do(req); err != nil {
+		t.Fatal(err)
+	}
+	if got := rt.got.Get("x-request-id"); got != "" {
+		t.Fatalf("custom header must be dropped when no allowlist is configured: got %q", got)
+	}
+}
