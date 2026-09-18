@@ -680,8 +680,7 @@ func newTestLayerJob(t *testing.T, ctx context.Context, cancel context.CancelCau
 	if err != nil {
 		t.Fatalf("failed to create unpack jobs: %v", err)
 	}
-	imageJob := jobs.GetOrAddImageJob(desc.Digest.String(), cancel)
-	layerJob, err := jobs.AddLayerJob(imageJob, desc.Digest.String())
+	layerJob, err := jobs.AddLayerJob(desc.Digest.String(), desc.Digest.String(), cancel)
 	if err != nil {
 		t.Fatalf("failed to add layer job: %v", err)
 	}
