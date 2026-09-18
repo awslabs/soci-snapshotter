@@ -666,7 +666,7 @@ func buildTestLayer(t *testing.T, contents string, compressionLevel int) (tarbal
 // newTestLayerJob returns a layer unpack job for desc with parallel pull enabled
 // and unpacked layers discarded, which is the configuration that constructs a
 // compressed verifier.
-func newTestLayerJob(t *testing.T, ctx context.Context, cancel context.CancelCauseFunc, desc ocispec.Descriptor) *layerUnpackJob {
+func newTestLayerJob(ctx context.Context, t *testing.T, cancel context.CancelCauseFunc, desc ocispec.Descriptor) *layerUnpackJob {
 	t.Helper()
 
 	storage, err := newLayerUnpackDiskStorage(t.TempDir())
@@ -706,7 +706,7 @@ func TestLocalContentStoreHitPassesDigestValidation(t *testing.T) {
 	archive := NewLayerArchive(compressedVerifier, newAsyncVerifier(digest.FromBytes(tarball).Verifier()), nil, nil)
 	fetcher, err := newParallelArtifactFetcher(reference.Spec{Locator: "example.com/repo"},
 		localStore, newFakeRemoteStore(compressed),
-		newTestLayerJob(t, ctx, cancel, desc), 0, compressedVerifier)
+		newTestLayerJob(ctx, t, cancel, desc), 0, compressedVerifier)
 	if err != nil {
 		t.Fatalf("failed to create fetcher: %v", err)
 	}
@@ -751,7 +751,7 @@ func TestRemoteFetchStillVerifiesCompressedDigest(t *testing.T) {
 	// The local store is empty, so the layer is fetched from the remote.
 	fetcher, err := newParallelArtifactFetcher(reference.Spec{Locator: "example.com/repo"},
 		&fakeLocalStore{Store: memory.New()}, newFakeRemoteStore(recompressed),
-		newTestLayerJob(t, ctx, cancel, desc), 0, compressedVerifier)
+		newTestLayerJob(ctx, t, cancel, desc), 0, compressedVerifier)
 	if err != nil {
 		t.Fatalf("failed to create fetcher: %v", err)
 	}
