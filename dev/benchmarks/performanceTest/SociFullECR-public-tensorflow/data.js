@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1789515382987,
+  "lastUpdate": 1790006512111,
   "repoUrl": "https://github.com/awslabs/soci-snapshotter",
   "entries": {
     "Soci Benchmark": [
@@ -20312,6 +20312,47 @@ window.BENCHMARK_DATA = {
           {
             "name": "SociFullECR-public-tensorflow-pullTaskDuration",
             "value": 2.154,
+            "unit": "Seconds",
+            "extra": "P90"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "enzocr@amazon.com",
+            "name": "Enzo Crema"
+          },
+          "committer": {
+            "email": "55555210+sondavidb@users.noreply.github.com",
+            "name": "David Son",
+            "username": "sondavidb"
+          },
+          "distinct": true,
+          "id": "a39d9b9294bb287b601b9ddcd8021ae4a9f4e861",
+          "message": "Allowlist custom request headers for remote snapshots\n\nUse containerd.io/snapshot/remote/soci.header. so custom-header labels\nreach the snapshotter. Require operators to enable header names through\n[resolver] custom_headers, with custom headers disabled by default.\n\nReject invalid and reserved header names during configuration loading,\nand preserve the allowlist when cloning auth clients. Update the generated\ndefault config and docs, with coverage for validation, forwarding, and\nclient cloning.\n\nFixes #2085\n\nCo-authored-by: Radu Constantinescu <rdu@amazon.com>\nSigned-off-by: Enzo Crema <enzocr@amazon.com>",
+          "timestamp": "2026-09-21T08:52:37-07:00",
+          "tree_id": "0c3cf390b33fbdeddf0fd769f775097d73357c1f",
+          "url": "https://github.com/awslabs/soci-snapshotter/commit/a39d9b9294bb287b601b9ddcd8021ae4a9f4e861"
+        },
+        "date": 1790006502790,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "SociFullECR-public-tensorflow-lazyTaskDuration",
+            "value": 13.345400000000001,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-tensorflow-localTaskDuration",
+            "value": 2.0766,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-tensorflow-pullTaskDuration",
+            "value": 2.4576,
             "unit": "Seconds",
             "extra": "P90"
           }
