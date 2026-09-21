@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1790006520938,
+  "lastUpdate": 1790027258728,
   "repoUrl": "https://github.com/awslabs/soci-snapshotter",
   "entries": {
     "Soci Benchmark": [
@@ -20148,6 +20148,48 @@ window.BENCHMARK_DATA = {
           {
             "name": "SociFullECR-public-rabbitmq-pullTaskDuration",
             "value": 1.3834,
+            "unit": "Seconds",
+            "extra": "P90"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "mukul@atomicwork.com",
+            "name": "Mukul Kumar",
+            "username": "mukul-atomicwork"
+          },
+          "committer": {
+            "email": "55555210+sondavidb@users.noreply.github.com",
+            "name": "David Son",
+            "username": "sondavidb"
+          },
+          "distinct": true,
+          "id": "5e3e9cbaca74f47168390a45a580b40f40b38c10",
+          "message": "fix: Mark the compressed verifier satisfied for local content store hits\n\nWith discard_unpacked_layers set, a layer already present in the content\nstore fails the pull with \"compressed digests did not match\", even though\nthe bytes are correct.\n\nThe compressed verifier is only constructed when that flag is set, and it\nis only ever started on the remote download path. When Fetch short-circuits\non a local content store hit the bytes never pass through it, so Verified()\nreturns false for never having been started and Apply reports a mismatch.\n\nOn that path the check returned false for correct and corrupt content\nalike, so it had no discriminating power. Removing it does not weaken\nverification: both content stores verify the digest on ingest, containerd\nin Commit and the soci store via the oras VerifyReader, and the\nuncompressed verifier is constructed unconditionally and started inline in\nApply, so whatever reaches the filesystem is still checked.\n\nThe flag is written and read on the same goroutine, since Fetch and Apply\nare both called from parallelLayerUnpacker.Unpack, and each layer has its\nown verifier.\n\nFixes #2035\n\nSigned-off-by: Mukul Kumar <mukul@atomicwork.com>",
+          "timestamp": "2026-09-21T17:39:12-04:00",
+          "tree_id": "e646907a4925f86846663cf8023fdf65c5999d7d",
+          "url": "https://github.com/awslabs/soci-snapshotter/commit/5e3e9cbaca74f47168390a45a580b40f40b38c10"
+        },
+        "date": 1790027254426,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "SociFullECR-public-rabbitmq-lazyTaskDuration",
+            "value": 9.0206,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-rabbitmq-localTaskDuration",
+            "value": 7.5520000000000005,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-rabbitmq-pullTaskDuration",
+            "value": 1.514,
             "unit": "Seconds",
             "extra": "P90"
           }
