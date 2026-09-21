@@ -52,6 +52,24 @@ jobs:
         with:
           ref: ${{ env.CHECKOUT_REF }}
 
+      - name: Check if tag commit matches tip of release branch
+        if: github.event_name == 'push'
+        run: |
+          release_branch="release/$(echo ${{ env.RELEASE_TAG }} | grep -Eo '[0-9]+\.[0-9]+')"
+          git fetch --no-tags origin "${release_branch}"
+
+          branch_sha=$(git rev-parse FETCH_HEAD)
+          tag_sha=$(git rev-parse HEAD)
+
+          echo "Release branch ${release_branch} tip: ${branch_sha}"
+          echo "Tag ${{ env.RELEASE_TAG }} commit: ${tag_sha}"
+
+          if [ "${branch_sha}" != "${tag_sha}" ]; then
+            echo "Tag ${{ env.RELEASE_TAG }} commit (${tag_sha}) does not match the tip of ${release_branch} (${branch_sha}). Tags must be created from the tip of their release branch."
+            exit 1
+          fi
+          echo "Tag commit matches the tip of ${release_branch}."
+
       - uses: actions/setup-go@v7
         with:
           go-version: ${{ env.GO_VERSION }}
