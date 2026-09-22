@@ -20,12 +20,16 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"os"
 	"slices"
 
 	"github.com/awslabs/soci-snapshotter/cmd/soci/commands/global"
 	"github.com/awslabs/soci-snapshotter/cmd/soci/commands/internal"
 	"github.com/awslabs/soci-snapshotter/soci"
 	"github.com/awslabs/soci-snapshotter/soci/store"
+	"github.com/containerd/containerd/v2/core/content"
+	"github.com/containerd/containerd/v2/core/images"
+	local "github.com/containerd/containerd/v2/plugins/content/local"
 	"github.com/containerd/platforms"
 	"github.com/urfave/cli/v3"
 )
@@ -40,6 +44,16 @@ const (
 	minLayerSizeFlag       = "min-layer-size"
 	optimizationFlag       = "optimizations"
 	forceRecreateZtocsFlag = "force"
+)
+
+// SourceFlag and SourceRegistry re-export internal.SourceFlag/
+// internal.SourceRegistry so cmd/soci/main.go - which lives outside the
+// internal package's visibility boundary - can check whether create/push
+// were invoked with --source=registry, to skip requiring the snapshotter
+// root path in that mode (see main.go's Before hook).
+const (
+	SourceFlag     = internal.SourceFlag
+	SourceRegistry = internal.SourceRegistry
 )
 
 var createZtocFlags = []cli.Flag{
@@ -73,11 +87,21 @@ var CreateCommand = &cli.Command{
 	Name:      "create",
 	Usage:     "create SOCI index",
 	ArgsUsage: "[flags] <image_ref>",
-	Flags:     slices.Concat(internal.PlatformFlags, createZtocFlags, internal.PrefetchFlags),
+	Flags:     slices.Concat(internal.PlatformFlags, internal.SourceFlags, internal.RegistryFlags, createZtocFlags, internal.PrefetchFlags),
 	Action: func(ctx context.Context, cmd *cli.Command) error {
 		srcRef := cmd.Args().Get(0)
 		if srcRef == "" {
 			return errors.New("source image needs to be specified")
+		}
+
+		source := cmd.String(internal.SourceFlag)
+		if !internal.SupportedArg(source, internal.SupportedSourceOptions) {
+			return fmt.Errorf("unexpected value for flag %s: %s, expected types %v",
+				internal.SourceFlag, source, internal.SupportedSourceOptions)
+		}
+		if source == internal.SourceRegistry && store.ContentStoreType(cmd.String(global.ContentStoreFlag)) == store.ContainerdContentStoreType {
+			return fmt.Errorf("--%s=%s cannot be combined with --%s=%s: there is no containerd content store to write into",
+				internal.SourceFlag, internal.SourceRegistry, global.ContentStoreFlag, store.ContainerdContentStoreType)
 		}
 
 		var optimizations []soci.Optimization
@@ -89,17 +113,51 @@ var CreateCommand = &cli.Command{
 			optimizations = append(optimizations, optimization)
 		}
 
-		client, ctx, cancel, err := internal.NewClient(ctx, cmd)
-		if err != nil {
-			return err
-		}
-		defer cancel()
+		var (
+			cs     content.Store
+			srcImg images.Image
+			is     images.Store       // only set (and only used) in containerd mode
+			cancel context.CancelFunc = func() {}
+		)
+		defer func() { cancel() }()
 
-		cs := client.ContentStore()
-		is := client.ImageService()
-		srcImg, err := is.Get(ctx, srcRef)
-		if err != nil {
-			return err
+		if source == internal.SourceRegistry {
+			// The pulled image content (manifest/config/layers) is only
+			// needed transiently, to compute the ztoc during this
+			// invocation - nothing needs it afterward, unlike the SOCI
+			// output below, which push must be able to find later. A temp
+			// dir means this never needs --root to point somewhere
+			// writable, and it's cleaned up when the command exits.
+			contentDir, err := os.MkdirTemp("", "soci-create-registry-content-*")
+			if err != nil {
+				return fmt.Errorf("could not create temp content directory: %w", err)
+			}
+			defer os.RemoveAll(contentDir)
+
+			localStore, err := local.NewStore(contentDir)
+			if err != nil {
+				return fmt.Errorf("could not create local content store at %s: %w", contentDir, err)
+			}
+			cs = localStore
+
+			srcImg, err = internal.PopulateFromRegistry(ctx, cmd, srcRef, cs)
+			if err != nil {
+				return err
+			}
+		} else {
+			client, actxCtx, actxCancel, err := internal.NewClient(ctx, cmd)
+			if err != nil {
+				return err
+			}
+			ctx = actxCtx
+			cancel = actxCancel
+
+			cs = client.ContentStore()
+			is = client.ImageService()
+			srcImg, err = is.Get(ctx, srcRef)
+			if err != nil {
+				return err
+			}
 		}
 
 		spanSize := cmd.Int64(spanSizeFlag)
@@ -158,11 +216,16 @@ var CreateCommand = &cli.Command{
 				return err
 			}
 
-			if srcImg.Labels == nil {
-				srcImg.Labels = make(map[string]string)
+			if is != nil {
+				// Label the image in containerd so its GC won't collect the
+				// SOCI index we just wrote. There's no containerd image
+				// record to label in registry-source mode.
+				if srcImg.Labels == nil {
+					srcImg.Labels = make(map[string]string)
+				}
+				srcImg.Labels[sociIndexGCLabel] = indexWithMetadata.Desc.Digest.String()
+				is.Update(ctx, srcImg, "labels")
 			}
-			srcImg.Labels[sociIndexGCLabel] = indexWithMetadata.Desc.Digest.String()
-			is.Update(ctx, srcImg, "labels")
 		}
 
 		return nil
