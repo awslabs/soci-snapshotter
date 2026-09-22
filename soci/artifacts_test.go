@@ -18,7 +18,7 @@ package soci
 
 import (
 	"os"
-	"sync"
+	"path/filepath"
 	"testing"
 
 	bolt "go.etcd.io/bbolt"
@@ -125,16 +125,36 @@ func TestArtifactDbPath(t *testing.T) {
 	}
 }
 
-func TestArtifactDB_DoesNotExist(t *testing.T) {
-	resetArtifactDBInit()
-	t.Cleanup(resetArtifactDBInit)
-	once.Do(func() {
-		// Fail db initialization.
-		db = nil
-	})
-	_, err := NewDB(ArtifactsDbPath(t.TempDir()))
+func TestArtifactDB_CannotBeCreated(t *testing.T) {
+	_, err := NewDB(ArtifactsDbPath(filepath.Join(t.TempDir(), "nonexistent")))
 	if err == nil {
-		t.Fatalf("getArtifactEntry should fail since artifacts.db doesn't exist")
+		t.Fatalf("NewDB should fail since the parent directory doesn't exist")
+	}
+}
+
+func TestArtifactDB_IndependentInstances(t *testing.T) {
+	dbA, err := NewDB(ArtifactsDbPath(t.TempDir()))
+	if err != nil {
+		t.Fatalf("can't create first db: %v", err)
+	}
+	defer dbA.Close()
+	dbB, err := NewDB(ArtifactsDbPath(t.TempDir()))
+	if err != nil {
+		t.Fatalf("can't create second db: %v", err)
+	}
+	defer dbB.Close()
+
+	ae := &ArtifactEntry{
+		Size:           10,
+		Digest:         "sha256:80d6aec48c0a74635a5f3dc555528c1673afaa21ed6e1270a9a44de66e8ffa55",
+		OriginalDigest: "sha256:1236aec48c0a74635a5f3dc666628c1673afaa21ed6e1270a9a44de66e811111",
+		Type:           ArtifactEntryTypeIndex,
+	}
+	if err := dbA.WriteArtifactEntry(ae); err != nil {
+		t.Fatalf("can't write entry to first db: %v", err)
+	}
+	if _, err := dbB.GetArtifactEntry(ae.Digest); err == nil {
+		t.Fatalf("entry written to first db should not be visible in second db")
 	}
 }
 
@@ -228,11 +248,11 @@ func newTestableDb() (*ArtifactsDb, error) {
 	}
 	defer f.Close()
 	defer os.Remove(f.Name())
-	db, err := bolt.Open(f.Name(), 0600, nil)
+	db, err := NewDB(f.Name())
 	if err != nil {
 		return nil, err
 	}
-	err = db.Update(func(tx *bolt.Tx) error {
+	err = db.db.Update(func(tx *bolt.Tx) error {
 		_, err := tx.CreateBucketIfNotExists(bucketKeySociArtifacts)
 		if err != nil {
 			return err
@@ -242,10 +262,5 @@ func newTestableDb() (*ArtifactsDb, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &ArtifactsDb{db: db}, nil
-}
-
-func resetArtifactDBInit() {
-	once = sync.Once{}
-	db = nil
+	return db, nil
 }

@@ -25,7 +25,6 @@ import (
 	"path"
 	"path/filepath"
 	"strconv"
-	"sync"
 	"time"
 
 	"github.com/awslabs/soci-snapshotter/config"
@@ -34,7 +33,6 @@ import (
 	"github.com/containerd/containerd/v2/core/content"
 	"github.com/containerd/containerd/v2/core/images"
 	"github.com/containerd/errdefs"
-	"github.com/containerd/log"
 	"github.com/containerd/platforms"
 	"github.com/opencontainers/go-digest"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
@@ -83,9 +81,6 @@ var (
 	ArtifactEntryTypeLayer ArtifactEntryType = "soci_layer"
 	// ArtifactEntryTypePrefetch indicates that an ArtifactEntry is a SOCI prefetch artifact
 	ArtifactEntryTypePrefetch ArtifactEntryType = "soci_prefetch"
-
-	db   *ArtifactsDb
-	once sync.Once
 )
 
 var (
@@ -128,28 +123,21 @@ type ArtifactEntry struct {
 	SpanSize int64
 }
 
-// NewDB returns an instance of an ArtifactsDB
+// NewDB returns a new instance of an ArtifactsDb backed by the bolt database
+// at path, creating the file if it does not exist. Bolt holds an exclusive
+// file lock on the database, so the returned ArtifactsDb must be closed with
+// Close before the same file can be opened again.
 func NewDB(path string) (*ArtifactsDb, error) {
-	once.Do(func() {
-		f, err := os.OpenFile(path, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0600)
-		if err != nil {
-			log.L.WithError(err).WithField("path", path).Error("Cannot create or open file")
-			return
-		}
-		defer f.Close()
-		database, err := bolt.Open(f.Name(), 0600, nil)
-		if err != nil {
-			log.L.WithError(err).Error("Cannot open the db")
-			return
-		}
-		db = &ArtifactsDb{db: database}
-	})
-
-	if db == nil {
-		return nil, errors.New("artifacts.db is not available")
+	database, err := bolt.Open(path, 0600, nil)
+	if err != nil {
+		return nil, fmt.Errorf("cannot open artifacts db %s: %w", path, err)
 	}
+	return &ArtifactsDb{db: database}, nil
+}
 
-	return db, nil
+// Close closes the underlying bolt database, releasing its file lock.
+func (db *ArtifactsDb) Close() error {
+	return db.db.Close()
 }
 
 func (db *ArtifactsDb) getIndexArtifactEntries(indexDigest string) ([]ArtifactEntry, error) {
