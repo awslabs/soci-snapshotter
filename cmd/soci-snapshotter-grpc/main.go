@@ -336,13 +336,20 @@ func getMetadataStore(ctx context.Context, rootDir string, config config.Config)
 			"store_type": config.MetadataStore,
 		}).Debug("initializing metadata store")
 
+		// The metadata DB is ephemeral and is always rebuilt from zTOCs on mount.
+		// Remove stale data that may persist after an unclean shutdown.
+		dbPath := filepath.Join(rootDir, "metadata.db")
+		if err := os.Remove(dbPath); err != nil && !errors.Is(err, os.ErrNotExist) {
+			return nil, fmt.Errorf("failed to remove stale metadata db: %w", err)
+		}
+
 		bOpts := bolt.Options{
 			NoFreelistSync:  true,
 			InitialMmapSize: 64 * 1024 * 1024,
 			FreelistType:    bolt.FreelistMapType,
 			NoSync:          config.MetadataDBNoSync,
 		}
-		db, err := bolt.Open(filepath.Join(rootDir, "metadata.db"), 0600, &bOpts)
+		db, err := bolt.Open(dbPath, 0600, &bOpts)
 		if err != nil {
 			return nil, err
 		}
