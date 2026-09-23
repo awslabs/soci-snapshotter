@@ -18,6 +18,7 @@ package http
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/url"
@@ -58,6 +59,37 @@ type AuthReqContextFunc func(reqCtx context.Context) context.Context
 // an entirely new context.
 var DefaultAuthReqContext = func(reqCtx context.Context) context.Context {
 	return context.Background()
+}
+
+// authHandlerKey is the context key under which AuthClient stores its
+// AuthHandler, so that CheckRedirect can authorize redirected requests.
+type authHandlerKey struct{}
+
+// CheckRedirect is an http.Client CheckRedirect func that authorizes every
+// redirect hop using the AuthHandler of the AuthClient that sent the original
+// request, mirroring containerd's remotes/docker resolver.
+//
+// Without it, credentials are only attached to the first hop: net/http strips
+// the Authorization header when following a redirect to a different host, so
+// registries that redirect to another host which also requires authentication
+// fail with 401 even after the challenge is handled.
+//
+// Redirected requests inherit the original request's context, so a single
+// stateless CheckRedirect can be shared by every AuthClient using the client.
+func CheckRedirect(req *http.Request, via []*http.Request) error {
+	if len(via) >= 10 {
+		return errors.New("stopped after 10 redirects")
+	}
+	handler, ok := req.Context().Value(authHandlerKey{}).(AuthHandler)
+	if !ok {
+		return nil
+	}
+	authReq, err := handler.AuthorizeRequest(req.Context(), req)
+	if err != nil {
+		return fmt.Errorf("failed to authorize redirect: %w", err)
+	}
+	req.Header = authReq.Header
+	return nil
 }
 
 // AuthClient provides a HTTP client that is capable of authenticating
@@ -161,6 +193,8 @@ func (ac *AuthClient) Do(req *http.Request) (*http.Response, error) {
 	}
 	ctx := req.Context()
 	roundTrip := func(req *http.Request) (*http.Response, error) {
+		// Let CheckRedirect authorize any redirect hops with our handler.
+		req = req.WithContext(context.WithValue(req.Context(), authHandlerKey{}, ac.handler))
 		// Attach global headers to the request.
 		for k := range ac.header {
 			req.Header.Set(k, ac.header.Get(k))
@@ -261,6 +295,7 @@ func (ac *AuthClient) CacheRedirects(b bool) {
 func (ac *AuthClient) initClient() {
 	if ac.client == nil {
 		ac.client = rhttp.NewClient()
+		ac.client.HTTPClient.CheckRedirect = CheckRedirect
 	}
 	if ac.policy == nil {
 		ac.policy = DefaultAuthPolicy

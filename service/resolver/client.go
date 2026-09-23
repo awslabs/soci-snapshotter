@@ -89,6 +89,7 @@ func newRetryableClientFromConfig(config config.RetryableHTTPClientConfig) *rhtt
 
 	// set timeouts
 	rhttpClient.HTTPClient.Timeout = time.Duration(config.RequestTimeoutMsec) * time.Millisecond
+	rhttpClient.HTTPClient.CheckRedirect = socihttp.CheckRedirect
 	innerTransport := rhttpClient.HTTPClient.Transport
 	if t, ok := innerTransport.(*http.Transport); ok {
 		t.DialContext = (&net.Dialer{
@@ -113,6 +114,7 @@ func CloneRetryableClient(retryClient *rhttp.Client) *rhttp.Client {
 	newRetryClient.CheckRetry = retryClient.CheckRetry
 	newRetryClient.Backoff = retryClient.Backoff
 	newRetryClient.ErrorHandler = retryClient.ErrorHandler
+	newRetryClient.HTTPClient.CheckRedirect = retryClient.HTTPClient.CheckRedirect
 
 	return newRetryClient
 }
