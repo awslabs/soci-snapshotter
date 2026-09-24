@@ -452,3 +452,69 @@ func (f *fakeRemoteStore) Resolve(_ context.Context, ref string) (ocispec.Descri
 		Size: int64(len(f.defaultContents)),
 	}, nil
 }
+
+func TestDistributionSourceLabels(t *testing.T) {
+	testCases := []struct {
+		name     string
+		ref      string
+		expected map[string]string
+	}{
+		{
+			name:     "registry with nested repository",
+			ref:      "123456789012.dkr.ecr.us-east-1.amazonaws.com/team/app:v1",
+			expected: map[string]string{"containerd.io/distribution.source.123456789012.dkr.ecr.us-east-1.amazonaws.com": "team/app"},
+		},
+		{
+			name:     "registry port is not part of the key",
+			ref:      "localhost:5000/repo@sha256:7b236f6c6ca259a4497e98c204bc1dcf3e653438e74af17bfe39da5329789f4a",
+			expected: map[string]string{"containerd.io/distribution.source.localhost": "repo"},
+		},
+	}
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			refspec, err := reference.Parse(tc.ref)
+			if err != nil {
+				t.Fatalf("cannot parse ref: %v", err)
+			}
+			if diff := cmp.Diff(tc.expected, distributionSourceLabels(refspec)); diff != "" {
+				t.Fatalf("unexpected labels (-want +got):\n%s", diff)
+			}
+		})
+	}
+}
+
+// labelRecordingStore is a local store that records the labels content was pushed with.
+type labelRecordingStore struct {
+	*memory.Store
+	labels map[digest.Digest]map[string]string
+}
+
+func (s *labelRecordingStore) PushWithLabels(ctx context.Context, expected ocispec.Descriptor, reader io.Reader, labels map[string]string) error {
+	if err := s.Push(ctx, expected, reader); err != nil {
+		return err
+	}
+	s.labels[expected.Digest] = labels
+	return nil
+}
+
+func TestArtifactFetcherStoreWithLabels(t *testing.T) {
+	contents := []byte("test")
+	desc := ocispec.Descriptor{Digest: digest.FromBytes(contents), Size: int64(len(contents))}
+	refspec, err := reference.Parse(imageRef)
+	if err != nil {
+		t.Fatalf("cannot parse ref: %v", err)
+	}
+	localStore := &labelRecordingStore{Store: memory.New(), labels: map[digest.Digest]map[string]string{}}
+	fetcher, err := newParallelArtifactFetcher(refspec, localStore, newFakeRemoteStore(contents), nil, 0, nil)
+	if err != nil {
+		t.Fatalf("could not create artifact fetcher: %v", err)
+	}
+
+	if err := fetcher.Store(context.Background(), desc, bytes.NewReader(contents)); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	expected := map[string]string{"containerd.io/distribution.source.dummy.host": "repo"}
+	if diff := cmp.Diff(expected, localStore.labels[desc.Digest]); diff != "" {
+		t.Fatalf("unexpected labels (-want +got):\n%s", diff)
+	}
+}
