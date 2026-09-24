@@ -225,6 +225,25 @@ func (r *orasBlobStore) doInitialFetch(ctx context.Context, reference string) (b
 	return false, nil
 }
 
+// hasBlob reports whether the registry has the blob, using a single HEAD request.
+// It is used to probe mirrors, where a miss is expected and should be cheap.
+func (r *orasBlobStore) hasBlob(ctx context.Context, reference string) (bool, error) {
+	ref, err := registry.ParseReference(reference)
+	if err != nil {
+		return false, err
+	}
+	req, err := http.NewRequestWithContext(ctx, http.MethodHead, sociremote.CraftBlobURL(reference, ref, r.PlainHTTP), nil)
+	if err != nil {
+		return false, err
+	}
+	resp, err := (&clientWrapper{r.Client}).RoundTrip(req)
+	if err != nil {
+		return false, err
+	}
+	socihttp.Drain(resp.Body)
+	return resp.StatusCode == http.StatusOK, nil
+}
+
 // This wrapper is to allow a [remote.Client] to implement the
 // [http.RoundTripper] interface by calling Client.Do() in place of RoundTrip.
 type clientWrapper struct {
