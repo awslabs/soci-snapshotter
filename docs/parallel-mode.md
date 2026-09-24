@@ -34,7 +34,7 @@ The _parallel-pull-unpack_ mode is configured through the following parameters. 
 * `concurrent_download_chunk_size`: Specifies the size of each download chunk when pulling image layers in parallel. Default is empty (size of layer).
 * `max_concurrent_unpacks`: Sets the maximum number of concurrent layer unpacking operations system-wide. Default is -1 (unlimited).
 * `max_concurrent_unpacks_per_image`: Sets the limit for concurrent unpacking of layers per image. Default is 1.
-* `discard_unpacked_layers`: Controls whether to retain layer blobs after unpacking. Enabling this can reduce disk space usage and speed up pull times. Default is false.
+* `discard_unpacked_layers`: Controls whether to retain layer blobs after unpacking. Enabling this can reduce disk space usage and speed up pull times. Default is false. Retained layers get the `containerd.io/distribution.source.<registry>` label when they are stored, like layers pulled by containerd.
 * `decompress_streams`: Allows customizing the decompressor executable used for layer extraction. Default is "unpigz".
 
 ### About Decompress Streams

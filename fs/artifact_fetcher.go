@@ -26,6 +26,7 @@ import (
 	"net/http"
 	"net/url"
 	"strconv"
+	"strings"
 	"time"
 
 	commonmetrics "github.com/awslabs/soci-snapshotter/fs/metrics/common"
@@ -35,6 +36,7 @@ import (
 	"github.com/awslabs/soci-snapshotter/soci/store"
 	"github.com/awslabs/soci-snapshotter/util/ioutils"
 	"github.com/containerd/containerd/v2/core/remotes/docker"
+	ctdlabels "github.com/containerd/containerd/v2/pkg/labels"
 	"github.com/containerd/containerd/v2/pkg/reference"
 	"github.com/containerd/log"
 	"github.com/opencontainers/go-digest"
@@ -64,6 +66,8 @@ type artifactFetcher struct {
 	remoteStore resolverStorage
 	localStore  store.BasicStore
 	refspec     reference.Spec
+	// labels are set on content when it is stored, if the local store supports it.
+	labels map[string]string
 }
 
 // This is a wrapper for the ORAS remote repository.
@@ -269,6 +273,28 @@ func (f *artifactFetcher) constructRef(desc ocispec.Descriptor) string {
 	return constructRef(f.refspec, desc)
 }
 
+// distributionSourceLabels returns the containerd distribution source label for
+// content pulled from refspec, in the same format containerd sets it when it
+// fetches content itself (see containerd's docker.AppendDistributionSourceLabel).
+// Tools that share content between nodes, such as registry mirrors backed by the
+// containerd content store, use this label to know which registry and repository
+// a blob belongs to.
+func distributionSourceLabels(refspec reference.Spec) map[string]string {
+	u, err := url.Parse("dummy://" + refspec.Locator)
+	if err != nil {
+		return nil
+	}
+	source, repo := u.Hostname(), strings.TrimPrefix(u.Path, "/")
+	if source == "" || repo == "" {
+		return nil
+	}
+	key := ctdlabels.LabelDistributionSource + "." + source
+	if err := ctdlabels.Validate(key, repo); err != nil {
+		return nil
+	}
+	return map[string]string{key: repo}
+}
+
 func constructRef(refspec reference.Spec, desc ocispec.Descriptor) string {
 	return fmt.Sprintf("%s@%s", refspec.Locator, desc.Digest.String())
 }
@@ -316,7 +342,12 @@ func (f *artifactFetcher) resolve(ctx context.Context, desc ocispec.Descriptor) 
 
 // Store takes in an descriptor and io.Reader and stores it in the local store.
 func (f *artifactFetcher) Store(ctx context.Context, desc ocispec.Descriptor, reader io.Reader) error {
-	err := f.localStore.Push(ctx, desc, reader)
+	var err error
+	if lp, ok := f.localStore.(store.LabeledPusher); ok && len(f.labels) > 0 {
+		err = lp.PushWithLabels(ctx, desc, reader, f.labels)
+	} else {
+		err = f.localStore.Push(ctx, desc, reader)
+	}
 	if err != nil && !store.IsErrAlreadyExists(err) {
 		return fmt.Errorf("unable to push to local store: %w", err)
 	}

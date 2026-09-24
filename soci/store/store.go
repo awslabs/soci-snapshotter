@@ -312,6 +312,23 @@ func (s *ContainerdStore) Fetch(ctx context.Context, target ocispec.Descriptor) 
 // Push pushes the content, matching the expected descriptor.
 // This should be done within a Batch and followed by Label calls to prevent garbage collection.
 func (s *ContainerdStore) Push(ctx context.Context, expected ocispec.Descriptor, reader io.Reader) error {
+	return s.push(ctx, expected, reader)
+}
+
+// LabeledPusher is implemented by stores that can set labels on content
+// atomically when it is committed.
+type LabeledPusher interface {
+	PushWithLabels(ctx context.Context, expected ocispec.Descriptor, reader io.Reader, labels map[string]string) error
+}
+
+// PushWithLabels is like Push, but sets labels on the content when it is committed.
+// Setting labels at commit time means they are already present when containerd
+// publishes the content create event, so event consumers can rely on them.
+func (s *ContainerdStore) PushWithLabels(ctx context.Context, expected ocispec.Descriptor, reader io.Reader, labels map[string]string) error {
+	return s.push(ctx, expected, reader, content.WithLabels(labels))
+}
+
+func (s *ContainerdStore) push(ctx context.Context, expected ocispec.Descriptor, reader io.Reader, opts ...content.Opt) error {
 	exists, err := s.Exists(ctx, expected)
 	if err != nil {
 		return err
@@ -359,7 +376,7 @@ func (s *ContainerdStore) Push(ctx context.Context, expected ocispec.Descriptor,
 		return fmt.Errorf("unexpected copy size %d, expected %d: %w", totalWritten, expected.Size, errdefs.ErrFailedPrecondition)
 	}
 
-	return writer.Commit(ctx, expected.Size, expected.Digest)
+	return writer.Commit(ctx, expected.Size, expected.Digest, opts...)
 }
 
 // LabelGCRoot labels the target resource to prevent garbage collection of itself.

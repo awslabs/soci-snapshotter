@@ -54,6 +54,7 @@ func newParallelArtifactFetcher(
 			localStore:  localStore,
 			remoteStore: remoteStore,
 			refspec:     refspec,
+			labels:      distributionSourceLabels(refspec),
 		},
 		layerUnpackJob: layerUnpackJob,
 		chunkSize:      chunkSize,
