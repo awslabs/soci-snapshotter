@@ -77,8 +77,73 @@ func TestCheck(t *testing.T) {
 	}
 }
 
+// TestCheckRefreshesOnReferenceChange verifies that when the snapshot labels
+// name a reference other than the one the connection was resolved from, the
+// connection is refreshed from the labels before the old one is probed, and
+// that nothing changes while the labels still name the resolved reference.
+func TestCheckRefreshesOnReferenceChange(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	const (
+		oldRef = "registry.example/image-a:v1"
+		newRef = "registry.example/image-b:v1"
+		layerD = "sha256:deadbeaf000000000000000000000000000000000000000000000000deadbeaf"
+	)
+	labelsFor := func(ref string) map[string]string {
+		return map[string]string{
+			"containerd.io/snapshot/cri.image-ref":    ref,
+			"containerd.io/snapshot/cri.layer-digest": layerD,
+		}
+	}
+
+	bl := &breakableLayer{success: true, refspec: oldRef}
+	fs := &filesystem{
+		layer: map[string]layer.Layer{
+			"test": bl,
+		},
+		getSources: source.FromDefaultLabels(func(imgRefSpec reference.Spec) (hosts []docker.RegistryHost, _ error) {
+			return docker.ConfigureDefaultRegistries(docker.WithPlainHTTP(docker.MatchLocalhost))(imgRefSpec.Hostname())
+		}),
+	}
+
+	// Same reference: the connection is probed, nothing is refreshed.
+	if err := fs.Check(ctx, "test", labelsFor(oldRef)); err != nil {
+		t.Fatalf("check with unchanged reference failed: %v", err)
+	}
+	if bl.checks != 1 || len(bl.refreshed) != 0 {
+		t.Fatalf("unchanged reference: checks=%d refreshed=%v; wanted 1 check and no refresh", bl.checks, bl.refreshed)
+	}
+
+	// New reference: refreshed from the labels without probing the old connection.
+	if err := fs.Check(ctx, "test", labelsFor(newRef)); err != nil {
+		t.Fatalf("check with changed reference failed: %v", err)
+	}
+	if bl.checks != 1 || len(bl.refreshed) != 1 || bl.refreshed[0] != newRef {
+		t.Fatalf("changed reference: checks=%d refreshed=%v; wanted no new check and one refresh to %q", bl.checks, bl.refreshed, newRef)
+	}
+	if bl.Refspec().String() != newRef {
+		t.Fatalf("connection reference = %q; wanted %q", bl.Refspec().String(), newRef)
+	}
+
+	// Refreshing to the new reference fails: falls back to the regular check,
+	// which then fails too, and the error is reported.
+	bl.success = false
+	if err := fs.Check(ctx, "test", labelsFor(oldRef)); err == nil {
+		t.Fatalf("check succeeded; wanted to fail when neither refresh nor check works")
+	}
+	if bl.checks != 2 {
+		t.Fatalf("failed refresh: checks=%d; wanted the regular check to run", bl.checks)
+	}
+}
+
 type breakableLayer struct {
 	success bool
+	// refspec is the reference the connection was resolved from; refreshed
+	// contains the references passed to Refresh, and checks the calls to Check.
+	refspec   string
+	refreshed []string
+	checks    int
 }
 
 func (l *breakableLayer) Info() layer.Info {
@@ -98,15 +163,22 @@ func (l *breakableLayer) ReadAt([]byte, int64, ...remote.Option) (int, error) {
 func (l *breakableLayer) GetCacheRefKey() string { return "" }
 func (l *breakableLayer) BackgroundFetch() error { return fmt.Errorf("fail") }
 func (l *breakableLayer) Check() error {
+	l.checks++
 	if !l.success {
 		return fmt.Errorf("failed")
 	}
 	return nil
 }
 func (l *breakableLayer) Refresh(ctx context.Context, hosts []docker.RegistryHost, refspec reference.Spec, desc ocispec.Descriptor) error {
+	l.refreshed = append(l.refreshed, refspec.String())
 	if !l.success {
 		return fmt.Errorf("failed")
 	}
+	l.refspec = refspec.String()
 	return nil
+}
+func (l *breakableLayer) Refspec() reference.Spec {
+	spec, _ := reference.Parse(l.refspec)
+	return spec
 }
 func (l *breakableLayer) Done() {}
