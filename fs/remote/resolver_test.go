@@ -44,6 +44,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/http/httptest"
 	"net/url"
 	"path/filepath"
 	"regexp"
@@ -51,6 +52,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/awslabs/soci-snapshotter/config"
 	socihttp "github.com/awslabs/soci-snapshotter/internal/http"
 	"github.com/awslabs/soci-snapshotter/version"
 	"github.com/containerd/containerd/v2/core/remotes/docker"
@@ -346,6 +348,69 @@ func (r *retryRoundTripper) RoundTrip(req *http.Request) (res *http.Response, er
 		}
 	}
 	return
+}
+
+// TestRefreshKeepsHTTPSettings verifies that a connection refreshed to
+// another reference gets the same HTTP timeout and retry settings from the
+// blob config as the one it replaces, instead of the registry host's.
+func TestRefreshKeepsHTTPSettings(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Range", "bytes 0-1/4")
+		w.WriteHeader(http.StatusPartialContent)
+		w.Write([]byte("te"))
+	}))
+	defer srv.Close()
+	srvURL, _ := url.Parse(srv.URL)
+
+	// The registry host's client has the library defaults; the blob config
+	// asks for something else, so a fetcher built from it must be re-tuned.
+	hostClient := rhttp.NewClient()
+	hostClient.HTTPClient.Transport = &http.Transport{}
+	hosts := []docker.RegistryHost{{
+		Client:       &http.Client{Transport: newTestAuthClient(nil, socihttp.WithRetryableClient(hostClient))},
+		Host:         srvURL.Host,
+		Scheme:       "http",
+		Path:         "/v2",
+		Capabilities: docker.HostCapabilityPull,
+	}}
+	cfg := config.BlobConfig{
+		ValidInterval:   60,
+		FetchTimeoutSec: 7,
+		MaxRetries:      3,
+		MinWaitMsec:     11,
+		MaxWaitMsec:     22,
+	}
+	r := NewResolver(cfg, nil)
+	desc := ocispec.Descriptor{Digest: digest.FromString("dummy"), Size: 4}
+
+	settings := func(b Blob) (int, time.Duration, time.Duration, time.Duration) {
+		hf := b.(*blob).fetcher.(*httpFetcher)
+		rc := hf.roundTripper.(*socihttp.AuthClient).Client()
+		return rc.RetryMax, rc.RetryWaitMin, rc.RetryWaitMax, rc.HTTPClient.Timeout
+	}
+	want := func(b Blob, what string) {
+		retries, minWait, maxWait, timeout := settings(b)
+		if retries != 3 || minWait != 11*time.Millisecond || maxWait != 22*time.Millisecond || timeout != 7*time.Second {
+			t.Fatalf("%s: retries=%d minWait=%v maxWait=%v timeout=%v; wanted 3, 11ms, 22ms, 7s",
+				what, retries, minWait, maxWait, timeout)
+		}
+	}
+
+	refA, _ := reference.Parse(srvURL.Host + "/image-a:v1")
+	b, err := r.Resolve(context.Background(), hosts, refA, desc)
+	if err != nil {
+		t.Fatalf("resolve: %v", err)
+	}
+	want(b, "resolved connection")
+
+	refB, _ := reference.Parse(srvURL.Host + "/image-b:v1")
+	if err := b.Refresh(context.Background(), hosts, refB, desc); err != nil {
+		t.Fatalf("refresh: %v", err)
+	}
+	want(b, "refreshed connection")
+	if got := b.Refspec().String(); got != refB.String() {
+		t.Fatalf("refreshed connection reference = %q; wanted %q", got, refB)
+	}
 }
 
 type emptyAuthHandler struct{}

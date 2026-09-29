@@ -119,12 +119,8 @@ func (b *blob) Refresh(ctx context.Context, hosts []docker.RegistryHost, refspec
 	if b.isClosed() {
 		return fmt.Errorf("blob is already closed")
 	}
-	// refresh the fetcher
-	f, newSize, err := b.resolver.resolveFetcher(ctx, &fetcherConfig{
-		hosts:   hosts,
-		refspec: refspec,
-		desc:    desc,
-	})
+	// refresh the fetcher, with the same HTTP settings as the original one
+	f, newSize, err := b.resolver.resolveFetcher(ctx, b.resolver.fetcherConfig(hosts, refspec, desc))
 	if err != nil {
 		return err
 	}
