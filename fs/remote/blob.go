@@ -61,11 +61,16 @@ type Blob interface {
 	FetchedSize() int64
 	ReadAt(p []byte, offset int64, opts ...Option) (int, error)
 	Refresh(ctx context.Context, hosts []docker.RegistryHost, refspec reference.Spec, desc ocispec.Descriptor) error
+	// Refspec returns the image reference the current fetcher was resolved from.
+	Refspec() reference.Spec
 	Close() error
 }
 
 type blob struct {
-	fetcher   fetcher
+	fetcher fetcher
+	// refspec is the reference fetcher was resolved from. Swapped together
+	// with fetcher, under fetcherMu.
+	refspec   reference.Spec
 	fetcherMu sync.Mutex
 
 	size          int64
@@ -82,10 +87,11 @@ type blob struct {
 	closedMu sync.Mutex
 }
 
-func makeBlob(fetcher fetcher, size int64, lastCheck time.Time, checkInterval time.Duration,
+func makeBlob(fetcher fetcher, refspec reference.Spec, size int64, lastCheck time.Time, checkInterval time.Duration,
 	r *Resolver) *blob {
 	return &blob{
 		fetcher:       fetcher,
+		refspec:       refspec,
 		size:          size,
 		lastCheck:     lastCheck,
 		checkInterval: checkInterval,
@@ -129,12 +135,19 @@ func (b *blob) Refresh(ctx context.Context, hosts []docker.RegistryHost, refspec
 	// update the blob's fetcher with new one
 	b.fetcherMu.Lock()
 	b.fetcher = f
+	b.refspec = refspec
 	b.fetcherMu.Unlock()
 	b.lastCheckMu.Lock()
 	b.lastCheck = time.Now()
 	b.lastCheckMu.Unlock()
 
 	return nil
+}
+
+func (b *blob) Refspec() reference.Spec {
+	b.fetcherMu.Lock()
+	defer b.fetcherMu.Unlock()
+	return b.refspec
 }
 
 func (b *blob) Check() error {
