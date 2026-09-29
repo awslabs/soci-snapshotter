@@ -441,7 +441,8 @@ func (tb *testBlobState) Cache(offset int64, size int64, opts ...remote.Option) 
 func (tb *testBlobState) Refresh(ctx context.Context, hosts []docker.RegistryHost, refspec reference.Spec, desc ocispec.Descriptor) error {
 	return nil
 }
-func (tb *testBlobState) Close() error { return nil }
+func (tb *testBlobState) Refspec() reference.Spec { return reference.Spec{} }
+func (tb *testBlobState) Close() error            { return nil }
 
 type check func(*testing.T, *node)
 

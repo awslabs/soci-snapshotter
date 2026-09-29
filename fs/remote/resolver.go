@@ -121,6 +121,7 @@ func (r *Resolver) Resolve(ctx context.Context, hosts []docker.RegistryHost, ref
 	}
 	return makeBlob(
 			f,
+			refspec,
 			size,
 			time.Now(),
 			validInterval,
