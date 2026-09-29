@@ -98,24 +98,7 @@ func NewResolver(cfg config.BlobConfig, handlers map[string]Handler) *Resolver {
 }
 
 func (r *Resolver) Resolve(ctx context.Context, hosts []docker.RegistryHost, refspec reference.Spec, desc ocispec.Descriptor) (Blob, error) {
-
-	var (
-		validInterval = time.Duration(r.blobConfig.ValidInterval) * time.Second
-		fetchTimeout  = time.Duration(r.blobConfig.FetchTimeoutSec) * time.Second
-		minWait       = time.Duration(r.blobConfig.MinWaitMsec) * time.Millisecond
-		maxWait       = time.Duration(r.blobConfig.MaxWaitMsec) * time.Millisecond
-		maxRetries    = r.blobConfig.MaxRetries
-	)
-
-	f, size, err := r.resolveFetcher(ctx, &fetcherConfig{
-		hosts:        hosts,
-		refspec:      refspec,
-		desc:         desc,
-		fetchTimeout: fetchTimeout,
-		maxRetries:   maxRetries,
-		minWait:      minWait,
-		maxWait:      maxWait,
-	})
+	f, size, err := r.resolveFetcher(ctx, hosts, refspec, desc)
 	if err != nil {
 		return nil, err
 	}
@@ -124,12 +107,24 @@ func (r *Resolver) Resolve(ctx context.Context, hosts []docker.RegistryHost, ref
 			refspec,
 			size,
 			time.Now(),
-			validInterval,
+			time.Duration(r.blobConfig.ValidInterval)*time.Second,
 			r),
 		nil
 }
 
-func (r *Resolver) resolveFetcher(ctx context.Context, fc *fetcherConfig) (f fetcher, size int64, err error) {
+// resolveFetcher applies the blob config's HTTP settings, so a refreshed
+// fetcher gets the same ones as the original.
+func (r *Resolver) resolveFetcher(ctx context.Context, hosts []docker.RegistryHost, refspec reference.Spec, desc ocispec.Descriptor) (f fetcher, size int64, err error) {
+	fc := &fetcherConfig{
+		hosts:        hosts,
+		refspec:      refspec,
+		desc:         desc,
+		fetchTimeout: time.Duration(r.blobConfig.FetchTimeoutSec) * time.Second,
+		maxRetries:   r.blobConfig.MaxRetries,
+		minWait:      time.Duration(r.blobConfig.MinWaitMsec) * time.Millisecond,
+		maxWait:      time.Duration(r.blobConfig.MaxWaitMsec) * time.Millisecond,
+	}
+
 	var handlersErr error
 	for name, p := range r.handlers {
 		// TODO: allow to configure the selection of readers based on the hostname in refspec
