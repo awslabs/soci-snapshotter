@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1790006523866,
+  "lastUpdate": 1790794469960,
   "repoUrl": "https://github.com/awslabs/soci-snapshotter",
   "entries": {
     "Soci Benchmark": [
@@ -20313,6 +20313,47 @@ window.BENCHMARK_DATA = {
           {
             "name": "SociFullECR-public-mongo-pullTaskDuration",
             "value": 1.4108,
+            "unit": "Seconds",
+            "extra": "P90"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "rdu@amazon.com",
+            "name": "Radu Constantinescu"
+          },
+          "committer": {
+            "email": "55555210+sondavidb@users.noreply.github.com",
+            "name": "David Son",
+            "username": "sondavidb"
+          },
+          "distinct": true,
+          "id": "4c43a9521606aa4f94c0dd296417798faec79090",
+          "message": "fix: resolve custom headers before spawning pre-resolve goroutines\n\nThe pre-resolver runs one detached goroutine per indexed layer. Each\ngoroutine called HeadersFromLabels on the snapshot labels map captured\nfrom Mount, while the snapshotter's Prepare path keeps writing to that\nsame map after Mount returns. A goroutine iterating the map during one\nof those writes aborts the process with \"concurrent map iteration and\nmap write\", failing every in-flight pull. Concurrent pulls of images\nwith many layers make the overlap likely.\n\nResolve the headers once before enqueuing pre-resolve work, and let\nthe goroutines capture the resulting immutable http.Header. This also\navoids re-parsing the same labels once per layer.\n\nSigned-off-by: Radu Constantinescu <rdu@amazon.com>",
+          "timestamp": "2026-09-30T14:39:19-04:00",
+          "tree_id": "552ea4e9468c02d1e403189848c61db53f2142c6",
+          "url": "https://github.com/awslabs/soci-snapshotter/commit/4c43a9521606aa4f94c0dd296417798faec79090"
+        },
+        "date": 1790794452006,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "SociFullECR-public-mongo-lazyTaskDuration",
+            "value": 10.078800000000001,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-mongo-localTaskDuration",
+            "value": 0.34859999999999997,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-mongo-pullTaskDuration",
+            "value": 2.3212,
             "unit": "Seconds",
             "extra": "P90"
           }
