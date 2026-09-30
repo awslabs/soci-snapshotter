@@ -1110,6 +1110,7 @@ func (fs *filesystem) Mount(ctx context.Context, mountpoint string, labels map[s
 	// order.
 	preResolve := src[0] // TODO: should we pre-resolve blobs in other sources as well?
 	targetDigest := preResolve.Target.Digest.String()
+	preResolveHeaders := source.HeadersFromLabels(ctx, labels)
 	for layerDigest, sociDesc := range c.imageLayerToSociDesc {
 		// The target layer is resolved on the critical path above; skip it.
 		if layerDigest == targetDigest {
@@ -1127,7 +1128,7 @@ func (fs *filesystem) Mount(ctx context.Context, mountpoint string, labels map[s
 		fs.pr.Enqueue(imgNameAndDigest, func(ctx context.Context) string {
 			// Use context from the preresolver, but append namespace from current ctx
 			ctx = namespaces.WithNamespace(ctx, ns)
-			ctx = socihttp.WithCustomHeaders(ctx, source.HeadersFromLabels(ctx, labels))
+			ctx = socihttp.WithCustomHeaders(ctx, preResolveHeaders)
 
 			prefetchDesc := c.findPrefetchArtifact(desc.Digest.String())
 
