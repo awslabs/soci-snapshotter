@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1790794459716,
+  "lastUpdate": 1790801438707,
   "repoUrl": "https://github.com/awslabs/soci-snapshotter",
   "entries": {
     "Soci Benchmark": [
@@ -20231,6 +20231,48 @@ window.BENCHMARK_DATA = {
           {
             "name": "SociFullECR-public-rabbitmq-pullTaskDuration",
             "value": 2.5802,
+            "unit": "Seconds",
+            "extra": "P90"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "davbson@amazon.com",
+            "name": "David Son",
+            "username": "sondavidb"
+          },
+          "committer": {
+            "email": "55555210+sondavidb@users.noreply.github.com",
+            "name": "David Son",
+            "username": "sondavidb"
+          },
+          "distinct": true,
+          "id": "9913fff44bc1cb3ef46fb7ae0f4708c55b76f730",
+          "message": "Check tag commit is same as head of release branch\n\nAn improperly created tag will still pass all the validation steps even\nif the commit is incorrect. This change forces the tag to only be\ncreated from the tip of its associated release branch, which creates\nmore restrictions but I can't imagine a realistic use case where it is\nan issue. Perhaps if we ever overwrote history in tags, but since we\navoid that at basically all costs, I think this is a fine restriction.\n\nSigned-off-by: David Son <davbson@amazon.com>",
+          "timestamp": "2026-09-30T16:40:08-04:00",
+          "tree_id": "1f722f3e8e4afd19815c13cfbeafe645ef5a4843",
+          "url": "https://github.com/awslabs/soci-snapshotter/commit/9913fff44bc1cb3ef46fb7ae0f4708c55b76f730"
+        },
+        "date": 1790801435584,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "SociFullECR-public-rabbitmq-lazyTaskDuration",
+            "value": 12.6044,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-rabbitmq-localTaskDuration",
+            "value": 9.4748,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-rabbitmq-pullTaskDuration",
+            "value": 3.4098,
             "unit": "Seconds",
             "extra": "P90"
           }
