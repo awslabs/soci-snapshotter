@@ -22,6 +22,7 @@ import (
 	"fmt"
 	"net/http"
 	"strings"
+	"sync"
 	"testing"
 
 	rhttp "github.com/hashicorp/go-retryablehttp"
@@ -334,5 +335,93 @@ func TestCustomHeadersDeniedWithoutAllowlist(t *testing.T) {
 	}
 	if got := rt.got.Get("x-request-id"); got != "" {
 		t.Fatalf("custom header must be dropped when no allowlist is configured: got %q", got)
+	}
+}
+
+// hostAuthHandler mimics containerd's docker authorizer: challenges are
+// answered per host, and requests are only authorized for challenged hosts.
+type hostAuthHandler struct {
+	mu    sync.Mutex
+	hosts map[string]bool
+}
+
+func (h *hostAuthHandler) HandleChallenge(ctx context.Context, resp *http.Response) error {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	h.hosts[resp.Request.URL.Host] = true
+	return nil
+}
+
+func (h *hostAuthHandler) AuthorizeRequest(ctx context.Context, req *http.Request) (*http.Request, error) {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	if h.hosts[req.URL.Host] {
+		req.SetBasicAuth("user", "pass")
+	}
+	return req, nil
+}
+
+// crossHostRedirectRoundTripper simulates a registry that redirects to a
+// different host which also requires authentication, which in turn redirects
+// blobs to pre-signed storage URLs that must not receive credentials.
+type crossHostRedirectRoundTripper struct {
+	storageAuth string
+}
+
+func (rt *crossHostRedirectRoundTripper) RoundTrip(req *http.Request) (*http.Response, error) {
+	redirect := func(to string) *http.Response {
+		return &http.Response{
+			StatusCode: http.StatusTemporaryRedirect,
+			Header:     http.Header{"Location": []string{to}},
+			Body:       http.NoBody,
+			Request:    req,
+		}
+	}
+	switch req.URL.Host {
+	case "registry.example.com":
+		return redirect("https://proxy.example.net" + req.URL.Path), nil
+	case "proxy.example.net":
+		if user, pass, ok := req.BasicAuth(); !ok || user != "user" || pass != "pass" {
+			return &http.Response{
+				StatusCode: http.StatusUnauthorized,
+				Header:     http.Header{"Www-Authenticate": []string{"Basic"}},
+				Body:       http.NoBody,
+				Request:    req,
+			}, nil
+		}
+		return redirect("https://storage.example.org/blob?sig=xyz"), nil
+	case "storage.example.org":
+		rt.storageAuth = req.Header.Get("Authorization")
+		return &http.Response{StatusCode: http.StatusOK, Body: http.NoBody, Request: req}, nil
+	}
+	return nil, fmt.Errorf("unexpected host %q", req.URL.Host)
+}
+
+func TestCrossHostRedirectIsReauthorized(t *testing.T) {
+	rt := &crossHostRedirectRoundTripper{}
+	rc := rhttp.NewClient()
+	rc.RetryMax = 0
+	rc.HTTPClient.Transport = rt
+	rc.HTTPClient.CheckRedirect = CheckRedirect
+
+	ac, err := NewAuthClient(&hostAuthHandler{hosts: map[string]bool{}}, WithRetryableClient(rc))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	req, _ := http.NewRequestWithContext(context.Background(), "GET",
+		"https://registry.example.com/v2/repo/blobs/sha256:abc123", nil)
+	resp, err := ac.Do(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("expected status %d, got %d", http.StatusOK, resp.StatusCode)
+	}
+	if resp.Request.URL.Host != "storage.example.org" {
+		t.Fatalf("expected final host storage.example.org, got %q", resp.Request.URL.Host)
+	}
+	if rt.storageAuth != "" {
+		t.Fatalf("credentials leaked to storage host: %q", rt.storageAuth)
 	}
 }
