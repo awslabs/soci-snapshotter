@@ -38,6 +38,9 @@ type parallelArtifactFetcher struct {
 	layerUnpackJob *layerUnpackJob
 	chunkSize      int64
 	verifier       *asyncVerifier
+	// fallbacks are tried in order if downloading from remoteStore fails,
+	// e.g. the image registry after a mirror.
+	fallbacks []blobSource
 }
 
 // Constructs a new artifact fetcher
@@ -165,24 +168,24 @@ func (f *parallelArtifactFetcher) fetchFromRemoteAndWriteToTempDir(ctx context.C
 		return nil, fmt.Errorf("error truncating temp ingest file at %s: %w", ingestPath, err)
 	}
 
-	doMultipleFetches := false
-	numLoops := f.calcNumLoops(desc.Size)
-	if numLoops > 1 {
-		if rs, ok := f.remoteStore.(*orasBlobStore); ok {
-			// If this layer does not support ranged GET, it is very likely
-			// all other layers of this image do not either.
-			doMultipleFetches, err = rs.doInitialFetch(ctx, f.constructRef(desc))
-			if err != nil {
-				return nil, fmt.Errorf("error doing initial authorization for layer: %w", err)
-			}
+	err = f.download(ctx, desc, file)
+	// The layer is only unpacked and verified after it is fully downloaded,
+	// so a failed download can be retried from the next host.
+	for len(f.fallbacks) > 0 && err != nil && ctx.Err() == nil {
+		next := f.fallbacks[0]
+		log.G(ctx).WithError(err).WithFields(log.Fields{"digest": desc.Digest, "failed": f.refspec.Hostname(), "next": next.refspec.Hostname()}).Warn("layer download failed, trying next registry host")
+		f.refspec, f.remoteStore, f.fallbacks = next.refspec, next.store, f.fallbacks[1:]
+		if _, err = file.Seek(0, io.SeekStart); err != nil {
+			break
 		}
+		if err = file.Truncate(0); err != nil {
+			break
+		}
+		if err = file.Truncate(desc.Size); err != nil {
+			break
+		}
+		err = f.download(ctx, desc, file)
 	}
-	if doMultipleFetches {
-		err = f.multiRequestFetchWrite(ctx, desc, file, numLoops)
-	} else {
-		err = f.oneRequestFetchWrite(ctx, desc, file)
-	}
-
 	if err != nil {
 		return nil, fmt.Errorf("error writing to temp ingest file at %s: %w", ingestPath, err)
 	}
@@ -201,6 +204,28 @@ func (f *parallelArtifactFetcher) fetchFromRemoteAndWriteToTempDir(ctx context.C
 	}
 
 	return file, nil
+}
+
+// download fetches the layer from remoteStore into file, with ranged GETs if
+// the layer is large enough and the registry supports them.
+func (f *parallelArtifactFetcher) download(ctx context.Context, desc ocispec.Descriptor, file *os.File) error {
+	doMultipleFetches := false
+	numLoops := f.calcNumLoops(desc.Size)
+	if numLoops > 1 {
+		if rs, ok := f.remoteStore.(*orasBlobStore); ok {
+			// If this layer does not support ranged GET, it is very likely
+			// all other layers of this image do not either.
+			var err error
+			doMultipleFetches, err = rs.doInitialFetch(ctx, f.constructRef(desc))
+			if err != nil {
+				return fmt.Errorf("error doing initial authorization for layer: %w", err)
+			}
+		}
+	}
+	if doMultipleFetches {
+		return f.multiRequestFetchWrite(ctx, desc, file, numLoops)
+	}
+	return f.oneRequestFetchWrite(ctx, desc, file)
 }
 
 // oneRequestFetchWrite does a normal fetch for the content from the repo and writes it to the given file descriptor

@@ -489,7 +489,9 @@ func (fs *filesystem) MountParallel(ctx context.Context, mountpoint string, labe
 	}
 	// download the target layer
 	s := src[0]
-	client := s.Hosts[0].Client
+	if len(s.Hosts) == 0 {
+		return fmt.Errorf("no registry hosts found for layer %s", s.Target.Digest)
+	}
 	refspec, err := reference.Parse(imageRef)
 	if err != nil {
 		return fmt.Errorf("cannot parse image ref (%s): %w", imageRef, err)
@@ -501,7 +503,7 @@ func (fs *filesystem) MountParallel(ctx context.Context, mountpoint string, labe
 	}
 	// If lazy-loading is disabled and the image has no jobs associated with it, start premounting all jobs
 	if !fs.inProgressImageUnpacks.ImageExists(imageDigest) {
-		err := fs.preloadAllLayers(ctx, desc, imageDigest, refspec, client)
+		err := fs.preloadAllLayers(ctx, desc, imageDigest, refspec, s.Hosts)
 		if err != nil {
 			return fmt.Errorf("failed to preload layers for image manifest digest %s: %w", imageDigest, err)
 		}
@@ -514,7 +516,7 @@ func (fs *filesystem) MountParallel(ctx context.Context, mountpoint string, labe
 	return nil
 }
 
-func (fs *filesystem) preloadAllLayers(ctx context.Context, desc ocispec.Descriptor, imageDigest string, refspec reference.Spec, cachedClient *http.Client) error {
+func (fs *filesystem) preloadAllLayers(ctx context.Context, desc ocispec.Descriptor, imageDigest string, refspec reference.Spec, hosts []docker.RegistryHost) error {
 	manifest, err := fs.getImageManifest(ctx, imageDigest)
 	if err != nil {
 		return fmt.Errorf("cannot get image manifest: %w", err)
@@ -528,27 +530,12 @@ func (fs *filesystem) preloadAllLayers(ctx context.Context, desc ocispec.Descrip
 	if !ok {
 		return errors.New("namespace not attached to context")
 	}
-	// Clone client if it's our internal [socihttp.AuthClient]
-	// so that this image pull request has an isolated client reference.
-	client := cachedClient
-	if authClient, ok := cachedClient.Transport.(*socihttp.AuthClient); ok {
-		retryClient := resolver.CloneRetryableClient(authClient.Client())
-		// The clone will have a cleaned cache
-		newAuthClient := authClient.CloneWithNewClient(retryClient)
-		// It's worth noting we don't ever directly clear the cache after this.
-		// This client is used to create the remoteStore, which falls
-		// out of scope after all layers are finished premounting,
-		// which should trigger Go's garbage collector, so it should
-		// be safe to never clear the cache and let Go handle it.
-		newAuthClient.CacheRedirects(true)
-		client = &http.Client{
-			Transport: newAuthClient,
-		}
-	}
-	remoteStore, err := newRemoteBlobStore(refspec, client, fs.isInsecureHost(refspec.Hostname()))
+	sources, err := fs.newBlobSources(ctx, refspec, hosts)
 	if err != nil {
-		return fmt.Errorf("cannot create remote store: %w", err)
+		return err
 	}
+	// Authorize against the image registry up front; mirrors are tried per layer.
+	remoteStore := sources[len(sources)-1].store
 
 	premountCtx, cancel := context.WithCancelCause(context.Background())
 	premountCtx = namespaces.WithNamespace(premountCtx, ns)
@@ -577,7 +564,7 @@ func (fs *filesystem) preloadAllLayers(ctx context.Context, desc ocispec.Descrip
 					if err != nil {
 						return fmt.Errorf("error adding layer job: %w", err)
 					}
-					go fs.premount(premountCtx, l, refspec, remoteStore, diffIDMap, layerJob)
+					go fs.premount(premountCtx, l, sources, diffIDMap, layerJob)
 				}
 			}
 		}
@@ -590,7 +577,119 @@ func (fs *filesystem) preloadAllLayers(ctx context.Context, desc ocispec.Descrip
 	return err
 }
 
-func (fs *filesystem) premount(ctx context.Context, desc ocispec.Descriptor, refspec reference.Spec, remoteStore resolverStorage, diffIDMap map[string]digest.Digest, layerJob *layerUnpackJob) error {
+// blobSource is a registry host that layers can be fetched from:
+// a configured mirror or the registry the image was pulled from.
+type blobSource struct {
+	refspec reference.Spec
+	store   *orasBlobStore
+}
+
+// newBlobSources returns one blobSource per registry host, in the order they
+// should be tried. hosts are the resolver's hosts for refspec: configured
+// mirrors first, then the registry of refspec itself.
+func (fs *filesystem) newBlobSources(ctx context.Context, refspec reference.Spec, hosts []docker.RegistryHost) ([]blobSource, error) {
+	if len(hosts) == 0 {
+		return nil, errors.New("no registry hosts")
+	}
+	var sources []blobSource
+	origin := hosts[len(hosts)-1]
+	// The image registry keeps its own scheme, unless it is configured as an
+	// insecure mirror of itself (the usual way to use a plain HTTP registry).
+	// Other insecure mirrors must not make the image registry plain HTTP.
+	originPlainHTTP := origin.Scheme == "http"
+	repo := strings.TrimPrefix(refspec.Locator, refspec.Hostname()+"/")
+	for _, h := range hosts[:len(hosts)-1] {
+		if h.Path != "" && h.Path != "/v2" {
+			log.G(ctx).WithFields(log.Fields{"mirror": h.Host, "path": h.Path}).Warn("parallel pull does not support mirrors with a custom path, skipping")
+			continue
+		}
+		if h.Host == origin.Host && h.Scheme == "http" {
+			originPlainHTTP = true
+		}
+		mirrorRefspec := reference.Spec{Locator: h.Host + "/" + repo, Object: refspec.Object}
+		client := isolatedClient(h.Client)
+		if h.Host != origin.Host {
+			client = withNamespaceParam(client, h.Host, refspec.Hostname())
+		}
+		store, err := newRemoteBlobStore(mirrorRefspec, client, h.Scheme == "http")
+		if err != nil {
+			return nil, fmt.Errorf("cannot create remote store for mirror %s: %w", h.Host, err)
+		}
+		sources = append(sources, blobSource{refspec: mirrorRefspec, store: store})
+	}
+	store, err := newRemoteBlobStore(refspec, isolatedClient(origin.Client), originPlainHTTP)
+	if err != nil {
+		return nil, fmt.Errorf("cannot create remote store: %w", err)
+	}
+	return append(sources, blobSource{refspec: refspec, store: store}), nil
+}
+
+// withNamespaceParam returns a client that adds the ns=<registry> query
+// parameter to requests sent to mirrorHost, as containerd does for mirrors,
+// so the mirror can tell which registry the image belongs to.
+func withNamespaceParam(client *http.Client, mirrorHost, registry string) *http.Client {
+	rt := client.Transport
+	if rt == nil {
+		rt = http.DefaultTransport
+	}
+	c := *client
+	c.Transport = &namespaceTransport{rt: rt, host: mirrorHost, ns: registry}
+	return &c
+}
+
+type namespaceTransport struct {
+	rt   http.RoundTripper
+	host string
+	ns   string
+}
+
+func (t *namespaceTransport) RoundTrip(req *http.Request) (*http.Response, error) {
+	if req.URL.Host != t.host {
+		return t.rt.RoundTrip(req)
+	}
+	req = req.Clone(req.Context())
+	q := req.URL.Query()
+	q.Set("ns", t.ns)
+	req.URL.RawQuery = q.Encode()
+	return t.rt.RoundTrip(req)
+}
+
+// isolatedClient clones client if it's our internal [socihttp.AuthClient]
+// so that this image pull request has an isolated client reference.
+func isolatedClient(client *http.Client) *http.Client {
+	authClient, ok := client.Transport.(*socihttp.AuthClient)
+	if !ok {
+		return client
+	}
+	retryClient := resolver.CloneRetryableClient(authClient.Client())
+	// The clone will have a cleaned cache
+	newAuthClient := authClient.CloneWithNewClient(retryClient)
+	// It's worth noting we don't ever directly clear the cache after this.
+	// This client is used to create the remoteStore, which falls
+	// out of scope after all layers are finished premounting,
+	// which should trigger Go's garbage collector, so it should
+	// be safe to never clear the cache and let Go handle it.
+	newAuthClient.CacheRedirects(true)
+	return &http.Client{
+		Transport: newAuthClient,
+	}
+}
+
+// selectBlobSource returns the sources to download the layer from, in order:
+// the first mirror that has the layer, followed by the remaining sources as
+// fallbacks, ending with the registry of the image (the last source).
+func selectBlobSource(ctx context.Context, sources []blobSource, desc ocispec.Descriptor) []blobSource {
+	for i, s := range sources[:len(sources)-1] {
+		ok, err := s.store.hasBlob(ctx, constructRef(s.refspec, desc))
+		if ok {
+			return sources[i:]
+		}
+		log.G(ctx).WithError(err).WithFields(log.Fields{"digest": desc.Digest, "mirror": s.refspec.Hostname()}).Debug("layer not available from mirror")
+	}
+	return sources[len(sources)-1:]
+}
+
+func (fs *filesystem) premount(ctx context.Context, desc ocispec.Descriptor, sources []blobSource, diffIDMap map[string]digest.Digest, layerJob *layerUnpackJob) error {
 	var err error
 	defer func() {
 		// If there is a context error (usually context cancelled),
@@ -625,11 +724,13 @@ func (fs *filesystem) premount(ctx context.Context, desc ocispec.Descriptor, ref
 
 	archive := NewLayerArchive(compressedVerifier, newAsyncVerifier(uncompressedDigest.Verifier()), decompressStream, layerJob.bufferPool)
 	chunkSize := fs.pullModes.Parallel.ConcurrentDownloadChunkSize
-	fetcher, err := newParallelArtifactFetcher(refspec, fs.contentStore, remoteStore, layerJob, chunkSize, compressedVerifier)
+	selected := selectBlobSource(ctx, sources, desc)
+	fetcher, err := newParallelArtifactFetcher(selected[0].refspec, fs.contentStore, selected[0].store, layerJob, chunkSize, compressedVerifier)
 	if err != nil {
 		log.G(ctx).WithError(err).Error("cannot create fetcher")
 		return err
 	}
+	fetcher.fallbacks = selected[1:]
 
 	unpacker := NewParallelLayerUnpacker(fetcher, archive, layerJob, fs.pullModes.Parallel.DiscardUnpackedLayers)
 	fsPath := layerJob.GetUnpackUpperPath()

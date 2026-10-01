@@ -98,9 +98,10 @@ This set of variables must be at the top of your TOML file due to not belonging 
 - `custom_headers` ([]string) — Allowlist of custom request-header names the snapshotter may add to its registry requests. A custom header comes from a snapshot label `containerd.io/snapshot/remote/soci.header.<name> = "<value>"` set by the containerd client on `Prepare`; for example `containerd.io/snapshot/remote/soci.header.x-request-id = "abc"` sends `x-request-id: abc`. Any image can carry such labels, so only the custom header names listed here are forwarded. Required registry headers are unaffected. Invalid HTTP header names and reserved names (`Authorization`, `Range`, `Accept`, `Accept-Encoding`, `Content-Type`, `Content-Length`, `User-Agent`, `Referer`) cause configuration loading to fail. Names are case-insensitive. Default: empty, no custom header is forwarded.
 #### [resolver.host]
 #### [resolver.host.examplehost]
+Use `"*"` as the host to configure mirrors for every registry that has no entry of its own.
 #### [[resolver.host.examplehost.mirrors]]
-- `host` (string) — hostname. Default: "".
-- `insecure` (bool) — Allows usage of http instead of https only. Default: true.
+- `host` (string) — hostname, optionally with a scheme. Without a scheme, https is used; an `http://` scheme implies `insecure = true`. Default: "".
+- `insecure` (bool) — Allows usage of http instead of https only. Default: false.
 - `request_timeout_sec` (int) — Timeout in seconds of each request to the registry. Default: infinity.
 
 ## config/service.go
