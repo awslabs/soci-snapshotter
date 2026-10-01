@@ -1266,6 +1266,23 @@ func (fs *filesystem) Check(ctx context.Context, mountpoint string, labels map[s
 }
 
 func (fs *filesystem) check(ctx context.Context, l layer.Layer, labels map[string]string) error {
+	src, srcErr := fs.getSources(labels)
+
+	// The snapshot was relabelled with a reference other than the one the
+	// connection was resolved from (e.g. the layer is shared with an image
+	// that has since lost access to the registry). Switch to it before
+	// probing the old one, which may no longer be authorized. On failure,
+	// fall through to the regular check.
+	if srcErr == nil && len(src) > 0 && !resolvedFrom(l, src) {
+		log.G(ctx).WithField("from", l.Refspec().String()).WithField("to", src[0].Name.String()).
+			Info("reference changed; refreshing connection")
+		for _, s := range src {
+			if err := l.Refresh(ctx, s.Hosts, s.Name, s.Target); err == nil {
+				return nil
+			}
+		}
+	}
+
 	err := l.Check()
 	if err == nil {
 		return nil
@@ -1273,9 +1290,8 @@ func (fs *filesystem) check(ctx context.Context, l layer.Layer, labels map[strin
 	log.G(ctx).WithError(err).Warn("failed to connect to blob")
 
 	// Check failed. Try to refresh the connection with fresh source information
-	src, err := fs.getSources(labels)
-	if err != nil {
-		return err
+	if srcErr != nil {
+		return srcErr
 	}
 	var (
 		retrynum = 1
@@ -1297,6 +1313,18 @@ func (fs *filesystem) check(ctx context.Context, l layer.Layer, labels map[strin
 	}
 
 	return rErr
+}
+
+// resolvedFrom reports whether the layer's connection was resolved from one
+// of the given sources.
+func resolvedFrom(l layer.Layer, src []source.Source) bool {
+	current := l.Refspec().String()
+	for _, s := range src {
+		if s.Name.String() == current {
+			return true
+		}
+	}
+	return false
 }
 
 func isIDMappedDir(mountpoint string) bool {
