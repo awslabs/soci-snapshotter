@@ -535,7 +535,7 @@ func (fs *filesystem) preloadAllLayers(ctx context.Context, desc ocispec.Descrip
 		return err
 	}
 	// Authorize against the image registry up front; mirrors are tried per layer.
-	remoteStore := sources[len(sources)-1].store
+	remoteStore := sources[len(sources)-1]
 
 	premountCtx, cancel := context.WithCancelCause(context.Background())
 	premountCtx = namespaces.WithNamespace(premountCtx, ns)
@@ -577,21 +577,14 @@ func (fs *filesystem) preloadAllLayers(ctx context.Context, desc ocispec.Descrip
 	return err
 }
 
-// blobSource is a registry host that layers can be fetched from:
-// a configured mirror or the registry the image was pulled from.
-type blobSource struct {
-	refspec reference.Spec
-	store   *orasBlobStore
-}
-
-// newBlobSources returns one blobSource per registry host, in the order they
+// newBlobSources returns one blob store per registry host, in the order they
 // should be tried. hosts are the resolver's hosts for refspec: configured
 // mirrors first, then the registry of refspec itself.
-func (fs *filesystem) newBlobSources(ctx context.Context, refspec reference.Spec, hosts []docker.RegistryHost) ([]blobSource, error) {
+func (fs *filesystem) newBlobSources(ctx context.Context, refspec reference.Spec, hosts []docker.RegistryHost) ([]*orasBlobStore, error) {
 	if len(hosts) == 0 {
 		return nil, errors.New("no registry hosts")
 	}
-	var sources []blobSource
+	var sources []*orasBlobStore
 	origin := hosts[len(hosts)-1]
 	// The image registry keeps its own scheme, unless it is configured as an
 	// insecure mirror of itself (the usual way to use a plain HTTP registry).
@@ -600,7 +593,7 @@ func (fs *filesystem) newBlobSources(ctx context.Context, refspec reference.Spec
 	repo := strings.TrimPrefix(refspec.Locator, refspec.Hostname()+"/")
 	for _, h := range hosts[:len(hosts)-1] {
 		if h.Path != "" && h.Path != "/v2" {
-			log.G(ctx).WithFields(log.Fields{"mirror": h.Host, "path": h.Path}).Warn("parallel pull does not support mirrors with a custom path, skipping")
+			log.G(ctx).WithFields(log.Fields{"mirror": h.Host, "path": h.Path}).Warn("mirrors with a custom path are not supported for layer downloads, skipping")
 			continue
 		}
 		if h.Host == origin.Host && h.Scheme == "http" {
@@ -615,13 +608,13 @@ func (fs *filesystem) newBlobSources(ctx context.Context, refspec reference.Spec
 		if err != nil {
 			return nil, fmt.Errorf("cannot create remote store for mirror %s: %w", h.Host, err)
 		}
-		sources = append(sources, blobSource{refspec: mirrorRefspec, store: store})
+		sources = append(sources, store)
 	}
 	store, err := newRemoteBlobStore(refspec, isolatedClient(origin.Client), originPlainHTTP)
 	if err != nil {
 		return nil, fmt.Errorf("cannot create remote store: %w", err)
 	}
-	return append(sources, blobSource{refspec: refspec, store: store}), nil
+	return append(sources, store), nil
 }
 
 // withNamespaceParam returns a client that adds the ns=<registry> query
@@ -678,9 +671,9 @@ func isolatedClient(client *http.Client) *http.Client {
 // selectBlobSource returns the sources to download the layer from, in order:
 // the first mirror that has the layer, followed by the remaining sources as
 // fallbacks, ending with the registry of the image (the last source).
-func selectBlobSource(ctx context.Context, sources []blobSource, desc ocispec.Descriptor) []blobSource {
+func selectBlobSource(ctx context.Context, sources []*orasBlobStore, desc ocispec.Descriptor) []*orasBlobStore {
 	for i, s := range sources[:len(sources)-1] {
-		ok, err := s.store.hasBlob(ctx, constructRef(s.refspec, desc))
+		ok, err := s.hasBlob(ctx, constructRef(s.refspec, desc))
 		if ok {
 			return sources[i:]
 		}
@@ -689,7 +682,7 @@ func selectBlobSource(ctx context.Context, sources []blobSource, desc ocispec.De
 	return sources[len(sources)-1:]
 }
 
-func (fs *filesystem) premount(ctx context.Context, desc ocispec.Descriptor, sources []blobSource, diffIDMap map[string]digest.Digest, layerJob *layerUnpackJob) error {
+func (fs *filesystem) premount(ctx context.Context, desc ocispec.Descriptor, sources []*orasBlobStore, diffIDMap map[string]digest.Digest, layerJob *layerUnpackJob) error {
 	var err error
 	defer func() {
 		// If there is a context error (usually context cancelled),
@@ -725,7 +718,7 @@ func (fs *filesystem) premount(ctx context.Context, desc ocispec.Descriptor, sou
 	archive := NewLayerArchive(compressedVerifier, newAsyncVerifier(uncompressedDigest.Verifier()), decompressStream, layerJob.bufferPool)
 	chunkSize := fs.pullModes.Parallel.ConcurrentDownloadChunkSize
 	selected := selectBlobSource(ctx, sources, desc)
-	fetcher, err := newParallelArtifactFetcher(selected[0].refspec, fs.contentStore, selected[0].store, layerJob, chunkSize, compressedVerifier)
+	fetcher, err := newParallelArtifactFetcher(selected[0].refspec, fs.contentStore, selected[0], layerJob, chunkSize, compressedVerifier)
 	if err != nil {
 		log.G(ctx).WithError(err).Error("cannot create fetcher")
 		return err
@@ -893,16 +886,16 @@ func (fs *filesystem) MountLocal(ctx context.Context, mountpoint string, labels 
 	}
 	// download the target layer
 	s := src[0]
-	client := s.Hosts[0].Client
 	refspec, err := reference.Parse(imageRef)
 	if err != nil {
 		return fmt.Errorf("cannot parse image ref (%s): %w", imageRef, err)
 	}
-	remoteStore, err := newRemoteBlobStore(refspec, client, fs.isInsecureHost(refspec.Hostname()))
+	sources, err := fs.newBlobSources(ctx, refspec, s.Hosts)
 	if err != nil {
-		return fmt.Errorf("cannot create remote store: %w", err)
+		return err
 	}
-	fetcher, err := newArtifactFetcher(refspec, fs.contentStore, remoteStore)
+	remoteStore := selectBlobSource(ctx, sources, s.Target)[0]
+	fetcher, err := newArtifactFetcher(remoteStore.refspec, fs.contentStore, remoteStore)
 	if err != nil {
 		return fmt.Errorf("cannot create fetcher: %w", err)
 	}

@@ -40,7 +40,7 @@ type parallelArtifactFetcher struct {
 	verifier       *asyncVerifier
 	// fallbacks are tried in order if downloading from remoteStore fails,
 	// e.g. the image registry after a mirror.
-	fallbacks []blobSource
+	fallbacks []*orasBlobStore
 }
 
 // Constructs a new artifact fetcher
@@ -174,7 +174,7 @@ func (f *parallelArtifactFetcher) fetchFromRemoteAndWriteToTempDir(ctx context.C
 	for len(f.fallbacks) > 0 && err != nil && ctx.Err() == nil {
 		next := f.fallbacks[0]
 		log.G(ctx).WithError(err).WithFields(log.Fields{"digest": desc.Digest, "failed": f.refspec.Hostname(), "next": next.refspec.Hostname()}).Warn("layer download failed, trying next registry host")
-		f.refspec, f.remoteStore, f.fallbacks = next.refspec, next.store, f.fallbacks[1:]
+		f.refspec, f.remoteStore, f.fallbacks = next.refspec, next, f.fallbacks[1:]
 		if _, err = file.Seek(0, io.SeekStart); err != nil {
 			break
 		}

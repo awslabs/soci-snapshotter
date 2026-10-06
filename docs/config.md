@@ -101,7 +101,7 @@ This set of variables must be at the top of your TOML file due to not belonging 
 Use `"*"` as the host to configure mirrors for every registry that has no entry of its own.
 #### [[resolver.host.examplehost.mirrors]]
 - `host` (string) — hostname, optionally with a scheme. Without a scheme, https is used; an `http://` scheme implies `insecure = true`. Default: "".
-- `insecure` (bool) — Allows usage of http instead of https only. Default: false.
+- `insecure` (bool) — Allows usage of http instead of https only. Default: true.
 - `request_timeout_sec` (int) — Timeout in seconds of each request to the registry. Default: infinity.
 
 ## config/service.go

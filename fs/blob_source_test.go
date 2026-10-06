@@ -192,7 +192,7 @@ func TestNewBlobSourcesOriginScheme(t *testing.T) {
 			if err != nil {
 				t.Fatalf("unexpected error: %v", err)
 			}
-			if got := sources[len(sources)-1].store.PlainHTTP; got != tc.plainHTTP {
+			if got := sources[len(sources)-1].PlainHTTP; got != tc.plainHTTP {
 				t.Fatalf("unexpected image registry PlainHTTP, expected %v, got %v", tc.plainHTTP, got)
 			}
 		})
@@ -235,7 +235,7 @@ func TestParallelFetchFromMirrorWithFallback(t *testing.T) {
 
 			selected := selectBlobSource(ctx, sources, desc)
 			var localStore store.BasicStore = &fakeLocalStore{Store: memory.New()}
-			fetcher, err := newParallelArtifactFetcher(selected[0].refspec, localStore, selected[0].store,
+			fetcher, err := newParallelArtifactFetcher(selected[0].refspec, localStore, selected[0],
 				newTestLayerJob(ctx, t, cancel, desc), 0, newAsyncVerifier(desc.Digest.Verifier()))
 			if err != nil {
 				t.Fatalf("cannot create fetcher: %v", err)
