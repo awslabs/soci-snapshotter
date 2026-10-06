@@ -66,7 +66,7 @@ type artifactFetcher struct {
 	remoteStore resolverStorage
 	localStore  store.BasicStore
 	refspec     reference.Spec
-	// labels are set on content when it is stored, if the local store supports it.
+	// labels are set on content after it is stored in the local store.
 	labels map[string]string
 }
 
@@ -280,6 +280,7 @@ func (f *artifactFetcher) constructRef(desc ocispec.Descriptor) string {
 // containerd content store, use this label to know which registry and repository
 // a blob belongs to.
 func distributionSourceLabels(refspec reference.Spec) map[string]string {
+	// The dummy scheme lets url.Parse split the host (without port) from the path, like containerd does.
 	u, err := url.Parse("dummy://" + refspec.Locator)
 	if err != nil {
 		return nil
@@ -342,14 +343,19 @@ func (f *artifactFetcher) resolve(ctx context.Context, desc ocispec.Descriptor) 
 
 // Store takes in an descriptor and io.Reader and stores it in the local store.
 func (f *artifactFetcher) Store(ctx context.Context, desc ocispec.Descriptor, reader io.Reader) error {
-	var err error
-	if lp, ok := f.localStore.(store.LabeledPusher); ok && len(f.labels) > 0 {
-		err = lp.PushWithLabels(ctx, desc, reader, f.labels)
-	} else {
-		err = f.localStore.Push(ctx, desc, reader)
-	}
+	err := f.localStore.Push(ctx, desc, reader)
 	if err != nil && !store.IsErrAlreadyExists(err) {
 		return fmt.Errorf("unable to push to local store: %w", err)
+	}
+	if err == nil {
+		// The store may be a [store.BasicStore] without labels, in which case there is nothing to set.
+		if ls, ok := f.localStore.(store.Store); ok {
+			for k, v := range f.labels {
+				if err := ls.Label(ctx, desc, k, v); err != nil {
+					return fmt.Errorf("unable to label content in local store: %w", err)
+				}
+			}
+		}
 	}
 	return nil
 }
