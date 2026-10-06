@@ -483,17 +483,17 @@ func TestDistributionSourceLabels(t *testing.T) {
 	}
 }
 
-// labelRecordingStore is a local store that records the labels content was pushed with.
+// labelRecordingStore is a local store that records the labels set on content.
 type labelRecordingStore struct {
-	*memory.Store
+	store.Store
 	labels map[digest.Digest]map[string]string
 }
 
-func (s *labelRecordingStore) PushWithLabels(ctx context.Context, expected ocispec.Descriptor, reader io.Reader, labels map[string]string) error {
-	if err := s.Push(ctx, expected, reader); err != nil {
-		return err
+func (s *labelRecordingStore) Label(_ context.Context, target ocispec.Descriptor, name, value string) error {
+	if s.labels[target.Digest] == nil {
+		s.labels[target.Digest] = map[string]string{}
 	}
-	s.labels[expected.Digest] = labels
+	s.labels[target.Digest][name] = value
 	return nil
 }
 
@@ -504,7 +504,7 @@ func TestArtifactFetcherStoreWithLabels(t *testing.T) {
 	if err != nil {
 		t.Fatalf("cannot parse ref: %v", err)
 	}
-	localStore := &labelRecordingStore{Store: memory.New(), labels: map[digest.Digest]map[string]string{}}
+	localStore := &labelRecordingStore{Store: newFakeLocalStore(), labels: map[digest.Digest]map[string]string{}}
 	fetcher, err := newParallelArtifactFetcher(refspec, localStore, newFakeRemoteStore(contents), nil, 0, nil)
 	if err != nil {
 		t.Fatalf("could not create artifact fetcher: %v", err)
