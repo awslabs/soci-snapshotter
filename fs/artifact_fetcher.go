@@ -228,14 +228,32 @@ func (r *orasBlobStore) doInitialFetch(ctx context.Context, reference string) (b
 }
 
 // hasBlob reports whether the registry has the blob. It is used to probe
-// mirrors, where a miss is expected. GetHeader falls back to GET for
-// registries that do not allow HEAD requests.
+// mirrors, where a miss is expected, so a 404 to the HEAD request is final.
+// For other statuses (some registries do not allow HEAD requests) it falls
+// back to GetHeader, which retries with GET.
 func (r *orasBlobStore) hasBlob(ctx context.Context, reference string) (bool, error) {
 	ref, err := registry.ParseReference(reference)
 	if err != nil {
 		return false, err
 	}
-	if _, err := sociremote.GetHeader(ctx, sociremote.CraftBlobURL(reference, ref, r.PlainHTTP), &clientWrapper{r.Client}); err != nil {
+	url := sociremote.CraftBlobURL(reference, ref, r.PlainHTTP)
+	tr := &clientWrapper{r.Client}
+	req, err := http.NewRequestWithContext(ctx, http.MethodHead, url, nil)
+	if err != nil {
+		return false, err
+	}
+	resp, err := tr.RoundTrip(req)
+	if err != nil {
+		return false, err
+	}
+	socihttp.Drain(resp.Body)
+	switch resp.StatusCode {
+	case http.StatusOK:
+		return true, nil
+	case http.StatusNotFound:
+		return false, nil
+	}
+	if _, err := sociremote.GetHeader(ctx, url, tr); err != nil {
 		return false, err
 	}
 	return true, nil

@@ -43,6 +43,7 @@ type fakeRegistry struct {
 	*httptest.Server
 	blobs    map[digest.Digest][]byte
 	failGet  bool // answer HEAD, but fail GET with 500
+	noHead   bool // reject HEAD with 405, like registries that do not allow it
 	requests atomic.Int32
 	mu       sync.Mutex
 	gets     int
@@ -69,6 +70,8 @@ func newFakeRegistry(t *testing.T, blobs ...[]byte) *fakeRegistry {
 		}
 		blob, ok := r.blobs[digest.Digest(req.URL.Path[i+len("/blobs/"):])]
 		switch {
+		case req.Method == http.MethodHead && r.noHead:
+			w.WriteHeader(http.StatusMethodNotAllowed)
 		case !ok:
 			w.WriteHeader(http.StatusNotFound)
 		case req.Method == http.MethodGet && r.failGet:
@@ -139,6 +142,29 @@ func TestSelectBlobSource(t *testing.T) {
 				t.Fatalf("unexpected number of mirror requests, expected %d, got %d", tc.mirrorRequests, got)
 			}
 		})
+	}
+}
+
+func TestSelectBlobSourceMirrorRejectsHead(t *testing.T) {
+	layer := []byte("layer")
+	mirror := newFakeRegistry(t, layer)
+	mirror.noHead = true
+	origin := newFakeRegistry(t, layer)
+	refspec, err := reference.Parse(origin.host(t) + "/team/app:v1")
+	if err != nil {
+		t.Fatalf("cannot parse ref: %v", err)
+	}
+	hosts := []docker.RegistryHost{
+		{Client: http.DefaultClient, Host: mirror.host(t), Scheme: "http", Path: "/v2"},
+		{Client: http.DefaultClient, Host: origin.host(t), Scheme: "http", Path: "/v2"},
+	}
+	sources, err := (&filesystem{}).newBlobSources(context.Background(), refspec, hosts)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	selected := selectBlobSource(context.Background(), sources, ocispec.Descriptor{Digest: digest.FromBytes(layer)})
+	if len(selected) != 2 || selected[0].refspec.Hostname() != mirror.host(t) {
+		t.Fatalf("expected the mirror that rejects HEAD to be selected, got %d sources", len(selected))
 	}
 }
 
