@@ -264,6 +264,7 @@ func newArtifactFetcher(refspec reference.Spec, localStore store.BasicStore, rem
 		localStore:  localStore,
 		remoteStore: remoteStore,
 		refspec:     refspec,
+		labels:      distributionSourceLabels(refspec),
 	}, nil
 }
 

@@ -49,16 +49,15 @@ func newParallelArtifactFetcher(
 	if chunkSize <= 0 {
 		chunkSize = unlimited
 	}
+	fetcher, err := newArtifactFetcher(refspec, localStore, remoteStore)
+	if err != nil {
+		return nil, err
+	}
 	return &parallelArtifactFetcher{
-		artifactFetcher: &artifactFetcher{
-			localStore:  localStore,
-			remoteStore: remoteStore,
-			refspec:     refspec,
-			labels:      distributionSourceLabels(refspec),
-		},
-		layerUnpackJob: layerUnpackJob,
-		chunkSize:      chunkSize,
-		verifier:       verifier,
+		artifactFetcher: fetcher,
+		layerUnpackJob:  layerUnpackJob,
+		chunkSize:       chunkSize,
+		verifier:        verifier,
 	}, nil
 }
 
