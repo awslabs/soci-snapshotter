@@ -153,6 +153,7 @@ var listCommand = &cli.Command{
 		if err != nil {
 			return err
 		}
+		defer db.Close()
 		db.Walk(func(ae *soci.ArtifactEntry) error {
 			if f(ae) {
 				artifacts = append(artifacts, ae)
