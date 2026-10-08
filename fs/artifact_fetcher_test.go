@@ -505,7 +505,7 @@ func TestArtifactFetcherStoreWithLabels(t *testing.T) {
 		t.Fatalf("cannot parse ref: %v", err)
 	}
 	localStore := &labelRecordingStore{Store: newFakeLocalStore(), labels: map[digest.Digest]map[string]string{}}
-	fetcher, err := newParallelArtifactFetcher(refspec, localStore, newFakeRemoteStore(contents), nil, 0, nil)
+	fetcher, err := newArtifactFetcher(refspec, localStore, newFakeRemoteStore(contents))
 	if err != nil {
 		t.Fatalf("could not create artifact fetcher: %v", err)
 	}
