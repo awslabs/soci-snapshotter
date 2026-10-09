@@ -38,6 +38,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"strings"
 	"sync"
 	"time"
 
@@ -280,10 +281,16 @@ func (rm *RegistryManager) AsRegistryHosts() RegistryHosts {
 		host := imgRefSpec.Hostname()
 		// If mirrors exist for the host that provides this image, create new
 		// `RegistryHost` configurations for them.
-		if hostConfig, ok := rm.registryConfig.Host[host]; ok {
+		if hostConfig, ok := rm.hostConfig(host); ok {
 			for _, mirror := range hostConfig.Mirrors {
 				// Ensure the mirror host is a valid host url.
-				url, err := url.Parse(mirror.Host)
+				// A host given without a scheme (e.g. "mirror.example.com:5000")
+				// defaults to https.
+				mirrorHost := mirror.Host
+				if !strings.Contains(mirrorHost, "://") {
+					mirrorHost = "https://" + mirrorHost
+				}
+				url, err := url.Parse(mirrorHost)
 				if err != nil {
 					return nil, fmt.Errorf("failed to parse mirror host: %q: %w", mirror.Host, err)
 				}
@@ -292,7 +299,7 @@ func (rm *RegistryManager) AsRegistryHosts() RegistryHosts {
 					return nil, err
 				}
 				scheme := DefaultScheme(host)
-				if mirror.Insecure {
+				if mirror.Insecure || url.Scheme == "http" {
 					scheme = "http"
 				}
 				// Create a copy of the auth and retry client's so we don't overwrite the existing ones.
@@ -369,6 +376,17 @@ func multiCredsFuncs(imgRefSpec reference.Spec, credsFuncs ...Credential) func(s
 //
 // Copied over from: https://github.com/containerd/containerd/blob/a901236bf00a6d0ef1fe299c9e5ae72a1dd67869/pkg/cri/server/images/image_pull.go#L474
 // Original Copyright the containerd Authors. Licensed under the Apache License, Version 2.0 (the "License").
+// hostConfig returns the resolver configuration for host. If there is none,
+// it falls back to the "*" entry, which applies to every registry, like the
+// "*" mirror in containerd's CRI registry configuration.
+func (rm *RegistryManager) hostConfig(host string) (config.HostConfig, bool) {
+	if hostConfig, ok := rm.registryConfig.Host[host]; ok {
+		return hostConfig, true
+	}
+	hostConfig, ok := rm.registryConfig.Host["*"]
+	return hostConfig, ok
+}
+
 func DefaultScheme(host string) string {
 	if docker.IsLocalhost(host) {
 		return "http"

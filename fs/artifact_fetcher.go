@@ -80,6 +80,8 @@ type artifactFetcher struct {
 // get a 401 or 403 error.
 type orasBlobStore struct {
 	*remote.Repository
+	// refspec is the registry host and repository this store fetches from.
+	refspec reference.Spec
 }
 
 func newRemoteBlobStore(refspec reference.Spec, client *http.Client, plainHTTP bool) (*orasBlobStore, error) {
@@ -87,7 +89,7 @@ func newRemoteBlobStore(refspec reference.Spec, client *http.Client, plainHTTP b
 	if err != nil {
 		return nil, fmt.Errorf("cannot create remote store: %w", err)
 	}
-	return &orasBlobStore{repo}, nil
+	return &orasBlobStore{Repository: repo, refspec: refspec}, nil
 }
 
 // Logic mostly taken from oras-go. Try to resolve with a HEAD, then a GET request.
@@ -227,6 +229,38 @@ func (r *orasBlobStore) doInitialFetch(ctx context.Context, reference string) (b
 		return true, nil
 	}
 	return false, nil
+}
+
+// hasBlob reports whether the registry has the blob. It is used to probe
+// mirrors, where a miss is expected, so a 404 to the HEAD request is final.
+// For other statuses (some registries do not allow HEAD requests) it falls
+// back to GetHeader, which retries with GET.
+func (r *orasBlobStore) hasBlob(ctx context.Context, reference string) (bool, error) {
+	ref, err := registry.ParseReference(reference)
+	if err != nil {
+		return false, err
+	}
+	url := sociremote.CraftBlobURL(reference, ref, r.PlainHTTP)
+	tr := &clientWrapper{r.Client}
+	req, err := http.NewRequestWithContext(ctx, http.MethodHead, url, nil)
+	if err != nil {
+		return false, err
+	}
+	resp, err := tr.RoundTrip(req)
+	if err != nil {
+		return false, err
+	}
+	socihttp.Drain(resp.Body)
+	switch resp.StatusCode {
+	case http.StatusOK:
+		return true, nil
+	case http.StatusNotFound:
+		return false, nil
+	}
+	if _, err := sociremote.GetHeader(ctx, url, tr); err != nil {
+		return false, err
+	}
+	return true, nil
 }
 
 // This wrapper is to allow a [remote.Client] to implement the
