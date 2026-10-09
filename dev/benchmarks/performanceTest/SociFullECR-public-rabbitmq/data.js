@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1790804169316,
+  "lastUpdate": 1791578917580,
   "repoUrl": "https://github.com/awslabs/soci-snapshotter",
   "entries": {
     "Soci Benchmark": [
@@ -20315,6 +20315,48 @@ window.BENCHMARK_DATA = {
           {
             "name": "SociFullECR-public-rabbitmq-pullTaskDuration",
             "value": 0,
+            "unit": "Seconds",
+            "extra": "P90"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "kangov@seatgeek.com",
+            "name": "Kiril Angov",
+            "username": "komapa"
+          },
+          "committer": {
+            "email": "55555210+sondavidb@users.noreply.github.com",
+            "name": "David Son",
+            "username": "sondavidb"
+          },
+          "distinct": true,
+          "id": "e471a8225d1de34d1234912192abf7b3fbd5dd65",
+          "message": "Set distribution source labels for all artifact fetchers\n\nMove the labels into newArtifactFetcher so MountLocal and SOCI artifact\nfetches get them too, not only parallel pull.\n\nSigned-off-by: Kiril Angov <kangov@seatgeek.com>",
+          "timestamp": "2026-10-09T16:25:21-04:00",
+          "tree_id": "21fed0ce11718d5e94c756c445d2e9877d7479b7",
+          "url": "https://github.com/awslabs/soci-snapshotter/commit/e471a8225d1de34d1234912192abf7b3fbd5dd65"
+        },
+        "date": 1791578913286,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "SociFullECR-public-rabbitmq-lazyTaskDuration",
+            "value": 14.818000000000001,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-rabbitmq-localTaskDuration",
+            "value": 10.3088,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-rabbitmq-pullTaskDuration",
+            "value": 1.1888,
             "unit": "Seconds",
             "extra": "P90"
           }
