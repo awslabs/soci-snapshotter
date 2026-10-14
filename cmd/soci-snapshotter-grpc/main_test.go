@@ -112,3 +112,39 @@ func writeTestConfig(t *testing.T, dir, content string) string {
 	}
 	return path
 }
+
+func TestGetMetadataStoreRemovesExistingDB(t *testing.T) {
+	tempDir := t.TempDir()
+	dbPath := filepath.Join(tempDir, "metadata.db")
+
+	// Create a fake stale DB file to simulate crash leftovers.
+	if err := os.WriteFile(dbPath, []byte("stale data"), 0600); err != nil {
+		t.Fatalf("failed to create stale db: %v", err)
+	}
+
+	ctx := context.Background()
+	cfg := config.Config{MetadataStore: "db"}
+
+	store, err := getMetadataStore(ctx, tempDir, cfg)
+	if err != nil {
+		t.Fatalf("getMetadataStore failed: %v", err)
+	}
+	if store == nil {
+		t.Fatal("expected non-nil store")
+	}
+}
+
+func TestGetMetadataStoreWorksWithNoExistingDB(t *testing.T) {
+	tempDir := t.TempDir()
+
+	ctx := context.Background()
+	cfg := config.Config{MetadataStore: "db"}
+
+	store, err := getMetadataStore(ctx, tempDir, cfg)
+	if err != nil {
+		t.Fatalf("getMetadataStore failed: %v", err)
+	}
+	if store == nil {
+		t.Fatal("expected non-nil store")
+	}
+}
