@@ -23,7 +23,7 @@ ARG RAPIDGZIP_VERSION=0.16.0
 FROM public.ecr.aws/docker/library/registry:3.1.1 AS registry
 
 # Build stage for Intel ISA-L (igzip)
-FROM public.ecr.aws/amazonlinux/amazonlinux:2023 AS igzip-builder
+FROM public.ecr.aws/amazonlinux/amazonlinux:2023.12.20260727.0 AS igzip-builder
 
 ARG IGZIP_VERSION
 
@@ -53,7 +53,7 @@ RUN git clone https://github.com/intel/isa-l.git \
     && rm -rf isa-l
 
 # Build stage for rapidgzip
-FROM public.ecr.aws/amazonlinux/amazonlinux:2023 AS rapidgzip-builder
+FROM public.ecr.aws/amazonlinux/amazonlinux:2023.12.20260727.0 AS rapidgzip-builder
 
 ARG RAPIDGZIP_VERSION
 ARG TARGETARCH
@@ -97,7 +97,7 @@ RUN git clone https://github.com/mxmlnkn/rapidgzip.git && \
     cd ../.. && \
     rm -rf rapidgzip
 
-FROM public.ecr.aws/amazonlinux/amazonlinux:2023 AS containerd-snapshotter-base
+FROM public.ecr.aws/amazonlinux/amazonlinux:2023.12.20260727.0 AS containerd-snapshotter-base
 
 ARG CONTAINERD_VERSION
 ARG RUNC_VERSION
