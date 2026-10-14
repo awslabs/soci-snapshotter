@@ -26,6 +26,7 @@ import (
 	"net/http"
 	"net/url"
 	"strconv"
+	"strings"
 	"time"
 
 	commonmetrics "github.com/awslabs/soci-snapshotter/fs/metrics/common"
@@ -35,6 +36,7 @@ import (
 	"github.com/awslabs/soci-snapshotter/soci/store"
 	"github.com/awslabs/soci-snapshotter/util/ioutils"
 	"github.com/containerd/containerd/v2/core/remotes/docker"
+	ctdlabels "github.com/containerd/containerd/v2/pkg/labels"
 	"github.com/containerd/containerd/v2/pkg/reference"
 	"github.com/containerd/log"
 	"github.com/opencontainers/go-digest"
@@ -64,6 +66,8 @@ type artifactFetcher struct {
 	remoteStore resolverStorage
 	localStore  store.BasicStore
 	refspec     reference.Spec
+	// labels are set on content after it is stored in the local store.
+	labels map[string]string
 }
 
 // This is a wrapper for the ORAS remote repository.
@@ -294,6 +298,7 @@ func newArtifactFetcher(refspec reference.Spec, localStore store.BasicStore, rem
 		localStore:  localStore,
 		remoteStore: remoteStore,
 		refspec:     refspec,
+		labels:      distributionSourceLabels(refspec),
 	}, nil
 }
 
@@ -301,6 +306,29 @@ func newArtifactFetcher(refspec reference.Spec, localStore store.BasicStore, rem
 // i.e. <hostname>/<repo>@<digest>
 func (f *artifactFetcher) constructRef(desc ocispec.Descriptor) string {
 	return constructRef(f.refspec, desc)
+}
+
+// distributionSourceLabels returns the containerd distribution source label for
+// content pulled from refspec, in the same format containerd sets it when it
+// fetches content itself (see containerd's docker.AppendDistributionSourceLabel).
+// Tools that share content between nodes, such as registry mirrors backed by the
+// containerd content store, use this label to know which registry and repository
+// a blob belongs to.
+func distributionSourceLabels(refspec reference.Spec) map[string]string {
+	// The dummy scheme lets url.Parse split the host (without port) from the path, like containerd does.
+	u, err := url.Parse("dummy://" + refspec.Locator)
+	if err != nil {
+		return nil
+	}
+	source, repo := u.Hostname(), strings.TrimPrefix(u.Path, "/")
+	if source == "" || repo == "" {
+		return nil
+	}
+	key := ctdlabels.LabelDistributionSource + "." + source
+	if err := ctdlabels.Validate(key, repo); err != nil {
+		return nil
+	}
+	return map[string]string{key: repo}
 }
 
 func constructRef(refspec reference.Spec, desc ocispec.Descriptor) string {
@@ -353,6 +381,16 @@ func (f *artifactFetcher) Store(ctx context.Context, desc ocispec.Descriptor, re
 	err := f.localStore.Push(ctx, desc, reader)
 	if err != nil && !store.IsErrAlreadyExists(err) {
 		return fmt.Errorf("unable to push to local store: %w", err)
+	}
+	if err == nil {
+		// The store may be a [store.BasicStore] without labels, in which case there is nothing to set.
+		if ls, ok := f.localStore.(store.Store); ok {
+			for k, v := range f.labels {
+				if err := ls.Label(ctx, desc, k, v); err != nil {
+					return fmt.Errorf("unable to label content in local store: %w", err)
+				}
+			}
+		}
 	}
 	return nil
 }
