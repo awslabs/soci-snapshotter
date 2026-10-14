@@ -56,6 +56,7 @@ var rmCommand = &cli.Command{
 		if err != nil {
 			return err
 		}
+		defer db.Close()
 		if ref == "" {
 			ctx, cancel := internal.AppContext(ctx, cmd)
 			defer cancel()

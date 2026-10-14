@@ -115,6 +115,7 @@ if they are available in the snapshotter's local content store.
 		if err != nil {
 			return err
 		}
+		defer artifactsDb.Close()
 
 		refspec, err := reference.Parse(ref)
 		if err != nil {
