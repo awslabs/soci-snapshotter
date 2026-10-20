@@ -20,7 +20,7 @@ ARG CRICTL_VERSION=1.36.0
 ARG IGZIP_VERSION=2.31.1
 ARG RAPIDGZIP_VERSION=0.16.0
 
-FROM public.ecr.aws/docker/library/registry:3.1.1 AS registry
+FROM public.ecr.aws/docker/library/registry:3.1.2 AS registry
 
 # Build stage for Intel ISA-L (igzip)
 FROM public.ecr.aws/amazonlinux/amazonlinux:2023 AS igzip-builder
