@@ -126,3 +126,12 @@ Any registry that supports ranged GET requests and has sufficient request limits
 
 If you are having issues with parallel pull mode on registries that sufficiently support both, please cut us an issue and we can look into it.
 
+### Mirrors
+
+Parallel pull uses the mirrors configured under `[resolver.host]` (see [config.md](config.md)). For each layer, the mirrors are probed in order with a `HEAD` request, and the layer is fetched from the first mirror that has it. If no mirror has the layer, it is fetched from the image registry. If the download from a mirror fails, it is retried from the next mirror and then from the image registry; errors after the download (decompression, unpacking) are not retried. Requests to mirrors carry the `ns=<registry>` query parameter, as containerd sends it. Mirrors configured with a custom path are not used.
+
+```toml
+[[resolver.host."registry.example.com".mirrors]]
+host = "http://127.0.0.1:30020"
+```
+
