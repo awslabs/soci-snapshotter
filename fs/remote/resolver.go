@@ -518,6 +518,12 @@ func GetHeader(ctx context.Context, realURL string, rt http.RoundTripper) (*http
 		case http.StatusOK, http.StatusPartialContent:
 			return resp, nil
 		}
+		// A 404 to the HEAD request means the blob is not there. The
+		// GET fallbacks are for registries that reject HEAD (401, 403, 405),
+		// and would only repeat the miss, so fail fast.
+		if i == 0 && resp.StatusCode == http.StatusNotFound {
+			return nil, fmt.Errorf("failed to get header with code (HEAD=%v)", statusCodes[0])
+		}
 	}
 
 	return nil, fmt.Errorf("failed to get header with code (HEAD=%v, range GET=%v, GET=%v)",

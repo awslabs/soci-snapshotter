@@ -602,3 +602,42 @@ func TestGetHeader(t *testing.T) {
 		})
 	}
 }
+
+// countingRoundTripper answers every request with status and counts them.
+type countingRoundTripper struct {
+	status   int
+	requests int
+}
+
+func (rt *countingRoundTripper) RoundTrip(req *http.Request) (*http.Response, error) {
+	rt.requests++
+	return &http.Response{
+		StatusCode: rt.status,
+		Request:    req,
+		Body:       io.NopCloser(&bytes.Buffer{}),
+	}, nil
+}
+
+func TestGetHeaderStatusHandling(t *testing.T) {
+	tc := []struct {
+		name         string
+		status       int
+		wantRequests int
+	}{
+		{name: "HEAD 404 is a miss and does not fall back to GET", status: http.StatusNotFound, wantRequests: 1},
+		{name: "HEAD 403 falls back to both GETs", status: http.StatusForbidden, wantRequests: 3},
+		{name: "HEAD 405 falls back to both GETs", status: http.StatusMethodNotAllowed, wantRequests: 3},
+	}
+
+	for _, tt := range tc {
+		t.Run(tt.name, func(t *testing.T) {
+			rt := &countingRoundTripper{status: tt.status}
+			if _, err := GetHeader(context.Background(), "example.com/blob", rt); err == nil {
+				t.Fatalf("expected an error for status %d", tt.status)
+			}
+			if rt.requests != tt.wantRequests {
+				t.Fatalf("unexpected number of requests, expected %d, got %d", tt.wantRequests, rt.requests)
+			}
+		})
+	}
+}
