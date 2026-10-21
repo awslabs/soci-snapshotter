@@ -41,9 +41,11 @@ package fs
 import (
 	"context"
 	"fmt"
+	"path/filepath"
 	"testing"
 
 	"github.com/awslabs/soci-snapshotter/fs/layer"
+	layermetrics "github.com/awslabs/soci-snapshotter/fs/metrics/layer"
 	"github.com/awslabs/soci-snapshotter/fs/remote"
 	"github.com/awslabs/soci-snapshotter/fs/source"
 	"github.com/awslabs/soci-snapshotter/idtools"
@@ -110,3 +112,69 @@ func (l *breakableLayer) Refresh(ctx context.Context, hosts []docker.RegistryHos
 	return nil
 }
 func (l *breakableLayer) Done() {}
+
+func TestIsIDMappedDir(t *testing.T) {
+	snapshots := filepath.Join("/var/lib/soci-snapshotter-grpc", "snapshotter", "snapshots")
+	tests := []struct {
+		name       string
+		mountpoint string
+		want       bool
+	}{
+		{
+			name:       "snapshot mountpoint",
+			mountpoint: filepath.Join(snapshots, "12", "fs"),
+			want:       false,
+		},
+		{
+			// The id-mapped mountpoint as IDMapMount creates it: the marker is
+			// in the parent directory, the mountpoint itself is still "fs".
+			name:       "id-mapped mountpoint",
+			mountpoint: getIDMappedMountpoint(filepath.Join(snapshots, "12", "fs"), "34"),
+			want:       true,
+		},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := isIDMappedDir(tc.mountpoint); got != tc.want {
+				t.Errorf("isIDMappedDir(%q) = %v, want %v", tc.mountpoint, got, tc.want)
+			}
+		})
+	}
+}
+
+// TestUnmountIDMappedMountKeepsSharedLayer checks that unmounting an id-mapped
+// mount leaves the layer it shares with the snapshot mount open: IDMapMount
+// registers the same layer under both mountpoints without taking a reference.
+func TestUnmountIDMappedMountKeepsSharedLayer(t *testing.T) {
+	snapshotMountpoint := filepath.Join(t.TempDir(), "snapshots", "12", "fs")
+	idMappedMountpoint := getIDMappedMountpoint(snapshotMountpoint, "34")
+	l := &doneCountingLayer{}
+	fs := &filesystem{
+		layer: map[string]layer.Layer{
+			snapshotMountpoint: l,
+			idMappedMountpoint: l,
+		},
+		metricsController: layermetrics.NewLayerMetrics(nil),
+	}
+
+	// Nothing is mounted at the path, so the final unmount(2) fails; the
+	// bookkeeping before it is what this test checks.
+	_ = fs.Unmount(context.Background(), idMappedMountpoint)
+
+	if l.doneCalls != 0 {
+		t.Errorf("shared layer released %d time(s) when unmounting the id-mapped mount, want 0", l.doneCalls)
+	}
+	if _, ok := fs.layer[idMappedMountpoint]; ok {
+		t.Errorf("id-mapped mountpoint %q still registered after Unmount", idMappedMountpoint)
+	}
+	if fs.layer[snapshotMountpoint] != l {
+		t.Errorf("snapshot mountpoint %q lost its layer when unmounting the id-mapped mount", snapshotMountpoint)
+	}
+}
+
+type doneCountingLayer struct {
+	breakableLayer
+	doneCalls int
+}
+
+func (l *doneCountingLayer) Done() { l.doneCalls++ }
