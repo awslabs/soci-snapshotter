@@ -18,10 +18,12 @@ package resolver
 
 import (
 	"context"
+	"slices"
 	"testing"
 	"time"
 
 	"github.com/awslabs/soci-snapshotter/config"
+	"github.com/containerd/containerd/v2/pkg/reference"
 	"go.uber.org/goleak"
 )
 
@@ -72,5 +74,83 @@ func TestRegistryManagerSweeperIsNotStartedWithoutTTL(t *testing.T) {
 		if rm.expired(&expiringEntry{createdAt: time.Now().Add(-24 * time.Hour)}) {
 			t.Fatalf("auth_client_ttl_sec=%d: entries must never expire when expiry is disabled", ttlSec)
 		}
+	}
+}
+
+func TestAsRegistryHostsMirrors(t *testing.T) {
+	testCases := []struct {
+		name     string
+		hosts    map[string]config.HostConfig
+		ref      string
+		expected []string // scheme://host of each RegistryHost, in order
+	}{
+		{
+			name:     "no mirrors",
+			ref:      "registry.example.com/repo:tag",
+			expected: []string{"https://registry.example.com"},
+		},
+		{
+			name: "mirror for the image registry",
+			hosts: map[string]config.HostConfig{
+				"registry.example.com": {Mirrors: []config.MirrorConfig{{Host: "https://mirror.example.com"}}},
+			},
+			ref:      "registry.example.com/repo:tag",
+			expected: []string{"https://mirror.example.com", "https://registry.example.com"},
+		},
+		{
+			name: "http scheme selects plain HTTP",
+			hosts: map[string]config.HostConfig{
+				"registry.example.com": {Mirrors: []config.MirrorConfig{{Host: "http://10.0.0.1:30020"}}},
+			},
+			ref:      "registry.example.com/repo:tag",
+			expected: []string{"http://10.0.0.1:30020", "https://registry.example.com"},
+		},
+		{
+			name: "host without scheme defaults to https",
+			hosts: map[string]config.HostConfig{
+				"registry.example.com": {Mirrors: []config.MirrorConfig{{Host: "mirror.example.com:5000"}}},
+			},
+			ref:      "registry.example.com/repo:tag",
+			expected: []string{"https://mirror.example.com:5000", "https://registry.example.com"},
+		},
+		{
+			name: "wildcard applies to registries without their own entry",
+			hosts: map[string]config.HostConfig{
+				"*": {Mirrors: []config.MirrorConfig{{Host: "http://10.0.0.1:30020"}}},
+			},
+			ref:      "registry.example.com/repo:tag",
+			expected: []string{"http://10.0.0.1:30020", "https://registry.example.com"},
+		},
+		{
+			name: "registry entry takes precedence over wildcard",
+			hosts: map[string]config.HostConfig{
+				"*":                    {Mirrors: []config.MirrorConfig{{Host: "http://10.0.0.1:30020"}}},
+				"registry.example.com": {Mirrors: []config.MirrorConfig{{Host: "https://mirror.example.com"}}},
+			},
+			ref:      "registry.example.com/repo:tag",
+			expected: []string{"https://mirror.example.com", "https://registry.example.com"},
+		},
+	}
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			ctx, cancel := context.WithCancel(context.Background())
+			defer cancel()
+			rm := NewRegistryManager(ctx, config.RetryableHTTPClientConfig{}, config.ResolverConfig{Host: tc.hosts}, nil)
+			refspec, err := reference.Parse(tc.ref)
+			if err != nil {
+				t.Fatalf("cannot parse ref: %v", err)
+			}
+			hosts, err := rm.AsRegistryHosts()(refspec)
+			if err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+			var got []string
+			for _, h := range hosts {
+				got = append(got, h.Scheme+"://"+h.Host)
+			}
+			if !slices.Equal(tc.expected, got) {
+				t.Fatalf("unexpected hosts, expected %v, got %v", tc.expected, got)
+			}
+		})
 	}
 }
