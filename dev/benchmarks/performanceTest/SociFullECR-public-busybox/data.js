@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1791578910733,
+  "lastUpdate": 1792710961865,
   "repoUrl": "https://github.com/awslabs/soci-snapshotter",
   "entries": {
     "Soci Benchmark": [
@@ -20437,6 +20437,47 @@ window.BENCHMARK_DATA = {
           {
             "name": "SociFullECR-public-busybox-pullTaskDuration",
             "value": 0.6808,
+            "unit": "Seconds",
+            "extra": "P90"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "enzocr@amazon.com",
+            "name": "Enzo Crema"
+          },
+          "committer": {
+            "email": "55555210+sondavidb@users.noreply.github.com",
+            "name": "David Son",
+            "username": "sondavidb"
+          },
+          "distinct": true,
+          "id": "24cedb33645c2c82c3b2478b0d0da116d443cb48",
+          "message": "remote: give a refreshed connection the blob config's HTTP settings\n\nResolve builds a blob's fetcher with the timeout and retry settings from\nthe blob config (fetching_timeout_sec, max_retries, min/max_wait_msec).\nRefresh built the replacement fetcher without them, so a connection\nrefreshed to another reference had no timeout and no retries: a single\ntransient error on its first request failed the refresh and the layer\nwas reported unavailable.\n\nBuild both from the same config, so a refreshed connection behaves like\nthe one it replaces.\n\nSigned-off-by: Enzo Crema <enzocr@amazon.com>",
+          "timestamp": "2026-10-22T19:06:46-04:00",
+          "tree_id": "51ba199d981ad44d40ff5b6c86169e4acb8d9ae4",
+          "url": "https://github.com/awslabs/soci-snapshotter/commit/24cedb33645c2c82c3b2478b0d0da116d443cb48"
+        },
+        "date": 1792710957930,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "SociFullECR-public-busybox-lazyTaskDuration",
+            "value": 0.0196,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-busybox-localTaskDuration",
+            "value": 0.0036,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-busybox-pullTaskDuration",
+            "value": 1.4868000000000001,
             "unit": "Seconds",
             "extra": "P90"
           }
