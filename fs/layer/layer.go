@@ -99,6 +99,9 @@ type Layer interface {
 	// Refresh refreshes the layer connection.
 	Refresh(ctx context.Context, hosts []docker.RegistryHost, refspec reference.Spec, desc ocispec.Descriptor) error
 
+	// Refspec returns the image reference the layer's connection was resolved from.
+	Refspec() reference.Spec
+
 	// ReadAt reads this layer.
 	ReadAt([]byte, int64, ...remote.Option) (int, error)
 
@@ -499,6 +502,10 @@ func (l *layer) Refresh(ctx context.Context, hosts []docker.RegistryHost, refspe
 		return fmt.Errorf("layer is already closed")
 	}
 	return l.blob.Refresh(ctx, hosts, refspec, desc)
+}
+
+func (l *layer) Refspec() reference.Spec {
+	return l.blob.Refspec()
 }
 
 func (l *layerRef) Done() {

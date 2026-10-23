@@ -54,6 +54,8 @@ import (
 	"sync/atomic"
 	"testing"
 	"time"
+
+	"github.com/containerd/containerd/v2/pkg/reference"
 )
 
 const (
@@ -315,6 +317,7 @@ func makeTestBlob(t *testing.T, size int64, fn RoundTripFunc) *blob {
 			realURL:      testURL,
 			roundTripper: fn,
 		},
+		reference.Spec{},
 		size,
 		lastCheck,
 		checkInterval,
