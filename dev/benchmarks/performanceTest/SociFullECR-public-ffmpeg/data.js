@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1792710954000,
+  "lastUpdate": 1793041973792,
   "repoUrl": "https://github.com/awslabs/soci-snapshotter",
   "entries": {
     "Soci Benchmark": [
@@ -20478,6 +20478,48 @@ window.BENCHMARK_DATA = {
           {
             "name": "SociFullECR-public-ffmpeg-pullTaskDuration",
             "value": 1.9234,
+            "unit": "Seconds",
+            "extra": "P90"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "kangov@seatgeek.com",
+            "name": "Kiril Angov",
+            "username": "komapa"
+          },
+          "committer": {
+            "email": "55555210+sondavidb@users.noreply.github.com",
+            "name": "David Son",
+            "username": "sondavidb"
+          },
+          "distinct": true,
+          "id": "7f81a257b9d6be1f4830b66bc72f1ab3d1853b09",
+          "message": "Fetch parallel pull layers from configured mirrors\n\nParallel pull built a single remote store for the image registry and only\ntook the HTTP client from the first resolved host, so layers were always\nfetched from the image registry even when [resolver.host] mirrors were\nconfigured.\n\nBuild one blob store per resolved host (mirrors first, then the image\nregistry). For each layer, probe the mirrors in order and fetch from the\nfirst one that has the blob, falling back to the image registry. The probe\nsends a HEAD request, treats a 404 as a miss, and falls back to GetHeader\nfor other statuses so registries that reject HEAD still work. If the\ndownload fails, retry it from the next host; the layer is only unpacked\nand verified after the download completes, so decompression and unpack\nerrors still fail immediately. MountLocal selects its source the same way.\n\nRequests to mirrors carry the ns=<registry> query parameter, as containerd\nsends it. The image registry keeps its own scheme: an insecure mirror no\nlonger makes the image registry plain HTTP, unless the registry is\nconfigured as an insecure mirror of itself. Mirrors with a custom path are\nskipped, since blob URLs are always built under /v2.\n\nAllow [resolver.host.\"*\"] to configure mirrors for every registry without\nits own entry, matching the \"*\" mirror in containerd's CRI registry config.\nRegistry mirrors running on the node, such as Spegel, are usually\nconfigured this way. A mirror host given with an http:// scheme uses plain\nHTTP, and a host without a scheme defaults to https; previously a\nhost:port without a scheme failed to parse and broke host resolution for\nthe image.\n\nSigned-off-by: Kiril Angov <kangov@seatgeek.com>",
+          "timestamp": "2026-10-26T15:02:06-04:00",
+          "tree_id": "8e97e25b28a9f8321a6d2ad76ee17af11384772a",
+          "url": "https://github.com/awslabs/soci-snapshotter/commit/7f81a257b9d6be1f4830b66bc72f1ab3d1853b09"
+        },
+        "date": 1793041969930,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "SociFullECR-public-ffmpeg-lazyTaskDuration",
+            "value": 0,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-ffmpeg-localTaskDuration",
+            "value": 0,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-ffmpeg-pullTaskDuration",
+            "value": 0,
             "unit": "Seconds",
             "extra": "P90"
           }
