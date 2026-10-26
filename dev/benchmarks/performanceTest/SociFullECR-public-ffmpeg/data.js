@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1793041973792,
+  "lastUpdate": 1793044237975,
   "repoUrl": "https://github.com/awslabs/soci-snapshotter",
   "entries": {
     "Soci Benchmark": [
@@ -20503,6 +20503,48 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/awslabs/soci-snapshotter/commit/7f81a257b9d6be1f4830b66bc72f1ab3d1853b09"
         },
         "date": 1793041969930,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "SociFullECR-public-ffmpeg-lazyTaskDuration",
+            "value": 0,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-ffmpeg-localTaskDuration",
+            "value": 0,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-ffmpeg-pullTaskDuration",
+            "value": 0,
+            "unit": "Seconds",
+            "extra": "P90"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "kangov@seatgeek.com",
+            "name": "Kiril Angov",
+            "username": "komapa"
+          },
+          "committer": {
+            "email": "55555210+sondavidb@users.noreply.github.com",
+            "name": "David Son",
+            "username": "sondavidb"
+          },
+          "distinct": true,
+          "id": "022561f3540e563edff4edd3ac4df8218b6b0203",
+          "message": "Fail fast in GetHeader when HEAD returns 404\n\nGetHeader falls back from HEAD to a ranged GET and then a plain GET for\nregistries that reject HEAD. A 404 to the HEAD request means the blob is\nnot there, so the fallbacks only repeat the miss and make a missing blob\ncost three requests. Return right after a HEAD 404 and keep the fallbacks\nfor the other statuses, such as 401, 403 and 405.\n\nSigned-off-by: Kiril Angov <kangov@seatgeek.com>",
+          "timestamp": "2026-10-26T15:46:43-04:00",
+          "tree_id": "de951632a516205449bd292578544749e07a0723",
+          "url": "https://github.com/awslabs/soci-snapshotter/commit/022561f3540e563edff4edd3ac4df8218b6b0203"
+        },
+        "date": 1793044224068,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
