@@ -1421,8 +1421,12 @@ func resolvedFrom(l layer.Layer, src []source.Source) bool {
 	return false
 }
 
+// isIDMappedDir reports whether mountpoint is an id-mapped mount created by
+// IDMapMount. Those are mounted on "<snapshot>_<activeLayerID>/fs" (see
+// getIDMappedMountpoint), so the marker is in the parent directory's name;
+// the mountpoint's own base name is always "fs".
 func isIDMappedDir(mountpoint string) bool {
-	dirName := filepath.Base(mountpoint)
+	dirName := filepath.Base(filepath.Dir(mountpoint))
 	return len(strings.Split(dirName, "_")) > 1
 }
 
