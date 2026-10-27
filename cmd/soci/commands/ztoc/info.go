@@ -65,6 +65,7 @@ var infoCommand = &cli.Command{
 		if err != nil {
 			return err
 		}
+		defer db.Close()
 		entry, err := db.GetArtifactEntry(digest.String())
 		if err != nil {
 			return err

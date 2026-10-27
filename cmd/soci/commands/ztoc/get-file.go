@@ -74,6 +74,7 @@ var getFileCommand = &cli.Command{
 		if err != nil {
 			return err
 		}
+		defer artifactsDB.Close()
 
 		layerReader, err := getLayer(ctx, artifactsDB, ztocDigest, client.ContentStore())
 		if err != nil {
