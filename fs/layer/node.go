@@ -821,7 +821,7 @@ func (n *node) entryToAttr(ino uint64, e metadata.Attr, out *fuse.Attr) fusefs.S
 	if out.Nlink == 0 {
 		out.Nlink = 1 // zero "NumLink" means one.
 	}
-	out.Padding = 0 // TODO
+	out.Flags = 0 // TODO
 
 	return fusefs.StableAttr{
 		Mode: out.Mode,
@@ -844,7 +844,7 @@ func entryToWhAttr(ino uint64, e metadata.Attr, out *fuse.Attr) fusefs.StableAtt
 	out.Owner = fuse.Owner{Uid: 0, Gid: 0}
 	out.Rdev = uint32(unix.Mkdev(0, 0))
 	out.Nlink = 1
-	out.Padding = 0 // TODO
+	out.Flags = 0 // TODO
 
 	return fusefs.StableAttr{
 		Mode: out.Mode,
@@ -871,7 +871,7 @@ func (fs *fs) stateToAttr(out *fuse.Attr) fusefs.StableAttr {
 	out.Mtime = 0
 	out.Mtimensec = 0
 	out.Rdev = 0
-	out.Padding = 0
+	out.Flags = 0
 
 	return fusefs.StableAttr{
 		Mode: out.Mode,
@@ -899,7 +899,7 @@ func (fs *fs) statFileToAttr(size uint64, out *fuse.Attr) fusefs.StableAttr {
 	out.Mtime = 0
 	out.Mtimensec = 0
 	out.Rdev = 0
-	out.Padding = 0
+	out.Flags = 0
 
 	return fusefs.StableAttr{
 		Mode: out.Mode,
