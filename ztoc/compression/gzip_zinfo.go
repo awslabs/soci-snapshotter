@@ -16,94 +16,79 @@
 
 package compression
 
-// #cgo CFLAGS: -I${SRCDIR}/
-// #cgo LDFLAGS: -L${SRCDIR}/../out -l:libz.a
-// #include "gzip_zinfo.h"
-// #include <stdlib.h>
-// #include <stdint.h>
-import "C"
-
 import (
-	"compress/gzip"
 	"fmt"
 	"io"
-	"unsafe"
+	"os"
+
+	"github.com/awslabs/soci-snapshotter/ztoc/compression/internal/gzipinfo"
 )
 
-// GzipZinfo is a go struct wrapper of the gzip zinfo's C implementation.
+// GzipZinfo is a go struct wrapping a gzipinfo.Index: a pure-Go,
+// cgo-free zran.c-style random-access index into a gzip stream. It
+// replaces an earlier cgo/zlib-based implementation of the same
+// algorithm; the on-disk Checkpoints blob format (see Bytes/newGzipZinfo)
+// is unchanged, so existing ztocs remain readable.
 type GzipZinfo struct {
-	cZinfo *C.struct_gzip_zinfo
+	idx *gzipinfo.Index
 }
 
-// newGzipZinfo creates a new instance of `GzipZinfo` from cZinfo byte blob on zTOC.
+// newGzipZinfo creates a new instance of `GzipZinfo` from the zinfo byte
+// blob stored on a ztoc.
 func newGzipZinfo(zinfoBytes []byte) (*GzipZinfo, error) {
 	if len(zinfoBytes) == 0 {
 		return nil, fmt.Errorf("empty checkpoints")
 	}
-	cZinfo := C.blob_to_zinfo(unsafe.Pointer(&zinfoBytes[0]), C.off_t(len(zinfoBytes)))
-	if cZinfo == nil {
-		return nil, fmt.Errorf("cannot convert blob to gzip_zinfo")
+	idx := &gzipinfo.Index{}
+	if err := idx.UnmarshalBinary(zinfoBytes); err != nil {
+		return nil, fmt.Errorf("cannot convert blob to gzip zinfo: %w", err)
 	}
-	return &GzipZinfo{
-		cZinfo: cZinfo,
-	}, nil
+	return &GzipZinfo{idx: idx}, nil
 }
 
-// newGzipZinfoFromFile creates a new instance of `GzipZinfo` given gzip file name and span size.
+// newGzipZinfoFromFile creates a new instance of `GzipZinfo` given a gzip
+// file name and span size.
 func newGzipZinfoFromFile(gzipFile string, spanSize int64) (*GzipZinfo, error) {
-	cstr := C.CString(gzipFile)
-	defer C.free(unsafe.Pointer(cstr))
-
-	var cZinfo *C.struct_gzip_zinfo
-	ret := C.generate_zinfo_from_file(cstr, C.off_t(spanSize), &cZinfo)
-	if int(ret) < 0 {
-		return nil, fmt.Errorf("could not generate gzip zinfo. gzip error: %v", ret)
+	f, err := os.Open(gzipFile)
+	if err != nil {
+		return nil, fmt.Errorf("could not generate gzip zinfo: %w", err)
 	}
+	defer f.Close()
 
-	return &GzipZinfo{
-		cZinfo: cZinfo,
-	}, nil
+	idx, err := gzipinfo.BuildIndex(f, spanSize)
+	if err != nil {
+		return nil, fmt.Errorf("could not generate gzip zinfo: %w", err)
+	}
+	return &GzipZinfo{idx: idx}, nil
 }
 
-// Close calls `C.free` on the pointer to `C.struct_gzip_zinfo`.
-func (i *GzipZinfo) Close() {
-	if i.cZinfo != nil {
-		C.free(unsafe.Pointer(i.cZinfo))
-	}
-}
+// Close is a no-op: GzipZinfo holds no unmanaged resources now that it's
+// backed by pure Go rather than C-allocated memory. Kept to satisfy the
+// Zinfo interface.
+func (i *GzipZinfo) Close() {}
 
 // Bytes returns the byte slice containing the zinfo.
 func (i *GzipZinfo) Bytes() ([]byte, error) {
-	blobSize := C.get_blob_size(i.cZinfo)
-	bytes := make([]byte, uint64(blobSize))
-	if len(bytes) == 0 {
-		return nil, fmt.Errorf("could not allocate byte array of size %d", blobSize)
-	}
-
-	ret := C.zinfo_to_blob(i.cZinfo, unsafe.Pointer(&bytes[0]))
-	if int(ret) <= 0 {
-		return nil, fmt.Errorf("could not serialize gzip zinfo to byte array; gzip error: %v", ret)
-	}
-	return bytes, nil
+	return i.idx.MarshalBinary()
 }
 
 // MaxSpanID returns the max span ID.
 func (i *GzipZinfo) MaxSpanID() SpanID {
-	return SpanID(C.get_max_span_id(i.cZinfo))
+	return SpanID(i.idx.MaxSpanID())
 }
 
 // SpanSize returns the span size of the constructed ztoc.
 func (i *GzipZinfo) SpanSize() Offset {
-	return Offset(i.cZinfo.span_size)
+	return Offset(i.idx.SpanSize())
 }
 
 // UncompressedOffsetToSpanID returns the ID of the span containing the data pointed by uncompressed offset.
 func (i *GzipZinfo) UncompressedOffsetToSpanID(offset Offset) SpanID {
-	return SpanID(C.pt_index_from_ucmp_offset(i.cZinfo, C.long(offset)))
+	return SpanID(i.idx.UncompressedOffsetToSpanID(int64(offset)))
 }
 
-// ExtractDataFromBuffer wraps the call to `C.extract_data_from_buffer`, which takes in the compressed bytes
-// and returns the decompressed bytes.
+// ExtractDataFromBuffer extracts the uncompressed data from `compressedBuf` and returns
+// it as a byte slice.
 func (i *GzipZinfo) ExtractDataFromBuffer(compressedBuf []byte, uncompressedSize, uncompressedOffset Offset, spanID SpanID) ([]byte, error) {
 	if len(compressedBuf) == 0 {
 		return nil, fmt.Errorf("empty compressed buffer")
@@ -114,95 +99,58 @@ func (i *GzipZinfo) ExtractDataFromBuffer(compressedBuf []byte, uncompressedSize
 	if uncompressedSize == 0 {
 		return []byte{}, nil
 	}
-	bytes := make([]byte, uncompressedSize)
-	ret := C.extract_data_from_buffer(
-		unsafe.Pointer(&compressedBuf[0]),
-		C.off_t(len(compressedBuf)),
-		i.cZinfo,
-		C.off_t(uncompressedOffset),
-		unsafe.Pointer(&bytes[0]),
-		C.off_t(uncompressedSize),
-		C.int(spanID),
-	)
-	if ret <= 0 {
-		return bytes, fmt.Errorf("error extracting data; return code: %v", ret)
+	data, err := i.idx.ExtractFromBuffer(compressedBuf, int(spanID), int64(uncompressedOffset), int64(uncompressedSize))
+	if err != nil {
+		return nil, fmt.Errorf("error extracting data: %w", err)
 	}
-
-	return bytes, nil
+	return data, nil
 }
 
-// ExtractDataFromFile wraps `C.extract_data_from_file` and returns the decompressed bytes given the name of the .tar.gz file,
+// ExtractDataFromFile returns the decompressed bytes given the name of the .tar.gz file,
 // offset and the size in uncompressed stream.
 func (i *GzipZinfo) ExtractDataFromFile(fileName string, uncompressedSize, uncompressedOffset Offset) ([]byte, error) {
-	cstr := C.CString(fileName)
-	defer C.free(unsafe.Pointer(cstr))
 	if uncompressedSize < 0 {
 		return nil, fmt.Errorf("invalid uncompressed size: %d", uncompressedSize)
 	}
 	if uncompressedSize == 0 {
 		return []byte{}, nil
 	}
-	bytes := make([]byte, uncompressedSize)
-	ret := C.extract_data_from_file(cstr, i.cZinfo, C.off_t(uncompressedOffset), unsafe.Pointer(&bytes[0]), C.int(uncompressedSize))
-	if ret <= 0 {
-		return nil, fmt.Errorf("unable to extract data; return code = %v", ret)
+	f, err := os.Open(fileName)
+	if err != nil {
+		return nil, fmt.Errorf("unable to open file: %w", err)
 	}
+	defer f.Close()
 
-	return bytes, nil
+	data, err := i.idx.ExtractFromFile(f, int64(uncompressedOffset), int64(uncompressedSize))
+	if err != nil {
+		return nil, fmt.Errorf("unable to extract data: %w", err)
+	}
+	return data, nil
 }
 
 // StartCompressedOffset returns the start offset of the span in the compressed stream.
 func (i *GzipZinfo) StartCompressedOffset(spanID SpanID) Offset {
-	start := i.getCompressedOffset(spanID)
-	if i.hasBits(spanID) {
-		start--
-	}
-	return start
+	return Offset(i.idx.StartCompressedOffset(int(spanID)))
 }
 
 // EndCompressedOffset returns the end offset of the span in the compressed stream. If
 // it's the last span, returns the size of the compressed stream.
 func (i *GzipZinfo) EndCompressedOffset(spanID SpanID, fileSize Offset) Offset {
-	if spanID == i.MaxSpanID() {
-		return fileSize
-	}
-	return i.getCompressedOffset(spanID + 1)
+	return Offset(i.idx.EndCompressedOffset(int(spanID), int64(fileSize)))
 }
 
 // StartUncompressedOffset returns the start offset of the span in the uncompressed stream.
 func (i *GzipZinfo) StartUncompressedOffset(spanID SpanID) Offset {
-	return i.getUncompressedOffset(spanID)
+	return Offset(i.idx.StartUncompressedOffset(int(spanID)))
 }
 
 // EndUncompressedOffset returns the end offset of the span in the uncompressed stream. If
 // it's the last span, returns the size of the uncompressed stream.
 func (i *GzipZinfo) EndUncompressedOffset(spanID SpanID, fileSize Offset) Offset {
-	if spanID == i.MaxSpanID() {
-		return fileSize
-	}
-	return i.getUncompressedOffset(spanID + 1)
+	return Offset(i.idx.EndUncompressedOffset(int(spanID), int64(fileSize)))
 }
 
 // VerifyHeader checks if the given zinfo has a proper header
 func (i *GzipZinfo) VerifyHeader(r io.Reader) error {
-	gz, err := gzip.NewReader(r)
-	if gz != nil {
-		gz.Close()
-	}
-	return err
-}
-
-// getCompressedOffset wraps `C.get_comp_off` and returns the offset for the span in the compressed stream.
-func (i *GzipZinfo) getCompressedOffset(spanID SpanID) Offset {
-	return Offset(C.get_comp_off(i.cZinfo, C.int(spanID)))
-}
-
-// hasBits wraps `C.has_bits` and returns true if any data is contained in the previous span.
-func (i *GzipZinfo) hasBits(spanID SpanID) bool {
-	return C.has_bits(i.cZinfo, C.int(spanID)) != 0
-}
-
-// getUncompressedOffset wraps `C.get_uncomp_off` and returns the offset for the span in the uncompressed stream.
-func (i *GzipZinfo) getUncompressedOffset(spanID SpanID) Offset {
-	return Offset(C.get_ucomp_off(i.cZinfo, C.int(spanID)))
+	return i.idx.VerifyHeader(r)
 }

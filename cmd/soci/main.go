@@ -66,6 +66,14 @@ func main() {
 			if cmd.Command(commands.ConvertCommand.Name).Bool(commands.StandaloneFlag) {
 				return ctx, nil
 			}
+			// Neither does create/push --source=registry: like standalone
+			// convert, they don't touch containerd or the snapshotter at all.
+			if cmd.Command(commands.CreateCommand.Name).String(commands.SourceFlag) == commands.SourceRegistry {
+				return ctx, nil
+			}
+			if cmd.Command(commands.PushCommand.Name).String(commands.SourceFlag) == commands.SourceRegistry {
+				return ctx, nil
+			}
 			return ctx, soci.EnsureSnapshotterRootPath(cmd.String(global.RootFlag))
 		},
 	}
