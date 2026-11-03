@@ -52,7 +52,7 @@ STARGZ_BINARY?=/usr/local/bin/containerd-stargz-grpc
 INTEG_TEST_CONTAINERS=$(strip $(shell docker ps -aqf name="soci-integration-*"))
 SOCI_BASE_IMAGE_IDS=$(shell docker image ls -qf reference="*:soci_test")
 
-CMD=soci-snapshotter-grpc soci
+CMD=soci-snapshotter-grpc soci soci-store
 
 CMD_BINARIES=$(addprefix $(OUTDIR)/,$(CMD))
 
@@ -83,6 +83,9 @@ soci-snapshotter-grpc: flatc FORCE
 
 soci: FORCE
 	cd cmd/ ; GO111MODULE=$(GO111MODULE_VALUE) go build -o $(OUTDIR)/$@ $(GO_BUILD_FLAGS) $(GO_LD_FLAGS) $(GO_TAGS) ./soci
+
+soci-store: FORCE
+	cd cmd/ ; GO111MODULE=$(GO111MODULE_VALUE) go build -o $(OUTDIR)/$@ $(GO_BUILD_FLAGS) $(GO_LD_FLAGS) $(GO_TAGS) ./soci-store
 
 check:
 	cd scripts/ ; ./check-all.sh
