@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1793823013992,
+  "lastUpdate": 1793823610684,
   "repoUrl": "https://github.com/awslabs/soci-snapshotter",
   "entries": {
     "Soci Benchmark": [
@@ -20771,6 +20771,47 @@ window.BENCHMARK_DATA = {
           {
             "name": "SociFullECR-public-tensorflow-pullTaskDuration",
             "value": 2.5186,
+            "unit": "Seconds",
+            "extra": "P90"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "matus.ujhelyi@tind.sk",
+            "name": "Matus Ujhelyi"
+          },
+          "committer": {
+            "email": "55555210+sondavidb@users.noreply.github.com",
+            "name": "David Son",
+            "username": "sondavidb"
+          },
+          "distinct": true,
+          "id": "d53f9134768dbb316ceaaa864b4ec8d12738a656",
+          "message": "Keep shared layer open when unmounting an id-mapped mount\n\nIDMapMount serves a pod's id-mapped view of a lazily loaded layer from a\nnew FUSE mount at \"<snapshot>_<activeLayerID>/fs\", registered in fs.layer\nunder the same layer object as the snapshot mount, without taking a\nreference. Unmount is meant to skip l.Done() and the resolver eviction for\nsuch mounts, but isIDMappedDir looked at the mountpoint's base name, which\nis always \"fs\", so it never matched.\n\nRemoving a user-namespaced pod therefore released and evicted the layer\nstill shared with the snapshot mount. The next id-mapped mount of that\nlayer failed with \"layer is already closed\", and other containers on the\nlayer could no longer read from it until the snapshotter restarted.\n\nisIDMappedDir now checks the parent directory, which carries the marker.\nTests cover the mountpoint naming and that unmounting an id-mapped mount\nleaves the shared layer registered and unreleased.\n\nSigned-off-by: Matus Ujhelyi <ujhelyi.m@gmail.com>",
+          "timestamp": "2026-11-04T14:41:27-05:00",
+          "tree_id": "053d3df0f2a89c12b6c110400e8595c106c2c6da",
+          "url": "https://github.com/awslabs/soci-snapshotter/commit/d53f9134768dbb316ceaaa864b4ec8d12738a656"
+        },
+        "date": 1793823606270,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "SociFullECR-public-tensorflow-lazyTaskDuration",
+            "value": 72.72040000000001,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-tensorflow-localTaskDuration",
+            "value": 2.789,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-tensorflow-pullTaskDuration",
+            "value": 3.319,
             "unit": "Seconds",
             "extra": "P90"
           }
