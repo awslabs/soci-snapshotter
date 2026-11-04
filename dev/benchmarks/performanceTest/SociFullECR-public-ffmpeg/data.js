@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1793114100482,
+  "lastUpdate": 1793822926148,
   "repoUrl": "https://github.com/awslabs/soci-snapshotter",
   "entries": {
     "Soci Benchmark": [
@@ -20646,6 +20646,48 @@ window.BENCHMARK_DATA = {
           {
             "name": "SociFullECR-public-ffmpeg-pullTaskDuration",
             "value": 1.9744,
+            "unit": "Seconds",
+            "extra": "P90"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "davbson@amazon.com",
+            "name": "David Son",
+            "username": "sondavidb"
+          },
+          "committer": {
+            "email": "55555210+sondavidb@users.noreply.github.com",
+            "name": "David Son",
+            "username": "sondavidb"
+          },
+          "distinct": true,
+          "id": "dcd6c9a429e9df7a4da6c82f5ee3d5f5c3c3a150",
+          "message": "Replace Padding with Flags in fuse.Attr\n\nThis was a result of go-fuse v2.12.0 removing the Padding field with the\n(more semantically correct) flags field. I don't think this should\nchange anything since we set it to 0 regardless, but warranted an extra\nPR + commit for documentation.\n\nref below:\nhttps://github.com/hanwen/go-fuse/commit/0f5c1f5ef0b8069802dfd1c8ef6a8226911683c6\n\nSigned-off-by: David Son <davbson@amazon.com>",
+          "timestamp": "2026-11-04T14:41:54-05:00",
+          "tree_id": "8d2c571abcc31351471747ffd27d9c89a9171453",
+          "url": "https://github.com/awslabs/soci-snapshotter/commit/dcd6c9a429e9df7a4da6c82f5ee3d5f5c3c3a150"
+        },
+        "date": 1793822922561,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "SociFullECR-public-ffmpeg-lazyTaskDuration",
+            "value": 0.21000000000000002,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-ffmpeg-localTaskDuration",
+            "value": 0.007,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-ffmpeg-pullTaskDuration",
+            "value": 2.5822000000000003,
             "unit": "Seconds",
             "extra": "P90"
           }
