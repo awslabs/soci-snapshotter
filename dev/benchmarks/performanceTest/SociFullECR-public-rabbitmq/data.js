@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1793949428016,
+  "lastUpdate": 1793996701019,
   "repoUrl": "https://github.com/awslabs/soci-snapshotter",
   "entries": {
     "Soci Benchmark": [
@@ -20691,6 +20691,48 @@ window.BENCHMARK_DATA = {
           {
             "name": "SociFullECR-public-rabbitmq-pullTaskDuration",
             "value": 2.5064,
+            "unit": "Seconds",
+            "extra": "P90"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "davbson@amazon.com",
+            "name": "David Son",
+            "username": "sondavidb"
+          },
+          "committer": {
+            "email": "55555210+sondavidb@users.noreply.github.com",
+            "name": "David Son",
+            "username": "sondavidb"
+          },
+          "distinct": true,
+          "id": "f7b13bc94a82f841685b80cdb979664d75e7f8f3",
+          "message": "Bump moby/sys/user to v0.4.1\n\nSigned-off-by: David Son <davbson@amazon.com>",
+          "timestamp": "2026-11-06T15:14:46-05:00",
+          "tree_id": "6148994cfa865ae71c0428680b8e686d1823af5f",
+          "url": "https://github.com/awslabs/soci-snapshotter/commit/f7b13bc94a82f841685b80cdb979664d75e7f8f3"
+        },
+        "date": 1793996691518,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "SociFullECR-public-rabbitmq-lazyTaskDuration",
+            "value": 13.954,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-rabbitmq-localTaskDuration",
+            "value": 9.8012,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-rabbitmq-pullTaskDuration",
+            "value": 1.9148,
             "unit": "Seconds",
             "extra": "P90"
           }
