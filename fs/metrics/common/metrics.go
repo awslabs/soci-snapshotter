@@ -135,6 +135,9 @@ const (
 	// Number of spans fetched by background fetcher
 	BackgroundSpanFetchCount = "background_span_fetch_count"
 
+	// Number of times a fetched span could not be written to the span cache
+	SpanCacheWriteFailureCount = "span_cache_write_failure_count"
+
 	// Number of items in the work queue of background fetcher
 	BackgroundFetchWorkQueueSize = "background_fetch_work_queue_size"
 
