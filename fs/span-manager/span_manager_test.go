@@ -559,3 +559,203 @@ func TestSynchronousFetchMetricOnlyFiresOnNetworkFetch(t *testing.T) {
 		assert.Equal(t, before, after, "metric should not increment when bg fetcher already fetched span")
 	}
 }
+
+var (
+	errTestCacheWrite  = errors.New("test cache write failure")
+	errTestCacheCommit = errors.New("test cache commit failure")
+)
+
+// failingCache wraps a BlobCache and makes its writers fail on Write or Commit.
+type failingCache struct {
+	cache.BlobCache
+	failWrite  bool
+	failCommit bool
+}
+
+func (c *failingCache) Add(key string, opts ...cache.Option) (cache.Writer, error) {
+	w, err := c.BlobCache.Add(key, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return &failingWriter{Writer: w, failWrite: c.failWrite, failCommit: c.failCommit}, nil
+}
+
+type failingWriter struct {
+	cache.Writer
+	failWrite  bool
+	failCommit bool
+}
+
+func (w *failingWriter) Write(p []byte) (int, error) {
+	if w.failWrite {
+		return 0, errTestCacheWrite
+	}
+	return w.Writer.Write(p)
+}
+
+func (w *failingWriter) Commit() error {
+	if w.failCommit {
+		w.Writer.Abort()
+		return errTestCacheCommit
+	}
+	return w.Writer.Commit()
+}
+
+// fileSpans returns the spans that hold the contents of fileName.
+func fileSpans(t *testing.T, m *SpanManager, toc *ztoc.Ztoc, fileName string) []*span {
+	metadata, err := toc.GetMetadataEntry(fileName)
+	if err != nil {
+		t.Fatalf("failed to get metadata entry: %v", err)
+	}
+	info := m.getSpanInfo(metadata.UncompressedOffset, metadata.UncompressedOffset+metadata.UncompressedSize)
+	return m.spans[info.spanStart : info.spanEnd+1]
+}
+
+func TestSpanCacheWriteFailureServesFetchedSpan(t *testing.T) {
+	tRand := testutil.NewTestRand(t)
+	var spanSize compression.Offset = 65536
+	content := tRand.RandomByteData(int64(spanSize) * 2)
+	fileName := "span-cache-write-failure-test"
+	tarEntries := []testutil.TarEntry{
+		testutil.File(fileName, string(content)),
+	}
+
+	testCases := []struct {
+		name       string
+		failWrite  bool
+		failCommit bool
+	}{
+		{name: "healthy cache"},
+		{name: "write fails", failWrite: true},
+		{name: "commit fails", failCommit: true},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			toc, r, err := ztoc.BuildZtocReader(t, tarEntries, gzip.BestCompression, int64(spanSize))
+			if err != nil {
+				t.Fatalf("failed to create ztoc: %v", err)
+			}
+			failing := tc.failWrite || tc.failCommit
+			memCache := cache.NewMemoryCache()
+			defer memCache.Close()
+			fc := &failingCache{BlobCache: memCache, failWrite: tc.failWrite, failCommit: tc.failCommit}
+			layerDigest := digest.FromString("span-cache-write-failure-" + tc.name)
+			m, err := New(toc, r, fc, 0, layerDigest)
+			if err != nil {
+				t.Fatalf("failed to create span manager: %v", err)
+			}
+			spans := fileSpans(t, m, toc, fileName)
+
+			// read twice: a failed write must not leave the span marked cached,
+			// so the second read fetches and serves it again
+			for i := 0; i < 2; i++ {
+				before := commonmetrics.GetOperationCount(commonmetrics.SpanCacheWriteFailureCount, layerDigest)
+				got, err := getFileContentFromSpans(m, toc, fileName)
+				assert.Nil(t, err)
+				assert.Equal(t, content, got)
+				after := commonmetrics.GetOperationCount(commonmetrics.SpanCacheWriteFailureCount, layerDigest)
+
+				for _, s := range spans {
+					_, cacheErr := memCache.Get(fmt.Sprintf("%d", s.id))
+					if failing {
+						assert.True(t, s.checkState(unrequested), "span %d should not be marked cached", s.id)
+						assert.NotNil(t, cacheErr, "span %d should not be in the cache", s.id)
+					} else {
+						assert.True(t, s.checkState(uncompressed), "span %d should be uncompressed", s.id)
+						assert.Nil(t, cacheErr, "span %d should be in the cache", s.id)
+					}
+				}
+				if failing {
+					assert.Equal(t, before+float64(len(spans)), after)
+				} else {
+					assert.Equal(t, before, after)
+				}
+			}
+		})
+	}
+}
+
+func TestSpanCacheWriteFailureAfterBackgroundFetch(t *testing.T) {
+	tRand := testutil.NewTestRand(t)
+	var spanSize compression.Offset = 65536
+	content := tRand.RandomByteData(int64(spanSize))
+	fileName := "span-cache-write-failure-bg-test"
+	tarEntries := []testutil.TarEntry{
+		testutil.File(fileName, string(content)),
+	}
+	toc, r, err := ztoc.BuildZtocReader(t, tarEntries, gzip.BestCompression, int64(spanSize))
+	if err != nil {
+		t.Fatalf("failed to create ztoc: %v", err)
+	}
+	memCache := cache.NewMemoryCache()
+	defer memCache.Close()
+	fc := &failingCache{BlobCache: memCache}
+	layerDigest := digest.FromString("span-cache-write-failure-bg")
+	m, err := New(toc, r, fc, 0, layerDigest)
+	if err != nil {
+		t.Fatalf("failed to create span manager: %v", err)
+	}
+	spans := fileSpans(t, m, toc, fileName)
+
+	// bg-fetch the spans with a healthy cache, then fail writes of the uncompressed spans
+	for _, s := range spans {
+		assert.Nil(t, m.FetchSingleSpan(s.id))
+	}
+	fc.failWrite = true
+
+	before := commonmetrics.GetOperationCount(commonmetrics.SpanCacheWriteFailureCount, layerDigest)
+	got, err := getFileContentFromSpans(m, toc, fileName)
+	assert.Nil(t, err)
+	assert.Equal(t, content, got)
+	after := commonmetrics.GetOperationCount(commonmetrics.SpanCacheWriteFailureCount, layerDigest)
+	assert.Equal(t, before+float64(len(spans)), after)
+	for _, s := range spans {
+		assert.True(t, s.checkState(fetched), "span %d should stay fetched", s.id)
+	}
+}
+
+func TestBackgroundFetchReturnsSpanCacheWriteFailure(t *testing.T) {
+	tRand := testutil.NewTestRand(t)
+	var spanSize compression.Offset = 65536
+	tarEntries := []testutil.TarEntry{
+		testutil.File("span-cache-write-failure-bg-error-test", string(tRand.RandomByteData(int64(spanSize)))),
+	}
+	toc, r, err := ztoc.BuildZtocReader(t, tarEntries, gzip.BestCompression, int64(spanSize))
+	if err != nil {
+		t.Fatalf("failed to create ztoc: %v", err)
+	}
+	memCache := cache.NewMemoryCache()
+	defer memCache.Close()
+	m, err := New(toc, r, &failingCache{BlobCache: memCache, failWrite: true}, 0, digest.FromString(""))
+	if err != nil {
+		t.Fatalf("failed to create span manager: %v", err)
+	}
+
+	err = m.FetchSingleSpan(0)
+	assert.ErrorIs(t, err, errTestCacheWrite)
+	assert.True(t, m.spans[0].checkState(unrequested))
+}
+
+func TestAddSpanToCacheReturnsCommitError(t *testing.T) {
+	tRand := testutil.NewTestRand(t)
+	var spanSize compression.Offset = 65536
+	tarEntries := []testutil.TarEntry{
+		testutil.File("add-span-commit-error-test", string(tRand.RandomByteData(int64(spanSize)))),
+	}
+	toc, r, err := ztoc.BuildZtocReader(t, tarEntries, gzip.BestCompression, int64(spanSize))
+	if err != nil {
+		t.Fatalf("failed to create ztoc: %v", err)
+	}
+	memCache := cache.NewMemoryCache()
+	defer memCache.Close()
+	m, err := New(toc, r, &failingCache{BlobCache: memCache, failCommit: true}, 0, digest.FromString(""))
+	if err != nil {
+		t.Fatalf("failed to create span manager: %v", err)
+	}
+
+	err = m.addSpanToCache(0, []byte("span data"))
+	assert.ErrorIs(t, err, errTestCacheCommit)
+	_, err = memCache.Get("0")
+	assert.NotNil(t, err)
+}

@@ -82,6 +82,7 @@ Below are a list of metrics emitted by the snapshotter:
     * **fuse_mount_failure_count** - number of times the snapshotter falls back to use a normal overlay mount instead of mounting the layer as a `FUSE` mount.
     * **background_span_fetch_failure_count** - number of errors of span fetch by background fetcher.
     * **background_span_fetch_count** - number of spans fetched by background fetcher.
+    * **span_cache_write_failure_count** - number of times a fetched span could not be written to the span cache. Reads are still served from memory.
     * **background_fetch_work_queue_size** - number of items in the work queue of background fetcher.
     * **operation_duration_background_fetch** - time in milliseconds to complete background fetch for a layer.
     * Individual `FUSE` operation failure counts:
