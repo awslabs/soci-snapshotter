@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1793996693249,
+  "lastUpdate": 1794426646990,
   "repoUrl": "https://github.com/awslabs/soci-snapshotter",
   "entries": {
     "Soci Benchmark": [
@@ -20856,6 +20856,48 @@ window.BENCHMARK_DATA = {
           {
             "name": "SociFullECR-public-mongo-pullTaskDuration",
             "value": 1.6880000000000002,
+            "unit": "Seconds",
+            "extra": "P90"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "davbson@amazon.com",
+            "name": "David Son",
+            "username": "sondavidb"
+          },
+          "committer": {
+            "email": "55555210+sondavidb@users.noreply.github.com",
+            "name": "David Son",
+            "username": "sondavidb"
+          },
+          "distinct": true,
+          "id": "8b347fe825312441c5d5b357768727175e352ad5",
+          "message": "Bump Go 1.26.11, adjust cgo flags\n\nGo 1.26.11 tightened the syntax for cgo flags. #476's intention was to\nforce the libz library to be statically linked via the flag -l:libz.a.\nThe colon syntax is no longer allowed anymore, so attempting to imitate\nthe same behavior here.\n\nSigned-off-by: David Son <davbson@amazon.com>",
+          "timestamp": "2026-11-11T14:43:49-05:00",
+          "tree_id": "7177343edb97eb2c22c58139573ba3c251d369ee",
+          "url": "https://github.com/awslabs/soci-snapshotter/commit/8b347fe825312441c5d5b357768727175e352ad5"
+        },
+        "date": 1794426637827,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "SociFullECR-public-mongo-lazyTaskDuration",
+            "value": 1.0708,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-mongo-localTaskDuration",
+            "value": 0.13720000000000002,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-mongo-pullTaskDuration",
+            "value": 1.096,
             "unit": "Seconds",
             "extra": "P90"
           }
