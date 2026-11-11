@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1793996703107,
+  "lastUpdate": 1794426641533,
   "repoUrl": "https://github.com/awslabs/soci-snapshotter",
   "entries": {
     "Soci Benchmark": [
@@ -20813,6 +20813,48 @@ window.BENCHMARK_DATA = {
           {
             "name": "SociFullECR-public-ffmpeg-pullTaskDuration",
             "value": 2.064,
+            "unit": "Seconds",
+            "extra": "P90"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "davbson@amazon.com",
+            "name": "David Son",
+            "username": "sondavidb"
+          },
+          "committer": {
+            "email": "55555210+sondavidb@users.noreply.github.com",
+            "name": "David Son",
+            "username": "sondavidb"
+          },
+          "distinct": true,
+          "id": "8b347fe825312441c5d5b357768727175e352ad5",
+          "message": "Bump Go 1.26.11, adjust cgo flags\n\nGo 1.26.11 tightened the syntax for cgo flags. #476's intention was to\nforce the libz library to be statically linked via the flag -l:libz.a.\nThe colon syntax is no longer allowed anymore, so attempting to imitate\nthe same behavior here.\n\nSigned-off-by: David Son <davbson@amazon.com>",
+          "timestamp": "2026-11-11T14:43:49-05:00",
+          "tree_id": "7177343edb97eb2c22c58139573ba3c251d369ee",
+          "url": "https://github.com/awslabs/soci-snapshotter/commit/8b347fe825312441c5d5b357768727175e352ad5"
+        },
+        "date": 1794426635468,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "SociFullECR-public-ffmpeg-lazyTaskDuration",
+            "value": 0.13820000000000002,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-ffmpeg-localTaskDuration",
+            "value": 0.004,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-ffmpeg-pullTaskDuration",
+            "value": 1.4522,
             "unit": "Seconds",
             "extra": "P90"
           }
