@@ -18,7 +18,7 @@ require (
 	github.com/google/uuid v1.6.0
 	github.com/hanwen/go-fuse/v2 v2.12.1
 	github.com/hashicorp/go-retryablehttp v0.7.8
-	github.com/klauspost/compress v1.20.3
+	github.com/klauspost/compress v1.20.4
 	github.com/moby/sys/mountinfo v0.7.3
 	github.com/montanaflynn/stats v0.14.0
 	github.com/opencontainers/go-digest v1.0.0
@@ -34,8 +34,8 @@ require (
 	go.uber.org/goleak v1.3.0
 	golang.org/x/crypto v0.58.0
 	golang.org/x/net v0.62.0
-	golang.org/x/sync v0.24.0
-	golang.org/x/sys v0.49.0
+	golang.org/x/sync v0.25.0
+	golang.org/x/sys v0.50.0
 	golang.org/x/time v0.16.0
 	google.golang.org/grpc v1.85.0
 	k8s.io/api v0.34.10
