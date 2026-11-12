@@ -25,7 +25,7 @@ import (
 	"time"
 
 	containerd "github.com/containerd/containerd/v2/client"
-	"github.com/containerd/containerd/v2/contrib/nvidia"
+	"github.com/containerd/containerd/v2/pkg/cdi"
 	"github.com/containerd/containerd/v2/pkg/oci"
 	runtimespec "github.com/opencontainers/runtime-spec/specs-go"
 )
@@ -76,7 +76,9 @@ func (i *ImageDescriptor) ContainerOpts(image containerd.Image, o ...containerd.
 		ociOpts = append(ociOpts, oci.WithMounts(i.ImageOptions.Mounts))
 	}
 	if i.ImageOptions.Gpu {
-		ociOpts = append(ociOpts, nvidia.WithGPUs(nvidia.WithAllDevices, nvidia.WithAllCapabilities))
+		// Inject all NVIDIA GPUs via CDI. Requires CDI specs on the host,
+		// e.g. generated with `nvidia-ctk cdi generate --output=/etc/cdi/nvidia.yaml`.
+		ociOpts = append(ociOpts, cdi.WithCDIDevices("nvidia.com/gpu=all"))
 	}
 	if len(i.ImageOptions.Env) > 0 {
 		ociOpts = append(ociOpts, oci.WithEnv(i.ImageOptions.Env))
