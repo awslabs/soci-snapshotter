@@ -641,6 +641,9 @@ struct gzip_zinfo* blob_to_zinfo(void* buf, offset_t len) {
         version = ZINFO_VERSION_ONE;
     } else {
         // size is invalid. don't attempt to deserialize any more data.
+        // index->list has not been allocated yet, so release the struct
+        // directly: free_zinfo would read an uninitialised pointer.
+        free(index);
         return NULL;
     }
 

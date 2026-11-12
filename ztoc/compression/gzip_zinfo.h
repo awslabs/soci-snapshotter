@@ -108,6 +108,10 @@ int32_t     get_max_span_id(struct gzip_zinfo *index);
 int         has_bits(struct gzip_zinfo *index, int checkpoint);
 // zinfo - metadata ends.
 
+// Frees a zinfo and the checkpoint list it owns. Defined in gzip_zinfo.c;
+// declared here so cgo callers can reach it.
+void free_zinfo(struct gzip_zinfo *index);
+
 // zinfo - generation/extraction starts.
 int generate_zinfo_from_file(const char* filepath, offset_t span, struct gzip_zinfo** index);
 int extract_data_from_file(const char* file, struct gzip_zinfo* index, offset_t offset, void* buf, int len);

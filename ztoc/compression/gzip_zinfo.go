@@ -65,10 +65,13 @@ func newGzipZinfoFromFile(gzipFile string, spanSize int64) (*GzipZinfo, error) {
 	}, nil
 }
 
-// Close calls `C.free` on the pointer to `C.struct_gzip_zinfo`.
+// Close releases the zinfo. It calls `C.free_zinfo` rather than `C.free`: the
+// struct owns `list`, an array of `have` `struct gzip_checkpoint`, each holding
+// a 32 KiB window. Freeing the struct alone leaks that array.
 func (i *GzipZinfo) Close() {
 	if i.cZinfo != nil {
-		C.free(unsafe.Pointer(i.cZinfo))
+		C.free_zinfo(i.cZinfo)
+		i.cZinfo = nil
 	}
 }
 
