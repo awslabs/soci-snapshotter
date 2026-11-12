@@ -18,6 +18,9 @@ updates:
       # skip k8s deps since they use the latest go version/features that may not be in the go version soci uses
       # Also ignored in /scripts/bump-deps.sh
       - dependency-name: "k8s.io/*"
+      # TODO: containerd/api v1.12.0 is broken with containerd 2.3
+      # Remove this once we upgrade to containerd 2.4.x
+      - dependency-name: "github.com/containerd/containerd/api"
 
   # Automatic upgrade for go modules of cmd package.
   - package-ecosystem: "gomod"
@@ -37,6 +40,9 @@ updates:
       # Also ignored in /scripts/bump-deps.sh
       - dependency-name: "github.com/awslabs/soci-snapshotter"
       - dependency-name: "k8s.io/*"
+      # TODO: containerd/api v1.12.0 is broken with containerd 2.3
+      # Remove this once we upgrade to containerd 2.4.x
+      - dependency-name: "github.com/containerd/containerd/api"
 
   # Automatic update for base images used in the Dockerfile
   - package-ecosystem: "docker"

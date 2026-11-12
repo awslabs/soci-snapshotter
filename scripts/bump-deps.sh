@@ -29,6 +29,9 @@ go get -u=patch github.com/containerd/containerd/v2
 # shellcheck disable=SC2046
 go get $(go list -m -f '{{if not (or .Indirect .Main)}}{{.Path}}{{end}}' all | \
     grep -v "^github.com/containerd/containerd/v2$" | \
+    # TODO: containerd/api v1.12.0 is broken with containerd 2.3
+    # Remove this once we upgrade to containerd 2.4.x
+    grep -v "^github.com/containerd/containerd/api$" | \
     grep -v "^k8s.io/")
 make tidy
 
@@ -43,6 +46,9 @@ go get -u=patch github.com/containerd/containerd/v2
 go get $(go list -m -f '{{if not (or .Indirect .Main)}}{{.Path}}{{end}}' all | \
     grep -v "^github.com/awslabs/soci-snapshotter" | \
     grep -v "^github.com/containerd/containerd/v2$" | \
+    # TODO: containerd/api v1.12.0 is broken with containerd 2.3
+    # Remove this once we upgrade to containerd 2.4.x
+    grep -v "^github.com/containerd/containerd/api$" | \
     grep -v "^k8s.io/")
 popd
 make tidy
