@@ -330,11 +330,11 @@ func (m *SpanManager) getSpanContent(spanID compression.SpanID, offsetStart, off
 			return nil, err
 		}
 
-		// cache uncompressed span
+		// cache uncompressed span; if the write fails, serve from memory and
+		// stay in `fetched` so a later read retries the cache write
 		if err := m.addSpanToCache(s.id, uncompSpanBuf); err != nil {
-			return nil, err
-		}
-		if err := s.setState(uncompressed); err != nil {
+			m.reportSpanCacheWriteFailure(s.id, err)
+		} else if err := s.setState(uncompressed); err != nil {
 			return nil, err
 		}
 		return io.NopCloser(bytes.NewReader(uncompSpanBuf[offsetStart : offsetStart+size])), nil
@@ -391,7 +391,17 @@ func (m *SpanManager) fetchAndCacheSpan(spanID compression.SpanID, uncompress bo
 
 	// cache span data
 	if err := m.addSpanToCache(spanID, buf); err != nil {
-		return nil, err
+		m.reportSpanCacheWriteFailure(spanID, err)
+		// the background fetcher only fills the cache, so there is nothing to serve
+		if !uncompress {
+			return nil, err
+		}
+		// serve the span from memory; it is not cached, so go back to
+		// `unrequested` and let a later read fetch and cache it again
+		if err := s.setState(unrequested); err != nil {
+			return nil, err
+		}
+		return buf, nil
 	}
 	if err := s.setState(state); err != nil {
 		return nil, err
@@ -464,8 +474,16 @@ func (m *SpanManager) addSpanToCache(spanID compression.SpanID, contents []byte)
 		return err
 	}
 
-	w.Commit()
-	return nil
+	return w.Commit()
+}
+
+// reportSpanCacheWriteFailure logs and counts a failed span cache write.
+func (m *SpanManager) reportSpanCacheWriteFailure(spanID compression.SpanID, err error) {
+	log.L.WithError(err).WithFields(log.Fields{
+		"layer":  m.layerSha,
+		"spanId": spanID,
+	}).Warn("failed to add span to cache")
+	commonmetrics.IncOperationCount(commonmetrics.SpanCacheWriteFailureCount, m.layerSha)
 }
 
 // getSpanFromCache returns the cached span content as an `io.Reader`.
