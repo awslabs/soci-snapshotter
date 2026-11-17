@@ -38,6 +38,7 @@ import (
 const (
 	StandaloneFlag   = "standalone"
 	outputFormatFlag = "format"
+	crioFlag         = "crio"
 
 	outputFormatOCIArchive = "oci-archive"
 	outputFormatOCIDir     = "oci-dir"
@@ -95,6 +96,10 @@ var ConvertCommand = &cli.Command{
 					}
 					return nil
 				},
+			},
+			&cli.BoolFlag{
+				Name:  crioFlag,
+				Usage: "Prepare the converted image for lazy loading under CRI-O/Podman: annotate each indexed layer with its ztoc (TOC) digest (containerd.io/snapshot/stargz/toc.digest) so containers/storage consults a soci-store additional layer store.",
 			},
 		}),
 	Action: func(ctx context.Context, cmd *cli.Command) error {
@@ -162,13 +167,17 @@ var ConvertCommand = &cli.Command{
 			return err
 		}
 
-		desc, err := builder.Convert(batchCtx, srcImg,
+		convertOpts := []soci.ConvertOption{
 			soci.ConvertWithPlatforms(platforms...),
 			// Don't set a GC label on the converted OCI Index. We will create an image
 			// in containerd that will act as the GC root. This way, the OCI index, SOCI indexes, and
 			// images will be removed when the image is deleted in containerd
 			soci.ConvertWithNoGarbageCollectionLabels(),
-		)
+		}
+		if cmd.Bool(crioFlag) {
+			convertOpts = append(convertOpts, soci.ConvertWithLayerTOCAnnotations())
+		}
+		desc, err := builder.Convert(batchCtx, srcImg, convertOpts...)
 		if err != nil {
 			return err
 		}
@@ -250,7 +259,11 @@ func runStandaloneConvert(ctx context.Context, cmd *cli.Command, inputPath strin
 	}
 	defer done(ctx)
 
-	convertedDesc, err := builder.Convert(batchCtx, imageInfo.Image, soci.ConvertWithPlatforms(requestedPlatforms...))
+	convertOpts := []soci.ConvertOption{soci.ConvertWithPlatforms(requestedPlatforms...)}
+	if cmd.Bool(crioFlag) {
+		convertOpts = append(convertOpts, soci.ConvertWithLayerTOCAnnotations())
+	}
+	convertedDesc, err := builder.Convert(batchCtx, imageInfo.Image, convertOpts...)
 	if err != nil {
 		return err
 	}

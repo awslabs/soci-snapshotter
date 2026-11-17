@@ -78,6 +78,12 @@ const (
 	// a SOCI index digest for the image.
 	ImageAnnotationSociIndexDigest = "com.amazon.soci.index-digest"
 
+	// TOCDigestAnnotation on an image layer descriptor tells containers/storage
+	// (CRI-O and Podman) to resolve that layer through an additional layer store
+	// (soci-store). We reuse eStargz's annotation key; the value is the digest of
+	// the layer's ztoc blob.
+	TOCDigestAnnotation = "containerd.io/snapshot/stargz/toc.digest"
+
 	defaultSpanSize            = int64(1 << 22) // 4MiB
 	defaultMinLayerSize        = 10 << 20       // 10MiB
 	defaultBuildToolIdentifier = "AWS SOCI CLI v0.2"
