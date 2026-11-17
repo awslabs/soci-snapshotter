@@ -1033,32 +1033,20 @@ func (o *snapshotter) unmountAllSnapshots(ctx context.Context, cleanupCommitted 
 
 // prepareParallelPullSnapshot tries to prepare the snapshot and its associated image in parallel
 func (o *snapshotter) prepareParallelPullSnapshot(ctx context.Context, key string, labels map[string]string, mounts []mount.Mount) error {
-	ctx, t, err := o.ms.TransactionContext(ctx, false)
+	mountpoint, err := o.snapshotMountpoint(ctx, key)
 	if err != nil {
 		return err
 	}
-	defer t.Rollback()
-	id, _, _, err := storage.GetInfo(ctx, key)
-	if err != nil {
-		return err
-	}
-	mountpoint := o.upperPath(id)
 	log.G(ctx).Infof("preparing local filesystem at mountpoint=%v", mountpoint)
 	return o.fs.MountParallel(ctx, mountpoint, labels, mounts)
 }
 
 // prepareLocalSnapshot tries to prepare the snapshot as a local snapshot.
 func (o *snapshotter) prepareLocalSnapshot(ctx context.Context, key string, labels map[string]string, mounts []mount.Mount) error {
-	ctx, t, err := o.ms.TransactionContext(ctx, false)
+	mountpoint, err := o.snapshotMountpoint(ctx, key)
 	if err != nil {
 		return err
 	}
-	defer t.Rollback()
-	id, _, _, err := storage.GetInfo(ctx, key)
-	if err != nil {
-		return err
-	}
-	mountpoint := o.upperPath(id)
 	log.G(ctx).Infof("preparing local filesystem at mountpoint=%v", mountpoint)
 	return o.fs.MountLocal(ctx, mountpoint, labels, mounts)
 }
@@ -1066,20 +1054,30 @@ func (o *snapshotter) prepareLocalSnapshot(ctx context.Context, key string, labe
 // prepareRemoteSnapshot tries to prepare the snapshot as a remote snapshot
 // using filesystems registered in this snapshotter.
 func (o *snapshotter) prepareRemoteSnapshot(ctx context.Context, key string, labels map[string]string) error {
-	ctx, t, err := o.ms.TransactionContext(ctx, false)
+	mountpoint, err := o.snapshotMountpoint(ctx, key)
 	if err != nil {
 		return err
 	}
-	defer t.Rollback()
-	id, _, _, err := storage.GetInfo(ctx, key)
-	if err != nil {
-		return err
-	}
-
-	mountpoint := o.upperPath(id)
 	log.G(ctx).Infof("preparing filesystem mount at mountpoint=%v", mountpoint)
 
 	return o.fs.Mount(ctx, mountpoint, labels)
+}
+
+// snapshotMountpoint closes the metadata transaction before filesystem work.
+// Mounts can call back into containerd while it is waiting on another snapshot
+// metadata write. Keeping a reader open can block that write during bbolt mmap
+// growth and deadlock both daemons.
+func (o *snapshotter) snapshotMountpoint(ctx context.Context, key string) (string, error) {
+	var id string
+	err := o.ms.WithTransaction(ctx, false, func(ctx context.Context) error {
+		var err error
+		id, _, _, err = storage.GetInfo(ctx, key)
+		return err
+	})
+	if err != nil {
+		return "", err
+	}
+	return o.upperPath(id), nil
 }
 
 // checkAvailability checks avaiability of the specified layer and all lower
