@@ -38,8 +38,10 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"syscall"
 	"testing"
+	"time"
 
 	"github.com/awslabs/soci-snapshotter/idtools"
 	"github.com/containerd/containerd/v2/core/mount"
@@ -773,4 +775,106 @@ func TestOverlayView(t *testing.T) {
 	if requiresUserXattrs && m.Options[1] != "userxattr" {
 		t.Errorf("expected userxattr option, but got %s", m.Options[1])
 	}
+}
+
+// These mounts can call containerd, which may itself be waiting for a snapshot
+// metadata write. A read transaction held across the mount prevents that write
+// from completing when bbolt needs to remap the database.
+func TestPrepareMountReleasesMetadataTransaction(t *testing.T) {
+	for _, mode := range []string{"remote", "local", "parallel"} {
+		t.Run(mode, func(t *testing.T) {
+			ctx := context.Background()
+			root := t.TempDir()
+			ms, err := storage.NewMetaStore(filepath.Join(root, "metadata.db"))
+			if err != nil {
+				t.Fatal(err)
+			}
+			t.Cleanup(func() {
+				if err := ms.Close(); err != nil {
+					t.Error(err)
+				}
+			})
+			var id string
+			if err := ms.WithTransaction(ctx, true, func(ctx context.Context) error {
+				s, err := storage.CreateSnapshot(ctx, snapshots.KindActive, "target", "")
+				id = s.ID
+				return err
+			}); err != nil {
+				t.Fatal(err)
+			}
+
+			writeDone := make(chan struct{})
+			var writeErr error
+			labels := map[string]string{"test": "label"}
+			mounts := []mount.Mount{{Type: "bind", Source: "test-source"}}
+			called := false
+			fs := &transactionTestFS{mount: func(ctx context.Context, mountpoint string, gotLabels map[string]string, gotMounts []mount.Mount) error {
+				called = true
+				if want := filepath.Join(root, "snapshots", id, "fs"); mountpoint != want {
+					t.Errorf("mountpoint = %q, want %q", mountpoint, want)
+				}
+				if gotLabels["test"] != labels["test"] {
+					t.Errorf("mount labels = %v, want %v", gotLabels, labels)
+				}
+				if mode != "remote" && (len(gotMounts) != 1 || gotMounts[0].Source != mounts[0].Source) {
+					t.Errorf("mounts = %v, want %v", gotMounts, mounts)
+				}
+
+				// Exceed the fresh database's mmap size so the writer must wait
+				// for any open readers, rather than merely committing alongside them.
+				go func() {
+					defer close(writeDone)
+					writeErr = ms.WithTransaction(context.Background(), true, func(ctx context.Context) error {
+						_, err := storage.CreateSnapshot(ctx, snapshots.KindActive, "concurrent", "",
+							snapshots.WithLabels(map[string]string{"large": strings.Repeat("x", 4<<20)}))
+						return err
+					})
+				}()
+				select {
+				case <-writeDone:
+					return writeErr
+				case <-time.After(5 * time.Second):
+					// Returning allows the old implementation to close its reader
+					// and unblock the writer, keeping the failing test recoverable.
+					return fmt.Errorf("metadata writer blocked during %s mount; read transaction still open", mode)
+				}
+			}}
+			sn := &snapshotter{root: root, ms: ms, fs: fs}
+			switch mode {
+			case "remote":
+				err = sn.prepareRemoteSnapshot(ctx, "target", labels)
+			case "local":
+				err = sn.prepareLocalSnapshot(ctx, "target", labels, mounts)
+			case "parallel":
+				err = sn.prepareParallelPullSnapshot(ctx, "target", labels, mounts)
+			}
+			if err != nil {
+				t.Error(err)
+			}
+			if !called {
+				t.Fatal("filesystem mount was not called")
+			}
+			<-writeDone
+			if writeErr != nil {
+				t.Fatalf("concurrent metadata write failed: %v", writeErr)
+			}
+		})
+	}
+}
+
+type transactionTestFS struct {
+	FileSystem
+	mount func(context.Context, string, map[string]string, []mount.Mount) error
+}
+
+func (fs *transactionTestFS) Mount(ctx context.Context, path string, labels map[string]string) error {
+	return fs.mount(ctx, path, labels, nil)
+}
+
+func (fs *transactionTestFS) MountLocal(ctx context.Context, path string, labels map[string]string, mounts []mount.Mount) error {
+	return fs.mount(ctx, path, labels, mounts)
+}
+
+func (fs *transactionTestFS) MountParallel(ctx context.Context, path string, labels map[string]string, mounts []mount.Mount) error {
+	return fs.mount(ctx, path, labels, mounts)
 }
