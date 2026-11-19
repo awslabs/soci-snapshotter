@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1794426648803,
+  "lastUpdate": 1795123358752,
   "repoUrl": "https://github.com/awslabs/soci-snapshotter",
   "entries": {
     "Soci Benchmark": [
@@ -20816,6 +20816,48 @@ window.BENCHMARK_DATA = {
           {
             "name": "SociFullECR-public-tensorflow_gpu-pullTaskDuration",
             "value": 1.8426,
+            "unit": "Seconds",
+            "extra": "P90"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "davbson@amazon.com",
+            "name": "David Son",
+            "username": "sondavidb"
+          },
+          "committer": {
+            "email": "55555210+sondavidb@users.noreply.github.com",
+            "name": "David Son",
+            "username": "sondavidb"
+          },
+          "distinct": true,
+          "id": "0f4344c75edff8f7488efcbaa4475fa6e615a202",
+          "message": "Ignore containerd api version bumps\n\nRevert once we upgrade to containerd 2.4 or later, or if the API somehow\nsupports containerd 2.3 again.\n\nSigned-off-by: David Son <davbson@amazon.com>",
+          "timestamp": "2026-11-19T15:49:19-05:00",
+          "tree_id": "ad6bf00a83d31e11d0e05cc49a806c76f472e547",
+          "url": "https://github.com/awslabs/soci-snapshotter/commit/0f4344c75edff8f7488efcbaa4475fa6e615a202"
+        },
+        "date": 1795123355717,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "SociFullECR-public-tensorflow_gpu-lazyTaskDuration",
+            "value": 28.9638,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-tensorflow_gpu-localTaskDuration",
+            "value": 2.1766,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-tensorflow_gpu-pullTaskDuration",
+            "value": 2.8028,
             "unit": "Seconds",
             "extra": "P90"
           }
