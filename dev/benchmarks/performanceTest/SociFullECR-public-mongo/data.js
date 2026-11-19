@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1794426646990,
+  "lastUpdate": 1795123165233,
   "repoUrl": "https://github.com/awslabs/soci-snapshotter",
   "entries": {
     "Soci Benchmark": [
@@ -20898,6 +20898,48 @@ window.BENCHMARK_DATA = {
           {
             "name": "SociFullECR-public-mongo-pullTaskDuration",
             "value": 1.096,
+            "unit": "Seconds",
+            "extra": "P90"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "davbson@amazon.com",
+            "name": "David Son",
+            "username": "sondavidb"
+          },
+          "committer": {
+            "email": "55555210+sondavidb@users.noreply.github.com",
+            "name": "David Son",
+            "username": "sondavidb"
+          },
+          "distinct": true,
+          "id": "0f4344c75edff8f7488efcbaa4475fa6e615a202",
+          "message": "Ignore containerd api version bumps\n\nRevert once we upgrade to containerd 2.4 or later, or if the API somehow\nsupports containerd 2.3 again.\n\nSigned-off-by: David Son <davbson@amazon.com>",
+          "timestamp": "2026-11-19T15:49:19-05:00",
+          "tree_id": "ad6bf00a83d31e11d0e05cc49a806c76f472e547",
+          "url": "https://github.com/awslabs/soci-snapshotter/commit/0f4344c75edff8f7488efcbaa4475fa6e615a202"
+        },
+        "date": 1795123162588,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "SociFullECR-public-mongo-lazyTaskDuration",
+            "value": 3.527,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-mongo-localTaskDuration",
+            "value": 0.2792,
+            "unit": "Seconds",
+            "extra": "P90"
+          },
+          {
+            "name": "SociFullECR-public-mongo-pullTaskDuration",
+            "value": 1.1958,
             "unit": "Seconds",
             "extra": "P90"
           }
