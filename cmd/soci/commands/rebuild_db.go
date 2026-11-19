@@ -48,6 +48,7 @@ var RebuildDBCommand = &cli.Command{
 		if err != nil {
 			return err
 		}
+		defer artifactsDb.Close()
 
 		blobStore, err := store.NewContentStore(internal.ContentStoreOptions(ctx, cmd)...)
 		if err != nil {
