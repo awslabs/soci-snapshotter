@@ -81,6 +81,13 @@ type SnapshotterConfig struct {
 	// NOTE: User needs to manually remove the snapshots from containerd's metadata store using
 	//       ctr (e.g. `ctr snapshot rm`).
 	AllowInvalidMountsOnRestart bool `toml:"allow_invalid_mounts_on_restart"`
+
+	// EnableOverlayfsVolatile adds the overlayfs "volatile" mount option to the overlay mounts
+	// of active (writable) snapshots. The kernel then skips syncing the upper filesystem,
+	// which includes the sync on unmount. Data written to the container's writable layer is
+	// not guaranteed to survive a host crash. overlayfs refuses to mount a volatile upper
+	// directory a second time, so each active snapshot can be mounted only once.
+	EnableOverlayfsVolatile bool `toml:"enable_overlayfs_volatile"`
 }
 
 func parseServiceConfig(cfg *Config) error {
