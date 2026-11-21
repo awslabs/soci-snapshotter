@@ -774,3 +774,79 @@ func TestOverlayView(t *testing.T) {
 		t.Errorf("expected userxattr option, but got %s", m.Options[1])
 	}
 }
+
+func TestOverlayVolatileMounts(t *testing.T) {
+	hasVolatile := func(m mount.Mount) bool {
+		for _, o := range m.Options {
+			if o == "volatile" {
+				return true
+			}
+		}
+		return false
+	}
+
+	for _, enabled := range []bool{false, true} {
+		t.Run(fmt.Sprintf("enabled=%v", enabled), func(t *testing.T) {
+			ctx, cancel := context.WithCancel(context.Background())
+			defer cancel()
+			ctx = namespaces.WithNamespace(ctx, namespaces.Default)
+			var opts []Opt
+			if enabled {
+				opts = append(opts, WithOverlayfsVolatile)
+			}
+			o, err := NewSnapshotter(ctx, t.TempDir(), dummyFileSystem(), opts...)
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer o.Close()
+
+			mounts, err := o.Prepare(ctx, "/tmp/base", "")
+			if err != nil {
+				t.Fatal(err)
+			}
+			if mounts[0].Type != "bind" || hasVolatile(mounts[0]) {
+				t.Errorf("active snapshot without parents: expected a bind mount without volatile, got %+v", mounts[0])
+			}
+			if err := o.Commit(ctx, "base", "/tmp/base"); err != nil {
+				t.Fatal(err)
+			}
+
+			mounts, err = o.Prepare(ctx, "/tmp/top", "base")
+			if err != nil {
+				t.Fatal(err)
+			}
+			if mounts[0].Type != "overlay" {
+				t.Fatalf("active snapshot with a parent: expected an overlay mount, got %+v", mounts[0])
+			}
+			if hasVolatile(mounts[0]) != enabled {
+				t.Errorf("active overlay mount: expected volatile=%v, got options %v", enabled, mounts[0].Options)
+			}
+			mounts, err = o.Mounts(ctx, "/tmp/top")
+			if err != nil {
+				t.Fatal(err)
+			}
+			if mounts[0].Type != "overlay" || hasVolatile(mounts[0]) != enabled {
+				t.Errorf("Mounts of the active snapshot: expected an overlay mount with volatile=%v, got %+v", enabled, mounts[0])
+			}
+			if err := o.Commit(ctx, "top", "/tmp/top"); err != nil {
+				t.Fatal(err)
+			}
+
+			mounts, err = o.View(ctx, "/tmp/view1", "base")
+			if err != nil {
+				t.Fatal(err)
+			}
+			if mounts[0].Type != "bind" || hasVolatile(mounts[0]) {
+				t.Errorf("view with one parent: expected a bind mount without volatile, got %+v", mounts[0])
+			}
+
+			mounts, err = o.View(ctx, "/tmp/view2", "top")
+			if err != nil {
+				t.Fatal(err)
+			}
+			if mounts[0].Type != "overlay" || hasVolatile(mounts[0]) {
+				t.Errorf("view with two parents: expected an overlay mount without volatile, got %+v", mounts[0])
+			}
+		})
+	}
+}

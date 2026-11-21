@@ -122,6 +122,9 @@ func NewSociSnapshotterService(ctx context.Context, root string, serviceCfg *con
 	if serviceCfg.SnapshotterConfig.AllowInvalidMountsOnRestart {
 		snOpts = append(snOpts, snbase.AllowInvalidMountsOnRestart)
 	}
+	if serviceCfg.SnapshotterConfig.EnableOverlayfsVolatile {
+		snOpts = append(snOpts, snbase.WithOverlayfsVolatile)
+	}
 	if serviceCfg.PullModes.Parallel.Enable {
 		snOpts = append(snOpts, snbase.ParallelPullUnpack)
 	}

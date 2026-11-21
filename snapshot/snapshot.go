@@ -127,6 +127,7 @@ type SnapshotterConfig struct {
 	allowInvalidMountsOnRestart bool
 	parallelPullUnpack          bool
 	parallelPullAsFallback      bool
+	overlayfsVolatile           bool
 }
 
 // Opt is an option to configure the remote snapshotter
@@ -151,6 +152,13 @@ func WithMinLayerSize(minLayerSize int64) Opt {
 
 func AllowInvalidMountsOnRestart(config *SnapshotterConfig) error {
 	config.allowInvalidMountsOnRestart = true
+	return nil
+}
+
+// WithOverlayfsVolatile adds the overlayfs "volatile" mount option to the
+// overlay mounts of active snapshots.
+func WithOverlayfsVolatile(config *SnapshotterConfig) error {
+	config.overlayfsVolatile = true
 	return nil
 }
 
@@ -180,6 +188,7 @@ type snapshotter struct {
 	allowInvalidMountsOnRestart bool
 	parallelPullUnpack          bool
 	parallelPullAsFallback      bool
+	overlayfsVolatile           bool
 	idmapped                    *sync.Map
 }
 
@@ -236,6 +245,7 @@ func NewSnapshotter(ctx context.Context, root string, targetFs FileSystem, opts 
 		idmapped:                    idMap,
 		parallelPullUnpack:          config.parallelPullUnpack,
 		parallelPullAsFallback:      config.parallelPullAsFallback,
+		overlayfsVolatile:           config.overlayfsVolatile,
 	}
 
 	if err := o.restoreRemoteSnapshot(ctx); err != nil {
@@ -917,6 +927,9 @@ func (o *snapshotter) mounts(ctx context.Context, s storage.Snapshot, checkKey s
 			fmt.Sprintf("workdir=%s", o.workPath(s.ID)),
 			fmt.Sprintf("upperdir=%s", o.upperPath(s.ID)),
 		)
+		if o.overlayfsVolatile {
+			options = append(options, "volatile")
+		}
 	} else if len(s.ParentIDs) == 1 {
 		return []mount.Mount{
 			{

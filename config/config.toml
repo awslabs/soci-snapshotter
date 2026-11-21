@@ -94,3 +94,4 @@ skip_check_snapshotter_supported = false
 [snapshotter]
   min_layer_size = 0
   allow_invalid_mounts_on_restart = false
+  enable_overlayfs_volatile = false
