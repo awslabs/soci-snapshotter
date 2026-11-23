@@ -40,10 +40,16 @@ package fs
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"net/http"
+	"net/http/httptest"
 	"path/filepath"
+	"strings"
+	"sync/atomic"
 	"testing"
 
+	"github.com/awslabs/soci-snapshotter/config"
 	"github.com/awslabs/soci-snapshotter/fs/layer"
 	layermetrics "github.com/awslabs/soci-snapshotter/fs/metrics/layer"
 	"github.com/awslabs/soci-snapshotter/fs/remote"
@@ -51,6 +57,7 @@ import (
 	"github.com/awslabs/soci-snapshotter/idtools"
 	"github.com/containerd/containerd/v2/core/remotes/docker"
 	"github.com/containerd/containerd/v2/pkg/reference"
+	"github.com/containerd/errdefs"
 	fusefs "github.com/hanwen/go-fuse/v2/fs"
 	digest "github.com/opencontainers/go-digest"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
@@ -250,3 +257,50 @@ type doneCountingLayer struct {
 }
 
 func (l *doneCountingLayer) Done() { l.doneCalls++ }
+
+func TestGetSociContextCaching(t *testing.T) {
+	const noIndexManifest = `{"schemaVersion":2}`
+	imgDigest := digest.FromString(noIndexManifest).String()
+	tests := []struct {
+		name      string
+		status    int
+		body      string
+		wantErr   error
+		wantCache bool
+	}{
+		{name: "server error is retried", status: http.StatusInternalServerError, wantCache: false},
+		{name: "unauthorized is retried", status: http.StatusUnauthorized, wantCache: false},
+		{name: "no index is cached", status: http.StatusOK, body: noIndexManifest, wantErr: errdefs.ErrNotFound, wantCache: true},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			var requests atomic.Int32
+			srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				requests.Add(1)
+				w.Header().Set("Content-Type", ocispec.MediaTypeImageManifest)
+				w.WriteHeader(tc.status)
+				w.Write([]byte(tc.body))
+			}))
+			defer srv.Close()
+
+			fs := &filesystem{pullModes: config.PullModes{SOCIv2: config.V2{Enable: true}}}
+			ref := strings.TrimPrefix(srv.URL, "http://") + "/repo:latest"
+			for i := 1; i <= 2; i++ {
+				_, err := fs.getSociContext(context.Background(), ref, "", imgDigest, srv.Client())
+				if err == nil {
+					t.Fatalf("call %d: expected an error", i)
+				}
+				if tc.wantErr != nil && !errors.Is(err, tc.wantErr) {
+					t.Fatalf("call %d: got %v, want %v", i, err, tc.wantErr)
+				}
+			}
+			want := int32(2)
+			if tc.wantCache {
+				want = 1
+			}
+			if got := requests.Load(); got != want {
+				t.Fatalf("got %d requests, want %d", got, want)
+			}
+		})
+	}
+}
