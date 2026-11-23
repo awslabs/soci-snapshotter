@@ -952,6 +952,10 @@ func (fs *filesystem) getSociContext(ctx context.Context, imageRef, indexDigest,
 		return nil, fmt.Errorf("could not load index: fs soci context is invalid type for %s", indexDigest)
 	}
 	err := c.Init(ctx, fs, imageRef, indexDigest, imageManifestDigest, client)
+	if err != nil && !errors.Is(err, errdefs.ErrNotFound) && !errors.Is(err, ErrAllLazyPullModesDisabled) {
+		// Only cache definitive "no index" results; evict transient failures so the next call retries.
+		fs.sociContexts.CompareAndDelete(imageManifestDigest, c)
+	}
 	return c, err
 }
 
