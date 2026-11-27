@@ -9,16 +9,19 @@ type CompressionAlgorithm int8
 const (
 	CompressionAlgorithmGzip         CompressionAlgorithm = 1
 	CompressionAlgorithmUncompressed CompressionAlgorithm = 2
+	CompressionAlgorithmZstd         CompressionAlgorithm = 3
 )
 
 var EnumNamesCompressionAlgorithm = map[CompressionAlgorithm]string{
 	CompressionAlgorithmGzip:         "Gzip",
 	CompressionAlgorithmUncompressed: "Uncompressed",
+	CompressionAlgorithmZstd:         "Zstd",
 }
 
 var EnumValuesCompressionAlgorithm = map[string]CompressionAlgorithm{
 	"Gzip":         CompressionAlgorithmGzip,
 	"Uncompressed": CompressionAlgorithmUncompressed,
+	"Zstd":         CompressionAlgorithmZstd,
 }
 
 func (v CompressionAlgorithm) String() string {

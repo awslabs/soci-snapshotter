@@ -34,7 +34,7 @@ type Builder struct {
 }
 
 // NewBuilder creates a `Builder` used to build ztocs. By default it supports gzip,
-// user can register new compression algorithms by calling `RegisterCompressionAlgorithm`.
+// zstd and uncompressed tar, user can register new compression algorithms by calling `RegisterCompressionAlgorithm`.
 func NewBuilder(buildToolIdentifier string) *Builder {
 	builder := Builder{
 		tocBuilder:          NewTocBuilder(),
@@ -42,6 +42,7 @@ func NewBuilder(buildToolIdentifier string) *Builder {
 		buildToolIdentifier: buildToolIdentifier,
 	}
 	builder.RegisterCompressionAlgorithm(compression.Gzip, TarProviderGzip, gzipZinfoBuilder{})
+	builder.RegisterCompressionAlgorithm(compression.Zstd, TarProviderZstd, zstdZinfoBuilder{})
 	builder.RegisterCompressionAlgorithm(compression.Uncompressed, TarProviderTar, tarZinfoBuilder{})
 	builder.RegisterCompressionAlgorithm(compression.Unknown, TarProviderTar, tarZinfoBuilder{})
 
@@ -87,7 +88,7 @@ func (b *Builder) BuildZtoc(filename string, span int64, options ...BuildOption)
 	}
 
 	if !b.CheckCompressionAlgorithm(opt.algorithm) {
-		return nil, fmt.Errorf("unsupported compression algorithm, supported: gzip, got: %s", opt.algorithm)
+		return nil, fmt.Errorf("unsupported compression algorithm, supported: gzip, zstd, uncompressed, got: %s", opt.algorithm)
 	}
 
 	compressionInfo, fs, err := b.zinfoBuilders[opt.algorithm].ZinfoFromFile(filename, span)

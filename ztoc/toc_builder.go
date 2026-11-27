@@ -18,6 +18,7 @@ package ztoc
 
 import (
 	"archive/tar"
+	"bufio"
 	"compress/gzip"
 	"errors"
 	"fmt"
@@ -40,7 +41,7 @@ func TarProviderGzip(compressedReader *os.File) (io.Reader, error) {
 
 // TarProviderZstd creates a tar reader from zstd reader.
 func TarProviderZstd(compressedReader *os.File) (io.Reader, error) {
-	return zstd.NewReader(compressedReader)
+	return zstd.NewReader(bufio.NewReaderSize(compressedReader, 1<<20))
 }
 
 // TarProviderTar return the tar file directly as the input to

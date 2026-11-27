@@ -68,6 +68,14 @@ Each checkpoint in the collection contains the state needed
 to decompress a specific region of the layer TAR.
 This region is known as a span.
 
+SOCI can build zInfos for gzip, zstd and uncompressed layers.
+For zstd, a checkpoint stores only the part of the decompression window that its span references,
+so the zInfo stays small at the default compression levels but grows with higher levels.
+zstd layers that use a window larger than 8 MiB (for example `zstd --long` or `--ultra`)
+or a dictionary are not indexed and are pulled without lazy loading.
+A zstd layer is also not indexed if its zInfo would be larger than half of the compressed layer,
+which can happen when the layer contains many copies of the same data.
+
 The following figure builds a data model for a layer TAR and its zTOC:
 
 ![ztoc-concept](images/soci-index-ztoc-conceptual-data-model.drawio.svg)

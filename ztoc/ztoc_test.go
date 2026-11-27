@@ -48,6 +48,20 @@ func buildTarGZ(t testing.TB, tarName string, tarEntries []testutil.TarEntry) (s
 	return tarGzFilePath, m, fileNames
 }
 
+// buildTarZstd creates a temp tar zstd file with the given `tarEntries`.
+func buildTarZstd(t testing.TB, tarName string, tarEntries []testutil.TarEntry) (string, map[string][]byte, []string) {
+	// The file contents come from the same entries written without compression.
+	tarFilePath, m, fileNames := buildTar(t, tarName, tarEntries)
+	if err := os.Remove(tarFilePath); err != nil {
+		t.Fatalf("cannot remove %s: %v", tarFilePath, err)
+	}
+	tarZstdFilePath, _, err := testutil.WriteTarToTempFile(tarName+".tar.zst", testutil.BuildTarZstd(tarEntries, 3))
+	if err != nil {
+		t.Fatalf("cannot prepare the .tar.zst file for testing: %v", err)
+	}
+	return tarZstdFilePath, m, fileNames
+}
+
 func buildTar(t testing.TB, tarName string, tarEntries []testutil.TarEntry) (string, map[string][]byte, []string) {
 	tarReader := testutil.BuildTar(tarEntries)
 	tarFilePath, _, err := testutil.WriteTarToTempFile(tarName+".tar", tarReader)
@@ -77,6 +91,11 @@ var testZtocs = []struct {
 		name:            "gzip",
 		compressionAlgo: compression.Gzip,
 		tarGenerator:    buildTarGZ,
+	},
+	{
+		name:            "zstd",
+		compressionAlgo: compression.Zstd,
+		tarGenerator:    buildTarZstd,
 	},
 	{
 		name:            "uncompressed",

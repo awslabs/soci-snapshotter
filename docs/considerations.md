@@ -12,6 +12,12 @@ Here are a few things to consider as a result of SOCI’s performance characteri
 
 **Healthchecks** - SOCI may cause the total container start up time to increase. You may need to relax healthcheck timeouts to avoid container startup issues.
 
+**zstd layers** - To decompress a span of a zstd layer, the snapshotter needs memory for up to about three decompression windows (up to 8 MiB each), compared with 32 KiB for gzip. The snapshotter decompresses at most four such spans at the same time.
+
+## Compatibility
+
+**zstd layers** - SOCI indexes for zstd layers can only be used by snapshotter versions that support zstd. Older snapshotters download the zTOC, fail to load it, and pull these layers without lazy loading. Upgrade the snapshotter before you create SOCI indexes for zstd images.
+
 ## Discovery
 
 The SOCI snapshotter is configured to automatically discover and use SOCI indexes when they are present. As a recommended best practice, you should verify the source of any image and SOCI indexes you use is a known trusted source. This includes when pulling images directly from third-party repositories.

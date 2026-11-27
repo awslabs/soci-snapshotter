@@ -7,4 +7,25 @@ table TarZinfo {
 
 }
 
+// ZstdCheckpoint is the decoder state at a block boundary of a zstd stream.
+table ZstdCheckpoint {
+	compressed_offset : int64;		// offset of the block header in the compressed stream
+	uncompressed_offset : int64;	// offset of the block's data in the uncompressed stream
+	frame_offset : int64;			// uncompressed offset of the block within its frame
+	window_size : int64;			// window size of the frame
+	frame_has_checksum : bool;		// whether the frame ends with a checksum
+	repeat_offsets : [uint32];		// the three repeat offsets
+	huffman_table : [ubyte];		// Huffman tree description of the literals
+	literal_lengths_table : [ubyte];	// FSE table description
+	offsets_table : [ubyte];		// FSE table description
+	match_lengths_table : [ubyte];	// FSE table description
+	history : [ubyte];				// zstd-compressed window bytes before the checkpoint that the span references, see setHistory
+}
+
+table ZstdZinfo {
+	version : int32;
+	span_size : int64;
+	checkpoints : [ZstdCheckpoint];
+}
+
 root_type TarZinfo;
