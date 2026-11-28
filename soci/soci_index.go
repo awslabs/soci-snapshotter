@@ -668,7 +668,7 @@ func (b *IndexBuilder) buildSociLayer(ctx context.Context, desc ocispec.Descript
 	}
 
 	if !b.ztocBuilder.CheckCompressionAlgorithm(compressionAlgo) {
-		fmt.Printf("ztoc skipped - layer %s (%s) is compressed in an unsupported format. expect: [tar, gzip, unknown] but got %q\n",
+		fmt.Printf("ztoc skipped - layer %s (%s) is compressed in an unsupported format. expect: [uncompressed, gzip, zstd, unknown] but got %q\n",
 			desc.Digest, desc.MediaType, compressionAlgo)
 		return nil, nil, errUnsupportedLayerFormat
 	}
@@ -719,6 +719,10 @@ func (b *IndexBuilder) buildSociLayer(ctx context.Context, desc ocispec.Descript
 
 	toc, err := b.ztocBuilder.BuildZtoc(tmpFile.Name(), b.config.spanSize, ztoc.WithCompression(compressionAlgo))
 	if err != nil {
+		if errors.Is(err, compression.ErrUnsupportedZstdFeature) {
+			fmt.Printf("ztoc skipped - layer %s (%s) cannot be lazily loaded: %v\n", desc.Digest, desc.MediaType, err)
+			return nil, nil, errUnsupportedLayerFormat
+		}
 		return nil, nil, err
 	}
 

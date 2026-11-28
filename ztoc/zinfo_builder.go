@@ -66,6 +66,40 @@ func (gzb gzipZinfoBuilder) ZinfoFromFile(filename string, spanSize int64) (zinf
 	}, fs, nil
 }
 
+type zstdZinfoBuilder struct{}
+
+// ZinfoFromFile creates zinfo for a zstd file. The underlying zinfo object (i.e. `ZstdZinfo`)
+// is stored in `CompressionInfo.Checkpoints` as byte slice.
+func (zb zstdZinfoBuilder) ZinfoFromFile(filename string, spanSize int64) (zinfo CompressionInfo, fs compression.Offset, err error) {
+	index, err := compression.NewZinfoFromFile(compression.Zstd, filename, spanSize)
+	if err != nil {
+		return
+	}
+	defer index.Close()
+
+	fs, err = getFileSize(filename)
+	if err != nil {
+		return
+	}
+
+	digests, err := getPerSpanDigests(filename, int64(fs), index)
+	if err != nil {
+		return
+	}
+
+	checkpoints, err := index.Bytes()
+	if err != nil {
+		return
+	}
+
+	return CompressionInfo{
+		MaxSpanID:            index.MaxSpanID(),
+		SpanDigests:          digests,
+		Checkpoints:          checkpoints,
+		CompressionAlgorithm: compression.Zstd,
+	}, fs, nil
+}
+
 type tarZinfoBuilder struct{}
 
 func (tzb tarZinfoBuilder) ZinfoFromFile(filename string, spanSize int64) (zinfo CompressionInfo, fs compression.Offset, err error) {

@@ -39,6 +39,7 @@ import (
 	"math"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 
@@ -343,6 +344,113 @@ func TestLazyPull(t *testing.T) {
 		})
 	}
 
+}
+
+// TestLazyPullZstd tests that an image with zstd-compressed layers is indexed
+// and lazily pulled, and that its contents match a normal pull.
+func TestLazyPullZstd(t *testing.T) {
+	regConfig := newRegistryConfig()
+
+	sh, done := newShellWithRegistry(t, regConfig)
+	defer done()
+
+	rebootContainerd(t, sh, getContainerdConfigToml(t, false), getSnapshotterConfigToml(t))
+	src := dockerhub(nginxImage)
+	zstdMirror := regConfig.mirror(nginxImage + "-zstd")
+	sh.X("nerdctl", "pull", "-q", "--platform", platforms.Format(src.platform), src.ref)
+	sh.X("nerdctl", "image", "convert", "--zstd", "--oci",
+		"--platform", platforms.Format(src.platform), src.ref, zstdMirror.ref)
+	sh.X("nerdctl", "push", "-q", "--platform", platforms.Format(src.platform), zstdMirror.ref)
+
+	checkZtocs := func(t *testing.T, indexDigest string) {
+		index, err := sociIndexFromDigest(sh, indexDigest)
+		if err != nil {
+			t.Fatalf("cannot get soci index: %v", err)
+		}
+		ztocs := 0
+		for _, blob := range index.Blobs {
+			if blob.MediaType == soci.SociLayerMediaType {
+				if mt := blob.Annotations[soci.IndexAnnotationImageLayerMediaType]; mt != ocispec.MediaTypeImageLayerZstd {
+					t.Fatalf("ztoc %s is for a %s layer, expected zstd", blob.Digest, mt)
+				}
+				ztocs++
+			}
+		}
+		if ztocs == 0 {
+			t.Fatal("no ztocs were created for the zstd layers")
+		}
+	}
+
+	// Index manifest v1, created with soci create.
+	v1IndexDigest := buildIndex(sh, zstdMirror, withMinLayerSize(0))
+	checkZtocs(t, v1IndexDigest)
+	sh.X("soci", "push", "--user", regConfig.creds(), zstdMirror.ref)
+
+	// Index manifest v2, created with soci convert.
+	v2Mirror := regConfig.mirror(nginxImage + "-zstd-soci")
+	sh.X("soci", "convert", "--platform", platforms.Format(src.platform), "--min-layer-size", "0", zstdMirror.ref, v2Mirror.ref)
+	sh.X("nerdctl", "login", "-u", regConfig.user, "-p", regConfig.pass, v2Mirror.ref)
+	sh.X("nerdctl", "push", "-q", "--platform", platforms.Format(src.platform), v2Mirror.ref)
+	v2IndexDigest := strings.TrimSpace(string(sh.O("soci", "index", "list", "-q", "--ref", v2Mirror.ref,
+		"--platform", platforms.Format(src.platform))))
+	checkZtocs(t, v2IndexDigest)
+
+	fromNormalSnapshotter := func(image string) tarPipeExporter {
+		return func(t *testing.T, tarExportArgs ...string) {
+			rebootContainerd(t, sh, "", "")
+			sh.X("nerdctl", "pull", "-q", image)
+			sh.Pipe(nil, shell.C("nerdctl", "run", "--name", "test", "--pull", "never", "--net", "none", "--rm", image, "tar", "-zc", "/usr"), tarExportArgs)
+		}
+	}
+	// NOTE: these tests must be executed sequentially.
+	indexVariants := []struct {
+		name     string
+		image    string
+		pullArgs []string
+		opts     []snapshotterConfigOpt
+	}{
+		{
+			name:     "index manifest v1",
+			image:    zstdMirror.ref,
+			pullArgs: []string{"--soci-index-digest", v1IndexDigest},
+		},
+		{
+			name:  "index manifest v2",
+			image: v2Mirror.ref,
+			opts:  []snapshotterConfigOpt{withPullModes(config.DefaultPullModes())},
+		},
+	}
+	bgFetchVariants := []struct {
+		name string
+		opt  snapshotterConfigOpt
+	}{
+		{
+			name: "with bg fetch",
+			opt:  func(c *config.Config) {},
+		},
+		{
+			name: "without bg fetch",
+			opt:  withDisableBgFetcher,
+		},
+	}
+	for _, indexVariant := range indexVariants {
+		for _, bgFetchVariant := range bgFetchVariants {
+			t.Run(indexVariant.name+" "+bgFetchVariant.name, func(t *testing.T) {
+				lazyPull := func(t *testing.T, tarExportArgs ...string) {
+					image := indexVariant.image
+					rsm := testutil.NewRemoteSnapshotMonitor()
+					opts := append(slices.Clone(indexVariant.opts), bgFetchVariant.opt)
+					m := rebootContainerd(t, sh, "", getSnapshotterConfigToml(t, opts...), rsm.MonitorFunc)
+					defer m.Cleanup(t)
+					pull := append(slices.Clone(imagePullCmd), indexVariant.pullArgs...)
+					sh.X(append(pull, image)...)
+					sh.Pipe(nil, shell.C(append(runSociCmd, "--name", "test", "--rm", image, "tar", "-zc", "/usr")...), tarExportArgs)
+					rsm.CheckAllRemoteSnapshots(t)
+				}
+				testSameTarContents(t, sh, fromNormalSnapshotter(indexVariant.image), lazyPull)
+			})
+		}
+	}
 }
 
 // TestLazyPull tests if lazy pulling works when no index digest is provided (makes a Referrers API call)

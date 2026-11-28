@@ -23,6 +23,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"os"
 	"testing"
 
 	"github.com/awslabs/soci-snapshotter/cache"
@@ -161,6 +162,50 @@ func TestSpanManager(t *testing.T) {
 				t.Fatalf("failed returning ErrExceedMaxSpan for span id larger than max span id")
 			}
 		})
+	}
+}
+
+func TestSpanManagerZstd(t *testing.T) {
+	var spanSize int64 = 256 << 10
+	// Compressible content, so that spans reference data in earlier spans.
+	var content bytes.Buffer
+	tRand := testutil.NewTestRand(t)
+	chunk := tRand.RandomByteData(4096)
+	for i := 0; content.Len() < 1<<20; i++ {
+		content.Write(chunk[i%4096:])
+		content.Write(tRand.RandomByteData(int64(i % 64)))
+	}
+	fileName := "span-manager-zstd-test"
+	tarEntries := []testutil.TarEntry{
+		testutil.File("small", "small file"),
+		testutil.File(fileName, content.String()),
+	}
+	tarFile, tarData, err := testutil.WriteTarToTempFile("tmp.*.zst", testutil.BuildTarZstd(tarEntries, 3))
+	if err != nil {
+		t.Fatalf("failed to create layer: %v", err)
+	}
+	defer os.Remove(tarFile)
+	toc, err := ztoc.NewBuilder("test").BuildZtoc(tarFile, spanSize, ztoc.WithCompression(compression.Zstd))
+	if err != nil {
+		t.Fatalf("failed to create ztoc: %v", err)
+	}
+	if toc.MaxSpanID < 2 {
+		t.Fatalf("expected several spans, got %d", toc.MaxSpanID+1)
+	}
+
+	cache := cache.NewMemoryCache()
+	defer cache.Close()
+	r := io.NewSectionReader(bytes.NewReader(tarData), 0, int64(len(tarData)))
+	m, err := New(toc, r, cache, 0, digest.FromString(""))
+	if err != nil {
+		t.Fatalf("failed to create span manager: %v", err)
+	}
+	got, err := getFileContentFromSpans(m, toc, fileName)
+	if err != nil {
+		t.Fatalf("failed to get file content: %v", err)
+	}
+	if !bytes.Equal(got, content.Bytes()) {
+		t.Fatal("file contents are not the same as span contents")
 	}
 }
 
